@@ -78,32 +78,19 @@ The NPM Package Directory is a submission platform where users can:
 ### Backend
 
 - **Convex**: Real-time backend with automatic reactivity
-- **Convex Auth**: Authentication system with Password and Anonymous providers
+- **Convex Auth**: Authentication system with Password provider
 - **npm Registry API**: Integration with npmjs.org for package metadata
 - **npm Downloads API**: Weekly download statistics
 
 ### Development Tools
 
-- **Chef**: AI-powered development platform for building Convex apps
+- **Cursor**: AI-powered code editor
 - **ESLint**: Code linting with TypeScript support
 - **Prettier**: Code formatting
 
 ## How It Was Built
 
-This application was built using [Chef](https://chef.convex.dev), an AI-powered development platform that helps developers build Convex applications. Chef provides:
-
-- Automated code generation and suggestions
-- Real-time collaboration with AI
-- Integrated development workflow
-- Best practices enforcement
-
-The app follows Convex best practices including:
-
-- Type-safe function definitions with validators
-- Indexed database queries for performance
-- Real-time reactive queries
-- Proper authentication and authorization patterns
-- HTTP endpoints for CSV export
+MVP built with [Chef](https://chef.convex.dev), then developed further using [Cursor](https://cursor.com). The app follows Convex best practices with type-safe functions, indexed queries, and real-time reactivity.
 
 ## Deployment
 
@@ -116,18 +103,6 @@ This app is configured for deployment to Netlify:
 3. **Environment Variables**:
    - `VITE_CONVEX_URL`: Your Convex deployment URL
    - `CONVEX_SITE_URL`: Your site URL for auth configuration
-
-### Convex Deployment
-
-The backend is deployed to Convex Cloud. The deployment name is `third-hedgehog-429`.
-
-To deploy:
-
-```bash
-npm run dev:backend
-```
-
-This starts the Convex development server and syncs your functions to the cloud.
 
 ## How It Works
 
@@ -165,12 +140,7 @@ All package listings use Convex queries that automatically update when new packa
 
 ### Authentication
 
-The app uses Convex Auth with two providers:
-
-- **Password**: Email/password authentication for admin access
-- **Anonymous**: Quick anonymous sign-in for general use
-
-Package submissions do not require authentication. Users provide their name, email, and optional Discord username when submitting. The public frontend has no login/signup UI. Admin access is available via the `/admin` route and is restricted to users with @convex.dev email addresses, checked via the `isAdmin` query.
+The app uses Convex Auth with Password provider for admin access. Package submissions do not require authentication. Users provide their name, email, and optional Discord username when submitting. The public frontend has no login/signup UI. Admin access is available via the `/admin` route and is restricted to users with @convex.dev email addresses.
 
 ### Database Schema
 
@@ -278,6 +248,4 @@ User-defined HTTP routes are in `convex/router.ts`, while authentication routes 
 
 - [Convex Documentation](https://docs.convex.dev/)
 - [Convex Auth](https://auth.convex.dev/)
-- [Chef Documentation](https://docs.convex.dev/chef)
 - [Convex Best Practices](https://docs.convex.dev/understanding/best-practices/)
-# components-submissions-directory
