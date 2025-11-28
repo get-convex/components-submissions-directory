@@ -1,0 +1,1884 @@
+import { useAction, useQuery } from "convex/react";
+import { api } from "../convex/_generated/api";
+import { Toaster, toast } from "sonner";
+import { useState, useEffect } from "react";
+import { Id } from "../convex/_generated/dataModel";
+import {
+  Package,
+  DownloadSimple,
+  CalendarBlank,
+  Copy,
+  Check,
+  ArrowSquareOut,
+  GithubLogo,
+  Globe,
+  Hourglass,
+  GitPullRequest,
+  CheckCircle,
+  Warning,
+  X,
+  MagnifyingGlass,
+  CaretDown,
+  CaretUp,
+  SortAscending,
+  User,
+  Prohibit,
+  ChatCircleText,
+  Star,
+  Info,
+} from "@phosphor-icons/react";
+
+// Review status type
+type ReviewStatus =
+  | "pending"
+  | "in_review"
+  | "approved"
+  | "changes_requested"
+  | "rejected";
+
+// Custom tooltip component with multiple position options
+function Tooltip({
+  children,
+  content,
+  position = "bottom",
+}: {
+  children: React.ReactNode;
+  content: string;
+  position?: "top" | "bottom" | "left" | "right";
+}) {
+  const positionClasses = {
+    top: "bottom-full left-1/2 -translate-x-1/2 mb-1",
+    bottom: "top-full left-1/2 -translate-x-1/2 mt-1",
+    left: "right-full top-1/2 -translate-y-1/2 mr-1",
+    right: "left-full top-1/2 -translate-y-1/2 ml-1",
+  };
+
+  const arrowClasses = {
+    top: "top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-dark",
+    bottom:
+      "bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-dark",
+    left: "left-full top-1/2 -translate-y-1/2 border-4 border-transparent border-l-dark",
+    right:
+      "right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-dark",
+  };
+
+  return (
+    <div className="relative group">
+      {children}
+      <div
+        className={`absolute z-50 px-2 py-1 text-xs font-normal text-white bg-dark rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap ${positionClasses[position]}`}
+      >
+        {content}
+        <div className={`absolute ${arrowClasses[position]}`} />
+      </div>
+    </div>
+  );
+}
+
+// Custom modal component for app-styled alerts
+function CustomModal({
+  isOpen,
+  onClose,
+  title,
+  message,
+  type = "error",
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  message: string;
+  type?: "error" | "warning" | "success" | "info";
+}) {
+  // Handle ESC key to close modal
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const iconConfig = {
+    error: { icon: <X size={24} weight="bold" />, color: "text-red-600" },
+    warning: {
+      icon: <Warning size={24} weight="bold" />,
+      color: "text-yellow-600",
+    },
+    success: {
+      icon: <CheckCircle size={24} weight="bold" />,
+      color: "text-green-600",
+    },
+    info: {
+      icon: <Package size={24} weight="bold" />,
+      color: "text-blue-600",
+    },
+  };
+
+  const { icon, color } = iconConfig[type];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative w-full max-w-sm p-6 rounded-container bg-white border border-border shadow-lg">
+        <div className="flex items-start gap-3 mb-4">
+          <div className={`shrink-0 ${color}`}>{icon}</div>
+          <div>
+            <h3 className="text-lg font-normal text-text-primary">{title}</h3>
+            <p className="mt-1 text-sm text-text-secondary">{message}</p>
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <button
+            onClick={onClose}
+            autoFocus
+            className="px-4 py-2 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors focus:outline-none focus:ring-2 focus:ring-button/50"
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Review status badge component for frontend display
+function ReviewStatusBadge({ status }: { status: ReviewStatus | undefined }) {
+  const displayStatus = status || "pending";
+
+  const config: Record<
+    ReviewStatus,
+    { icon: React.ReactNode; label: string; className: string }
+  > = {
+    pending: {
+      icon: <Hourglass size={12} weight="bold" />,
+      label: "Pending",
+      className: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
+    },
+    in_review: {
+      icon: <GitPullRequest size={12} weight="bold" />,
+      label: "In Review",
+      className: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+    },
+    approved: {
+      icon: <CheckCircle size={12} weight="bold" />,
+      label: "Approved",
+      className: "bg-green-500/10 text-green-600 border-green-500/20",
+    },
+    changes_requested: {
+      icon: <Warning size={12} weight="bold" />,
+      label: "Changes",
+      className: "bg-orange-500/10 text-orange-600 border-orange-500/20",
+    },
+    rejected: {
+      icon: <Prohibit size={12} weight="bold" />,
+      label: "Rejected",
+      className: "bg-red-500/10 text-red-600 border-red-500/20",
+    },
+  };
+
+  const { icon, label, className } = config[displayStatus];
+
+  return (
+    <Tooltip content={`Review Status: ${label}`}>
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${className}`}
+      >
+        {icon}
+        <span className="hidden sm:inline">{label}</span>
+      </span>
+    </Tooltip>
+  );
+}
+
+export default function App() {
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [showAboutModal, setShowAboutModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<"newest" | "downloads" | "updated">(
+    "newest",
+  );
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // ESC to close modals
+      if (e.key === "Escape") {
+        setShowSubmitModal(false);
+        setShowAboutModal(false);
+      }
+      // Cmd+K or Ctrl+K for search focus
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        const searchInput = document.querySelector(
+          'input[placeholder="Search..."]',
+        ) as HTMLInputElement;
+        searchInput?.focus();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  return (
+    <div className="min-h-screen flex flex-col bg-bg-primary">
+      {/* Header */}
+      <header className="sticky top-0 z-50 backdrop-blur-sm border-b border-border px-4 sm:px-6 py-3 bg-bg-primary">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row gap-3 sm:gap-4 sm:justify-between sm:items-center">
+          {/* Title */}
+          <h1 className="flex items-center gap-2 text-lg sm:text-xl font-normal text-text-primary shrink-0">
+            <a
+              href="https://convex.dev"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block hover:opacity-80 transition-opacity"
+            >
+              <img
+                src="/wordmark-black.svg"
+                alt="Convex"
+                className="h-14 w-auto"
+              />
+            </a>
+            <span className="whitespace-nowrap font-sans text-xl sm:text-title font-medium">
+              components npm submissions directory
+            </span>
+            <Tooltip content="About this app">
+              <button
+                onClick={() => setShowAboutModal(true)}
+                className="ml-1 p-1.5 rounded-full text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+              >
+                <Info size={20} weight="bold" />
+              </button>
+            </Tooltip>
+          </h1>
+
+          {/* Search, Sort, Submit and Auth section */}
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
+            {/* Search input in header */}
+            <Tooltip content="Search packages (⌘K)">
+              <div className="relative flex-1 sm:flex-none sm:w-48">
+                <MagnifyingGlass
+                  size={16}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary"
+                />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-8 pr-10 py-1.5 rounded-full border border-border bg-bg-card text-text-primary text-sm outline-none focus:border-button transition-colors"
+                />
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-text-secondary bg-bg-hover px-1.5 py-0.5 rounded hidden sm:inline">
+                  ⌘K
+                </span>
+              </div>
+            </Tooltip>
+
+            {/* Sort dropdown in header */}
+            <Tooltip content="Sort packages">
+              <div className="flex items-center gap-1 px-2 py-1.5 rounded-full text-sm border border-border bg-bg-card">
+                <SortAscending size={14} className="text-text-secondary" />
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                  className="bg-transparent text-text-primary text-xs outline-none cursor-pointer"
+                >
+                  <option value="newest">Newest</option>
+                  <option value="downloads">Downloads</option>
+                  <option value="updated">Updated</option>
+                </select>
+              </div>
+            </Tooltip>
+
+            {/* GitHub button */}
+            <Tooltip content="View Convex Backend on GitHub">
+              <a
+                href="https://github.com/get-convex/convex-backend"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center w-9 h-9 rounded-full text-text-primary hover:bg-bg-hover transition-colors border border-border"
+              >
+                <GithubLogo size={18} weight="fill" />
+              </a>
+            </Tooltip>
+
+            {/* Submit button */}
+            <Tooltip content="Submit a new package">
+              <button
+                onClick={() => setShowSubmitModal(true)}
+                className="px-4 py-1.5 rounded-full text-sm font-normal bg-[#292929] text-white hover:bg-[#1a1a1a] transition-colors"
+              >
+                Submit
+              </button>
+            </Tooltip>
+          </div>
+        </div>
+      </header>
+
+      {/* Main content */}
+      <main className="flex-1 px-4 sm:px-6 py-6 sm:py-8">
+        <Content searchTerm={searchTerm} sortBy={sortBy} />
+      </main>
+
+      {/* Status Legend Bar */}
+      <StatusLegendBar />
+
+      {/* Footer */}
+      <Footer />
+
+      <Toaster />
+
+      {/* Submit modal */}
+      {showSubmitModal && (
+        <SubmitPackageModal onClose={() => setShowSubmitModal(false)} />
+      )}
+
+      {/* About modal */}
+      {showAboutModal && (
+        <AboutModal onClose={() => setShowAboutModal(false)} />
+      )}
+    </div>
+  );
+}
+
+// External link icon component
+function ExternalLinkIcon() {
+  return (
+    <svg
+      className="w-3 h-3 ml-1 inline-block opacity-50"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+      />
+    </svg>
+  );
+}
+
+// Convex-style Footer component matching convex.dev
+function Footer() {
+  return (
+    <footer className="bg-[#141414] text-white mt-[100px]">
+      {/* CTA Section */}
+      <div className="mx-auto w-full max-w-[1536px] px-3 sm:px-5 md:px-8 lg:px-12">
+        <div className="py-3 sm:py-5 md:py-8 lg:py-12">
+          <div className="relative flex w-full flex-col items-center py-16 lg:py-32">
+            {/* Heading */}
+            <div className="z-10 mb-4 max-w-[16ch] text-balance text-center text-2xl font-bold leading-none tracking-tight text-white sm:mb-7 sm:text-4xl md:text-4xl lg:mb-9 xl:text-4xl">
+              Get your app up and running in minutes
+            </div>
+
+            {/* Button */}
+            <a
+              className="rounded-full inline-block font-medium transition-colors whitespace-nowrap text-center py-3 z-10 bg-button hover:bg-button-hover px-8 text-xl text-white"
+              href="https://convex.dev/start"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Start building
+            </a>
+
+            {/* Grid background */}
+            <div
+              className="flex items-center justify-center absolute inset-0"
+              aria-hidden="true"
+            >
+              <div
+                style={{
+                  backgroundImage:
+                    "linear-gradient(to right, rgb(215, 215, 215) 1px, transparent 1px), linear-gradient(rgb(215, 215, 215) 1px, transparent 1px)",
+                  backgroundSize: "24px 24px",
+                  borderBottom: "1px solid rgb(215, 215, 215)",
+                  borderRight: "1px solid rgb(215, 215, 215)",
+                  borderTop: "1px solid rgb(215, 215, 215)",
+                  borderLeft: "1px solid rgb(215, 215, 215)",
+                  height: "504px",
+                  opacity: 0.1,
+                  width: "100%",
+                  maxWidth: "1416px",
+                }}
+              />
+            </div>
+
+            {/* Decorative pixel images */}
+            <img
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              width="72"
+              height="72"
+              className="absolute left-0 top-[5%] size-9 lg:left-[20%] lg:top-[60%] lg:size-auto opacity-60"
+              src="/pixel-cruiser.svg"
+            />
+            <img
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              width="72"
+              height="72"
+              className="absolute -top-3 left-[70%] size-9 sm:-top-5 md:-top-8 lg:-top-12 lg:left-[55%] lg:size-auto opacity-60"
+              src="/pixel-frame.svg"
+            />
+            <img
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              width="72"
+              height="72"
+              className="absolute -right-3 top-[65%] size-9 sm:-right-5 md:-right-8 lg:right-[10%] lg:top-[80%] lg:size-auto opacity-60"
+              src="/pixel-kernel.svg"
+            />
+            <img
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              width="72"
+              height="72"
+              className="absolute -bottom-3 left-[20%] size-9 sm:-bottom-5 md:-bottom-8 lg:-left-9 lg:top-[10%] lg:size-auto opacity-60"
+              src="/pixel-portal.svg"
+            />
+            <img
+              alt=""
+              aria-hidden="true"
+              loading="lazy"
+              width="72"
+              height="72"
+              className="absolute -right-9 top-[5%] hidden lg:block opacity-60"
+              src="/pixel-burst.svg"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Footer Links */}
+      <div className="border-t border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-8 lg:gap-16 items-start">
+            {/* Logo Column */}
+            <div className="col-span-2 sm:col-span-3 lg:col-span-1 mb-6 lg:mb-0">
+              <a
+                href="https://convex.dev"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block"
+              >
+                <img
+                  src="/wordmark-white.svg"
+                  alt="Convex"
+                  className="h-20 w-auto opacity-90 hover:opacity-100 transition-opacity"
+                />
+              </a>
+            </div>
+
+            {/* Product Column */}
+            <div>
+              <h3 className="text-xs font-medium text-white/50 uppercase tracking-wider mb-4">
+                Product
+              </h3>
+              <ul className="space-y-3">
+                <li>
+                  <a
+                    href="https://www.convex.dev/sync"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Sync
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/realtime"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Realtime
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/auth"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Auth
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/open-source"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Open source
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/ai"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    AI coding
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://chef.convex.dev"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors inline-flex items-center"
+                  >
+                    Chef
+                    <ExternalLinkIcon />
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/faq"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    FAQ
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/pricing"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Pricing
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Developers Column */}
+            <div>
+              <h3 className="text-xs font-medium text-white/50 uppercase tracking-wider mb-4">
+                Developers
+              </h3>
+              <ul className="space-y-3">
+                <li>
+                  <a
+                    href="https://docs.convex.dev"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors inline-flex items-center"
+                  >
+                    Docs
+                    <ExternalLinkIcon />
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://news.convex.dev"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors inline-flex items-center"
+                  >
+                    Blog
+                    <ExternalLinkIcon />
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/components"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Components
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/templates"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Templates
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/startups"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Startups
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/champions"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Champions
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/changelog"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Changelog
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/podcast"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Podcast
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://docs.convex.dev/llms.txt"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors inline-flex items-center"
+                  >
+                    LLMs.txt
+                    <ExternalLinkIcon />
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Company Column */}
+            <div>
+              <h3 className="text-xs font-medium text-white/50 uppercase tracking-wider mb-4">
+                Company
+              </h3>
+              <ul className="space-y-3">
+                <li>
+                  <a
+                    href="https://www.convex.dev/about"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    About us
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/brand"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Brand
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/investors"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Investors
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/partners"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Become a partner
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/jobs"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Jobs
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://news.convex.dev"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors inline-flex items-center"
+                  >
+                    News
+                    <ExternalLinkIcon />
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/events"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Events
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/terms"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Terms of service
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Privacy policy
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.convex.dev/security"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors"
+                  >
+                    Security
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Social Column */}
+            <div>
+              <h3 className="text-xs font-medium text-white/50 uppercase tracking-wider mb-4">
+                Social
+              </h3>
+              <ul className="space-y-3">
+                <li>
+                  <a
+                    href="https://twitter.com/convabordev"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors inline-flex items-center"
+                  >
+                    <svg
+                      className="w-4 h-4 mr-2"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                    </svg>
+                    Twitter
+                    <ExternalLinkIcon />
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://discord.gg/convex"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors inline-flex items-center"
+                  >
+                    <svg
+                      className="w-4 h-4 mr-2"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
+                    </svg>
+                    Discord
+                    <ExternalLinkIcon />
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.youtube.com/@convex-dev"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors inline-flex items-center"
+                  >
+                    <svg
+                      className="w-4 h-4 mr-2"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                    </svg>
+                    YouTube
+                    <ExternalLinkIcon />
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://lu.ma/convex"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors inline-flex items-center"
+                  >
+                    <svg
+                      className="w-4 h-4 mr-2"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        fill="none"
+                      />
+                    </svg>
+                    Luma
+                    <ExternalLinkIcon />
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://www.linkedin.com/company/convex-dev/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors inline-flex items-center"
+                  >
+                    <svg
+                      className="w-4 h-4 mr-2"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                    </svg>
+                    LinkedIn
+                    <ExternalLinkIcon />
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://github.com/get-convex"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-white hover:text-white/70 transition-colors inline-flex items-center"
+                  >
+                    <svg
+                      className="w-4 h-4 mr-2"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+                    </svg>
+                    GitHub
+                    <ExternalLinkIcon />
+                  </a>
+                </li>
+              </ul>
+
+              {/* Trust Badges */}
+              <div className="mt-10">
+                <p className="text-xs text-white/40 mb-3">A Trusted Solution</p>
+                <ul className="space-y-2">
+                  <li className="flex items-center gap-2 text-xs text-white/70">
+                    <svg
+                      className="w-4 h-4 text-[#B4ED92]"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>
+                      <strong className="text-white">SOC 2</strong> Type II
+                      Compliant
+                    </span>
+                  </li>
+                  <li className="flex items-center gap-2 text-xs text-white/70">
+                    <svg
+                      className="w-4 h-4 text-[#B4ED92]"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>
+                      <strong className="text-white">HIPAA</strong> Compliant
+                    </span>
+                  </li>
+                  <li className="flex items-center gap-2 text-xs text-white/70">
+                    <svg
+                      className="w-4 h-4 text-[#B4ED92]"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>
+                      <strong className="text-white">GDPR</strong> Verified
+                    </span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          {/* Copyright */}
+          <div className="mt-12 pt-8 border-t border-white/10">
+            <p className="text-xs text-white/40">&copy;2025 Convex, Inc.</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+// Success modal that auto-closes after 3 seconds
+function SuccessModal({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  // Auto-close after 3 seconds
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        onClose();
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, onClose]);
+
+  // Handle ESC key to close modal
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative w-full max-w-sm p-6 rounded-container bg-white border border-border shadow-lg">
+        <button
+          onClick={onClose}
+          autoFocus
+          className="absolute top-4 right-4 p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors focus:outline-none focus:ring-2 focus:ring-button/50"
+        >
+          <X size={20} />
+        </button>
+        <div className="flex items-start gap-3 mb-4">
+          <div className="shrink-0 text-green-600">
+            <CheckCircle size={24} weight="bold" />
+          </div>
+          <div>
+            <h3 className="text-lg font-normal text-text-primary">
+              Thank You!
+            </h3>
+            <p className="mt-1 text-sm text-text-secondary">
+              Your component is now pending for review.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Submit Package Modal
+function SubmitPackageModal({ onClose }: { onClose: () => void }) {
+  const [npmUrl, setNpmUrl] = useState("");
+  const [submitterName, setSubmitterName] = useState("");
+  const [submitterEmail, setSubmitterEmail] = useState("");
+  const [submitterDiscord, setSubmitterDiscord] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const submitPackage = useAction(api.packages.submitPackage);
+
+  // Handle ESC key to close modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !showError && !showSuccess) onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, showError, showSuccess]);
+
+  const validateNpmUrl = (url: string): boolean => {
+    const pattern = /^https?:\/\/(www\.)?npmjs\.com\/package\/.+/;
+    return pattern.test(url);
+  };
+
+  const validateEmail = (email: string): boolean => {
+    const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return pattern.test(email);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate required fields (Discord is optional)
+    if (!npmUrl.trim() || !submitterName.trim() || !submitterEmail.trim()) {
+      setErrorMessage("Please fill in all required fields.");
+      setShowError(true);
+      return;
+    }
+
+    if (!validateNpmUrl(npmUrl.trim())) {
+      setErrorMessage(
+        "Please enter a valid npm URL. Expected format: https://www.npmjs.com/package/package-name",
+      );
+      setShowError(true);
+      return;
+    }
+
+    if (!validateEmail(submitterEmail.trim())) {
+      setErrorMessage("Please enter a valid email address.");
+      setShowError(true);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await submitPackage({
+        npmUrl: npmUrl.trim(),
+        submitterName: submitterName.trim(),
+        submitterEmail: submitterEmail.trim(),
+        submitterDiscord: submitterDiscord.trim() || undefined,
+      });
+      setShowSuccess(true);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to submit package";
+      setErrorMessage(message);
+      setShowError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle success modal close
+  const handleSuccessClose = () => {
+    setShowSuccess(false);
+    onClose();
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        {/* Backdrop */}
+        <div
+          className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+          onClick={onClose}
+        />
+        {/* Modal */}
+        <div className="relative w-full max-w-md p-6 rounded-container bg-[#FAF5EA] border border-border shadow-lg">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors focus:outline-none focus:ring-2 focus:ring-button/50"
+          >
+            <X size={20} />
+          </button>
+          <h2 className="text-xl font-normal text-text-primary mb-4">
+            Submit a npm Package for Review
+          </h2>
+          <p className="text-sm text-text-secondary mb-6">
+            Submit your npm package to the Convex components directory for
+            review.
+          </p>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* NPM URL */}
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">
+                npm Package URL <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="https://www.npmjs.com/package/your-package"
+                value={npmUrl}
+                onChange={(e) => setNpmUrl(e.target.value)}
+                disabled={isLoading}
+                autoFocus
+                className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20"
+              />
+            </div>
+
+            {/* Name */}
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">
+                Your Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                placeholder="John Doe"
+                value={submitterName}
+                onChange={(e) => setSubmitterName(e.target.value)}
+                disabled={isLoading}
+                className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button"
+              />
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">
+                Email <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="email"
+                placeholder="you@example.com"
+                value={submitterEmail}
+                onChange={(e) => setSubmitterEmail(e.target.value)}
+                disabled={isLoading}
+                className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button"
+              />
+            </div>
+
+            {/* Discord - Optional */}
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">
+                Convex Discord Username{" "}
+                <span className="text-text-secondary text-xs">(optional)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="username#1234 or @username"
+                value={submitterDiscord}
+                onChange={(e) => setSubmitterDiscord(e.target.value)}
+                disabled={isLoading}
+                className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button"
+              />
+            </div>
+
+            {/* Submit button */}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full px-6 py-3 rounded-full font-normal bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              {isLoading ? "Submitting..." : "Submit Package"}
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {/* Error modal */}
+      <CustomModal
+        isOpen={showError}
+        onClose={() => setShowError(false)}
+        title="Submission Error"
+        message={errorMessage}
+        type="error"
+      />
+
+      {/* Success modal */}
+      <SuccessModal isOpen={showSuccess} onClose={handleSuccessClose} />
+    </>
+  );
+}
+
+// About Modal component with app description and status legend
+function AboutModal({ onClose }: { onClose: () => void }) {
+  // Handle ESC key to close modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  const statusItems = [
+    {
+      icon: <Hourglass size={14} weight="bold" />,
+      label: "Pending",
+      description: "Awaiting initial review",
+      className: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
+    },
+    {
+      icon: <GitPullRequest size={14} weight="bold" />,
+      label: "In Review",
+      description: "Currently being evaluated",
+      className: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+    },
+    {
+      icon: <CheckCircle size={14} weight="bold" />,
+      label: "Approved",
+      description: "Ready to be featured",
+      className: "bg-green-500/10 text-green-600 border-green-500/20",
+    },
+    {
+      icon: <Warning size={14} weight="bold" />,
+      label: "Changes Requested",
+      description: "Needs updates before approval",
+      className: "bg-orange-500/10 text-orange-600 border-orange-500/20",
+    },
+    {
+      icon: <Prohibit size={14} weight="bold" />,
+      label: "Rejected",
+      description: "Does not meet requirements",
+      className: "bg-red-500/10 text-red-600 border-red-500/20",
+    },
+    {
+      icon: <Star size={14} weight="fill" />,
+      label: "Featured",
+      description: "Highlighted on convex.dev/components",
+      className: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+    },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      {/* Modal */}
+      <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 rounded-container bg-[#FAF5EA] border border-border shadow-lg">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors focus:outline-none focus:ring-2 focus:ring-button/50"
+        >
+          <X size={20} />
+        </button>
+
+        {/* Header */}
+        <div className="mb-6">
+          <h2 className="text-xl font-medium text-text-primary mb-2">
+            About This App
+          </h2>
+          <p className="text-sm text-text-secondary">
+            A community directory for npm packages built with Convex.
+          </p>
+        </div>
+
+        {/* Description */}
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-text-primary mb-2">
+            How It Works
+          </h3>
+          <div className="space-y-2 text-sm text-text-secondary">
+            <p>
+              Developers submit their Convex components via npm URL. Each
+              submission goes through a review process before appearing on the{" "}
+              <a
+                href="https://www.convex.dev/components"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-button hover:underline"
+              >
+                Convex Components
+              </a>{" "}
+              page.
+            </p>
+            <p>
+              Featured packages are hand picked and highlighted with a star
+              icon, showcasing the best community contributions.
+            </p>
+          </div>
+        </div>
+
+        {/* Status Legend */}
+        <div>
+          <h3 className="text-sm font-medium text-text-primary mb-3">
+            Status Legend
+          </h3>
+          <div className="space-y-2">
+            {statusItems.map((item) => (
+              <div
+                key={item.label}
+                className="flex items-center gap-3 p-2 rounded-lg bg-bg-primary/50"
+              >
+                <span
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${item.className}`}
+                >
+                  {item.icon}
+                  {item.label}
+                </span>
+                <span className="text-xs text-text-secondary">
+                  {item.description}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="mt-6 pt-4 border-t border-border"></div>
+      </div>
+    </div>
+  );
+}
+
+// Status Legend Bar component above footer
+function StatusLegendBar() {
+  const statusItems = [
+    { label: "Pending", color: "bg-yellow-500" },
+    { label: "In Review", color: "bg-blue-500" },
+    { label: "Approved", color: "bg-green-500" },
+    { label: "Changes", color: "bg-orange-500" },
+    { label: "Rejected", color: "bg-red-500" },
+    { label: "Featured", color: "bg-amber-500" },
+  ];
+
+  return (
+    <div className="relative">
+      {/* Grid background */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, rgb(215, 215, 215) 1px, transparent 1px), linear-gradient(rgb(215, 215, 215) 1px, transparent 1px)",
+          backgroundSize: "24px 24px",
+          borderTop: "1px solid rgb(215, 215, 215)",
+          borderBottom: "1px solid rgb(215, 215, 215)",
+          opacity: 0.4,
+        }}
+      />
+      {/* Content */}
+      <div className="relative px-4 sm:px-6 py-4 bg-bg-primary/80">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+          <span className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+            Status
+          </span>
+          {statusItems.map((item) => (
+            <div key={item.label} className="flex items-center gap-1.5">
+              <div className={`w-2.5 h-2.5 rounded-sm ${item.color}`} />
+              <span className="text-xs text-text-secondary">{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Content({
+  searchTerm,
+  sortBy,
+}: {
+  searchTerm: string;
+  sortBy: "newest" | "downloads" | "updated";
+}) {
+  const [expandedCard, setExpandedCard] = useState<Id<"packages"> | null>(null);
+
+  // Use search query when there's a search term, otherwise use list
+  const searchResults = useQuery(api.packages.searchPackages, {
+    searchTerm: searchTerm.trim(),
+  });
+  const listResults = useQuery(api.packages.listPackages, { sortBy });
+
+  // Use search results when searching, otherwise use sorted list
+  const packages = searchTerm.trim() ? searchResults : listResults;
+
+  // Sort search results if needed
+  const sortedPackages = packages
+    ? [...packages].sort((a, b) => {
+        if (sortBy === "newest") return b.submittedAt - a.submittedAt;
+        if (sortBy === "downloads")
+          return b.weeklyDownloads - a.weeklyDownloads;
+        if (sortBy === "updated")
+          return (
+            new Date(b.lastPublish).getTime() -
+            new Date(a.lastPublish).getTime()
+          );
+        return 0;
+      })
+    : undefined;
+
+  return (
+    <div className="max-w-7xl mx-auto">
+      {/* Packages table/list */}
+      <div className="rounded-lg border border-border bg-light overflow-hidden shadow-sm">
+        {/* Table header for desktop */}
+        <div className="hidden md:grid md:grid-cols-12 gap-3 px-4 py-3 bg-bg-card text-xs font-medium text-text-secondary uppercase tracking-wide border-b border-border">
+          <div className="col-span-5">Package</div>
+          <div className="col-span-2">Maintainer</div>
+          <div className="col-span-1">Downloads</div>
+          <div className="col-span-1">Published</div>
+          <div className="col-span-2">Submitted</div>
+          <div className="col-span-1">Status</div>
+        </div>
+
+        {/* Package rows */}
+        {sortedPackages === undefined ? (
+          <LoadingSkeleton />
+        ) : sortedPackages.length === 0 ? (
+          <div className="text-center py-12 px-4">
+            <Package size={48} className="mx-auto mb-3 text-text-secondary" />
+            <h3 className="text-lg font-light mb-1 text-text-primary">
+              No packages found
+            </h3>
+            <p className="text-sm text-text-secondary">
+              {searchTerm
+                ? "Try a different search term"
+                : "Be the first to submit a package!"}
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {sortedPackages.map((pkg) => (
+              <PackageRow
+                key={pkg._id}
+                package={pkg}
+                isExpanded={expandedCard === pkg._id}
+                onToggle={() =>
+                  setExpandedCard(expandedCard === pkg._id ? null : pkg._id)
+                }
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="divide-y divide-border">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div key={i} className="px-4 py-3 animate-pulse">
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <div className="h-4 rounded bg-bg-hover w-32 mb-2"></div>
+              <div className="h-3 rounded bg-bg-hover w-48"></div>
+            </div>
+            <div className="h-4 w-16 rounded bg-bg-hover"></div>
+            <div className="h-4 w-20 rounded bg-bg-hover"></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Condensed package row component
+function PackageRow({
+  package: pkg,
+  isExpanded,
+  onToggle,
+}: {
+  package: any;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const formatSize = (bytes: number) => {
+    if (bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return (bytes / Math.pow(k, i)).toFixed(1) + " " + sizes[i];
+  };
+
+  const formatRelativeTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return "today";
+    if (diffDays === 1) return "yesterday";
+    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
+    return `${Math.floor(diffDays / 365)}y ago`;
+  };
+
+  const formatDownloads = (count: number) => {
+    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
+    return count.toLocaleString();
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(pkg.installCommand);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Get first maintainer
+  const firstMaintainer = pkg.collaborators?.[0];
+
+  return (
+    <div className="hover:bg-bg-card/50">
+      {/* Clickable row */}
+      <div className="px-4 py-3 cursor-pointer" onClick={onToggle}>
+        {/* Mobile layout */}
+        <div className="md:hidden">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                {pkg.featured && (
+                  <Tooltip content="Featured on convex.dev/components">
+                    <Star
+                      size={14}
+                      weight="fill"
+                      className="text-amber-500 shrink-0"
+                    />
+                  </Tooltip>
+                )}
+                <h3 className="text-sm font-medium text-text-primary truncate">
+                  {pkg.name}
+                </h3>
+                <span className="text-xs px-1.5 py-0.5 rounded bg-bg-primary text-text-secondary shrink-0">
+                  v{pkg.version}
+                </span>
+              </div>
+              <p className="text-xs text-text-secondary line-clamp-1">
+                {pkg.description}
+              </p>
+            </div>
+            <div className="shrink-0">
+              {isExpanded ? (
+                <CaretUp size={16} className="text-text-secondary" />
+              ) : (
+                <CaretDown size={16} className="text-text-secondary" />
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-3 text-xs text-text-secondary">
+            {firstMaintainer && (
+              <Tooltip content={`Maintainer: ${firstMaintainer.name}`}>
+                <span className="flex items-center gap-1">
+                  <User size={12} className="text-text-secondary" />
+                  <span className="truncate max-w-16">
+                    {firstMaintainer.name}
+                  </span>
+                </span>
+              </Tooltip>
+            )}
+            <Tooltip content="Weekly downloads">
+              <span className="flex items-center gap-1">
+                <DownloadSimple size={12} />
+                {formatDownloads(pkg.weeklyDownloads)}
+              </span>
+            </Tooltip>
+            <ReviewStatusBadge status={pkg.reviewStatus} />
+          </div>
+        </div>
+
+        {/* Desktop table layout */}
+        <div className="hidden md:grid md:grid-cols-12 gap-3 items-center">
+          <div className="col-span-5">
+            <div className="flex items-center gap-2 mb-0.5">
+              {pkg.featured && (
+                <Tooltip content="Featured on convex.dev/components">
+                  <Star
+                    size={14}
+                    weight="fill"
+                    className="text-amber-500 shrink-0"
+                  />
+                </Tooltip>
+              )}
+              <h3 className="text-sm font-medium text-text-primary truncate">
+                {pkg.name}
+              </h3>
+              <span className="text-xs px-1.5 py-0.5 rounded bg-bg-primary text-text-secondary shrink-0">
+                v{pkg.version}
+              </span>
+              {isExpanded ? (
+                <CaretUp size={14} className="text-text-secondary shrink-0" />
+              ) : (
+                <CaretDown size={14} className="text-text-secondary shrink-0" />
+              )}
+            </div>
+            <p className="text-xs text-text-secondary line-clamp-1">
+              {pkg.description}
+            </p>
+          </div>
+          <div className="col-span-2">
+            {firstMaintainer ? (
+              <Tooltip
+                content={`Maintainer: ${firstMaintainer.name}`}
+                position="top"
+              >
+                <span className="text-sm text-text-primary truncate block">
+                  {firstMaintainer.name}
+                </span>
+              </Tooltip>
+            ) : (
+              <span className="text-sm text-text-secondary">—</span>
+            )}
+          </div>
+          <div className="col-span-1">
+            <Tooltip content="Weekly downloads from npm" position="top">
+              <span className="text-sm text-text-primary">
+                {formatDownloads(pkg.weeklyDownloads)}
+              </span>
+            </Tooltip>
+          </div>
+          <div className="col-span-1">
+            <Tooltip
+              content={`Last published on npm: ${new Date(pkg.lastPublish).toLocaleDateString()}`}
+              position="top"
+            >
+              <span className="text-sm text-text-primary">
+                {formatRelativeTime(pkg.lastPublish)}
+              </span>
+            </Tooltip>
+          </div>
+          <div className="col-span-2">
+            <Tooltip
+              content={`Submitted to app: ${new Date(pkg.submittedAt).toLocaleDateString()}`}
+              position="top"
+            >
+              <span className="text-sm text-text-primary">
+                {formatRelativeTime(new Date(pkg.submittedAt).toISOString())}
+              </span>
+            </Tooltip>
+          </div>
+          <div className="col-span-1">
+            <ReviewStatusBadge status={pkg.reviewStatus} />
+          </div>
+        </div>
+      </div>
+
+      {/* Expanded details */}
+      {isExpanded && (
+        <div
+          className="px-4 pb-4 pt-2 border-t border-border bg-bg-hover/30"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Install command */}
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-light mb-4">
+            <code className="flex-1 text-sm text-text-primary overflow-x-auto">
+              {pkg.installCommand}
+            </code>
+            <Tooltip content={copied ? "Copied!" : "Copy install command"}>
+              <button
+                onClick={copyToClipboard}
+                className={`flex items-center gap-1.5 px-3 py-1 text-sm rounded-full transition-colors text-white shrink-0 ${
+                  copied ? "bg-accent" : "bg-button"
+                }`}
+              >
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+                <span className="hidden sm:inline">
+                  {copied ? "Copied!" : "Copy"}
+                </span>
+              </button>
+            </Tooltip>
+          </div>
+
+          {/* Details grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-4">
+            <Tooltip content="Package license type">
+              <div>
+                <span className="block text-xs text-text-secondary mb-0.5">
+                  License
+                </span>
+                <span className="text-text-primary">{pkg.license}</span>
+              </div>
+            </Tooltip>
+            <Tooltip content="Unpacked package size">
+              <div>
+                <span className="block text-xs text-text-secondary mb-0.5">
+                  Size
+                </span>
+                <span className="text-text-primary">
+                  {formatSize(pkg.unpackedSize)}
+                </span>
+              </div>
+            </Tooltip>
+            <Tooltip content="Number of files in package">
+              <div>
+                <span className="block text-xs text-text-secondary mb-0.5">
+                  Files
+                </span>
+                <span className="text-text-primary">
+                  {pkg.totalFiles.toLocaleString()}
+                </span>
+              </div>
+            </Tooltip>
+            <Tooltip content="When this package was submitted to the directory">
+              <div>
+                <span className="block text-xs text-text-secondary mb-0.5">
+                  Submitted
+                </span>
+                <span className="text-text-primary">
+                  {new Date(pkg.submittedAt).toLocaleDateString()}
+                </span>
+              </div>
+            </Tooltip>
+          </div>
+
+          {/* Maintainers */}
+          {pkg.collaborators.length > 0 && (
+            <div className="mb-4">
+              <p className="text-xs text-text-secondary mb-2">Maintainers</p>
+              <div className="flex flex-wrap gap-2">
+                {pkg.collaborators
+                  .slice(0, 6)
+                  .map((collab: any, idx: number) => (
+                    <Tooltip key={idx} content={collab.name}>
+                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-bg-primary">
+                        <img
+                          src={collab.avatar}
+                          alt={collab.name}
+                          className="w-4 h-4 rounded-full"
+                        />
+                        <span className="text-xs text-text-secondary truncate max-w-20">
+                          {collab.name}
+                        </span>
+                      </div>
+                    </Tooltip>
+                  ))}
+                {pkg.collaborators.length > 6 && (
+                  <span className="text-xs self-center text-text-secondary">
+                    +{pkg.collaborators.length - 6} more
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Comments section */}
+          <PackageComments packageId={pkg._id} />
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap gap-2">
+            <Tooltip content="View package on npm" position="right">
+              <a
+                href={pkg.npmUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors"
+              >
+                <ArrowSquareOut size={16} />
+                npm
+              </a>
+            </Tooltip>
+            {pkg.repositoryUrl && (
+              <Tooltip content="View source code" position="right">
+                <a
+                  href={pkg.repositoryUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors"
+                >
+                  <GithubLogo size={16} />
+                  Repo
+                </a>
+              </Tooltip>
+            )}
+            {pkg.homepageUrl && (
+              <Tooltip content="Visit homepage" position="right">
+                <a
+                  href={pkg.homepageUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors"
+                >
+                  <Globe size={16} />
+                  Website
+                </a>
+              </Tooltip>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Package comments display component for frontend
+function PackageComments({ packageId }: { packageId: Id<"packages"> }) {
+  const comments = useQuery(api.packages.getPackageComments, { packageId });
+
+  // Format date for display
+  const formatCommentDate = (timestamp: number) => {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  // Don't render if no comments
+  if (!comments || comments.length === 0) return null;
+
+  return (
+    <div className="mb-4">
+      <div className="flex items-center gap-2 mb-2">
+        <ChatCircleText size={14} className="text-text-secondary" />
+        <p className="text-xs font-medium text-text-secondary">
+          Comments ({comments.length})
+        </p>
+      </div>
+      <div className="space-y-2">
+        {comments.map((comment) => (
+          <div
+            key={comment._id}
+            className="p-3 rounded-lg border border-border"
+            style={{ backgroundColor: "#FAF5EA" }}
+          >
+            <div className="flex items-center gap-2 text-xs text-text-secondary mb-1">
+              <User size={12} />
+              <span className="font-medium">
+                {comment.authorName || "Admin"}
+              </span>
+              <span>{formatCommentDate(comment.createdAt)}</span>
+            </div>
+            <p className="text-sm text-text-primary whitespace-pre-wrap">
+              {comment.content}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

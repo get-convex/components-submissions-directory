@@ -1,0 +1,212 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* GT America Font Family */
+@font-face {
+  font-family: "GT America";
+  src: url("/fonts/GT-America-Standard-Light.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GT America";
+  src: url("/fonts/GT-America-Standard-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GT America";
+  src: url("/fonts/GT-America-Standard-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GT America";
+  src: url("/fonts/GT-America-Standard-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "GT America";
+  src: url("/fonts/GT-America-Standard-Black.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Publico Headline Font Family - for headings */
+@font-face {
+  font-family: "Publico Headline";
+  src: url("/fonts/PublicoHeadline-Light-Web.woff2") format("woff2");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Publico Headline";
+  src: url("/fonts/PublicoHeadline-Roman-Web.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Publico Headline";
+  src: url("/fonts/PublicoHeadline-Medium-Web.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Publico Headline";
+  src: url("/fonts/PublicoHeadline-Bold-Web.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Publico Headline";
+  src: url("/fonts/PublicoHeadline-Extrabold-Web.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Publico Headline";
+  src: url("/fonts/PublicoHeadline-Black-Web.woff2") format("woff2");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Publico Text Font Family - for body text */
+@font-face {
+  font-family: "Publico Text";
+  src: url("/fonts/PublicoText-Roman-Web.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Publico Text";
+  src: url("/fonts/PublicoText-Semibold-Web.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Publico Text";
+  src: url("/fonts/PublicoText-Bold-Web.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* CSS Reset and Base Styles */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family:
+      "GT America",
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      "Helvetica Neue",
+      Arial,
+      "Noto Sans",
+      sans-serif,
+      "Apple Color Emoji",
+      "Segoe UI Emoji",
+      "Segoe UI Symbol",
+      "Noto Color Emoji";
+    font-weight: 400;
+    line-height: 1.5;
+    @apply text-text-primary bg-bg-primary;
+    min-height: 100vh;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 400;
+    line-height: 1.2;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+    font-weight: 400;
+  }
+
+  a {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  img,
+  picture,
+  video,
+  canvas,
+  svg {
+    display: block;
+    max-width: 100%;
+  }
+}
+
+/* Theme colors are now defined in tailwind.config.js */
+
+/* Utility Classes */
+@layer utilities {
+  .accent-text {
+    @apply text-slate-600;
+  }
+}
+
+/* Component Classes */
+@layer components {
+  /* only use this to update the style of the auth input fields. use a different class for all other input fields */
+  .auth-input-field {
+    @apply w-full px-4 py-3 rounded-container bg-white border border-gray-200 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-shadow shadow-sm hover:shadow;
+  }
+
+  /* only use this to update the style of the auth buttons. use the button class for all other buttons */
+  .auth-button {
+    @apply w-full px-4 py-3 rounded-full bg-button text-white font-normal hover:bg-button-hover transition-colors shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+}
