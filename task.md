@@ -1,7 +1,8 @@
 # Task List
 
-- [ ] update open graph url https://convex-components.dev
-
+- [x] change submit button back to DF5D34
+- [x] add link to demo app on form and admin for Link to Demo app showing how your component works
+- [x] remove open graph url link https://convex-components.dev
 - [x] Push to GitHub
 - [ ] Upload to Netlify
 - [x] Add submit collects users names and email and Convex Discord name
@@ -11,6 +12,10 @@
 - [x] Add Status legend bar above footer
 - [x] Remove login/signup from frontend header (keep admin auth)
 - [x] Add AI Review feature for validating Convex components
+- [x] Update changelog.md with correct dates from git history
+- [x] Update files.md with current file descriptions
+- [x] Run TypeScript type checks
+- [x] Verify Netlify build readiness
 
 ## Completed
 
@@ -28,6 +33,9 @@
 - [x] Add AI Review with Anthropic Claude integration
 - [x] Add AI Review status badges and results panel
 - [x] Add admin settings for auto-approve/reject automation
+- [x] Add live demo URL field to submission form
+- [x] Add demo link button in package details
+- [x] Ensure mobile responsive design throughout
 
 ## Summary of Recent Changes
 
@@ -39,6 +47,9 @@
 - Added star icon on featured packages (both mobile and desktop layouts)
 - Removed login/signup buttons from header (admin authentication remains unchanged)
 - Added public comments display on package details
+- Added live demo URL field to submission form (optional but suggested)
+- Added Demo button for packages with live demos
+- Mobile responsive design with proper breakpoints
 
 ### Admin (Admin.tsx)
 
@@ -51,22 +62,26 @@
 - Added AI Review status badges (passed, failed, partial, reviewing, error)
 - Added AI Review results panel with expandable criteria checklist
 - Added Admin Settings panel with auto-approve/reject toggles
+- Added demo link button for packages with live demos
+- Mobile responsive collapsible package rows
 
 ### Backend (convex/packages.ts)
 
 - Added `featured` field to packages schema
+- Added `demoUrl` field to packages schema
 - Added `toggleFeatured` mutation (only approved packages can be featured)
-- Updated query return validators to include featured field
+- Updated query return validators to include featured and demoUrl fields
 - Added public comments queries and mutations
 - Added AI review mutations (updateAiReviewStatus, updateAiReviewResult)
 - Added admin settings queries and mutations (getAdminSettings, updateAdminSetting)
+- Mutations patch directly without reading first to avoid write conflicts
 
 ### Backend (convex/aiReview.ts)
 
 - Added runAiReview action using Anthropic Claude API
 - 10 criteria for Convex component validation (4 critical, 6 non-critical)
 - GitHub API integration for fetching component source files
-- Supports convex.config.ts detection in src/component/, src/, or root
+- Supports convex.config.ts detection in multiple locations
 - Auto-approve on pass and auto-reject on critical failures
 
 ## Review Status Flow

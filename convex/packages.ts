@@ -97,6 +97,7 @@ export const submitPackage = action({
     submitterName: v.string(),
     submitterEmail: v.string(),
     submitterDiscord: v.optional(v.string()),
+    demoUrl: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<any> => {
     // Allow unauthenticated submissions
@@ -133,6 +134,7 @@ export const submitPackage = action({
       submitterName: args.submitterName,
       submitterEmail: args.submitterEmail,
       submitterDiscord: args.submitterDiscord,
+      demoUrl: args.demoUrl,
     });
 
     // Check if auto-approve or auto-reject is enabled
@@ -177,6 +179,8 @@ export const addPackage = mutation({
     submitterName: v.string(),
     submitterEmail: v.string(),
     submitterDiscord: v.optional(v.string()),
+    // Live demo URL (optional)
+    demoUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Allow unauthenticated submissions
@@ -294,6 +298,8 @@ export const searchPackages = query({
     submitterName: v.optional(v.string()),
     submitterEmail: v.optional(v.string()),
     submitterDiscord: v.optional(v.string()),
+    // Live demo URL (optional)
+    demoUrl: v.optional(v.string()),
     reviewStatus: v.optional(v.union(
       v.literal("pending"),
       v.literal("in_review"),
@@ -402,6 +408,8 @@ export const adminSearchPackages = query({
     submitterName: v.optional(v.string()),
     submitterEmail: v.optional(v.string()),
     submitterDiscord: v.optional(v.string()),
+    // Live demo URL (optional)
+    demoUrl: v.optional(v.string()),
     reviewStatus: v.optional(v.union(
       v.literal("pending"),
       v.literal("in_review"),
@@ -617,6 +625,8 @@ export const getPackagesByStatus = query({
     submitterName: v.optional(v.string()),
     submitterEmail: v.optional(v.string()),
     submitterDiscord: v.optional(v.string()),
+    // Live demo URL (optional)
+    demoUrl: v.optional(v.string()),
     reviewStatus: v.optional(v.union(
       v.literal("pending"),
       v.literal("in_review"),

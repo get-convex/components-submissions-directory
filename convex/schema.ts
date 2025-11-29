@@ -32,6 +32,8 @@ const applicationTables = {
     submitterName: v.optional(v.string()),
     submitterEmail: v.optional(v.string()),
     submitterDiscord: v.optional(v.string()),
+    // Live demo URL (optional, submitted by user)
+    demoUrl: v.optional(v.string()),
     // Review fields
     reviewStatus: v.optional(v.union(
       v.literal("pending"),

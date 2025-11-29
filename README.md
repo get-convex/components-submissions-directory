@@ -18,7 +18,7 @@ The NPM Package Directory is a submission platform where users can:
 
 ### Public Features
 
-- **Package Submission**: Submit any npm package by entering its npmjs.com URL. No login required. The app automatically fetches metadata from the npm registry. Submissions require name, email, and optional Discord username
+- **Package Submission**: Submit any npm package by entering its npmjs.com URL. No login required. The app automatically fetches metadata from the npm registry. Submissions require name, email, optional Discord username, and optional live demo URL
 - **Package Discovery**: Browse submitted packages with real-time search functionality (searches both package names and descriptions)
 - **Sorting Options**: Sort packages by newest submissions, weekly downloads, or last publish date
 - **Review Status Display**: Visual badges showing package review status (pending, in review, approved, changes requested, rejected)
@@ -32,7 +32,7 @@ The NPM Package Directory is a submission platform where users can:
   - License information
   - Package size and file count
   - Maintainer information with avatars
-  - Direct links to npm, repository, and homepage
+  - Direct links to npm, repository, homepage, and live demo
   - Copy-to-clipboard install command
   - Review status badge
 
@@ -154,6 +154,7 @@ The app uses two main tables:
 - Maintainer information
 - Submission timestamp
 - Submitter information (name, email, Discord username)
+- Live demo URL (optional)
 - Review status (pending, in_review, approved, changes_requested, rejected)
 - Visibility (visible, hidden, archived)
 - Featured flag (only for approved packages)

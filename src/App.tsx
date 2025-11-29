@@ -26,6 +26,7 @@ import {
   ChatCircleText,
   Star,
   Info,
+  Browser,
 } from "@phosphor-icons/react";
 
 // Review status type
@@ -228,7 +229,7 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col bg-bg-primary">
       {/* Header */}
-      <header className="sticky top-0 z-50 backdrop-blur-sm border-b border-border px-4 sm:px-6 py-3 bg-bg-primary">
+      <header className="sticky top-0 z-50 backdrop-blur-sm  px-4 sm:px-6 py-3 bg-bg-primary">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row gap-3 sm:gap-4 sm:justify-between sm:items-center">
           {/* Title */}
           <h1 className="flex items-center gap-2 text-lg sm:text-xl font-normal text-text-primary shrink-0">
@@ -311,7 +312,7 @@ export default function App() {
             <Tooltip content="Submit a new package">
               <button
                 onClick={() => setShowSubmitModal(true)}
-                className="px-4 py-1.5 rounded-full text-sm font-normal bg-[#292929] text-white hover:bg-[#1a1a1a] transition-colors"
+                className="px-4 py-1.5 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors"
               >
                 Submit
               </button>
@@ -461,7 +462,7 @@ function Footer() {
       </div>
 
       {/* Footer Links */}
-      <div className="border-t border-white/10">
+      <div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-8 lg:gap-16 items-start">
             {/* Logo Column */}
@@ -1036,6 +1037,7 @@ function SuccessModal({
 // Submit Package Modal
 function SubmitPackageModal({ onClose }: { onClose: () => void }) {
   const [npmUrl, setNpmUrl] = useState("");
+  const [demoUrl, setDemoUrl] = useState("");
   const [submitterName, setSubmitterName] = useState("");
   const [submitterEmail, setSubmitterEmail] = useState("");
   const [submitterDiscord, setSubmitterDiscord] = useState("");
@@ -1064,6 +1066,12 @@ function SubmitPackageModal({ onClose }: { onClose: () => void }) {
     return pattern.test(email);
   };
 
+  const validateUrl = (url: string): boolean => {
+    if (!url.trim()) return true; // Empty is valid (optional)
+    const pattern = /^https?:\/\/.+/;
+    return pattern.test(url);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -1088,6 +1096,14 @@ function SubmitPackageModal({ onClose }: { onClose: () => void }) {
       return;
     }
 
+    if (demoUrl.trim() && !validateUrl(demoUrl.trim())) {
+      setErrorMessage(
+        "Please enter a valid URL for the live demo (must start with http:// or https://).",
+      );
+      setShowError(true);
+      return;
+    }
+
     setIsLoading(true);
     try {
       await submitPackage({
@@ -1095,6 +1111,7 @@ function SubmitPackageModal({ onClose }: { onClose: () => void }) {
         submitterName: submitterName.trim(),
         submitterEmail: submitterEmail.trim(),
         submitterDiscord: submitterDiscord.trim() || undefined,
+        demoUrl: demoUrl.trim() || undefined,
       });
       setShowSuccess(true);
     } catch (error) {
@@ -1141,7 +1158,7 @@ function SubmitPackageModal({ onClose }: { onClose: () => void }) {
             {/* NPM URL */}
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">
-                npm Package URL <span className="text-red-500">*</span>
+                npm package URL <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -1151,6 +1168,24 @@ function SubmitPackageModal({ onClose }: { onClose: () => void }) {
                 disabled={isLoading}
                 autoFocus
                 className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20"
+              />
+            </div>
+
+            {/* Live Demo URL - Optional */}
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">
+                Live Demo URL{" "}
+                <span className="text-text-secondary text-xs font-normal">
+                  (highly suggested but not required)
+                </span>
+              </label>
+              <input
+                type="text"
+                placeholder="https://your-demo-site.com"
+                value={demoUrl}
+                onChange={(e) => setDemoUrl(e.target.value)}
+                disabled={isLoading}
+                className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button"
               />
             </div>
 
@@ -1824,6 +1859,19 @@ function PackageRow({
                 >
                   <Globe size={16} />
                   Website
+                </a>
+              </Tooltip>
+            )}
+            {pkg.demoUrl && (
+              <Tooltip content="View live demo" position="right">
+                <a
+                  href={pkg.demoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors"
+                >
+                  <Browser size={16} />
+                  Demo
                 </a>
               </Tooltip>
             )}

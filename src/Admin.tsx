@@ -42,6 +42,7 @@ import {
   Gear,
   XCircle,
   CaretUp,
+  Browser,
 } from "@phosphor-icons/react";
 
 // Review status type
@@ -966,7 +967,7 @@ function Footer() {
           </Tooltip>
           <Tooltip content="View source on GitHub" position="top">
             <a
-              href="https://github.com/waynesutton/npm-package-directory"
+              href="https://github.com/get-convex/components-submissions-directory"
               target="_blank"
               rel="noopener noreferrer"
               className="text-text-secondary hover:text-text-primary transition-colors"
@@ -1092,7 +1093,7 @@ export default function Admin() {
   return (
     <div className="min-h-screen flex flex-col bg-bg-primary">
       {/* Compact Header */}
-      <header className="sticky top-0 z-10 backdrop-blur-sm border-b border-border px-4 sm:px-6 py-2 bg-bg-primary">
+      <header className="sticky top-0 z-10 backdrop-blur-sm  px-4 sm:px-6 py-2 bg-bg-primary">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           {/* Left: Home and breadcrumb */}
           <div className="flex items-center gap-2">
@@ -2382,6 +2383,20 @@ function AdminDashboard({
                                   className="px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors"
                                 >
                                   repo
+                                </a>
+                              </Tooltip>
+                            )}
+                            {pkg.demoUrl && (
+                              <Tooltip content="View live demo">
+                                <a
+                                  href={pkg.demoUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors"
+                                >
+                                  <Browser size={12} />
+                                  demo
                                 </a>
                               </Tooltip>
                             )}

@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 10 criteria checklist for Convex component validation
 - Admin settings table for AI automation preferences
 - Expanded convex.config.ts detection for various component structures
+- Live demo URL field for package submissions (optional but suggested)
+- Demo link button in package details and admin panel
 
 ### Technical Details
 
@@ -29,8 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `getAdminSettings` query and `updateAdminSetting` mutation
 - GitHub API integration for fetching component source files
 - Supports multiple convex.config.ts locations: convex/src/component/, convex/component/, convex/, src/component/, src/, root, packages/, lib/
+- Added demoUrl field to packages schema and submission form
 
-## [1.2.0] 2025-11-27
+## [1.2.0] 2025-11-28
 
 ### Added
 
@@ -57,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated query return validators to include featured field
 - Improved admin inline actions with Featured toggle
 
-## [1.1.0] 2025-11-27
+## [1.1.0] 2025-11-28
 
 ### Added
 
@@ -85,7 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Search functionality expanded to include package descriptions
 - Review status workflow integrated into admin interface
 
-## [1.0.0] 2025-11-27
+## [1.0.0] 2025-11-28
 
 ### Added
 
