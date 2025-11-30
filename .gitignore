@@ -17,6 +17,9 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
+.cursor/rules/writing.mdc
+prds/components-submission-process.md
+prds/writing.md
 *.suo
 *.ntvs*
 *.njsproj

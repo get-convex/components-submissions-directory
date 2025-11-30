@@ -1,7 +1,7 @@
 import { useAction, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { Toaster, toast } from "sonner";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Id } from "../convex/_generated/dataModel";
 import {
   Package,
@@ -201,6 +201,8 @@ export default function App() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [sortBy, setSortBy] = useState<"newest" | "downloads" | "updated">(
     "newest",
   );
@@ -208,23 +210,22 @@ export default function App() {
   // Global keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // ESC to close modals
+      // ESC to close modals and collapse search
       if (e.key === "Escape") {
         setShowSubmitModal(false);
         setShowAboutModal(false);
+        if (!searchTerm) setIsSearchExpanded(false);
       }
       // Cmd+K or Ctrl+K for search focus
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        const searchInput = document.querySelector(
-          'input[placeholder="Search..."]',
-        ) as HTMLInputElement;
-        searchInput?.focus();
+        setIsSearchExpanded(true);
+        setTimeout(() => searchInputRef.current?.focus(), 100);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [searchTerm]);
 
   return (
     <div className="min-h-screen flex flex-col bg-bg-primary">
@@ -246,37 +247,65 @@ export default function App() {
               />
             </a>
             <span className="whitespace-nowrap font-sans text-xl sm:text-title font-medium">
-              components npm submissions directory
+              Components npm Submissions Directory
             </span>
-            <Tooltip content="About this app">
-              <button
-                onClick={() => setShowAboutModal(true)}
-                className="ml-1 p-1.5 rounded-full text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
-              >
-                <Info size={20} weight="bold" />
-              </button>
-            </Tooltip>
           </h1>
 
           {/* Search, Sort, Submit and Auth section */}
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
-            {/* Search input in header */}
+            {/* Directory link */}
+            <Tooltip content="Browse the Convex Component Registry">
+              <a
+                href="https://www.convex.dev/components"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="whitespace-nowrap font-sans text-xl sm:text-title font-medium text-text-primary hover:opacity-80 transition-opacity"
+              >
+                Directory
+              </a>
+            </Tooltip>
+
+            {/* About button */}
+            <Tooltip content="About this app">
+              <button
+                onClick={() => setShowAboutModal(true)}
+                className="flex items-center justify-center w-9 h-9 rounded-full text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+              >
+                <Info size={18} weight="bold" />
+              </button>
+            </Tooltip>
+
+            {/* Expandable search input - expands left */}
             <Tooltip content="Search packages (⌘K)">
-              <div className="relative flex-1 sm:flex-none sm:w-48">
-                <MagnifyingGlass
-                  size={16}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary"
-                />
-                <input
-                  type="text"
-                  placeholder="Search..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-8 pr-10 py-1.5 rounded-full border border-border bg-bg-card text-text-primary text-sm outline-none focus:border-button transition-colors"
-                />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-text-secondary bg-bg-hover px-1.5 py-0.5 rounded hidden sm:inline">
-                  ⌘K
-                </span>
+              <div className="relative flex items-center">
+                {/* Expandable input - positioned to expand left */}
+                <div
+                  className={`overflow-hidden transition-all duration-200 ease-out ${isSearchExpanded ? "w-48 mr-2 opacity-100" : "w-0 opacity-0"}`}
+                >
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    placeholder="Search..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onBlur={() => {
+                      if (!searchTerm) setIsSearchExpanded(false);
+                    }}
+                    className="w-full pl-3 pr-8 py-1.5 rounded-full border border-border bg-bg-card text-text-primary text-sm outline-none focus:border-button transition-colors"
+                  />
+                </div>
+                {/* Search icon button - always visible */}
+                <button
+                  onClick={() => {
+                    setIsSearchExpanded(!isSearchExpanded);
+                    if (!isSearchExpanded) {
+                      setTimeout(() => searchInputRef.current?.focus(), 100);
+                    }
+                  }}
+                  className={`flex items-center justify-center w-9 h-9 rounded-full text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors ${isSearchExpanded ? "bg-bg-hover" : ""}`}
+                >
+                  <MagnifyingGlass size={18} />
+                </button>
               </div>
             </Tooltip>
 
@@ -302,7 +331,7 @@ export default function App() {
                 href="https://github.com/get-convex/convex-backend"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-center w-9 h-9 rounded-full text-text-primary hover:bg-bg-hover transition-colors border border-border"
+                className="flex items-center justify-center w-9 h-9 rounded-full bg-bg-card text-text-primary hover:bg-bg-card-hover transition-colors border border-border"
               >
                 <GithubLogo size={18} weight="fill" />
               </a>
@@ -316,6 +345,18 @@ export default function App() {
               >
                 Submit
               </button>
+            </Tooltip>
+
+            {/* Start Building button */}
+            <Tooltip content="Start building with Convex">
+              <a
+                href="https://www.convex.dev/start"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center px-4 py-1.5 rounded-full text-sm font-normal bg-button-dark text-white hover:bg-button-dark-hover transition-colors whitespace-nowrap"
+              >
+                Start Building
+              </a>
             </Tooltip>
           </div>
         </div>

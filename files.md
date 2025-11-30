@@ -11,7 +11,7 @@ Defines project dependencies, scripts, and metadata. Includes React, Convex, Vit
 TypeScript configuration files for different parts of the project. `tsconfig.json` is the base config, `tsconfig.app.json` is for the React app, and `tsconfig.node.json` is for Node.js tooling.
 
 ### `vite.config.ts`
-Vite build configuration. Sets up React plugin, path aliases, and configurable base path for deployment.
+Vite build configuration. Sets up React plugin, path aliases, and configurable base path for deployment. Toggle between "/" for localhost and "/components/submit/" for convex.dev deployment by commenting/uncommenting the base path lines.
 
 ### `tailwind.config.js`
 Tailwind CSS configuration with custom design system colors and theme settings. Defines color palette for the app's black and white design aesthetic.
@@ -194,6 +194,7 @@ Task list for tracking project progress and completed features.
 ### `prds/`
 Product requirements documents folder containing:
 - `aicheck.md`: AI Review feature specification
+- `howitworks.md`: Technical documentation for data fetching from npm and GitHub, rate limit concerns, and AI review process
 - `nowriteconflicts.md`: Guidelines for preventing Convex write conflicts
 - `token-based-auth-checks.md`: Token-based authentication guidelines
 

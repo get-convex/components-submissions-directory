@@ -42,6 +42,7 @@ module.exports = {
         // Background colors - warm cream theme
         "bg-primary": "#F7EEDB",
         "bg-card": "#F0E6D3",
+        "bg-card-hover": "#E1DAC9",
         "bg-hover": "#E8DCCA",
         // Text colors
         "text-primary": "#1a1a1a",
@@ -54,6 +55,11 @@ module.exports = {
         button: {
           DEFAULT: "#DF5D34",
           hover: "#C8512D",
+        },
+        // Start building button - dark charcoal
+        "button-dark": {
+          DEFAULT: "#292929",
+          hover: "#4F4F52",
         },
         // Utility colors
         light: "#FAF5EA",
