@@ -91,6 +91,44 @@ export const fetchNpmPackage = action({
   },
 });
 
+// Admin action: Refresh npm data for a specific package
+export const refreshNpmData = action({
+  args: { packageId: v.id("packages") },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    // Get the existing package to get its name
+    const pkg = await ctx.runQuery(api.packages.getPackage, {
+      packageId: args.packageId,
+    });
+
+    if (!pkg) {
+      throw new Error("Package not found");
+    }
+
+    // Fetch fresh data from npm
+    const packageData: any = await ctx.runAction(api.packages.fetchNpmPackage, {
+      packageName: pkg.name,
+    });
+
+    // Update the package with fresh npm data (preserves submitter info, review status, etc.)
+    await ctx.runMutation(api.packages.updateNpmData, {
+      packageId: args.packageId,
+      description: packageData.description,
+      version: packageData.version,
+      license: packageData.license,
+      repositoryUrl: packageData.repositoryUrl,
+      homepageUrl: packageData.homepageUrl,
+      unpackedSize: packageData.unpackedSize,
+      totalFiles: packageData.totalFiles,
+      lastPublish: packageData.lastPublish,
+      weeklyDownloads: packageData.weeklyDownloads,
+      collaborators: packageData.collaborators,
+    });
+
+    return null;
+  },
+});
+
 export const submitPackage = action({
   args: {
     npmUrl: v.string(),
@@ -222,6 +260,50 @@ export const addPackage = mutation({
       maintainerNames,
       submittedAt: Date.now(),
     });
+  },
+});
+
+// Admin mutation: Update npm data for a package (preserves submitter info, review status, etc.)
+export const updateNpmData = mutation({
+  args: {
+    packageId: v.id("packages"),
+    description: v.string(),
+    version: v.string(),
+    license: v.string(),
+    repositoryUrl: v.optional(v.string()),
+    homepageUrl: v.optional(v.string()),
+    unpackedSize: v.number(),
+    totalFiles: v.number(),
+    lastPublish: v.string(),
+    weeklyDownloads: v.number(),
+    collaborators: v.array(
+      v.object({
+        name: v.string(),
+        avatar: v.string(),
+      })
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Create denormalized maintainer names string for search
+    const maintainerNames = args.collaborators.map((c) => c.name).join(" ");
+
+    // Patch directly without reading first to avoid write conflicts
+    await ctx.db.patch(args.packageId, {
+      description: args.description,
+      version: args.version,
+      license: args.license,
+      repositoryUrl: args.repositoryUrl,
+      homepageUrl: args.homepageUrl,
+      unpackedSize: args.unpackedSize,
+      totalFiles: args.totalFiles,
+      lastPublish: args.lastPublish,
+      weeklyDownloads: args.weeklyDownloads,
+      collaborators: args.collaborators,
+      maintainerNames,
+    });
+
+    return null;
   },
 });
 

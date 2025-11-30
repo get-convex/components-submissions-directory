@@ -61,6 +61,7 @@ The NPM Package Directory is a submission platform where users can:
   - Detects convex.config.ts in multiple locations
   - Shows detailed results with criteria checklist
   - Auto-approve on pass and auto-reject on fail options
+- **Refresh NPM Data**: Pull latest package information from npm without affecting review status, submitter info, or AI review results
 - **CSV Export**: Export all package data to CSV format for analysis
 
 ## Tech Stack

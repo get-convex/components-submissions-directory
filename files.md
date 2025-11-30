@@ -55,8 +55,10 @@ AI-powered package review system. Contains:
 ### `convex/packages.ts`
 Main package business logic. Contains:
 - `fetchNpmPackage`: Action that fetches package metadata from npm registry and downloads API
+- `refreshNpmData`: Action that refreshes npm data for a specific package (preserves submitter info, review status, featured flag, AI review results)
 - `submitPackage`: Action that validates URL, checks for duplicates, fetches data, and inserts package with submitter information and optional demoUrl
 - `addPackage`: Mutation that inserts or updates package in database with submitter info and demoUrl
+- `updateNpmData`: Mutation that updates only npm-sourced fields (version, downloads, description, license, maintainers) without affecting admin data
 - `listPackages`: Query that returns visible packages sorted by newest, downloads, or updated date (excludes hidden/archived)
 - `getAllPackages`: Query for admin to fetch all packages regardless of visibility
 - `searchPackages`: Query with full-text search on visible packages (searches name, description, and maintainer names)
@@ -136,6 +138,7 @@ Admin dashboard component. Shows:
 - AI Review status badges (passed, failed, partial, reviewing, error)
 - AI Review results panel with expandable criteria checklist and suggestions
 - Admin settings panel with auto-approve/reject toggles for AI automation
+- Refresh NPM data button (ArrowClockwise icon) to pull latest package info from npm
 - Package deletion with confirmation modal
 - Submitter information display (name, email, Discord username) for each package
 - Demo link button for packages with live demos

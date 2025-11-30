@@ -43,6 +43,7 @@ import {
   XCircle,
   CaretUp,
   Browser,
+  ArrowClockwise,
 } from "@phosphor-icons/react";
 
 // Review status type
@@ -932,6 +933,52 @@ function AiReviewResultsPanel({
   );
 }
 
+// Refresh NPM Data button component
+function RefreshNpmButton({
+  packageId,
+  packageName,
+}: {
+  packageId: Id<"packages">;
+  packageName: string;
+}) {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const refreshNpmData = useAction(api.packages.refreshNpmData);
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await refreshNpmData({ packageId });
+      toast.success("NPM data refreshed!");
+    } catch (error) {
+      toast.error("Failed to refresh NPM data");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  return (
+    <Tooltip content="Refresh package data from npm">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          handleRefresh();
+        }}
+        disabled={isRefreshing}
+        className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <ArrowClockwise
+          size={12}
+          className={isRefreshing ? "animate-spin" : ""}
+        />
+        <span className="hidden sm:inline">
+          {isRefreshing ? "Refreshing..." : "refresh"}
+        </span>
+      </button>
+    </Tooltip>
+  );
+}
+
 // Footer component with legend
 function Footer() {
   const legendItems: {
@@ -1099,7 +1146,7 @@ export default function Admin() {
           <div className="flex items-center gap-2">
             <Tooltip content="Go to list">
               <a
-                href="/"
+                href="https://www.convex.dev/components/submit/"
                 className="p-1.5 rounded-full hover:bg-bg-hover transition-colors text-text-secondary hover:text-text-primary"
               >
                 <List size={18} weight="bold" />
@@ -2400,6 +2447,11 @@ function AdminDashboard({
                                 </a>
                               </Tooltip>
                             )}
+                            {/* Refresh NPM data button - always visible */}
+                            <RefreshNpmButton
+                              packageId={pkg._id}
+                              packageName={pkg.name}
+                            />
                           </div>
                         </div>
                       </div>

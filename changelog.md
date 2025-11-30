@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] 2025-11-30
+
+### Added
+
+- Admin NPM data refresh button to pull latest package information from npm
+- ArrowClockwise icon button in admin panel for each package
+- Refresh updates version, downloads, description, license, maintainers without affecting review status or submitter info
+
+### Technical Details
+
+- Added `refreshNpmData` action in `convex/packages.ts` to fetch fresh npm data for a specific package
+- Added `updateNpmData` mutation to patch only npm-sourced fields while preserving admin data
+- Updated `prds/howitworks.md` with refresh feature documentation
+
 ## [1.3.1] 2025-11-29
 
 ### Changed

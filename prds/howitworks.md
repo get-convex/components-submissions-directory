@@ -60,8 +60,8 @@ Store fetched npm data with a TTL. Before fetching, check if recent data exists:
 ```typescript
 const cached = await ctx.db
   .query("npmCache")
-  .withIndex("by_name_and_time", (q) => 
-    q.eq("name", packageName).gte("fetchedAt", Date.now() - 3600000)
+  .withIndex("by_name_and_time", (q) =>
+    q.eq("name", packageName).gte("fetchedAt", Date.now() - 3600000),
   )
   .first();
 ```
@@ -77,8 +77,8 @@ Add rate limiting per submitter email:
 ```typescript
 const recentSubmission = await ctx.db
   .query("packages")
-  .withIndex("by_submitter_email_and_time", (q) => 
-    q.eq("submitterEmail", email).gte("submittedAt", Date.now() - 60000)
+  .withIndex("by_submitter_email_and_time", (q) =>
+    q.eq("submitterEmail", email).gte("submittedAt", Date.now() - 60000),
   )
   .first();
 
@@ -177,7 +177,7 @@ https://www.npmjs.com/package/package-name
 Regex pattern used:
 
 ```javascript
-/npmjs\.com\/package\/((?:@[^/]+\/)?[^/?#]+)/
+/npmjs\.com\/package\/((?:@[^/]+\/)?[^/?#]+)/;
 ```
 
 ## GitHub Data Fetching for AI Review
@@ -294,6 +294,74 @@ Stores all npm package submissions with:
 - `by_visibility`: Filter public vs hidden packages
 - Search indexes for name, description, and maintainer names
 
+## Admin NPM Data Refresh
+
+Admins can refresh package data from npm at any time using the refresh button in the admin panel. This fetches the latest metadata without affecting review status or submitter information.
+
+### How It Works
+
+1. Admin clicks the refresh button (ArrowClockwise icon) next to a package
+2. The app calls `refreshNpmData` action with the package ID
+3. Action fetches fresh data from npm registry and downloads API
+4. Updates only npm-sourced fields while preserving:
+   - Submitter information (name, email, Discord)
+   - Review status and reviewer info
+   - Visibility settings
+   - Featured flag
+   - AI review results
+   - Demo URL
+
+### Data Flow
+
+```
+Admin clicks refresh
+       │
+       ▼
+┌─────────────────────┐
+│  Get package name   │
+│  from database      │
+└─────────────────────┘
+       │
+       ▼
+┌─────────────────────┐     ┌─────────────────────┐
+│  Fetch fresh npm    │────▶│  registry.npmjs.org │
+│  metadata           │     └─────────────────────┘
+└─────────────────────┘
+       │
+       ▼
+┌─────────────────────┐     ┌─────────────────────┐
+│  Fetch download     │────▶│  api.npmjs.org      │
+│  statistics         │     └─────────────────────┘
+└─────────────────────┘
+       │
+       ▼
+┌─────────────────────┐
+│  Update package     │
+│  (patch only npm    │
+│  sourced fields)    │
+└─────────────────────┘
+```
+
+### Fields Updated on Refresh
+
+- Description
+- Version
+- License
+- Repository URL
+- Homepage URL
+- Unpacked size
+- Total files
+- Last publish date
+- Weekly downloads
+- Collaborators/Maintainers
+
+### Use Cases
+
+- Package author publishes a new version
+- Weekly download counts need updating
+- Maintainer list changed
+- Description or license updated on npm
+
 ## Error Handling
 
 ### npm Fetch Failures
@@ -322,4 +390,3 @@ If Claude API fails:
 - npm Downloads API: https://github.com/npm/registry/blob/main/docs/download-counts.md
 - GitHub REST API: https://docs.github.com/en/rest
 - Convex Components: https://docs.convex.dev/components/authoring
-

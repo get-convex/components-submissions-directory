@@ -16,6 +16,7 @@
 - [x] Update files.md with current file descriptions
 - [x] Run TypeScript type checks
 - [x] Verify Netlify build readiness (build passes, no 404 errors with _redirects)
+- [x] Add refresh NPM data button for admin to pull latest package info from npm
 
 ## Completed
 
@@ -36,6 +37,7 @@
 - [x] Add live demo URL field to submission form
 - [x] Add demo link button in package details
 - [x] Ensure mobile responsive design throughout
+- [x] Add refresh NPM data button in admin panel
 
 ## Summary of Recent Changes
 
