@@ -241,7 +241,7 @@ export default function App() {
               className="inline-block hover:opacity-80 transition-opacity"
             >
               <img
-                src="/wordmark-black.svg"
+                src="https://www.convex.dev/components/submit/wordmark-black.svg"
                 alt="Convex"
                 className="h-14 w-auto"
               />
@@ -460,7 +460,7 @@ function Footer() {
               width="72"
               height="72"
               className="absolute left-0 top-[5%] size-9 lg:left-[20%] lg:top-[60%] lg:size-auto opacity-60"
-              src="/pixel-cruiser.svg"
+              src="https://www.convex.dev/components/submit/pixel-cruiser.svg"
             />
             <img
               alt=""
@@ -469,7 +469,7 @@ function Footer() {
               width="72"
               height="72"
               className="absolute -top-3 left-[70%] size-9 sm:-top-5 md:-top-8 lg:-top-12 lg:left-[55%] lg:size-auto opacity-60"
-              src="/pixel-frame.svg"
+              src="https://www.convex.dev/components/submit/pixel-frame.svg"
             />
             <img
               alt=""
@@ -478,7 +478,7 @@ function Footer() {
               width="72"
               height="72"
               className="absolute -right-3 top-[65%] size-9 sm:-right-5 md:-right-8 lg:right-[10%] lg:top-[80%] lg:size-auto opacity-60"
-              src="/pixel-kernel.svg"
+              src="https://www.convex.dev/components/submit/pixel-kernel.svg"
             />
             <img
               alt=""
@@ -487,7 +487,7 @@ function Footer() {
               width="72"
               height="72"
               className="absolute -bottom-3 left-[20%] size-9 sm:-bottom-5 md:-bottom-8 lg:-left-9 lg:top-[10%] lg:size-auto opacity-60"
-              src="/pixel-portal.svg"
+              src="https://www.convex.dev/components/submit/pixel-portal.svg"
             />
             <img
               alt=""
@@ -496,7 +496,7 @@ function Footer() {
               width="72"
               height="72"
               className="absolute -right-9 top-[5%] hidden lg:block opacity-60"
-              src="/pixel-burst.svg"
+              src="https://www.convex.dev/components/submit/pixel-burst.svg"
             />
           </div>
         </div>
@@ -515,7 +515,7 @@ function Footer() {
                 className="inline-block"
               >
                 <img
-                  src="/wordmark-white.svg"
+                  src="https://www.convex.dev/components/submit/wordmark-white.svg"
                   alt="Convex"
                   className="h-20 w-auto opacity-90 hover:opacity-100 transition-opacity"
                 />

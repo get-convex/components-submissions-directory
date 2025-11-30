@@ -18,7 +18,7 @@ import {
   Package,
   DownloadSimple,
   CalendarBlank,
-  House,
+  List,
   CaretRight,
   CaretDown,
   MagnifyingGlass,
@@ -959,7 +959,7 @@ function Footer() {
               className="text-text-secondary hover:text-text-primary transition-colors"
             >
               <img
-                src="/convex-black.svg"
+                src="https://www.convex.dev/components/submit/convex-black.svg"
                 alt="Convex"
                 className="h-4 w-auto opacity-60 hover:opacity-100 transition-opacity"
               />
@@ -1095,14 +1095,14 @@ export default function Admin() {
       {/* Compact Header */}
       <header className="sticky top-0 z-10 backdrop-blur-sm  px-4 sm:px-6 py-2 bg-bg-primary">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-          {/* Left: Home and breadcrumb */}
+          {/* Left: List and breadcrumb */}
           <div className="flex items-center gap-2">
-            <Tooltip content="Go to home page">
+            <Tooltip content="Go to list">
               <a
                 href="/"
                 className="p-1.5 rounded-full hover:bg-bg-hover transition-colors text-text-secondary hover:text-text-primary"
               >
-                <House size={18} weight="bold" />
+                <List size={18} weight="bold" />
               </a>
             </Tooltip>
             <nav className="flex items-center gap-1 text-sm">
@@ -1110,7 +1110,7 @@ export default function Admin() {
                 href="/"
                 className="text-text-secondary hover:text-text-primary transition-colors hidden sm:inline"
               >
-                Home
+                list
               </a>
               <CaretRight
                 size={12}
