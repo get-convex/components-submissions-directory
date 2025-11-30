@@ -12,12 +12,16 @@ const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 function Router() {
   const path = window.location.pathname;
 
+  // Remove base path if present (production is hosted at /components/submit on convex.dev)
+  const basePath = import.meta.env.VITE_BASE_PATH || "";
+  const normalizedPath = basePath ? path.replace(basePath, "") : path;
+
   // Known routes
-  if (path === "/" || path === "") {
+  if (normalizedPath === "/" || normalizedPath === "") {
     return <App />;
   }
 
-  if (path === "/admin") {
+  if (normalizedPath === "/admin") {
     return <Admin />;
   }
 
@@ -28,5 +32,5 @@ function Router() {
 createRoot(document.getElementById("root")!).render(
   <ConvexAuthProvider client={convex}>
     <Router />
-  </ConvexAuthProvider>,
+  </ConvexAuthProvider>
 );

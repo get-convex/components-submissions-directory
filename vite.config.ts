@@ -1,25 +1,18 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
-// ---------------------------------------------------------
-// BASE PATH CONFIGURATION
-// ---------------------------------------------------------
-// For localhost development, use: base: "/"
-// For convex.dev/components/submit deployment, use: base: "/components/submit/"
-// ---------------------------------------------------------
+export default defineConfig(({ mode }) => {
+  // Load env vars from system and .env files
+  const env = loadEnv(mode, process.cwd(), "");
 
-export default defineConfig({
-  // LOCALHOST: uncomment below, comment out the /components/submit/ line
-  // base: "/",
-
-  // CONVEX.DEV DEPLOYMENT
-  base: "/components/submit/",
-
-  plugins: [react()],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
+  return {
+    base: env.VITE_BASE_PATH || "/",
+    plugins: [react()],
+    resolve: {
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
     },
-  },
+  };
 });
