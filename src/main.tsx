@@ -12,9 +12,12 @@ const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 function Router() {
   const path = window.location.pathname;
 
-  // Remove base path if present (production is hosted at /components/submit on convex.dev)
-  const basePath = import.meta.env.VITE_BASE_PATH || "";
-  const normalizedPath = basePath ? path.replace(basePath, "") : path;
+  // Runtime detection: production is hosted at /components/submit on convex.dev
+  // Check if path starts with /components/submit and normalize it
+  const basePath = "/components/submit";
+  const normalizedPath = path.startsWith(basePath)
+    ? path.slice(basePath.length) || "/"
+    : path;
 
   // Known routes
   if (normalizedPath === "/" || normalizedPath === "") {

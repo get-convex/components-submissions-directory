@@ -1,2 +1,6 @@
+# Rewrite /components/submit/* to root for assets to load correctly
+/components/submit/* /:splat 200
+
+# SPA fallback
 /* /index.html 200
 
