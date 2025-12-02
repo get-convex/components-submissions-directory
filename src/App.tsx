@@ -229,153 +229,96 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-bg-primary">
-      {/* Header */}
-      <header className="sticky top-0 z-50 backdrop-blur-sm  px-4 sm:px-6 py-3 bg-bg-primary">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row gap-3 sm:gap-4 sm:justify-between sm:items-center">
-          {/* Title */}
-          <h1 className="flex items-center gap-2 text-lg sm:text-xl font-normal text-text-primary shrink-0">
-            <a
-              href="https://convex.dev"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block hover:opacity-80 transition-opacity"
-            >
-              <img
-                src="https://www.convex.dev/components/submit/wordmark-black.svg"
-                alt="Convex"
-                className="h-14 w-auto"
-              />
-            </a>
-            <span className="whitespace-nowrap font-sans text-xl sm:text-title font-medium">
-              Components npm Submissions Directory
-            </span>
-          </h1>
-
-          {/* Search, Sort, Submit and Auth section */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
-            {/* Directory link */}
-            <Tooltip content="Browse the Convex Component Registry">
-              <a
-                href="https://www.convex.dev/components"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="whitespace-nowrap font-sans text-xl sm:text-title font-medium text-text-primary hover:opacity-80 transition-opacity"
-              >
-                Directory
-              </a>
-            </Tooltip>
-
-            {/* About button */}
-            <Tooltip content="About this app">
-              <button
-                onClick={() => setShowAboutModal(true)}
-                className="flex items-center justify-center w-9 h-9 rounded-full text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
-              >
-                <Info size={18} weight="bold" />
-              </button>
-            </Tooltip>
-
-            {/* Expandable search input - expands left */}
-            <Tooltip content="Search packages (⌘K)">
-              <div className="relative flex items-center">
-                {/* Expandable input - positioned to expand left */}
-                <div
-                  className={`overflow-hidden transition-all duration-200 ease-out ${isSearchExpanded ? "w-48 mr-2 opacity-100" : "w-0 opacity-0"}`}
-                >
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    placeholder="Search..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onBlur={() => {
-                      if (!searchTerm) setIsSearchExpanded(false);
-                    }}
-                    className="w-full pl-3 pr-8 py-1.5 rounded-full border border-border bg-bg-card text-text-primary text-sm outline-none focus:border-button transition-colors"
-                  />
-                </div>
-                {/* Search icon button - always visible */}
-                <button
-                  onClick={() => {
-                    setIsSearchExpanded(!isSearchExpanded);
-                    if (!isSearchExpanded) {
-                      setTimeout(() => searchInputRef.current?.focus(), 100);
-                    }
-                  }}
-                  className={`flex items-center justify-center w-9 h-9 rounded-full text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors ${isSearchExpanded ? "bg-bg-hover" : ""}`}
-                >
-                  <MagnifyingGlass size={18} />
-                </button>
-              </div>
-            </Tooltip>
-
-            {/* Sort dropdown in header */}
-            <Tooltip content="Sort packages">
-              <div className="flex items-center gap-1 px-2 py-1.5 rounded-full text-sm border border-border bg-bg-card">
-                <SortAscending size={14} className="text-text-secondary" />
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                  className="bg-transparent text-text-primary text-xs outline-none cursor-pointer"
-                >
-                  <option value="newest">Newest</option>
-                  <option value="downloads">Downloads</option>
-                  <option value="updated">Updated</option>
-                </select>
-              </div>
-            </Tooltip>
-
-            {/* GitHub button */}
-            <Tooltip content="View Convex Backend on GitHub">
-              <a
-                href="https://github.com/get-convex/convex-backend"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center w-9 h-9 rounded-full bg-bg-card text-text-primary hover:bg-bg-card-hover transition-colors border border-border"
-              >
-                <GithubLogo size={18} weight="fill" />
-              </a>
-            </Tooltip>
-
-            {/* Submit button */}
-            <Tooltip content="Submit a new package">
-              <button
-                onClick={() => setShowSubmitModal(true)}
-                className="px-4 py-1.5 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors"
-              >
-                Submit
-              </button>
-            </Tooltip>
-
-            {/* Start Building button */}
-            <Tooltip content="Start building with Convex">
-              <a
-                href="https://www.convex.dev/start"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center px-4 py-1.5 rounded-full text-sm font-normal bg-button-dark text-white hover:bg-button-dark-hover transition-colors whitespace-nowrap"
-              >
-                Start Building
-              </a>
-            </Tooltip>
-          </div>
-        </div>
-      </header>
-
       {/* Main content */}
-      <main className="flex-1 px-4 sm:px-6 py-6 sm:py-8">
-        <Content searchTerm={searchTerm} sortBy={sortBy} />
+      <main className="flex-1 px-4 sm:px-6 py-4 sm:py-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Toolbar above package listing */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:justify-between sm:items-center mb-4">
+            {/* Left: Title */}
+            <h1 className="whitespace-nowrap font-sans text-lg sm:text-xl font-medium text-text-primary">
+              Components npm Submissions Directory
+            </h1>
+
+            {/* Right: Controls */}
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
+              {/* About button */}
+              <Tooltip content="About this app">
+                <button
+                  onClick={() => setShowAboutModal(true)}
+                  className="flex items-center justify-center w-9 h-9 rounded-full text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                >
+                  <Info size={18} weight="bold" />
+                </button>
+              </Tooltip>
+
+              {/* Expandable search input */}
+              <Tooltip content="Search packages (⌘K)">
+                <div className="relative flex items-center">
+                  <div
+                    className={`overflow-hidden transition-all duration-200 ease-out ${isSearchExpanded ? "w-48 mr-2 opacity-100" : "w-0 opacity-0"}`}
+                  >
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      placeholder="Search..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onBlur={() => {
+                        if (!searchTerm) setIsSearchExpanded(false);
+                      }}
+                      className="w-full pl-3 pr-8 py-1.5 rounded-full border border-border bg-bg-card text-text-primary text-sm outline-none focus:border-button transition-colors"
+                    />
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsSearchExpanded(!isSearchExpanded);
+                      if (!isSearchExpanded) {
+                        setTimeout(() => searchInputRef.current?.focus(), 100);
+                      }
+                    }}
+                    className={`flex items-center justify-center w-9 h-9 rounded-full text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors ${isSearchExpanded ? "bg-bg-hover" : ""}`}
+                  >
+                    <MagnifyingGlass size={18} />
+                  </button>
+                </div>
+              </Tooltip>
+
+              {/* Sort dropdown */}
+              <Tooltip content="Sort packages">
+                <div className="flex items-center gap-1 px-2 py-1.5 rounded-full text-sm border border-border bg-bg-card">
+                  <SortAscending size={14} className="text-text-secondary" />
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                    className="bg-transparent text-text-primary text-xs outline-none cursor-pointer"
+                  >
+                    <option value="newest">Newest</option>
+                    <option value="downloads">Downloads</option>
+                    <option value="updated">Updated</option>
+                  </select>
+                </div>
+              </Tooltip>
+
+              {/* Submit button */}
+              <Tooltip content="Submit a new package">
+                <button
+                  onClick={() => setShowSubmitModal(true)}
+                  className="px-4 py-1.5 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors"
+                >
+                  Submit
+                </button>
+              </Tooltip>
+            </div>
+          </div>
+
+          {/* Package listing */}
+          <Content searchTerm={searchTerm} sortBy={sortBy} />
+        </div>
       </main>
-
-      {/* Status Legend Bar */}
-      <StatusLegendBar />
-
-      {/* Footer */}
-      <Footer />
 
       <Toaster />
 
-      {/* Submit modal */}
+      {/* Submit modal with iframe support */}
       {showSubmitModal && (
         <SubmitPackageModal onClose={() => setShowSubmitModal(false)} />
       )}
@@ -1044,7 +987,17 @@ function SuccessModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div 
+      className="fixed inset-0 flex items-center justify-center p-4"
+      style={{ 
+        zIndex: 2147483647,
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+      }}
+    >
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
@@ -1075,7 +1028,7 @@ function SuccessModal({
   );
 }
 
-// Submit Package Modal
+// Submit Package Modal with iframe support
 function SubmitPackageModal({ onClose }: { onClose: () => void }) {
   const [npmUrl, setNpmUrl] = useState("");
   const [demoUrl, setDemoUrl] = useState("");
@@ -1173,29 +1126,41 @@ function SubmitPackageModal({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        {/* Backdrop */}
-        <div
-          className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-          onClick={onClose}
-        />
-        {/* Modal */}
-        <div className="relative w-full max-w-md p-6 rounded-container bg-[#FAF5EA] border border-border shadow-lg">
-          <button
+      {/* Modal container with high z-index for iframe support - hide when success is showing */}
+      {!showSuccess && (
+        <div 
+          className="fixed inset-0 flex items-start justify-center pt-8 sm:pt-12 p-4 overflow-y-auto"
+          style={{ 
+            zIndex: 2147483647,
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+          }}
+        >
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm"
             onClick={onClose}
-            className="absolute top-4 right-4 p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors focus:outline-none focus:ring-2 focus:ring-button/50"
-          >
-            <X size={20} />
-          </button>
-          <h2 className="text-xl font-normal text-text-primary mb-4">
-            Submit a npm Package for Review
-          </h2>
-          <p className="text-sm text-text-secondary mb-6">
-            Submit your npm package to the Convex components directory for
-            review.
-          </p>
+          />
+          {/* Modal */}
+          <div className="relative w-full max-w-md p-6 rounded-container bg-[#FAF5EA] border border-border shadow-lg">
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors focus:outline-none focus:ring-2 focus:ring-button/50"
+            >
+              <X size={20} />
+            </button>
+            <h2 className="text-xl font-normal text-text-primary mb-4">
+              Submit a npm Package for Review
+            </h2>
+            <p className="text-sm text-text-secondary mb-6">
+              Submit your npm package to the Convex components directory for
+              review.
+            </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
             {/* NPM URL */}
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">
@@ -1250,6 +1215,9 @@ function SubmitPackageModal({ onClose }: { onClose: () => void }) {
               <label className="block text-sm font-medium text-text-primary mb-1">
                 Email <span className="text-red-500">*</span>
               </label>
+              <p className="text-xs text-text-secondary mb-2">
+                Not displayed publicly. Used by the Convex team to contact you about your submission.
+              </p>
               <input
                 type="email"
                 placeholder="you@example.com"
@@ -1285,8 +1253,9 @@ function SubmitPackageModal({ onClose }: { onClose: () => void }) {
               {isLoading ? "Submitting..." : "Submit Package"}
             </button>
           </form>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Error modal */}
       <CustomModal
@@ -1354,14 +1323,14 @@ function AboutModal({ onClose }: { onClose: () => void }) {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 sm:pt-12 p-4 overflow-y-auto">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
       {/* Modal */}
-      <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 rounded-container bg-[#FAF5EA] border border-border shadow-lg">
+      <div className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto p-6 rounded-container bg-[#FAF5EA] border border-border shadow-lg">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors focus:outline-none focus:ring-2 focus:ring-button/50"
@@ -1514,7 +1483,7 @@ function Content({
     : undefined;
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <>
       {/* Packages table/list */}
       <div className="rounded-lg border border-border bg-light overflow-hidden shadow-sm">
         {/* Table header for desktop */}
@@ -1557,7 +1526,7 @@ function Content({
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -1869,9 +1838,11 @@ function PackageRow({
             <Tooltip content="View package on npm" position="right">
               <a
                 href={pkg.npmUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.open(pkg.npmUrl, '_blank', 'noopener,noreferrer');
+                }}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors cursor-pointer"
               >
                 <ArrowSquareOut size={16} />
                 npm
@@ -1881,9 +1852,11 @@ function PackageRow({
               <Tooltip content="View source code" position="right">
                 <a
                   href={pkg.repositoryUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.open(pkg.repositoryUrl, '_blank', 'noopener,noreferrer');
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
                 >
                   <GithubLogo size={16} />
                   Repo
@@ -1894,9 +1867,11 @@ function PackageRow({
               <Tooltip content="Visit homepage" position="right">
                 <a
                   href={pkg.homepageUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.open(pkg.homepageUrl, '_blank', 'noopener,noreferrer');
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
                 >
                   <Globe size={16} />
                   Website
@@ -1907,9 +1882,11 @@ function PackageRow({
               <Tooltip content="View live demo" position="right">
                 <a
                   href={pkg.demoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    window.open(pkg.demoUrl, '_blank', 'noopener,noreferrer');
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
                 >
                   <Browser size={16} />
                   Demo

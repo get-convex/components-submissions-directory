@@ -979,8 +979,8 @@ function RefreshNpmButton({
   );
 }
 
-// Footer component with legend
-function Footer() {
+// Status Legend component for admin dashboard
+function StatusLegend() {
   const legendItems: {
     label: string;
     color: string;
@@ -994,49 +994,17 @@ function Footer() {
   ];
 
   return (
-    <footer className="border-t border-border px-4 sm:px-6 py-3 bg-bg-card">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        {/* Left: Icons */}
-        <div className="flex items-center gap-3">
-          <Tooltip content="Built with Convex" position="top">
-            <a
-              href="https://convex.dev"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-text-secondary hover:text-text-primary transition-colors"
-            >
-              <img
-                src="https://www.convex.dev/components/submit/convex-black.svg"
-                alt="Convex"
-                className="h-4 w-auto opacity-60 hover:opacity-100 transition-opacity"
-              />
-            </a>
-          </Tooltip>
-          <Tooltip content="View source on GitHub" position="top">
-            <a
-              href="https://github.com/get-convex/components-submissions-directory"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-text-secondary hover:text-text-primary transition-colors"
-            >
-              <GithubLogo size={18} weight="bold" />
-            </a>
-          </Tooltip>
+    <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 py-3 px-4 rounded-lg border border-border bg-bg-card mt-4">
+      <span className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+        Status
+      </span>
+      {legendItems.map((item) => (
+        <div key={item.label} className="flex items-center gap-1.5">
+          <div className={`w-2.5 h-2.5 rounded-sm ${item.color}`} />
+          <span className="text-xs text-text-secondary">{item.label}</span>
         </div>
-
-        {/* Right: Legend */}
-        <div className="flex items-center gap-3 sm:gap-4">
-          {legendItems.map((item) => (
-            <div key={item.label} className="flex items-center gap-1.5">
-              <div className={`w-2.5 h-2.5 rounded-sm ${item.color}`} />
-              <span className="text-xs text-text-secondary hidden sm:inline">
-                {item.label}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </footer>
+      ))}
+    </div>
   );
 }
 
@@ -1142,32 +1110,10 @@ export default function Admin() {
       {/* Compact Header */}
       <header className="sticky top-0 z-10 backdrop-blur-sm  px-4 sm:px-6 py-2 bg-bg-primary">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-          {/* Left: List and breadcrumb */}
-          <div className="flex items-center gap-2">
-            <Tooltip content="Go to list">
-              <a
-                href="https://www.convex.dev/components/submit/"
-                className="p-1.5 rounded-full hover:bg-bg-hover transition-colors text-text-secondary hover:text-text-primary"
-              >
-                <List size={18} weight="bold" />
-              </a>
-            </Tooltip>
-            <nav className="flex items-center gap-1 text-sm">
-              <a
-                href="/"
-                className="text-text-secondary hover:text-text-primary transition-colors hidden sm:inline"
-              >
-                list
-              </a>
-              <CaretRight
-                size={12}
-                className="text-text-secondary hidden sm:inline"
-              />
-              <span className="text-text-primary font-medium text-sm">
-                Admin
-              </span>
-            </nav>
-          </div>
+          {/* Left: Title */}
+          <span className="text-text-primary font-medium text-sm">
+            Admin
+          </span>
 
           {/* Center: Search (when logged in as admin) */}
           {loggedInUser && isAdmin && (
@@ -1257,7 +1203,6 @@ export default function Admin() {
           />
         )}
       </main>
-      <Footer />
       <Toaster />
     </div>
   );
@@ -2412,10 +2357,12 @@ function AdminDashboard({
                             <Tooltip content="View on npm">
                               <a
                                 href={pkg.npmUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="px-3 py-1.5 rounded-full text-xs font-medium bg-button text-white hover:bg-button-hover transition-colors"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  window.open(pkg.npmUrl, '_blank', 'noopener,noreferrer');
+                                }}
+                                className="px-3 py-1.5 rounded-full text-xs font-medium bg-button text-white hover:bg-button-hover transition-colors cursor-pointer"
                               >
                                 npm
                               </a>
@@ -2424,10 +2371,12 @@ function AdminDashboard({
                               <Tooltip content="View repository">
                                 <a
                                   href={pkg.repositoryUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    window.open(pkg.repositoryUrl, '_blank', 'noopener,noreferrer');
+                                  }}
+                                  className="px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
                                 >
                                   repo
                                 </a>
@@ -2437,10 +2386,12 @@ function AdminDashboard({
                               <Tooltip content="View live demo">
                                 <a
                                   href={pkg.demoUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    window.open(pkg.demoUrl, '_blank', 'noopener,noreferrer');
+                                  }}
+                                  className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
                                 >
                                   <Browser size={12} />
                                   demo
@@ -2572,6 +2523,9 @@ function AdminDashboard({
           </Tooltip>
         </div>
       </div>
+
+      {/* Status Legend below Stats */}
+      <StatusLegend />
     </div>
   );
 }

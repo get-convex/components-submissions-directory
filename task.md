@@ -17,6 +17,14 @@
 - [x] Run TypeScript type checks
 - [x] Verify Netlify build readiness (build passes, no 404 errors with _redirects)
 - [x] Add refresh NPM data button for admin to pull latest package info from npm
+- [x] Streamline frontend layout for iframe embedding (remove header/footer)
+- [x] Move toolbar controls above package listing
+- [x] Update modals to open at top of page for iframe support
+- [x] Simplify Admin page header (remove breadcrumb)
+- [x] Move Admin status legend below Stats section
+- [x] Fix external links to open in new tabs even in iframes
+- [x] Fix thank you success modal not displaying after submission
+- [x] Add email privacy notice to submit form
 
 ## Completed
 
@@ -38,27 +46,36 @@
 - [x] Add demo link button in package details
 - [x] Ensure mobile responsive design throughout
 - [x] Add refresh NPM data button in admin panel
+- [x] Fix external links for iframe compatibility (window.open)
+- [x] Fix success modal z-index for iframe support
+- [x] Add email privacy notice to submission form
 
 ## Summary of Recent Changes
 
 ### Frontend (App.tsx)
 
+- Streamlined layout: removed header and footer for iframe embedding
+- Compact toolbar above package listing with title, info, search, sort, submit controls
+- Submit modal opens at top of page with max z-index for iframe support
+- About modal opens at top of page for consistency
 - Added About modal with app description and complete status legend
-- Added About link (info icon) next to app title in header
-- Added StatusLegendBar component above footer with grid background
 - Added star icon on featured packages (both mobile and desktop layouts)
-- Removed login/signup buttons from header (admin authentication remains unchanged)
 - Added public comments display on package details
 - Added live demo URL field to submission form (optional but suggested)
 - Added Demo button for packages with live demos
 - Mobile responsive design with proper breakpoints
+- Fixed external links (npm, repo, website, demo) to open in new tabs in iframes using window.open()
+- Fixed thank you success modal display (z-index layering issue)
+- Added email privacy notice: "Not displayed publicly. Used by the Convex team to contact you about your submission."
 
 ### Admin (Admin.tsx)
 
+- Simplified header: removed breadcrumb, shows only "Admin" text
+- Moved status legend below Stats section
+- Removed footer for streamlined layout
 - Added Featured toggle button (Star icon) in inline actions
 - Featured button only enabled for approved packages
 - Added star icon next to featured package names in list
-- Updated footer legend to include Featured status
 - Added public comments management panel
 - Added AI Review button to trigger automated code analysis
 - Added AI Review status badges (passed, failed, partial, reviewing, error)

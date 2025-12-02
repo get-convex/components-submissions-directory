@@ -18,8 +18,11 @@ dist-ssr
 .idea
 .DS_Store
 .cursor/rules/writing.mdc
+.cursor/rules/write.mdc
 prds/components-submission-process.md
+prd/challengecategories.md
 prds/writing.md
+prds/write.md
 *.suo
 *.ntvs*
 *.njsproj

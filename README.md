@@ -23,8 +23,9 @@ The NPM Package Directory is a submission platform where users can:
 - **Sorting Options**: Sort packages by newest submissions, weekly downloads, or last publish date
 - **Review Status Display**: Visual badges showing package review status (pending, in review, approved, changes requested, rejected)
 - **Featured Packages**: Star icon highlighting packages featured on convex.dev/components
-- **About Modal**: App description and complete status legend explaining each review status (accessible via info icon in header)
-- **Status Legend Bar**: Quick reference above footer showing all status indicators with grid background pattern
+- **About Modal**: App description and complete status legend explaining each review status (accessible via info icon)
+- **Streamlined Layout**: Compact toolbar with title, info, search, sort, and submit controls directly above package listing
+- **Iframe Support**: Modals open at top of page with maximum z-index for embedding in iframes
 - **No Login Required**: Public frontend has no authentication UI (admin access via /admin route only)
 - **Package Details**: Expandable cards showing full package information including:
   - Version and description

@@ -106,30 +106,34 @@ Application entry point. Sets up Convex React client, ConvexAuthProvider, and si
 
 ### `src/App.tsx`
 Main package directory interface. Includes:
-- App title: "components npm submissions directory" with Convex wordmark
-- Package submission form with submitter information fields (name, email, optional Discord) and optional live demo URL
+- Compact toolbar above package listing with title, info icon, search, sort dropdown, and submit button
+- App title: "Components npm Submissions Directory" inline with controls
+- Package submission form with submitter information fields (name, email with privacy notice, optional Discord) and optional live demo URL
+- Submit modal opens at top of page with max z-index for iframe support
+- Success modal with max z-index displays after submission (auto-closes after 3 seconds)
+- About modal opens at top of page with status legend
 - Search input with keyboard shortcut (Cmd+K) and real-time filtering
 - Sort dropdown (newest, downloads, updated)
 - Package card list with expandable details showing review status badges
 - Review status badges using Phosphor icons (pending, in review, approved, changes requested, rejected)
 - Featured star icon on featured packages with tooltip
 - Demo link button for packages with live demos
+- External links (npm, repo, website, demo) use window.open() for iframe compatibility
 - Public comments display on package details
-- About modal with app description and status legend (no login/signup required)
-- About link (info icon) in header next to app title
-- Status legend bar above footer with grid background pattern
 - Loading skeleton states
 - Empty state when no packages found
 - Custom modal components for errors and confirmations
 - Phosphor icons throughout (replacing emojis)
-- No authentication UI in public header (admin access via /admin route only)
+- No header or footer (streamlined for iframe embedding)
 - Fully mobile responsive design
 
 ### `src/Admin.tsx`
 Admin dashboard component. Shows:
+- Simple "Admin" text header (no breadcrumb or navigation links)
 - Authentication check and sign-in form
 - Access denied message for non-admin users
 - Admin dashboard with statistics cards (total packages by status, downloads)
+- Status legend centered below Stats section
 - Package submissions table with filtering by review status (all, pending, in_review, approved, changes_requested, rejected, archived)
 - Review status management with inline action buttons (approve, review, changes, pending, reject)
 - Visibility controls with inline buttons (show, hide, archive)
@@ -141,6 +145,7 @@ Admin dashboard component. Shows:
 - Refresh NPM data button (ArrowClockwise icon) to pull latest package info from npm
 - Package deletion with confirmation modal
 - Submitter information display (name, email, Discord username) for each package
+- External links (npm, repo, demo) use window.open() for iframe compatibility
 - Demo link button for packages with live demos
 - Package notes panel with threaded notes support (internal, admin only)
 - Public comments panel for managing frontend visible comments
@@ -151,7 +156,7 @@ Admin dashboard component. Shows:
 - CSV export functionality
 - Custom tooltips and confirmation modals
 - Phosphor icons for all UI elements
-- Footer with status legend including Featured
+- No footer (streamlined layout)
 - Mobile responsive design with collapsible package rows
 
 ### `src/SignInForm.tsx`

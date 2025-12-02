@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.4] 2025-12-02
+
+### Fixed
+
+- External links (npm, repo, website, demo) now open in new tabs even when app is embedded in an iframe
+- Thank you success modal now displays correctly after package submission (fixed z-index layering)
+
+### Added
+
+- Email privacy notice in submit form: "Not displayed publicly. Used by the Convex team to contact you about your submission."
+
+### Technical Details
+
+- Changed external link buttons to use `window.open()` with `onClick` handlers instead of relying solely on `target="_blank"` for iframe compatibility
+- SuccessModal now uses maximum z-index (2147483647) matching the submit modal for iframe support
+- Submit modal form is hidden when success modal is displayed to prevent layering issues
+
+## [1.3.3] 2025-12-02
+
+### Changed
+
+- Simplified frontend layout: removed header (Convex logo, GitHub icon, Start Building button) and footer
+- Moved toolbar controls (info icon, search, sort dropdown, submit button) directly above package listing
+- Title "Components npm Submissions Directory" now displays inline with controls
+- Submit modal opens at top of page instead of center for better iframe support
+- About modal opens at top of page for consistency
+- Submit modal uses maximum z-index (2147483647) to ensure it appears on top in iframes
+- Admin page: removed breadcrumb navigation, shows only "Admin" text
+- Admin page: moved status legend below Stats section, removed footer
+- Improved mobile responsiveness for compact toolbar layout
+
+### Technical Details
+
+- Frontend App.tsx restructured with compact toolbar above Content component
+- Modal positioning changed from `items-center` to `items-start` with top padding
+- Admin.tsx StatusLegend component moved inside AdminDashboard below Stats
+- Removed Footer component from Admin page
+
 ## [1.3.2] 2025-11-30
 
 ### Added
