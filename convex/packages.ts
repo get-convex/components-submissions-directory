@@ -5,7 +5,7 @@ import { api, internal } from "./_generated/api";
 
 // ============ SECURITY: Public-safe package fields ============
 // These fields are safe to expose to the public frontend
-// Sensitive fields like submitterEmail, submitterName, submitterDiscord, 
+// Sensitive fields like submitterEmail, submitterName, submitterDiscord,
 // and AI review details are excluded from public queries
 
 const publicPackageValidator = v.object({
@@ -22,38 +22,42 @@ const publicPackageValidator = v.object({
   totalFiles: v.number(),
   lastPublish: v.string(),
   weeklyDownloads: v.number(),
-  collaborators: v.array(v.object({
-    name: v.string(),
-    avatar: v.string(),
-  })),
+  collaborators: v.array(
+    v.object({
+      name: v.string(),
+      avatar: v.string(),
+    }),
+  ),
   maintainerNames: v.optional(v.string()),
   npmUrl: v.string(),
   submittedAt: v.number(),
   // Live demo URL (optional)
   demoUrl: v.optional(v.string()),
-  reviewStatus: v.optional(v.union(
-    v.literal("pending"),
-    v.literal("in_review"),
-    v.literal("approved"),
-    v.literal("changes_requested"),
-    v.literal("rejected")
-  )),
-  visibility: v.optional(v.union(
-    v.literal("visible"),
-    v.literal("hidden"),
-    v.literal("archived")
-  )),
+  reviewStatus: v.optional(
+    v.union(
+      v.literal("pending"),
+      v.literal("in_review"),
+      v.literal("approved"),
+      v.literal("changes_requested"),
+      v.literal("rejected"),
+    ),
+  ),
+  visibility: v.optional(
+    v.union(v.literal("visible"), v.literal("hidden"), v.literal("archived")),
+  ),
   // Featured flag (public)
   featured: v.optional(v.boolean()),
   // Only expose AI review status, NOT the detailed results
-  aiReviewStatus: v.optional(v.union(
-    v.literal("not_reviewed"),
-    v.literal("reviewing"),
-    v.literal("passed"),
-    v.literal("failed"),
-    v.literal("partial"),
-    v.literal("error")
-  )),
+  aiReviewStatus: v.optional(
+    v.union(
+      v.literal("not_reviewed"),
+      v.literal("reviewing"),
+      v.literal("passed"),
+      v.literal("failed"),
+      v.literal("partial"),
+      v.literal("error"),
+    ),
+  ),
 });
 
 // Helper function to strip sensitive fields from a package
@@ -93,9 +97,7 @@ export const fetchNpmPackage = action({
 
     // For scoped packages (@scope/name), encode the slash between scope and name
     // npm registry requires: @scope%2Fname format
-    const encodedName = name.startsWith("@")
-      ? name.replace("/", "%2F")
-      : name;
+    const encodedName = name.startsWith("@") ? name.replace("/", "%2F") : name;
     const registryUrl = `https://registry.npmjs.org/${encodedName}`;
 
     // Use encodeURIComponent for the downloads API
@@ -108,7 +110,7 @@ export const fetchNpmPackage = action({
 
     if (!metadataResponse.ok) {
       throw new Error(
-        `Failed to fetch registry metadata for "${name}": ${metadataResponse.status} ${metadataResponse.statusText}`
+        `Failed to fetch registry metadata for "${name}": ${metadataResponse.status} ${metadataResponse.statusText}`,
       );
     }
 
@@ -150,11 +152,12 @@ export const fetchNpmPackage = action({
       (maintainer: { name: string; email?: string }) => ({
         name: maintainer.name,
         avatar: `https://www.gravatar.com/avatar/${maintainer.name}?d=identicon`,
-      })
+      }),
     );
 
     // Get last publish time
-    const lastPublish = metadata.time?.[latestVersion] || new Date().toISOString();
+    const lastPublish =
+      metadata.time?.[latestVersion] || new Date().toISOString();
 
     return {
       name,
@@ -227,9 +230,13 @@ export const submitPackage = action({
     // Parse package name from URL
     // Handles: https://www.npmjs.com/package/@convex-dev/agent or https://www.npmjs.com/package/react
     // For scoped packages, capture @scope/name together
-    const urlMatch = args.npmUrl.match(/npmjs\.com\/package\/((?:@[^/]+\/)?[^/?#]+)/);
+    const urlMatch = args.npmUrl.match(
+      /npmjs\.com\/package\/((?:@[^/]+\/)?[^/?#]+)/,
+    );
     if (!urlMatch) {
-      throw new Error("Invalid npm URL. Expected format: https://www.npmjs.com/package/package-name");
+      throw new Error(
+        "Invalid npm URL. Expected format: https://www.npmjs.com/package/package-name",
+      );
     }
 
     const packageName = decodeURIComponent(urlMatch[1]);
@@ -264,7 +271,10 @@ export const submitPackage = action({
     const autoApproveEnabled = settings.autoApproveOnPass || false;
     const autoRejectEnabled = settings.autoRejectOnFail || false;
 
-    if ((autoApproveEnabled || autoRejectEnabled) && packageData.repositoryUrl) {
+    if (
+      (autoApproveEnabled || autoRejectEnabled) &&
+      packageData.repositoryUrl
+    ) {
       // Schedule AI review to run immediately in background
       // Package is already in database, so user sees it while AI reviews
       await ctx.scheduler.runAfter(0, api.aiReview.runAiReview, {
@@ -293,7 +303,7 @@ export const addPackage = mutation({
       v.object({
         name: v.string(),
         avatar: v.string(),
-      })
+      }),
     ),
     npmUrl: v.string(),
     // Submitter info (shown only in admin)
@@ -363,7 +373,7 @@ export const updateNpmData = mutation({
       v.object({
         name: v.string(),
         avatar: v.string(),
-      })
+      }),
     ),
   },
   returns: v.null(),
@@ -392,7 +402,15 @@ export const updateNpmData = mutation({
 
 // SECURITY: Public query - filters out sensitive submitter info and AI review details
 export const listPackages = query({
-  args: { sortBy: v.optional(v.union(v.literal("newest"), v.literal("downloads"), v.literal("updated"))) },
+  args: {
+    sortBy: v.optional(
+      v.union(
+        v.literal("newest"),
+        v.literal("downloads"),
+        v.literal("updated"),
+      ),
+    ),
+  },
   returns: v.array(publicPackageValidator),
   handler: async (ctx, args) => {
     const sortBy = args.sortBy || "newest";
@@ -400,10 +418,10 @@ export const listPackages = query({
     // Get all packages and filter to only visible ones for public view
     // All submissions are visible by default (pending included), admins can hide/archive
     const allPackages = await ctx.db.query("packages").collect();
-    
+
     // Filter: show packages that are visible (or no visibility set = visible by default)
     // Hidden and archived packages are excluded from public view
-    const publicPackages = allPackages.filter(pkg => {
+    const publicPackages = allPackages.filter((pkg) => {
       const isVisible = !pkg.visibility || pkg.visibility === "visible";
       return isVisible;
     });
@@ -419,7 +437,11 @@ export const listPackages = query({
         .slice(0, 50);
     } else if (sortBy === "updated") {
       sortedPackages = publicPackages
-        .sort((a, b) => new Date(b.lastPublish).getTime() - new Date(a.lastPublish).getTime())
+        .sort(
+          (a, b) =>
+            new Date(b.lastPublish).getTime() -
+            new Date(a.lastPublish).getTime(),
+        )
         .slice(0, 50);
     } else {
       sortedPackages = publicPackages.slice(0, 50);
@@ -441,19 +463,19 @@ export const getAllPackages = query({
       // Not authenticated - return empty array (not an error to avoid info leakage)
       return [];
     }
-    
+
     // Get user's email from authAccounts table
     const authAccount = await ctx.db
       .query("authAccounts")
       .filter((q) => q.eq(q.field("userId"), userId))
       .first();
-    
+
     // Check if email ends with @convex.dev (admin check)
     if (!authAccount?.providerAccountId?.endsWith("@convex.dev")) {
       // Not an admin - return empty array
       return [];
     }
-    
+
     // Admin authenticated - return full data
     return await ctx.db.query("packages").collect();
   },
@@ -468,7 +490,7 @@ export const searchPackages = query({
     if (!args.searchTerm.trim()) {
       const allPackages = await ctx.db.query("packages").collect();
       const filtered = allPackages
-        .filter(pkg => !pkg.visibility || pkg.visibility === "visible")
+        .filter((pkg) => !pkg.visibility || pkg.visibility === "visible")
         .sort((a, b) => b.submittedAt - a.submittedAt)
         .slice(0, 50);
       // SECURITY: Strip sensitive fields before returning to client
@@ -484,20 +506,28 @@ export const searchPackages = query({
     // Search by description using Convex full-text search
     const descriptionResults = await ctx.db
       .query("packages")
-      .withSearchIndex("search_description", (q) => q.search("description", args.searchTerm))
+      .withSearchIndex("search_description", (q) =>
+        q.search("description", args.searchTerm),
+      )
       .take(50);
 
     // Search by maintainer names using Convex full-text search
     const maintainerResults = await ctx.db
       .query("packages")
-      .withSearchIndex("search_maintainers", (q) => q.search("maintainerNames", args.searchTerm))
+      .withSearchIndex("search_maintainers", (q) =>
+        q.search("maintainerNames", args.searchTerm),
+      )
       .take(50);
 
     // Combine results and deduplicate by _id
     const seen = new Set<string>();
     const combined: typeof nameResults = [];
-    
-    for (const pkg of [...nameResults, ...descriptionResults, ...maintainerResults]) {
+
+    for (const pkg of [
+      ...nameResults,
+      ...descriptionResults,
+      ...maintainerResults,
+    ]) {
       if (!seen.has(pkg._id)) {
         seen.add(pkg._id);
         // Filter to only visible packages
@@ -516,79 +546,93 @@ export const searchPackages = query({
 // Searches all packages by name, description, or maintainer names
 export const adminSearchPackages = query({
   args: { searchTerm: v.string() },
-  returns: v.array(v.object({
-    _id: v.id("packages"),
-    _creationTime: v.number(),
-    name: v.string(),
-    description: v.string(),
-    installCommand: v.string(),
-    repositoryUrl: v.optional(v.string()),
-    homepageUrl: v.optional(v.string()),
-    version: v.string(),
-    license: v.string(),
-    unpackedSize: v.number(),
-    totalFiles: v.number(),
-    lastPublish: v.string(),
-    weeklyDownloads: v.number(),
-    collaborators: v.array(v.object({
+  returns: v.array(
+    v.object({
+      _id: v.id("packages"),
+      _creationTime: v.number(),
       name: v.string(),
-      avatar: v.string(),
-    })),
-    maintainerNames: v.optional(v.string()),
-    npmUrl: v.string(),
-    submittedAt: v.number(),
-    // Submitter info (optional - may not exist on older records)
-    submitterName: v.optional(v.string()),
-    submitterEmail: v.optional(v.string()),
-    submitterDiscord: v.optional(v.string()),
-    // Live demo URL (optional)
-    demoUrl: v.optional(v.string()),
-    reviewStatus: v.optional(v.union(
-      v.literal("pending"),
-      v.literal("in_review"),
-      v.literal("approved"),
-      v.literal("changes_requested"),
-      v.literal("rejected")
-    )),
-    visibility: v.optional(v.union(
-      v.literal("visible"),
-      v.literal("hidden"),
-      v.literal("archived")
-    )),
-    reviewedBy: v.optional(v.string()),
-    reviewedAt: v.optional(v.number()),
-    reviewNotes: v.optional(v.string()),
-    featured: v.optional(v.boolean()),
-    // AI Review fields
-    aiReviewStatus: v.optional(v.union(
-      v.literal("not_reviewed"),
-      v.literal("reviewing"),
-      v.literal("passed"),
-      v.literal("failed"),
-      v.literal("partial"),
-      v.literal("error")
-    )),
-    aiReviewSummary: v.optional(v.string()),
-    aiReviewCriteria: v.optional(v.array(v.object({
-      name: v.string(),
-      passed: v.boolean(),
-      notes: v.string(),
-    }))),
-    aiReviewedAt: v.optional(v.number()),
-    aiReviewError: v.optional(v.string()),
-  })),
+      description: v.string(),
+      installCommand: v.string(),
+      repositoryUrl: v.optional(v.string()),
+      homepageUrl: v.optional(v.string()),
+      version: v.string(),
+      license: v.string(),
+      unpackedSize: v.number(),
+      totalFiles: v.number(),
+      lastPublish: v.string(),
+      weeklyDownloads: v.number(),
+      collaborators: v.array(
+        v.object({
+          name: v.string(),
+          avatar: v.string(),
+        }),
+      ),
+      maintainerNames: v.optional(v.string()),
+      npmUrl: v.string(),
+      submittedAt: v.number(),
+      // Submitter info (optional - may not exist on older records)
+      submitterName: v.optional(v.string()),
+      submitterEmail: v.optional(v.string()),
+      submitterDiscord: v.optional(v.string()),
+      // Live demo URL (optional)
+      demoUrl: v.optional(v.string()),
+      reviewStatus: v.optional(
+        v.union(
+          v.literal("pending"),
+          v.literal("in_review"),
+          v.literal("approved"),
+          v.literal("changes_requested"),
+          v.literal("rejected"),
+        ),
+      ),
+      visibility: v.optional(
+        v.union(
+          v.literal("visible"),
+          v.literal("hidden"),
+          v.literal("archived"),
+        ),
+      ),
+      reviewedBy: v.optional(v.string()),
+      reviewedAt: v.optional(v.number()),
+      reviewNotes: v.optional(v.string()),
+      featured: v.optional(v.boolean()),
+      // AI Review fields
+      aiReviewStatus: v.optional(
+        v.union(
+          v.literal("not_reviewed"),
+          v.literal("reviewing"),
+          v.literal("passed"),
+          v.literal("failed"),
+          v.literal("partial"),
+          v.literal("error"),
+        ),
+      ),
+      aiReviewSummary: v.optional(v.string()),
+      aiReviewCriteria: v.optional(
+        v.array(
+          v.object({
+            name: v.string(),
+            passed: v.boolean(),
+            notes: v.string(),
+          }),
+        ),
+      ),
+      aiReviewedAt: v.optional(v.number()),
+      aiReviewError: v.optional(v.string()),
+    }),
+  ),
   handler: async (ctx, args) => {
     // SECURITY: Check if user is authenticated and is an admin
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return []; // Not authenticated
     }
-    
+
     const authAccount = await ctx.db
       .query("authAccounts")
       .filter((q) => q.eq(q.field("userId"), userId))
       .first();
-    
+
     if (!authAccount?.providerAccountId?.endsWith("@convex.dev")) {
       return []; // Not an admin
     }
@@ -611,20 +655,28 @@ export const adminSearchPackages = query({
     // Search by description using Convex full-text search
     const descriptionResults = await ctx.db
       .query("packages")
-      .withSearchIndex("search_description", (q) => q.search("description", args.searchTerm))
+      .withSearchIndex("search_description", (q) =>
+        q.search("description", args.searchTerm),
+      )
       .take(100);
 
     // Search by maintainer names using Convex full-text search
     const maintainerResults = await ctx.db
       .query("packages")
-      .withSearchIndex("search_maintainers", (q) => q.search("maintainerNames", args.searchTerm))
+      .withSearchIndex("search_maintainers", (q) =>
+        q.search("maintainerNames", args.searchTerm),
+      )
       .take(100);
 
     // Combine results and deduplicate by _id
     const seen = new Set<string>();
     const combined: typeof nameResults = [];
-    
-    for (const pkg of [...nameResults, ...descriptionResults, ...maintainerResults]) {
+
+    for (const pkg of [
+      ...nameResults,
+      ...descriptionResults,
+      ...maintainerResults,
+    ]) {
       if (!seen.has(pkg._id)) {
         seen.add(pkg._id);
         combined.push(pkg);
@@ -694,7 +746,7 @@ export const updateReviewStatus = mutation({
       v.literal("in_review"),
       v.literal("approved"),
       v.literal("changes_requested"),
-      v.literal("rejected")
+      v.literal("rejected"),
     ),
     reviewNotes: v.optional(v.string()),
     reviewedBy: v.string(), // Identifier for who reviewed (e.g., "AI" or admin name)
@@ -719,7 +771,7 @@ export const updateVisibility = mutation({
     visibility: v.union(
       v.literal("visible"),
       v.literal("hidden"),
-      v.literal("archived")
+      v.literal("archived"),
     ),
   },
   returns: v.null(),
@@ -755,12 +807,12 @@ export const toggleFeatured = mutation({
     if (!pkg) {
       throw new Error("Package not found");
     }
-    
+
     // Only approved packages can be featured
     if (pkg.reviewStatus !== "approved") {
       throw new Error("Only approved packages can be featured");
     }
-    
+
     // Toggle featured status
     await ctx.db.patch(args.packageId, {
       featured: !pkg.featured,
@@ -773,107 +825,125 @@ export const toggleFeatured = mutation({
 // Get packages filtered by review status
 export const getPackagesByStatus = query({
   args: {
-    reviewStatus: v.optional(v.union(
-      v.literal("pending"),
-      v.literal("in_review"),
-      v.literal("approved"),
-      v.literal("changes_requested"),
-      v.literal("rejected"),
-      v.literal("all")
-    )),
+    reviewStatus: v.optional(
+      v.union(
+        v.literal("pending"),
+        v.literal("in_review"),
+        v.literal("approved"),
+        v.literal("changes_requested"),
+        v.literal("rejected"),
+        v.literal("all"),
+      ),
+    ),
   },
-  returns: v.array(v.object({
-    _id: v.id("packages"),
-    _creationTime: v.number(),
-    name: v.string(),
-    description: v.string(),
-    installCommand: v.string(),
-    repositoryUrl: v.optional(v.string()),
-    homepageUrl: v.optional(v.string()),
-    version: v.string(),
-    license: v.string(),
-    unpackedSize: v.number(),
-    totalFiles: v.number(),
-    lastPublish: v.string(),
-    weeklyDownloads: v.number(),
-    collaborators: v.array(v.object({
+  returns: v.array(
+    v.object({
+      _id: v.id("packages"),
+      _creationTime: v.number(),
       name: v.string(),
-      avatar: v.string(),
-    })),
-    maintainerNames: v.optional(v.string()),
-    npmUrl: v.string(),
-    submittedAt: v.number(),
-    // Submitter info (optional - may not exist on older records)
-    submitterName: v.optional(v.string()),
-    submitterEmail: v.optional(v.string()),
-    submitterDiscord: v.optional(v.string()),
-    // Live demo URL (optional)
-    demoUrl: v.optional(v.string()),
-    reviewStatus: v.optional(v.union(
-      v.literal("pending"),
-      v.literal("in_review"),
-      v.literal("approved"),
-      v.literal("changes_requested"),
-      v.literal("rejected")
-    )),
-    visibility: v.optional(v.union(
-      v.literal("visible"),
-      v.literal("hidden"),
-      v.literal("archived")
-    )),
-    reviewedBy: v.optional(v.string()),
-    reviewedAt: v.optional(v.number()),
-    reviewNotes: v.optional(v.string()),
-    featured: v.optional(v.boolean()),
-    // AI Review fields
-    aiReviewStatus: v.optional(v.union(
-      v.literal("not_reviewed"),
-      v.literal("reviewing"),
-      v.literal("passed"),
-      v.literal("failed"),
-      v.literal("partial"),
-      v.literal("error")
-    )),
-    aiReviewSummary: v.optional(v.string()),
-    aiReviewCriteria: v.optional(v.array(v.object({
-      name: v.string(),
-      passed: v.boolean(),
-      notes: v.string(),
-    }))),
-    aiReviewedAt: v.optional(v.number()),
-    aiReviewError: v.optional(v.string()),
-  })),
+      description: v.string(),
+      installCommand: v.string(),
+      repositoryUrl: v.optional(v.string()),
+      homepageUrl: v.optional(v.string()),
+      version: v.string(),
+      license: v.string(),
+      unpackedSize: v.number(),
+      totalFiles: v.number(),
+      lastPublish: v.string(),
+      weeklyDownloads: v.number(),
+      collaborators: v.array(
+        v.object({
+          name: v.string(),
+          avatar: v.string(),
+        }),
+      ),
+      maintainerNames: v.optional(v.string()),
+      npmUrl: v.string(),
+      submittedAt: v.number(),
+      // Submitter info (optional - may not exist on older records)
+      submitterName: v.optional(v.string()),
+      submitterEmail: v.optional(v.string()),
+      submitterDiscord: v.optional(v.string()),
+      // Live demo URL (optional)
+      demoUrl: v.optional(v.string()),
+      reviewStatus: v.optional(
+        v.union(
+          v.literal("pending"),
+          v.literal("in_review"),
+          v.literal("approved"),
+          v.literal("changes_requested"),
+          v.literal("rejected"),
+        ),
+      ),
+      visibility: v.optional(
+        v.union(
+          v.literal("visible"),
+          v.literal("hidden"),
+          v.literal("archived"),
+        ),
+      ),
+      reviewedBy: v.optional(v.string()),
+      reviewedAt: v.optional(v.number()),
+      reviewNotes: v.optional(v.string()),
+      featured: v.optional(v.boolean()),
+      // AI Review fields
+      aiReviewStatus: v.optional(
+        v.union(
+          v.literal("not_reviewed"),
+          v.literal("reviewing"),
+          v.literal("passed"),
+          v.literal("failed"),
+          v.literal("partial"),
+          v.literal("error"),
+        ),
+      ),
+      aiReviewSummary: v.optional(v.string()),
+      aiReviewCriteria: v.optional(
+        v.array(
+          v.object({
+            name: v.string(),
+            passed: v.boolean(),
+            notes: v.string(),
+          }),
+        ),
+      ),
+      aiReviewedAt: v.optional(v.number()),
+      aiReviewError: v.optional(v.string()),
+    }),
+  ),
   handler: async (ctx, args) => {
     // SECURITY: Check if user is authenticated and is an admin
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       return []; // Not authenticated
     }
-    
+
     const authAccount = await ctx.db
       .query("authAccounts")
       .filter((q) => q.eq(q.field("userId"), userId))
       .first();
-    
+
     if (!authAccount?.providerAccountId?.endsWith("@convex.dev")) {
       return []; // Not an admin
     }
 
     const status = args.reviewStatus || "all";
-    
+
     if (status === "all") {
       return await ctx.db.query("packages").collect();
     }
-    
+
     // Get all packages and filter by status (including undefined as pending)
     const allPackages = await ctx.db.query("packages").collect();
-    
+
     if (status === "pending") {
       // Treat undefined reviewStatus as pending
-      return allPackages.filter(pkg => !pkg.reviewStatus || pkg.reviewStatus === "pending");
+      return allPackages.filter(
+        (pkg) => !pkg.reviewStatus || pkg.reviewStatus === "pending",
+      );
     }
-    
-    return allPackages.filter(pkg => pkg.reviewStatus === status);
+
+    return allPackages.filter((pkg) => pkg.reviewStatus === status);
   },
 });
 
@@ -882,22 +952,26 @@ export const getPackagesByStatus = query({
 // Query: Get notes for a package with reply counts
 export const getPackageNotes = query({
   args: { packageId: v.id("packages") },
-  returns: v.array(v.object({
-    _id: v.id("packageNotes"),
-    _creationTime: v.number(),
-    packageId: v.id("packages"),
-    content: v.string(),
-    authorEmail: v.string(),
-    authorName: v.optional(v.string()),
-    parentNoteId: v.optional(v.id("packageNotes")),
-    createdAt: v.number(),
-    replyCount: v.number(),
-  })),
+  returns: v.array(
+    v.object({
+      _id: v.id("packageNotes"),
+      _creationTime: v.number(),
+      packageId: v.id("packages"),
+      content: v.string(),
+      authorEmail: v.string(),
+      authorName: v.optional(v.string()),
+      parentNoteId: v.optional(v.id("packageNotes")),
+      createdAt: v.number(),
+      replyCount: v.number(),
+    }),
+  ),
   handler: async (ctx, args) => {
     // Get all notes for this package
     const notes = await ctx.db
       .query("packageNotes")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .order("desc")
       .collect();
 
@@ -912,7 +986,7 @@ export const getPackageNotes = query({
           ...note,
           replyCount: replies.length,
         };
-      })
+      }),
     );
 
     return notesWithReplies;
@@ -1000,7 +1074,7 @@ export const updateAiReviewStatus = mutation({
       v.literal("passed"),
       v.literal("failed"),
       v.literal("partial"),
-      v.literal("error")
+      v.literal("error"),
     ),
   },
   returns: v.null(),
@@ -1021,14 +1095,16 @@ export const updateAiReviewResult = mutation({
       v.literal("passed"),
       v.literal("failed"),
       v.literal("partial"),
-      v.literal("error")
+      v.literal("error"),
     ),
     summary: v.string(),
-    criteria: v.array(v.object({
-      name: v.string(),
-      passed: v.boolean(),
-      notes: v.string(),
-    })),
+    criteria: v.array(
+      v.object({
+        name: v.string(),
+        passed: v.boolean(),
+        notes: v.string(),
+      }),
+    ),
     error: v.optional(v.string()),
   },
   returns: v.null(),
@@ -1106,20 +1182,24 @@ export const updateAdminSetting = mutation({
 // Query: Get public comments for a package
 export const getPackageComments = query({
   args: { packageId: v.id("packages") },
-  returns: v.array(v.object({
-    _id: v.id("packageComments"),
-    _creationTime: v.number(),
-    packageId: v.id("packages"),
-    content: v.string(),
-    authorEmail: v.string(),
-    authorName: v.optional(v.string()),
-    createdAt: v.number(),
-  })),
+  returns: v.array(
+    v.object({
+      _id: v.id("packageComments"),
+      _creationTime: v.number(),
+      packageId: v.id("packages"),
+      content: v.string(),
+      authorEmail: v.string(),
+      authorName: v.optional(v.string()),
+      createdAt: v.number(),
+    }),
+  ),
   handler: async (ctx, args) => {
     // Get all comments for this package, ordered by creation time
     const comments = await ctx.db
       .query("packageComments")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .order("desc")
       .collect();
     return comments;

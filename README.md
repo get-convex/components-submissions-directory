@@ -43,6 +43,7 @@ The NPM Package Directory is a submission platform where users can:
 - **Internal/Public Query Separation**: Sensitive backend operations use internal queries; public queries enforce safe data shapes
 - **AI Review Privacy**: AI review details (summaries, criteria) are admin-only; public sees status only (pass/fail/partial)
 - **Type-Safe Validators**: All public queries use explicit return validators to enforce secure data shapes
+- **Security Guidelines**: Comprehensive `.cursor/rules/sec-check.mdc` with Row-Level Security patterns, AI-assisted development security, and pre-deployment checklist
 
 ### Admin Features
 
@@ -254,8 +255,21 @@ The app exposes an HTTP endpoint for CSV export:
 
 User-defined HTTP routes are in `convex/router.ts`, while authentication routes are handled in `convex/http.ts`.
 
+## Security
+
+This project includes comprehensive security guidelines in `.cursor/rules/sec-check.mdc`. Use `@sec-check` in Cursor to audit code for vulnerabilities.
+
+Key security patterns implemented:
+- Row-Level Security (RLS) patterns using convex-helpers
+- PII stripping with `toPublicPackage()` helper
+- Internal queries for backend operations
+- Explicit return validators on all public queries
+- AI-assisted development security guidelines
+
 ## Learn More
 
 - [Convex Documentation](https://docs.convex.dev/)
 - [Convex Auth](https://auth.convex.dev/)
 - [Convex Best Practices](https://docs.convex.dev/understanding/best-practices/)
+- [Row-Level Security](https://stack.convex.dev/row-level-security)
+- [Convex Auth Security](https://labs.convex.dev/auth/security)

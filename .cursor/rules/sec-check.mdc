@@ -1,10 +1,12 @@
 ---
-description: Security guidelines for Convex applications. Activate with @sec-check
+description: Security guidelines for Convex applications. Activate with @sec-check to audit code for vulnerabilities, scan for PII exposure, and verify auth patterns.
 globs: **/*.ts,**/*.tsx
 alwaysApply: false
 ---
 
-# Security Guidelines for Convex Applications
+# Security Guidelines for Web Applications
+
+These guidelines apply to Convex applications and general web apps. Convex-specific examples are provided, but principles apply universally.
 
 ## 1. Authentication and Authorization
 
@@ -439,6 +441,583 @@ args: {
 - Include "AI" or "System" as the actor, not a fake identity
 - Makes audit trails clear and accurate
 
+## 12. Real-Time and WebSocket Security
+
+### All query data is visible in browser DevTools
+
+- WebSocket connections (Convex, Firebase, Supabase) show all data in Chrome Inspector
+- Whatever your query returns is visible to anyone with DevTools open
+- This applies to ALL real-time databases, not just Convex
+
+```typescript
+// If listPackages returns submitterEmail, it's visible in:
+// Chrome DevTools → Network → WS → Messages
+// This is NOT the backend dashboard - it's the client browser!
+```
+
+### Test security fixes in browser DevTools
+
+1. Open Chrome DevTools → Network → WS (WebSocket filter)
+2. Hard refresh the page (Cmd+Shift+R / Ctrl+Shift+R)
+3. Inspect WebSocket messages for sensitive data
+4. Verify PII is NOT present in query responses
+
+### Subscription caching can show stale data
+
+- Real-time subscriptions may cache old data until reconnection
+- After deploying security fixes, users may need to refresh
+- Always hard refresh when testing security changes
+
+## 13. Form Submission Security Pattern
+
+### Data goes IN but should not come OUT
+
+- Users submit PII (email, name) via mutations
+- Store in database for admin/internal use
+- Never return PII in public query responses
+
+```
+SAFE PATTERN:
+┌─────────────────────────────────────────────────────────────┐
+│ User Form                                                    │
+│ [Name: John] [Email: john@example.com] [Submit]             │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼ mutation({ name, email })
+┌─────────────────────────────────────────────────────────────┐
+│ Database                                                     │
+│ { name: "John", email: "john@example.com", ... }            │
+└─────────────────────────────────────────────────────────────┘
+                          │
+                          ▼ query returns toPublicData()
+┌─────────────────────────────────────────────────────────────┐
+│ Public Response (what users see in DevTools)                │
+│ { packageName: "my-pkg", version: "1.0.0" }                 │
+│ ❌ NO email, name, or contact info                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Mutation return values matter
+
+- Mutations should return minimal data (just IDs, not full objects)
+- Never return the submitted PII back to the client
+
+```typescript
+// GOOD: Return only the ID
+export const submitPackage = action({
+  handler: async (ctx, args) => {
+    const packageId = await ctx.runMutation(api.packages.addPackage, {
+      ...args,
+      submitterEmail: args.email, // Stored but...
+    });
+    return packageId; // Only ID returned, not the email
+  },
+});
+
+// BAD: Returning full object with PII
+export const submitPackage = action({
+  handler: async (ctx, args) => {
+    const pkg = await ctx.runMutation(api.packages.addPackage, args);
+    return pkg; // Exposes submitterEmail back to client!
+  },
+});
+```
+
+## 14. Deployment and Testing Security
+
+### Security fixes require deployment
+
+- Code changes are not live until deployed
+- For Convex: watch for "Convex functions ready!" in terminal
+- For other platforms: verify deployment completed before testing
+
+### Verify with timestamps
+
+- Check when code was deployed vs when issue was reported
+- Screenshots from before deployment show old (vulnerable) data
+- Always compare timestamps when debugging security reports
+
+### Security testing checklist
+
+1. Deploy the fix (verify in terminal/dashboard)
+2. Hard refresh browser (Cmd+Shift+R / Ctrl+Shift+R)
+3. Open DevTools → Network → WS or XHR
+4. Perform the action that was exposing data
+5. Inspect responses for sensitive fields
+6. Confirm PII is absent from all public responses
+
+## 15. General Web Security (All Frameworks)
+
+### These principles apply to any web app
+
+| Principle                     | Convex                       | Express/Node        | Next.js               | Firebase             |
+| ----------------------------- | ---------------------------- | ------------------- | --------------------- | -------------------- |
+| Strip PII from responses      | `toPublicData()` helper      | Response middleware | API route filtering   | Security rules       |
+| Separate public/admin queries | Public vs internal functions | Different endpoints | Role-based API routes | Collection rules     |
+| Validate return shapes        | Return validators            | TypeScript types    | Zod schemas           | N/A (client-side)    |
+| Auth before data access       | `getAuthUserId()`            | JWT middleware      | `getServerSession()`  | `auth().currentUser` |
+
+### Universal security patterns
+
+**Always filter server-side:**
+
+```typescript
+// Pattern works in any framework
+function toPublicUser(user: DbUser): PublicUser {
+  return {
+    id: user.id,
+    username: user.username,
+    avatar: user.avatar,
+    // Explicitly exclude: email, phone, address, etc.
+  };
+}
+```
+
+**Never trust the client:**
+
+```typescript
+// BAD: Client specifies what fields to return
+const fields = req.query.fields; // User could request "email,password"
+
+// GOOD: Server controls exactly what's returned
+return toPublicUser(user); // Fixed safe shape
+```
+
+**Admin endpoints need auth:**
+
+```typescript
+// Any framework - verify admin before returning sensitive data
+if (!isAdmin(currentUser)) {
+  return []; // or throw 403
+}
+return fullDataWithPII;
+```
+
+## 16. Row-Level Security (RLS)
+
+Row-level security defines authorization rules on individual database rows. Checks run automatically when code reads or writes data. This centralizes access control and prevents engineers from forgetting auth checks.
+
+Reference: [stack.convex.dev/row-level-security](https://stack.convex.dev/row-level-security)
+
+### Use convex-helpers for RLS
+
+The `convex-helpers` package provides `wrapDatabaseReader` and `wrapDatabaseWriter` to intercept database operations.
+
+```typescript
+// convex/rls.ts
+import {
+  customCtx,
+  customMutation,
+  customQuery,
+} from "convex-helpers/server/customFunctions";
+import {
+  Rules,
+  wrapDatabaseReader,
+  wrapDatabaseWriter,
+} from "convex-helpers/server/rowLevelSecurity";
+import { DataModel } from "./_generated/dataModel";
+import { mutation, query, QueryCtx } from "./_generated/server";
+
+async function rlsRules(ctx: QueryCtx) {
+  const identity = await ctx.auth.getUserIdentity();
+  return {
+    messages: {
+      // Read rules filter results from db.get and db.query
+      read: async ({ auth }, message) => {
+        // Logged-out users can only see published messages
+        if (identity === null) {
+          return message.published;
+        }
+        return true;
+      },
+      // Modify rules validate db.patch, db.replace, db.delete
+      modify: async ({ auth }, message) => {
+        if (identity === null) {
+          return false;
+        }
+        // Only author can modify their messages
+        return message.author === identity.tokenIdentifier;
+      },
+      // Insert rules validate db.insert
+      insert: async ({ auth }, message) => {
+        return identity !== null;
+      },
+    },
+  } satisfies Rules<QueryCtx, DataModel>;
+}
+
+// Custom query with RLS applied
+export const queryWithRLS = customQuery(
+  query,
+  customCtx(async (ctx) => ({
+    db: wrapDatabaseReader(ctx, ctx.db, await rlsRules(ctx)),
+  })),
+);
+
+// Custom mutation with RLS applied
+export const mutationWithRLS = customMutation(
+  mutation,
+  customCtx(async (ctx) => ({
+    db: wrapDatabaseWriter(ctx, ctx.db, await rlsRules(ctx)),
+  })),
+);
+```
+
+### Use RLS wrappers in your functions
+
+```typescript
+// convex/messages.ts
+import { queryWithRLS, mutationWithRLS } from "./rls";
+import { v } from "convex/values";
+
+// RLS automatically filters results based on read rules
+export const list = queryWithRLS({
+  args: {},
+  returns: v.array(
+    v.object({
+      /* ... */
+    }),
+  ),
+  handler: async (ctx) => {
+    // Only returns messages the user is allowed to see
+    return await ctx.db.query("messages").collect();
+  },
+});
+
+// RLS automatically validates before write
+export const publish = mutationWithRLS({
+  args: { messageId: v.id("messages") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Throws if modify rule returns false
+    await ctx.db.patch(args.messageId, { published: true });
+    return null;
+  },
+});
+```
+
+### Configure default deny policy
+
+By default, RLS allows access to tables without explicit rules. For stricter security, use deny by default:
+
+```typescript
+import { RLSConfig } from "convex-helpers/server/rowLevelSecurity";
+
+const config: RLSConfig = { defaultPolicy: "deny" };
+
+export const queryWithRLS = customQuery(
+  query,
+  customCtx(async (ctx) => ({
+    db: wrapDatabaseReader(ctx, ctx.db, await rlsRules(ctx), config),
+  })),
+);
+```
+
+### Customize rule context
+
+Pre-fetch common data (viewer, roles) to avoid repeated queries in rules:
+
+```typescript
+const rules: Rules<{ viewer: User; roles: Role[] }, DataModel> = {
+  documents: {
+    read: async ({ viewer }, doc) => {
+      if (!viewer) return false;
+      return doc.isPublic || doc.ownerId === viewer._id;
+    },
+    modify: async ({ viewer, roles }, doc) => {
+      if (!viewer) return false;
+      if (roles.includes("admin")) return true;
+      return doc.ownerId === viewer._id;
+    },
+  },
+};
+
+export const queryWithRLS = customQuery(
+  query,
+  customCtx(async (ctx) => {
+    const viewer = await getCurrentUser(ctx);
+    const roles = await getRoles(ctx, viewer);
+    return {
+      db: wrapDatabaseReader({ viewer, roles }, ctx.db, rules),
+    };
+  }),
+);
+```
+
+### When to use RLS vs manual checks
+
+| Use RLS when                                      | Use manual checks when                    |
+| ------------------------------------------------- | ----------------------------------------- |
+| Same access rules apply across multiple functions | Complex multi-step authorization logic    |
+| You want to prevent IDOR vulnerabilities          | Rules depend on data from multiple tables |
+| New engineers joining the team                    | One-off special cases                     |
+| Rules are per-row based on document fields        | Rules are based on request context only   |
+
+## 17. AI-Assisted Development Security (Vibe Coding)
+
+When building with Cursor, Copilot, or other AI coding assistants, additional security vigilance is required. AI-generated code may include vulnerabilities.
+
+Reference: [docs.convex.dev/ai/using-cursor](https://docs.convex.dev/ai/using-cursor)
+
+### Review all AI-generated auth code
+
+AI models may generate insecure patterns. Always review:
+
+```typescript
+// AI might generate this (INSECURE)
+export const deletePost = mutation({
+  args: { postId: v.id("posts"), userId: v.string() },
+  handler: async (ctx, args) => {
+    const post = await ctx.db.get(args.postId);
+    if (post?.userId === args.userId) {
+      // BAD: Trusting client-provided userId
+      await ctx.db.delete(args.postId);
+    }
+    return null;
+  },
+});
+
+// What you should have (SECURE)
+export const deletePost = mutation({
+  args: { postId: v.id("posts") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const post = await ctx.db
+      .query("posts")
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+      .filter((q) => q.eq(q.field("_id"), args.postId))
+      .unique();
+
+    if (!post) throw new Error("Not found");
+    await ctx.db.delete(args.postId);
+    return null;
+  },
+});
+```
+
+### Check for missing return validators
+
+AI often omits return validators. Always add them:
+
+```typescript
+// AI might generate (missing return validator)
+export const getUser = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.userId);
+  },
+});
+
+// Add explicit return validator
+export const getUser = query({
+  args: { userId: v.id("users") },
+  returns: v.union(v.null(), publicUserValidator),
+  handler: async (ctx, args) => {
+    const user = await ctx.db.get(args.userId);
+    if (!user) return null;
+    return toPublicUser(user);
+  },
+});
+```
+
+### Watch for accidental public exposure
+
+AI may use `query` when `internalQuery` is needed:
+
+```typescript
+// AI might generate public function for internal use
+export const getAllUserEmails = query({
+  // DANGEROUS: This is public and exposes all emails!
+  handler: async (ctx) => {
+    const users = await ctx.db.query("users").collect();
+    return users.map((u) => u.email);
+  },
+});
+
+// Should be internal
+export const _getAllUserEmails = internalQuery({
+  args: {},
+  returns: v.array(v.string()),
+  handler: async (ctx) => {
+    const users = await ctx.db.query("users").collect();
+    return users.map((u) => u.email);
+  },
+});
+```
+
+### Validate AI-suggested dependencies
+
+Before installing packages suggested by AI:
+
+1. Check npm for download counts and last update date
+2. Review the package's GitHub issues for security concerns
+3. Verify the package name matches (typosquatting attacks)
+4. Check if the package is maintained
+
+```bash
+# Before: npm install some-ai-suggested-package
+# Do this first:
+npm info some-ai-suggested-package
+# Check: downloads, last publish date, repository URL
+```
+
+### Use Cursor rules to enforce security
+
+Add security rules to your `.cursor/rules` directory:
+
+```markdown
+# .cursor/rules/convex-security.mdc
+
+- Always use ctx.auth.getUserIdentity() for mutations that modify user data
+- Always add return validators to queries and mutations
+- Use internalQuery/internalMutation for sensitive operations
+- Never expose email, password, or PII in public queries
+- Always validate array lengths and string lengths
+```
+
+### Prompt AI for secure code
+
+When prompting AI assistants, explicitly request security:
+
+```
+// Good prompt
+"Create a mutation to delete a user's post. Include:
+- Authentication check using ctx.auth.getUserIdentity()
+- Ownership verification using an index query
+- Return validator
+- Error handling that doesn't leak info"
+
+// Bad prompt
+"Create a mutation to delete a post"
+```
+
+## 18. Convex Auth Token Security
+
+Reference: [labs.convex.dev/auth/security](https://labs.convex.dev/auth/security)
+
+### Prevent XSS exposure of tokens
+
+- Store auth tokens in httpOnly cookies when possible
+- Never expose tokens to client-side JavaScript unnecessarily
+- Sanitize user-generated content to prevent XSS
+
+### Protect refresh tokens
+
+- Refresh tokens should never be accessible to client scripts
+- Use secure, httpOnly cookies for refresh token storage
+- Implement token rotation on refresh
+
+### Secure session management
+
+```typescript
+// In your auth configuration
+export default defineAuthConfig({
+  // Use secure session settings
+  session: {
+    // Shorter session duration for sensitive apps
+    maxAge: 60 * 60 * 24, // 24 hours
+    // Require re-authentication for sensitive operations
+    updateAge: 60 * 60, // 1 hour
+  },
+});
+```
+
+## 19. Dependency and Supply Chain Security
+
+### Audit dependencies regularly
+
+```bash
+# Run security audit
+npm audit
+
+# Fix vulnerabilities
+npm audit fix
+
+# Check for outdated packages
+npm outdated
+```
+
+### Lock dependency versions
+
+Use `package-lock.json` and commit it to version control:
+
+```json
+// package.json - use exact versions for security-critical packages
+{
+  "dependencies": {
+    "convex": "1.17.4",
+    "@auth/core": "0.34.1"
+  }
+}
+```
+
+### Review transitive dependencies
+
+```bash
+# See full dependency tree
+npm ls --all
+
+# Check specific package
+npm ls convex
+```
+
+## 20. Error Handling Security
+
+### Never expose internal errors to clients
+
+```typescript
+// BAD: Exposes internal details
+export const getDocument = query({
+  args: { docId: v.id("documents") },
+  handler: async (ctx, args) => {
+    const doc = await ctx.db.get(args.docId);
+    if (!doc) {
+      throw new Error(`Document ${args.docId} not found in table documents`);
+    }
+    return doc;
+  },
+});
+
+// GOOD: Generic error message
+export const getDocument = query({
+  args: { docId: v.id("documents") },
+  returns: v.union(v.null(), documentValidator),
+  handler: async (ctx, args) => {
+    const doc = await ctx.db.get(args.docId);
+    if (!doc) {
+      throw new Error("Not found");
+    }
+    return doc;
+  },
+});
+```
+
+### Log errors server-side only
+
+```typescript
+export const sensitiveOperation = mutation({
+  args: {
+    /* ... */
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    try {
+      // Operation that might fail
+      await ctx.db.patch(args.id, { status: "processed" });
+    } catch (error) {
+      // Log full error server-side
+      console.error("sensitiveOperation failed:", error);
+      // Return generic error to client
+      throw new Error("Operation failed");
+    }
+    return null;
+  },
+});
+```
+
 ## Security Checklist
 
 Before deploying, verify:
@@ -449,6 +1028,13 @@ Before deploying, verify:
 - [ ] Ownership verified via indexed queries, not fetch-then-check
 - [ ] All arguments have explicit validators
 - [ ] Sensitive functions use `internal*` registration
+
+**Row-Level Security**
+
+- [ ] RLS rules defined for tables with sensitive data
+- [ ] Default deny policy configured if strict security needed
+- [ ] RLS wrappers used consistently across queries and mutations
+- [ ] Rules tested for both authenticated and unauthenticated users
 
 **Data Protection**
 
@@ -476,3 +1062,46 @@ Before deploying, verify:
 - [ ] AI actions use internal queries for full data access
 - [ ] Action tracking fields use generic names (reviewedBy, not reviewerEmail)
 - [ ] Automated action logs clearly attribute to "AI" or "System"
+
+**AI-Assisted Development (Cursor/Copilot)**
+
+- [ ] All AI-generated auth code manually reviewed
+- [ ] Return validators present on all AI-generated functions
+- [ ] No accidental public exposure of internal functions
+- [ ] AI-suggested dependencies verified before installation
+- [ ] Cursor rules configured to enforce security patterns
+
+**Real-Time and WebSocket Security**
+
+- [ ] Tested query responses in Chrome DevTools WebSocket inspector
+- [ ] Hard refreshed browser after deploying security fixes
+- [ ] Verified no PII in any public query WebSocket messages
+- [ ] Mutations return minimal data (IDs only, not full objects with PII)
+
+**Form Submission Security**
+
+- [ ] Form data stored in database but not returned in public queries
+- [ ] Mutation return values don't include submitted PII
+- [ ] Helper functions (toPublicData) used consistently across all public queries
+- [ ] Schema documents which fields are admin-only
+
+**Token and Session Security**
+
+- [ ] Auth tokens not exposed to client JavaScript unnecessarily
+- [ ] Refresh tokens stored securely (httpOnly cookies)
+- [ ] Session timeouts configured appropriately
+- [ ] Token rotation implemented
+
+**Dependency Security**
+
+- [ ] npm audit run and vulnerabilities addressed
+- [ ] package-lock.json committed to version control
+- [ ] Dependencies updated regularly
+- [ ] No typosquatted or suspicious packages
+
+**Deployment Verification**
+
+- [ ] Security fix deployed (not just committed)
+- [ ] Deployment confirmed in terminal/dashboard
+- [ ] Tested in browser with hard refresh
+- [ ] Compared timestamps of report vs deployment

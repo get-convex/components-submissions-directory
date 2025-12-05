@@ -14,7 +14,6 @@ import {
   CheckCircle,
   Warning,
   Hourglass,
-  Export,
   Package,
   DownloadSimple,
   CalendarBlank,
@@ -1012,7 +1011,6 @@ export default function Admin() {
   const loggedInUser = useQuery(api.auth.loggedInUser);
   const isAdmin = useQuery(api.auth.isAdmin);
   const [searchTerm, setSearchTerm] = useState("");
-  const [isExporting, setIsExporting] = useState(false);
 
   // Loading state
   const isLoading = loggedInUser === undefined || isAdmin === undefined;
@@ -1025,85 +1023,6 @@ export default function Admin() {
 
   // Use search results when searching, otherwise use all packages
   const packages = searchTerm.trim() ? searchResults : allPackages;
-
-  // Export CSV handler
-  const handleExportCSV = () => {
-    if (!packages || packages.length === 0) {
-      toast.error("No packages to export");
-      return;
-    }
-
-    setIsExporting(true);
-    try {
-      const headers = [
-        "Name",
-        "Description",
-        "Version",
-        "License",
-        "Weekly Downloads",
-        "Last Publish",
-        "Submitted At",
-        "Review Status",
-        "Visibility",
-        "Reviewed By",
-        "Submitter Name",
-        "Submitter Email",
-        "Submitter Discord",
-        "NPM URL",
-        "Repository URL",
-        "Homepage URL",
-      ];
-
-      const escapeCSV = (value: string | undefined | null): string => {
-        if (value === undefined || value === null) return "";
-        const str = String(value);
-        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-          return `"${str.replace(/"/g, '""')}"`;
-        }
-        return str;
-      };
-
-      const rows = packages.map((pkg: any) => [
-        escapeCSV(pkg.name),
-        escapeCSV(pkg.description),
-        escapeCSV(pkg.version),
-        escapeCSV(pkg.license),
-        pkg.weeklyDownloads.toString(),
-        escapeCSV(pkg.lastPublish),
-        new Date(pkg.submittedAt).toISOString(),
-        escapeCSV(pkg.reviewStatus || "pending"),
-        escapeCSV(pkg.visibility || "visible"),
-        escapeCSV(pkg.reviewedBy),
-        escapeCSV(pkg.submitterName),
-        escapeCSV(pkg.submitterEmail),
-        escapeCSV(pkg.submitterDiscord),
-        escapeCSV(pkg.npmUrl),
-        escapeCSV(pkg.repositoryUrl),
-        escapeCSV(pkg.homepageUrl),
-      ]);
-
-      const csvContent = [
-        headers.join(","),
-        ...rows.map((row: string[]) => row.join(",")),
-      ].join("\n");
-
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `npm-directory-export-${new Date().toISOString().split("T")[0]}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast.success("CSV exported successfully!");
-    } catch (error) {
-      toast.error("Failed to export CSV");
-    } finally {
-      setIsExporting(false);
-    }
-  };
 
   return (
     <div className="min-h-screen flex flex-col bg-bg-primary">
@@ -1142,22 +1061,8 @@ export default function Admin() {
             </div>
           )}
 
-          {/* Right: Export and Sign out */}
+          {/* Right: Sign out */}
           <div className="flex items-center gap-2">
-            {loggedInUser && isAdmin && (
-              <Tooltip content="Export all packages to CSV">
-                <button
-                  onClick={handleExportCSV}
-                  disabled={isExporting}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Export size={16} />
-                  <span className="hidden sm:inline">
-                    {isExporting ? "Exporting..." : "Export"}
-                  </span>
-                </button>
-              </Tooltip>
-            )}
             <SignOutButton />
           </div>
         </div>

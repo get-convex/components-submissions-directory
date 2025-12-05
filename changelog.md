@@ -5,7 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.5] 2025-12-05
+## [1.3.6] 2025-12-05
+
+### Documentation
+
+- Updated `.cursor/rules/sec-check.mdc` with comprehensive security guidelines for Convex apps
+- Added Row-Level Security (RLS) section with convex-helpers patterns for read/modify/insert rules
+- Added AI-Assisted Development Security section for vibe coding with Cursor/Copilot
+- Added Convex Auth Token Security section for XSS prevention and refresh token protection
+- Added Dependency and Supply Chain Security section for npm audit and version locking
+- Added Error Handling Security section for generic error messages
+- Enhanced security checklist with RLS, AI-assisted development, token security, and dependency checks
+
+### Technical Details
+
+- Security guidelines reference: [stack.convex.dev/row-level-security](https://stack.convex.dev/row-level-security)
+- Added wrapDatabaseReader and wrapDatabaseWriter patterns from convex-helpers
+- Added default deny policy configuration for strict RLS
+- Added prompting guidance for secure AI-generated code
+- Added Cursor rules configuration for enforcing security patterns
+
+## [1.3.5] 2025-12-04
 
 ### Security
 
@@ -205,4 +225,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Development workflow with Chef AI assistance
 - Configured for Netlify deployment
 - Phosphor Icons library for consistent iconography
-

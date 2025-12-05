@@ -15,7 +15,7 @@
 - [x] Update changelog.md with correct dates from git history
 - [x] Update files.md with current file descriptions
 - [x] Run TypeScript type checks
-- [x] Verify Netlify build readiness (build passes, no 404 errors with _redirects)
+- [x] Verify Netlify build readiness (build passes, no 404 errors with \_redirects)
 - [x] Add refresh NPM data button for admin to pull latest package info from npm
 - [x] Streamline frontend layout for iframe embedding (remove header/footer)
 - [x] Move toolbar controls above package listing
@@ -29,6 +29,11 @@
 - [x] Security fix: Exclude AI review details from public responses (status only)
 - [x] Security fix: Create internal queries for backend operations
 - [x] Security fix: Rename reviewerEmail to reviewedBy, use "AI" identifier
+- [x] Updated sec-check.mdc with Row-Level Security (RLS) patterns
+- [x] Added AI-Assisted Development Security section for vibe coding
+- [x] Added Convex Auth Token Security section
+- [x] Added Dependency and Supply Chain Security section
+- [x] Enhanced security checklist with comprehensive checks
 
 ## Completed
 
