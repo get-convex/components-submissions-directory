@@ -25,6 +25,10 @@
 - [x] Fix external links to open in new tabs even in iframes
 - [x] Fix thank you success modal not displaying after submission
 - [x] Add email privacy notice to submit form
+- [x] Security fix: Strip PII from public queries (submitter emails, names, Discord)
+- [x] Security fix: Exclude AI review details from public responses (status only)
+- [x] Security fix: Create internal queries for backend operations
+- [x] Security fix: Rename reviewerEmail to reviewedBy, use "AI" identifier
 
 ## Completed
 
@@ -49,6 +53,10 @@
 - [x] Fix external links for iframe compatibility (window.open)
 - [x] Fix success modal z-index for iframe support
 - [x] Add email privacy notice to submission form
+- [x] Security: Strip submitter PII from public query responses
+- [x] Security: Create internal queries for backend data access
+- [x] Security: Use "AI" identifier instead of fake email for automated actions
+- [x] Security: Add explicit return validators to all public queries
 
 ## Summary of Recent Changes
 

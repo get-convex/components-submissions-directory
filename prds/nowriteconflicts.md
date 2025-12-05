@@ -25,14 +25,14 @@ export const updateReviewStatus = mutation({
       v.literal("changes_requested")
     ),
     reviewNotes: v.optional(v.string()),
-    reviewerEmail: v.string(),
+    reviewedBy: v.string(), // Identifier for who reviewed (e.g., "AI" or admin name)
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     // Patch directly without reading first to avoid write conflicts
     await ctx.db.patch(args.packageId, {
       reviewStatus: args.reviewStatus,
-      reviewedBy: args.reviewerEmail,
+      reviewedBy: args.reviewedBy,
       reviewedAt: Date.now(),
       ...(args.reviewNotes !== undefined && { reviewNotes: args.reviewNotes }),
     });

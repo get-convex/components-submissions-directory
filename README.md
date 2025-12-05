@@ -37,6 +37,13 @@ The NPM Package Directory is a submission platform where users can:
   - Copy-to-clipboard install command
   - Review status badge
 
+### Security Features
+
+- **Data Privacy**: Public queries strip all PII (submitter emails, names, contact info) before returning data to clients
+- **Internal/Public Query Separation**: Sensitive backend operations use internal queries; public queries enforce safe data shapes
+- **AI Review Privacy**: AI review details (summaries, criteria) are admin-only; public sees status only (pass/fail/partial)
+- **Type-Safe Validators**: All public queries use explicit return validators to enforce secure data shapes
+
 ### Admin Features
 
 - **Admin Authentication**: Secure admin access restricted to @convex.dev email addresses

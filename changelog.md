@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.5] 2025-12-05
+
+### Security
+
+- Fixed data exposure vulnerability: public queries now strip all PII (submitter email, name, Discord) before returning data to clients
+- AI review details (summary, criteria, errors) excluded from public responses; only status field (pass/fail/partial) is exposed
+- Created internal queries (`_getPackage`, `_getPackageByName`) for backend operations that need full data access
+- Public queries now use explicit return validators to enforce safe data shapes
+- Renamed `reviewerEmail` field to `reviewedBy` for clarity; AI actions now use "AI" identifier instead of fake email format
+
+### Technical Details
+
+- Added `toPublicPackage()` helper function to strip sensitive fields from query responses
+- Added `publicPackageValidator` for type-safe public query returns
+- Updated `listPackages`, `searchPackages`, `getPackage`, `getPackageByName` to return sanitized data
+- AI review action (`runAiReview`) now uses internal query for full package data access
+- Backend mutations (`submitPackage`, `refreshNpmData`) now use internal queries
+- Updated security guidelines in `.cursor/rules/sec-check.mdc` with AI system recommendations
+
 ## [1.3.4] 2025-12-02
 
 ### Fixed

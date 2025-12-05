@@ -117,13 +117,13 @@ The admin dashboard has two automation settings:
 
 - When enabled: If AI review status is `passed`, the package is automatically approved
 - Review notes: "Auto-approved: AI review passed all criteria"
-- Reviewer email: "ai@convex.dev"
+- Reviewed by: "AI"
 
 **Auto-reject on fail** (enabled/disabled toggle):
 
 - When enabled: If AI review status is `failed` AND at least one critical criterion fails, the package is automatically rejected
 - Review notes: "Auto-rejected: AI review found critical issues"
-- Reviewer email: "ai@convex.dev"
+- Reviewed by: "AI"
 
 **Important:** `partial` status never triggers auto-approve or auto-reject. Admin must manually review.
 

@@ -1,0 +1,435 @@
+---
+description: Security guidelines for Convex applications. Activate with @sec-check
+globs: **/*.ts,**/*.tsx
+alwaysApply: false
+---
+
+# Security Guidelines for Convex Applications
+
+## 1. Authentication and Authorization
+
+### Always verify identity before mutations
+
+- Call `ctx.auth.getUserIdentity()` at the start of every mutation that modifies user data
+- Return early or throw if identity is null for authenticated routes
+- Never trust client-provided user IDs for ownership checks
+
+```typescript
+// GOOD: Verify identity
+const identity = await ctx.auth.getUserIdentity();
+if (!identity) {
+  throw new Error("Unauthorized");
+}
+const userId = identity.subject;
+
+// BAD: Trusting client-provided userId
+const { userId } = args; // Never do this for auth
+```
+
+### Use indexed queries for ownership checks
+
+- Query by userId index instead of fetching then checking
+- This prevents data leakage and is more efficient
+
+```typescript
+// GOOD: Index-based ownership check
+const doc = await ctx.db
+  .query("documents")
+  .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+  .filter((q) => q.eq(q.field("_id"), args.docId))
+  .unique();
+
+// BAD: Fetch then check
+const doc = await ctx.db.get(args.docId);
+if (doc.userId !== identity.subject) throw new Error("Forbidden");
+```
+
+## 2. Input Validation
+
+### Always use validators for all arguments
+
+- Define explicit validators for every argument
+- Use `v.string()`, `v.number()`, `v.id("tableName")` appropriately
+- Never use `v.any()` in production
+
+### Sanitize and validate user input
+
+- Trim strings where appropriate
+- Validate email formats, URLs, and other structured data
+- Set reasonable length limits on string fields
+- Validate array lengths to prevent abuse
+
+```typescript
+args: {
+  email: v.string(),
+  content: v.string(),
+},
+handler: async (ctx, args) => {
+  if (args.content.length > 10000) {
+    throw new Error("Content too long");
+  }
+  if (!isValidEmail(args.email)) {
+    throw new Error("Invalid email format");
+  }
+}
+```
+
+## 3. Public vs Internal Functions
+
+### Use internal functions for sensitive operations
+
+- Mark sensitive business logic as `internalMutation`, `internalQuery`, or `internalAction`
+- Only expose necessary functions as public `query`, `mutation`, or `action`
+- Call internal functions from public wrappers after auth checks
+
+```typescript
+// Public wrapper with auth
+export const updateDocument = mutation({
+  args: { docId: v.id("documents"), content: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const doc = await ctx.db
+      .query("documents")
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+      .filter((q) => q.eq(q.field("_id"), args.docId))
+      .unique();
+
+    if (!doc) throw new Error("Not found");
+
+    await ctx.runMutation(internal.documents._updateDocument, {
+      docId: args.docId,
+      content: args.content,
+    });
+    return null;
+  },
+});
+
+// Internal mutation (no auth check needed, already verified)
+export const _updateDocument = internalMutation({
+  args: { docId: v.id("documents"), content: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.docId, { content: args.content });
+    return null;
+  },
+});
+```
+
+## 4. Data Exposure Prevention
+
+### Never expose sensitive fields in queries
+
+- Filter out sensitive data before returning
+- Don't return password hashes, API keys, or internal tokens
+- Use explicit return validators to enforce shape
+
+### Create public-safe validators for user-facing queries
+
+- Define separate validators for public vs admin data shapes
+- Strip PII (emails, names, contact info) from public responses
+- Only expose status fields, not detailed internal data (e.g., AI review status but not full summary)
+
+```typescript
+// GOOD: Define a public-safe validator
+const publicPackageValidator = v.object({
+  _id: v.id("packages"),
+  name: v.string(),
+  description: v.string(),
+  version: v.string(),
+  // Status only, no details
+  aiReviewStatus: v.optional(v.string()),
+  // NO submitterEmail, submitterName, aiReviewSummary, etc.
+});
+
+// Helper to strip sensitive fields
+function toPublicPackage(pkg: any) {
+  return {
+    _id: pkg._id,
+    name: pkg.name,
+    description: pkg.description,
+    version: pkg.version,
+    aiReviewStatus: pkg.aiReviewStatus,
+    // Explicitly exclude sensitive fields
+  };
+}
+
+// Public query uses the safe validator
+export const listPackages = query({
+  args: {},
+  returns: v.array(publicPackageValidator),
+  handler: async (ctx) => {
+    const packages = await ctx.db.query("packages").collect();
+    return packages.map(toPublicPackage); // Strip sensitive data
+  },
+});
+```
+
+### Separate public and admin queries
+
+- Create distinct queries for public frontend vs admin dashboard
+- Admin queries can return full data but should verify admin access
+- Public queries must always filter sensitive fields
+
+```typescript
+// BAD: Single query returning all fields
+export const getPackage = query({
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.id); // Exposes everything!
+  },
+});
+
+// GOOD: Separate public and internal queries
+export const _getPackage = internalQuery({
+  args: { packageId: v.id("packages") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.packageId); // Full data for backend
+  },
+});
+
+export const getPackage = query({
+  args: { packageId: v.id("packages") },
+  returns: v.union(v.null(), publicPackageValidator),
+  handler: async (ctx, args) => {
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) return null;
+    return toPublicPackage(pkg); // Safe data for clients
+  },
+});
+```
+
+### Avoid leaking existence information
+
+- Return generic "Not found" errors instead of "Forbidden"
+- Don't differentiate between "doesn't exist" and "no access"
+
+### Common sensitive fields to exclude from public queries
+
+- User emails, names, phone numbers (submitter info)
+- Internal notes and review comments
+- AI/automated review details (summaries, criteria, errors)
+- Admin-only metadata (reviewer info, internal timestamps)
+- Discord usernames, social handles
+- Any contact information collected during submissions
+
+## 5. Environment Variables
+
+### Never expose secrets to client
+
+- Use `process.env` only in actions with `"use node";`
+- Store API keys in Convex environment variables
+- Never log sensitive values
+
+## 6. HTTP Endpoints
+
+### Validate webhook signatures
+
+- Always verify signatures for incoming webhooks (Clerk, Stripe, etc.)
+- Use constant-time comparison for signature validation
+
+### Set appropriate CORS headers
+
+- Restrict origins in production
+- Don't use wildcard `*` for sensitive endpoints
+
+## 7. File Upload Security
+
+### Validate file types and sizes
+
+- Check MIME types server-side
+- Enforce file size limits
+- Scan for malicious content if applicable
+
+## 8. Rate Limiting Considerations
+
+### Protect expensive operations
+
+- Consider implementing rate limiting for expensive queries/mutations
+- Use debouncing on client for rapid user actions
+- Monitor for abuse patterns
+
+## 9. Backend Operations with Internal Functions
+
+### Use internalQuery for backend data access
+
+- Actions and scheduled functions should use internal queries
+- Never call public queries from actions when full data is needed
+
+```typescript
+// BAD: Action calling public query (gets filtered data)
+export const processPackage = action({
+  handler: async (ctx, args) => {
+    const pkg = await ctx.runQuery(api.packages.getPackage, { id: args.id });
+    // pkg might be missing fields needed for processing!
+  },
+});
+
+// GOOD: Action calling internal query (gets full data)
+export const processPackage = action({
+  handler: async (ctx, args) => {
+    const pkg = await ctx.runQuery(internal.packages._getPackage, {
+      id: args.id,
+    });
+    // pkg has all fields needed for backend processing
+  },
+});
+```
+
+### Prefix internal functions with underscore
+
+- Use `_functionName` convention for internal functions
+- Makes it clear which functions expose full data
+- Helps audit which functions are public vs internal
+
+## 10. Submission and Form Data Security
+
+### Treat user-submitted contact info as sensitive
+
+- Emails, names, Discord handles collected in forms are PII
+- Store in database but never expose in public queries
+- Only show to admins or the submitter themselves
+
+### Separate submission data from public display data
+
+- Schema can have all fields, queries control what's exposed
+- Comments in schema help document what's admin-only
+
+```typescript
+// In schema.ts - document sensitive fields
+packages: defineTable({
+  name: v.string(),
+  description: v.string(),
+  // Public fields above
+  // Admin-only fields below (never in public queries)
+  submitterName: v.optional(v.string()),
+  submitterEmail: v.optional(v.string()),
+  submitterDiscord: v.optional(v.string()),
+  aiReviewSummary: v.optional(v.string()),
+  aiReviewCriteria: v.optional(v.array(...)),
+}),
+```
+
+## 11. AI and Automated System Security
+
+### Never use email format for AI/system identifiers
+
+- AI actions should use simple identifiers like "AI" or "System", not fake emails
+- Fake emails (e.g., "ai@example.com") can confuse security audits
+- Simple identifiers make it clear the action was automated
+
+```typescript
+// BAD: Using email format for AI identifier
+await updateReviewStatus({
+  packageId,
+  reviewedBy: "ai@convex.dev", // Looks like a real email
+});
+
+// GOOD: Use simple identifier
+await updateReviewStatus({
+  packageId,
+  reviewedBy: "AI", // Clear it's automated
+});
+```
+
+### AI reviews should only access public repository data
+
+- AI code review systems should analyze public GitHub/repo code only
+- Never pass user PII (emails, names, contact info) to AI prompts
+- Submitter information is irrelevant to code quality analysis
+
+```typescript
+// GOOD: AI prompt only includes code and package metadata
+const prompt = `Review this package:
+PACKAGE: ${pkg.name}
+VERSION: ${pkg.version}
+SOURCE CODE: ${repoFiles}`;
+
+// BAD: Including submitter info in AI context
+const prompt = `Review this package submitted by ${pkg.submitterEmail}...`;
+```
+
+### Separate AI analysis data from user contact data
+
+- AI review results (summaries, criteria, scores) are internal metadata
+- User submission data (emails, names) is PII
+- Never expose either in public queries
+
+### Use internal queries for AI/automated actions
+
+- AI actions need full data access for processing
+- Always use `internalQuery` to fetch data for AI analysis
+- Public queries filter data, which breaks AI processing
+
+```typescript
+// GOOD: AI action uses internal query
+export const runAiReview = action({
+  handler: async (ctx, args) => {
+    // Full package data including repositoryUrl
+    const pkg = await ctx.runQuery(internal.packages._getPackage, {
+      packageId: args.packageId,
+    });
+    // Process with AI...
+  },
+});
+```
+
+### Name action tracking fields generically
+
+- Use `reviewedBy`, `processedBy`, `actionBy` instead of `reviewerEmail`
+- Generic names work for both human users and automated systems
+- Avoids confusion about what the field contains
+
+```typescript
+// BAD: Field name implies email
+args: {
+  reviewerEmail: v.string(), // Confusing when AI uses "AI"
+}
+
+// GOOD: Generic field name
+args: {
+  reviewedBy: v.string(), // Works for "AI" or "admin@example.com"
+}
+```
+
+### Log AI actions with clear system attribution
+
+- When AI performs automated actions (auto-approve, auto-reject), log clearly
+- Include "AI" or "System" as the actor, not a fake identity
+- Makes audit trails clear and accurate
+
+## Security Checklist
+
+Before deploying, verify:
+
+**Authentication and Authorization**
+
+- [ ] All mutations check `ctx.auth.getUserIdentity()` where needed
+- [ ] Ownership verified via indexed queries, not fetch-then-check
+- [ ] All arguments have explicit validators
+- [ ] Sensitive functions use `internal*` registration
+
+**Data Protection**
+
+- [ ] No secrets in client-accessible code
+- [ ] Webhook signatures verified
+- [ ] File uploads validated
+- [ ] Error messages don't leak sensitive info
+
+**PII and Public Query Security**
+
+- [ ] Public queries use safe validators that exclude PII
+- [ ] Submitter emails/names/contact info excluded from public responses
+- [ ] AI review details excluded from public responses (status only)
+- [ ] Internal queries used for backend operations needing full data
+- [ ] Admin queries separated from public queries
+- [ ] Return validators explicitly defined for all public queries
+
+**AI and Automated Systems**
+
+- [ ] AI identifiers use simple names ("AI") not fake emails
+- [ ] AI prompts never include user PII (emails, names, contact info)
+- [ ] AI actions use internal queries for full data access
+- [ ] Action tracking fields use generic names (reviewedBy, not reviewerEmail)
+- [ ] Automated action logs clearly attribute to "AI" or "System"

@@ -43,46 +43,55 @@ Authentication setup using Convex Auth. Configures Password and Anonymous provid
 Auth configuration file. Currently minimal, can be expanded for additional auth providers.
 
 ### `convex/aiReview.ts`
-AI-powered package review system. Contains:
+AI-powered package review system with security best practices. Contains:
 - `REVIEW_CRITERIA`: 10 criteria for validating Convex components (4 critical, 6 non-critical)
 - `fetchGitHubRepo`: Fetches source code from GitHub repositories, detects convex.config.ts in multiple locations (convex/src/component/, convex/component/, convex/, src/component/, src/, root, packages/, lib/)
 - `runAiReview`: Action that orchestrates the AI review process using Anthropic Claude API
+- Uses internal query (`internal.packages._getPackage`) for full package data access including repositoryUrl
+- AI prompts only include code and package metadata (never user PII like submitter emails)
+- Auto-approve/reject actions use "AI" identifier (not fake email format)
 - Analyzes packages against official Convex component specifications
-- Supports auto-approve on pass and auto-reject on critical failures
 - References official Convex documentation in AI prompt for accurate suggestions
 - Handles deeply nested component structures (like useautumn/typescript patterns)
 
 ### `convex/packages.ts`
-Main package business logic. Contains:
-- `fetchNpmPackage`: Action that fetches package metadata from npm registry and downloads API
-- `refreshNpmData`: Action that refreshes npm data for a specific package (preserves submitter info, review status, featured flag, AI review results)
-- `submitPackage`: Action that validates URL, checks for duplicates, fetches data, and inserts package with submitter information and optional demoUrl
-- `addPackage`: Mutation that inserts or updates package in database with submitter info and demoUrl
-- `updateNpmData`: Mutation that updates only npm-sourced fields (version, downloads, description, license, maintainers) without affecting admin data
-- `listPackages`: Query that returns visible packages sorted by newest, downloads, or updated date (excludes hidden/archived)
-- `getAllPackages`: Query for admin to fetch all packages regardless of visibility
-- `searchPackages`: Query with full-text search on visible packages (searches name, description, and maintainer names)
-- `adminSearchPackages`: Query with full-text search on all packages for admin use
-- `getPackage`: Query to fetch single package by ID
-- `getPackageByName`: Query to check if package exists by name
+Main package business logic with security-focused design. Contains:
+
+**Internal Queries (for backend use only, full data access):**
+- `_getPackage`: Internal query returning full package data including sensitive fields (used by AI review, backend actions)
+- `_getPackageByName`: Internal query for duplicate checking with full data access
+
+**Public Queries (sanitized, safe for clients):**
+- `listPackages`: Returns visible packages with PII stripped (excludes submitter email, name, Discord, AI review details)
+- `searchPackages`: Full-text search on visible packages with sanitized returns
+- `getPackage`: Returns single package with sensitive fields removed
+- `getPackageByName`: Public lookup with safe data only
+
+**Admin Queries:**
+- `getAllPackages`: Admin query returning all packages regardless of visibility
+- `adminSearchPackages`: Admin full-text search across all packages
 - `getPackagesByStatus`: Admin query to filter packages by review status
-- `updateReviewStatus`: Admin mutation to change package review status (patches directly without reading first)
+
+**Actions:**
+- `fetchNpmPackage`: Fetches package metadata from npm registry and downloads API
+- `refreshNpmData`: Refreshes npm data for a specific package (uses internal query for full access)
+- `submitPackage`: Validates URL, checks for duplicates using internal query, fetches data, and inserts package
+
+**Mutations:**
+- `addPackage`: Inserts or updates package in database with submitter info and demoUrl
+- `updateNpmData`: Updates only npm-sourced fields without affecting admin data
+- `updateReviewStatus`: Admin mutation to change package review status (uses `reviewedBy` field, not email)
 - `updateVisibility`: Admin mutation to change package visibility (visible, hidden, archived)
 - `deletePackage`: Admin mutation to permanently delete a package
 - `toggleFeatured`: Admin mutation to toggle featured status (only for approved packages)
-- `getPackageNotes`: Query to fetch threaded notes for a package with reply counts
-- `getPackageNoteCount`: Query to get note count for badge display
-- `addPackageNote`: Mutation to add a note or reply to a package (timestamp-based ordering)
-- `deletePackageNote`: Mutation to delete a note
-- `getPackageComments`: Query to fetch public comments for a package
-- `getPackageCommentCount`: Query to get comment count for badge display
-- `addPackageComment`: Mutation to add a public comment to a package (timestamp-based ordering)
-- `deletePackageComment`: Mutation to delete a public comment
-- `updateAiReviewStatus`: Mutation to update AI review status (patches directly without reading first)
-- `updateAiReviewResult`: Mutation to store complete AI review results
-- `getAdminSettings`: Query to fetch auto-approve/reject settings
-- `updateAdminSetting`: Mutation to toggle auto-approve/reject preferences
-- `backfillMaintainerNames`: Migration mutation for existing packages
+- `addPackageNote`, `deletePackageNote`: Note management with timestamp-based ordering
+- `addPackageComment`, `deletePackageComment`: Public comment management
+- `updateAiReviewStatus`, `updateAiReviewResult`: AI review status mutations
+- `updateAdminSetting`: Toggle auto-approve/reject preferences
+
+**Helper Functions:**
+- `toPublicPackage()`: Strips sensitive fields (submitterEmail, submitterName, submitterDiscord, AI review details) from package data
+- `publicPackageValidator`: Type-safe validator for public query returns
 
 ### `convex/router.ts`
 HTTP router configuration. Defines `/api/export-csv` endpoint that fetches all packages and returns CSV format with proper escaping and headers.

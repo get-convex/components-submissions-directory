@@ -2,7 +2,7 @@
 
 import { v } from "convex/values";
 import { action } from "./_generated/server";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import Anthropic from "@anthropic-ai/sdk";
 
@@ -230,8 +230,8 @@ export const runAiReview = action({
     });
 
     try {
-      // Get package info
-      const pkg = await ctx.runQuery(api.packages.getPackage, {
+      // SECURITY: Use internal query to get full package data including repositoryUrl
+      const pkg = await ctx.runQuery(internal.packages._getPackage, {
         packageId: args.packageId,
       });
 
@@ -437,14 +437,14 @@ Respond in this exact JSON format:
         await ctx.runMutation(api.packages.updateReviewStatus, {
           packageId: args.packageId,
           reviewStatus: "approved",
-          reviewerEmail: "ai@convex.dev",
+          reviewedBy: "AI",
           reviewNotes: "Auto-approved: AI review passed all criteria",
         });
       } else if (status === "failed" && autoReject && anyCriticalFailed) {
         await ctx.runMutation(api.packages.updateReviewStatus, {
           packageId: args.packageId,
           reviewStatus: "rejected",
-          reviewerEmail: "ai@convex.dev",
+          reviewedBy: "AI",
           reviewNotes: "Auto-rejected: AI review found critical issues",
         });
       }

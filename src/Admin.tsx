@@ -1352,7 +1352,7 @@ function InlineActions({
       await updateReviewStatus({
         packageId,
         reviewStatus: newStatus,
-        reviewerEmail: userEmail,
+        reviewedBy: userEmail,
       });
       toast.success(`Status updated to ${newStatus.replace("_", " ")}`);
     } catch (error) {
