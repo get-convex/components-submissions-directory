@@ -200,6 +200,46 @@ export const getPackage = query({
 });
 ```
 
+### Admin queries must verify authentication
+
+- All admin queries that return sensitive data must check authentication
+- Verify admin role before returning full data (e.g., check email domain)
+- Return empty array (not error) for non-admins to avoid info leakage
+
+```typescript
+// BAD: Admin query without auth check
+export const getAllPackages = query({
+  handler: async (ctx) => {
+    return await ctx.db.query("packages").collect(); // Anyone can see everything!
+  },
+});
+
+// GOOD: Admin query with auth verification
+export const getAllPackages = query({
+  handler: async (ctx) => {
+    // Check if user is authenticated
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return []; // Not authenticated
+    }
+
+    // Get user's email from authAccounts table
+    const authAccount = await ctx.db
+      .query("authAccounts")
+      .filter((q) => q.eq(q.field("userId"), userId))
+      .first();
+
+    // Check if email ends with @convex.dev (admin check)
+    if (!authAccount?.providerAccountId?.endsWith("@convex.dev")) {
+      return []; // Not an admin
+    }
+
+    // Admin authenticated - return full data
+    return await ctx.db.query("packages").collect();
+  },
+});
+```
+
 ### Avoid leaking existence information
 
 - Return generic "Not found" errors instead of "Forbidden"
@@ -425,6 +465,9 @@ Before deploying, verify:
 - [ ] Internal queries used for backend operations needing full data
 - [ ] Admin queries separated from public queries
 - [ ] Return validators explicitly defined for all public queries
+- [ ] Admin queries verify user authentication before returning data
+- [ ] Admin queries check admin role (e.g., email domain) before returning sensitive data
+- [ ] Non-admin callers of admin queries receive empty arrays, not errors
 
 **AI and Automated Systems**
 

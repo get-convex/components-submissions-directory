@@ -430,9 +430,31 @@ export const listPackages = query({
   },
 });
 
+// SECURITY: Admin-only query - requires @convex.dev email authentication
+// Returns full package data including sensitive submitter info for admin dashboard
 export const getAllPackages = query({
   args: {},
   handler: async (ctx) => {
+    // Check if user is authenticated and is an admin
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      // Not authenticated - return empty array (not an error to avoid info leakage)
+      return [];
+    }
+    
+    // Get user's email from authAccounts table
+    const authAccount = await ctx.db
+      .query("authAccounts")
+      .filter((q) => q.eq(q.field("userId"), userId))
+      .first();
+    
+    // Check if email ends with @convex.dev (admin check)
+    if (!authAccount?.providerAccountId?.endsWith("@convex.dev")) {
+      // Not an admin - return empty array
+      return [];
+    }
+    
+    // Admin authenticated - return full data
     return await ctx.db.query("packages").collect();
   },
 });
@@ -490,7 +512,8 @@ export const searchPackages = query({
   },
 });
 
-// Admin search: searches all packages by name, description, or maintainer names
+// SECURITY: Admin-only search - requires @convex.dev email authentication
+// Searches all packages by name, description, or maintainer names
 export const adminSearchPackages = query({
   args: { searchTerm: v.string() },
   returns: v.array(v.object({
@@ -555,6 +578,21 @@ export const adminSearchPackages = query({
     aiReviewError: v.optional(v.string()),
   })),
   handler: async (ctx, args) => {
+    // SECURITY: Check if user is authenticated and is an admin
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return []; // Not authenticated
+    }
+    
+    const authAccount = await ctx.db
+      .query("authAccounts")
+      .filter((q) => q.eq(q.field("userId"), userId))
+      .first();
+    
+    if (!authAccount?.providerAccountId?.endsWith("@convex.dev")) {
+      return []; // Not an admin
+    }
+
     // If no search term, return all packages sorted by newest
     if (!args.searchTerm.trim()) {
       return await ctx.db
@@ -731,7 +769,8 @@ export const toggleFeatured = mutation({
   },
 });
 
-// Admin query: Get packages by review status
+// SECURITY: Admin-only query - requires @convex.dev email authentication
+// Get packages filtered by review status
 export const getPackagesByStatus = query({
   args: {
     reviewStatus: v.optional(v.union(
@@ -805,6 +844,21 @@ export const getPackagesByStatus = query({
     aiReviewError: v.optional(v.string()),
   })),
   handler: async (ctx, args) => {
+    // SECURITY: Check if user is authenticated and is an admin
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return []; // Not authenticated
+    }
+    
+    const authAccount = await ctx.db
+      .query("authAccounts")
+      .filter((q) => q.eq(q.field("userId"), userId))
+      .first();
+    
+    if (!authAccount?.providerAccountId?.endsWith("@convex.dev")) {
+      return []; // Not an admin
+    }
+
     const status = args.reviewStatus || "all";
     
     if (status === "all") {
