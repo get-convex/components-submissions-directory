@@ -1,7 +1,15 @@
 import { v } from "convex/values";
-import { action, mutation, query, internalQuery } from "./_generated/server";
+import {
+  action,
+  mutation,
+  query,
+  internalQuery,
+  internalMutation,
+  internalAction,
+} from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { api, internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
 // ============ SECURITY: Public-safe package fields ============
 // These fields are safe to expose to the public frontend
@@ -1250,5 +1258,622 @@ export const deletePackageComment = mutation({
     // Delete the comment directly
     await ctx.db.delete(args.commentId);
     return null;
+  },
+});
+
+// ============ AUTO-REFRESH SYSTEM ============
+
+// Get auto-refresh settings
+export const getRefreshSettings = query({
+  args: {},
+  returns: v.object({
+    autoRefreshEnabled: v.boolean(),
+    refreshIntervalDays: v.number(),
+  }),
+  handler: async (ctx) => {
+    const enabledSetting = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q) => q.eq("key", "autoRefreshEnabled"))
+      .first();
+
+    const intervalSetting = await ctx.db
+      .query("adminSettingsNumeric")
+      .withIndex("by_key", (q) => q.eq("key", "refreshIntervalDays"))
+      .first();
+
+    return {
+      autoRefreshEnabled: enabledSetting?.value || false,
+      refreshIntervalDays: intervalSetting?.value || 3,
+    };
+  },
+});
+
+// Update auto-refresh settings
+export const updateRefreshSetting = mutation({
+  args: {
+    key: v.union(
+      v.literal("autoRefreshEnabled"),
+      v.literal("refreshIntervalDays"),
+    ),
+    value: v.union(v.boolean(), v.number()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    if (args.key === "autoRefreshEnabled") {
+      // Boolean setting
+      const existing = await ctx.db
+        .query("adminSettings")
+        .withIndex("by_key", (q) => q.eq("key", args.key))
+        .first();
+
+      if (existing) {
+        await ctx.db.patch(existing._id, { value: args.value as boolean });
+      } else {
+        await ctx.db.insert("adminSettings", {
+          key: args.key,
+          value: args.value as boolean,
+        });
+      }
+    } else if (args.key === "refreshIntervalDays") {
+      // Numeric setting
+      const existing = await ctx.db
+        .query("adminSettingsNumeric")
+        .withIndex("by_key", (q) => q.eq("key", args.key))
+        .first();
+
+      if (existing) {
+        await ctx.db.patch(existing._id, { value: args.value as number });
+      } else {
+        await ctx.db.insert("adminSettingsNumeric", {
+          key: args.key,
+          value: args.value as number,
+        });
+      }
+    }
+
+    return null;
+  },
+});
+
+// Get refresh statistics for admin dashboard
+export const getRefreshStats = query({
+  args: {},
+  returns: v.object({
+    packagesNeedingRefresh: v.number(),
+    totalPackages: v.number(),
+    lastRefreshRun: v.union(
+      v.null(),
+      v.object({
+        runAt: v.number(),
+        packagesSucceeded: v.number(),
+        packagesFailed: v.number(),
+        status: v.string(),
+      }),
+    ),
+  }),
+  handler: async (ctx) => {
+    // Get refresh settings for interval
+    const intervalSetting = await ctx.db
+      .query("adminSettingsNumeric")
+      .withIndex("by_key", (q) => q.eq("key", "refreshIntervalDays"))
+      .first();
+    const intervalDays = intervalSetting?.value || 3;
+    const staleThreshold = Date.now() - intervalDays * 24 * 60 * 60 * 1000;
+
+    // Get all approved/visible packages
+    const allPackages = await ctx.db
+      .query("packages")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("reviewStatus"), "approved"),
+          q.neq(q.field("visibility"), "archived"),
+        ),
+      )
+      .collect();
+
+    // Count packages needing refresh (never refreshed or older than threshold)
+    const needingRefresh = allPackages.filter(
+      (pkg) => !pkg.lastRefreshedAt || pkg.lastRefreshedAt < staleThreshold,
+    ).length;
+
+    // Get the most recent refresh log
+    const lastLog = await ctx.db
+      .query("refreshLogs")
+      .withIndex("by_run_at")
+      .order("desc")
+      .first();
+
+    return {
+      packagesNeedingRefresh: needingRefresh,
+      totalPackages: allPackages.length,
+      lastRefreshRun: lastLog
+        ? {
+            runAt: lastLog.runAt,
+            packagesSucceeded: lastLog.packagesSucceeded,
+            packagesFailed: lastLog.packagesFailed,
+            status: lastLog.status,
+          }
+        : null,
+    };
+  },
+});
+
+// Get recent refresh logs for admin dashboard
+export const getRecentRefreshLogs = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id("refreshLogs"),
+      runAt: v.number(),
+      packagesProcessed: v.number(),
+      packagesSucceeded: v.number(),
+      packagesFailed: v.number(),
+      errors: v.array(
+        v.object({
+          packageId: v.id("packages"),
+          packageName: v.string(),
+          error: v.string(),
+        }),
+      ),
+      completedAt: v.optional(v.number()),
+      status: v.string(),
+      isManual: v.optional(v.boolean()),
+    }),
+  ),
+  handler: async (ctx) => {
+    const logs = await ctx.db
+      .query("refreshLogs")
+      .withIndex("by_run_at")
+      .order("desc")
+      .take(10);
+
+    return logs;
+  },
+});
+
+// Internal query: Get packages needing refresh (for cron)
+export const _getStalePackages = internalQuery({
+  args: { staleThreshold: v.number(), limit: v.number() },
+  returns: v.array(
+    v.object({
+      _id: v.id("packages"),
+      name: v.string(),
+      lastRefreshedAt: v.optional(v.number()),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    // Get approved packages that need refresh
+    const packages = await ctx.db
+      .query("packages")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("reviewStatus"), "approved"),
+          q.neq(q.field("visibility"), "archived"),
+        ),
+      )
+      .collect();
+
+    // Filter and sort by staleness (never refreshed first, then oldest)
+    const stalePackages = packages
+      .filter(
+        (pkg) =>
+          !pkg.lastRefreshedAt || pkg.lastRefreshedAt < args.staleThreshold,
+      )
+      .sort((a, b) => {
+        if (!a.lastRefreshedAt && !b.lastRefreshedAt) return 0;
+        if (!a.lastRefreshedAt) return -1;
+        if (!b.lastRefreshedAt) return 1;
+        return a.lastRefreshedAt - b.lastRefreshedAt;
+      })
+      .slice(0, args.limit)
+      .map((pkg) => ({
+        _id: pkg._id,
+        name: pkg.name,
+        lastRefreshedAt: pkg.lastRefreshedAt,
+      }));
+
+    return stalePackages;
+  },
+});
+
+// Internal query: Get all approved packages (for manual refresh all)
+export const _getAllApprovedPackages = internalQuery({
+  args: { limit: v.number() },
+  returns: v.array(
+    v.object({
+      _id: v.id("packages"),
+      name: v.string(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const packages = await ctx.db
+      .query("packages")
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("reviewStatus"), "approved"),
+          q.neq(q.field("visibility"), "archived"),
+        ),
+      )
+      .take(args.limit);
+
+    return packages.map((pkg) => ({
+      _id: pkg._id,
+      name: pkg.name,
+    }));
+  },
+});
+
+// Internal mutation: Create a refresh log entry
+export const _createRefreshLog = internalMutation({
+  args: {
+    packagesProcessed: v.number(),
+    isManual: v.boolean(),
+  },
+  returns: v.id("refreshLogs"),
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("refreshLogs", {
+      runAt: Date.now(),
+      packagesProcessed: args.packagesProcessed,
+      packagesSucceeded: 0,
+      packagesFailed: 0,
+      errors: [],
+      status: "running",
+      isManual: args.isManual,
+    });
+  },
+});
+
+// Internal mutation: Update refresh log with batch results
+export const _updateRefreshLogBatch = internalMutation({
+  args: {
+    logId: v.id("refreshLogs"),
+    succeeded: v.number(),
+    failed: v.number(),
+    errors: v.array(
+      v.object({
+        packageId: v.id("packages"),
+        packageName: v.string(),
+        error: v.string(),
+      }),
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const log = await ctx.db.get(args.logId);
+    if (!log) return null;
+
+    await ctx.db.patch(args.logId, {
+      packagesSucceeded: log.packagesSucceeded + args.succeeded,
+      packagesFailed: log.packagesFailed + args.failed,
+      errors: [...log.errors, ...args.errors],
+    });
+
+    return null;
+  },
+});
+
+// Internal mutation: Finalize refresh log
+export const _finalizeRefreshLog = internalMutation({
+  args: {
+    logId: v.id("refreshLogs"),
+    status: v.union(v.literal("completed"), v.literal("failed")),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.logId, {
+      completedAt: Date.now(),
+      status: args.status,
+    });
+
+    return null;
+  },
+});
+
+// Internal mutation: Cleanup old refresh logs (keep last 30)
+export const _cleanupOldRefreshLogs = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const logs = await ctx.db
+      .query("refreshLogs")
+      .withIndex("by_run_at")
+      .order("desc")
+      .collect();
+
+    // Delete logs beyond the 30th
+    const toDelete = logs.slice(30);
+    for (const log of toDelete) {
+      await ctx.db.delete(log._id);
+    }
+
+    return null;
+  },
+});
+
+// Internal mutation: Update package with refresh timestamp and clear error
+export const _updatePackageRefreshTimestamp = internalMutation({
+  args: {
+    packageId: v.id("packages"),
+    clearError: v.boolean(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const update: { lastRefreshedAt: number; refreshError?: string } = {
+      lastRefreshedAt: Date.now(),
+    };
+    if (args.clearError) {
+      update.refreshError = undefined;
+    }
+    await ctx.db.patch(args.packageId, update);
+    return null;
+  },
+});
+
+// Internal mutation: Set package refresh error
+export const _setPackageRefreshError = internalMutation({
+  args: {
+    packageId: v.id("packages"),
+    error: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.packageId, {
+      refreshError: args.error,
+      lastRefreshedAt: Date.now(), // Still update timestamp to avoid retry loop
+    });
+    return null;
+  },
+});
+
+// Internal action: Process a batch of packages
+export const _refreshPackageBatch = internalAction({
+  args: {
+    packages: v.array(
+      v.object({
+        _id: v.id("packages"),
+        name: v.string(),
+      }),
+    ),
+    logId: v.id("refreshLogs"),
+    isLastBatch: v.boolean(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    let succeeded = 0;
+    let failed = 0;
+    const errors: {
+      packageId: Id<"packages">;
+      packageName: string;
+      error: string;
+    }[] = [];
+
+    for (const pkg of args.packages) {
+      try {
+        // Fetch fresh data from npm
+        const packageData: any = await ctx.runAction(
+          api.packages.fetchNpmPackage,
+          {
+            packageName: pkg.name,
+          },
+        );
+
+        // Update the package with fresh npm data
+        await ctx.runMutation(api.packages.updateNpmData, {
+          packageId: pkg._id,
+          description: packageData.description,
+          version: packageData.version,
+          license: packageData.license,
+          repositoryUrl: packageData.repositoryUrl,
+          homepageUrl: packageData.homepageUrl,
+          unpackedSize: packageData.unpackedSize,
+          totalFiles: packageData.totalFiles,
+          lastPublish: packageData.lastPublish,
+          weeklyDownloads: packageData.weeklyDownloads,
+          collaborators: packageData.collaborators,
+        });
+
+        // Update refresh timestamp and clear any previous error
+        await ctx.runMutation(
+          internal.packages._updatePackageRefreshTimestamp,
+          {
+            packageId: pkg._id,
+            clearError: true,
+          },
+        );
+
+        succeeded++;
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
+
+        // Set error on package
+        await ctx.runMutation(internal.packages._setPackageRefreshError, {
+          packageId: pkg._id,
+          error: errorMessage,
+        });
+
+        errors.push({
+          packageId: pkg._id,
+          packageName: pkg.name,
+          error: errorMessage,
+        });
+        failed++;
+      }
+    }
+
+    // Update the refresh log with batch results
+    await ctx.runMutation(internal.packages._updateRefreshLogBatch, {
+      logId: args.logId,
+      succeeded,
+      failed,
+      errors,
+    });
+
+    // If this is the last batch, finalize the log
+    if (args.isLastBatch) {
+      await ctx.runMutation(internal.packages._finalizeRefreshLog, {
+        logId: args.logId,
+        status: "completed",
+      });
+
+      // Cleanup old logs
+      await ctx.runMutation(internal.packages._cleanupOldRefreshLogs, {});
+    }
+
+    return null;
+  },
+});
+
+// Internal action: Scheduled refresh check (called by cron daily)
+export const scheduledRefreshCheck = internalAction({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    // Check if auto-refresh is enabled
+    const enabledSetting = await ctx.runQuery(
+      internal.packages._getAutoRefreshEnabled,
+    );
+    if (!enabledSetting) {
+      console.log("Auto-refresh is disabled, skipping scheduled refresh");
+      return null;
+    }
+
+    // Get the interval setting
+    const intervalDays = await ctx.runQuery(
+      internal.packages._getRefreshIntervalDays,
+    );
+    const staleThreshold = Date.now() - intervalDays * 24 * 60 * 60 * 1000;
+
+    // Get stale packages (max 100 per run)
+    const stalePackages = await ctx.runQuery(
+      internal.packages._getStalePackages,
+      {
+        staleThreshold,
+        limit: 100,
+      },
+    );
+
+    if (stalePackages.length === 0) {
+      console.log("No stale packages found, skipping refresh");
+      return null;
+    }
+
+    console.log(`Found ${stalePackages.length} stale packages to refresh`);
+
+    // Create refresh log
+    const logId = await ctx.runMutation(internal.packages._createRefreshLog, {
+      packagesProcessed: stalePackages.length,
+      isManual: false,
+    });
+
+    // Batch packages into groups of 10
+    const batchSize = 10;
+    const batches: (typeof stalePackages)[] = [];
+    for (let i = 0; i < stalePackages.length; i += batchSize) {
+      batches.push(stalePackages.slice(i, i + batchSize));
+    }
+
+    // Schedule each batch with staggered delays (5 seconds apart)
+    for (let i = 0; i < batches.length; i++) {
+      const delay = i * 5000; // 5 seconds between batches
+      const isLastBatch = i === batches.length - 1;
+
+      await ctx.scheduler.runAfter(
+        delay,
+        internal.packages._refreshPackageBatch,
+        {
+          packages: batches[i],
+          logId,
+          isLastBatch,
+        },
+      );
+    }
+
+    return null;
+  },
+});
+
+// Internal query: Get auto-refresh enabled setting
+export const _getAutoRefreshEnabled = internalQuery({
+  args: {},
+  returns: v.boolean(),
+  handler: async (ctx) => {
+    const setting = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q) => q.eq("key", "autoRefreshEnabled"))
+      .first();
+    return setting?.value || false;
+  },
+});
+
+// Internal query: Get refresh interval days setting
+export const _getRefreshIntervalDays = internalQuery({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const setting = await ctx.db
+      .query("adminSettingsNumeric")
+      .withIndex("by_key", (q) => q.eq("key", "refreshIntervalDays"))
+      .first();
+    return setting?.value || 3;
+  },
+});
+
+// Action: Manual "Refresh All" trigger (bypasses staleness check)
+export const triggerManualRefreshAll = action({
+  args: {},
+  returns: v.object({
+    packagesQueued: v.number(),
+    logId: v.id("refreshLogs"),
+  }),
+  handler: async (
+    ctx,
+  ): Promise<{ packagesQueued: number; logId: Id<"refreshLogs"> }> => {
+    // Get all approved packages (max 100)
+    const packages: { _id: Id<"packages">; name: string }[] =
+      await ctx.runQuery(internal.packages._getAllApprovedPackages, {
+        limit: 100,
+      });
+
+    if (packages.length === 0) {
+      throw new Error("No approved packages found to refresh");
+    }
+
+    // Create refresh log
+    const logId: Id<"refreshLogs"> = await ctx.runMutation(
+      internal.packages._createRefreshLog,
+      {
+        packagesProcessed: packages.length,
+        isManual: true,
+      },
+    );
+
+    // Batch packages into groups of 10
+    const batchSize = 10;
+    const batches: (typeof packages)[] = [];
+    for (let i = 0; i < packages.length; i += batchSize) {
+      batches.push(packages.slice(i, i + batchSize));
+    }
+
+    // Schedule each batch with staggered delays (5 seconds apart)
+    for (let i = 0; i < batches.length; i++) {
+      const delay = i * 5000; // 5 seconds between batches
+      const isLastBatch = i === batches.length - 1;
+
+      await ctx.scheduler.runAfter(
+        delay,
+        internal.packages._refreshPackageBatch,
+        {
+          packages: batches[i],
+          logId,
+          isLastBatch,
+        },
+      );
+    }
+
+    return {
+      packagesQueued: packages.length,
+      logId,
+    };
   },
 });

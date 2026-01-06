@@ -43,6 +43,9 @@ import {
   CaretUp,
   Browser,
   ArrowClockwise,
+  Lightning,
+  ClockCounterClockwise,
+  ArrowsClockwise,
 } from "@phosphor-icons/react";
 
 // Review status type
@@ -932,13 +935,17 @@ function AiReviewResultsPanel({
   );
 }
 
-// Refresh NPM Data button component
+// Refresh NPM Data button component with status indicator
 function RefreshNpmButton({
   packageId,
   packageName,
+  lastRefreshedAt,
+  refreshError,
 }: {
   packageId: Id<"packages">;
   packageName: string;
+  lastRefreshedAt?: number;
+  refreshError?: string;
 }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const refreshNpmData = useAction(api.packages.refreshNpmData);
@@ -956,25 +963,56 @@ function RefreshNpmButton({
     }
   };
 
+  const formatRelativeTime = (timestamp: number) => {
+    const diff = Date.now() - timestamp;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return "just now";
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
+  };
+
   return (
-    <Tooltip content="Refresh package data from npm">
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          handleRefresh();
-        }}
-        disabled={isRefreshing}
-        className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <ArrowClockwise
-          size={12}
-          className={isRefreshing ? "animate-spin" : ""}
-        />
-        <span className="hidden sm:inline">
-          {isRefreshing ? "Refreshing..." : "refresh"}
+    <div className="flex items-center gap-2">
+      {/* Refresh error indicator */}
+      {refreshError && (
+        <Tooltip content={`Refresh failed: ${refreshError}`}>
+          <div className="flex items-center text-orange-500">
+            <Warning size={14} weight="bold" />
+          </div>
+        </Tooltip>
+      )}
+
+      {/* Last refreshed time */}
+      {lastRefreshedAt && !refreshError && (
+        <span className="text-[10px] text-text-secondary hidden lg:inline">
+          {formatRelativeTime(lastRefreshedAt)}
         </span>
-      </button>
-    </Tooltip>
+      )}
+
+      {/* Refresh button */}
+      <Tooltip content="Refresh package data from npm">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleRefresh();
+          }}
+          disabled={isRefreshing}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <ArrowClockwise
+            size={12}
+            className={isRefreshing ? "animate-spin" : ""}
+          />
+          <span className="hidden sm:inline">
+            {isRefreshing ? "Refreshing..." : "refresh"}
+          </span>
+        </button>
+      </Tooltip>
+    </div>
   );
 }
 
@@ -1030,9 +1068,7 @@ export default function Admin() {
       <header className="sticky top-0 z-10 backdrop-blur-sm  px-4 sm:px-6 py-2 bg-bg-primary">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           {/* Left: Title */}
-          <span className="text-text-primary font-medium text-sm">
-            Admin
-          </span>
+          <span className="text-text-primary font-medium text-sm">Admin</span>
 
           {/* Center: Search (when logged in as admin) */}
           {loggedInUser && isAdmin && (
@@ -1530,6 +1566,282 @@ function InlineActions({
         type="danger"
       />
     </>
+  );
+}
+
+// Auto-Refresh Settings Panel component
+function AutoRefreshSettingsPanel() {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showRefreshConfirm, setShowRefreshConfirm] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showLogs, setShowLogs] = useState(false);
+
+  const refreshSettings = useQuery(api.packages.getRefreshSettings);
+  const refreshStats = useQuery(api.packages.getRefreshStats);
+  const recentLogs = useQuery(api.packages.getRecentRefreshLogs);
+  const updateRefreshSetting = useMutation(api.packages.updateRefreshSetting);
+  const triggerRefreshAll = useAction(api.packages.triggerManualRefreshAll);
+
+  const handleToggleEnabled = async () => {
+    if (!refreshSettings) return;
+    try {
+      await updateRefreshSetting({
+        key: "autoRefreshEnabled",
+        value: !refreshSettings.autoRefreshEnabled,
+      });
+      toast.success(
+        refreshSettings.autoRefreshEnabled
+          ? "Auto-refresh disabled"
+          : "Auto-refresh enabled",
+      );
+    } catch (error) {
+      toast.error("Failed to update setting");
+    }
+  };
+
+  const handleIntervalChange = async (days: number) => {
+    try {
+      await updateRefreshSetting({
+        key: "refreshIntervalDays",
+        value: days,
+      });
+      toast.success(`Refresh interval set to ${days} days`);
+    } catch (error) {
+      toast.error("Failed to update interval");
+    }
+  };
+
+  const handleRefreshAll = async () => {
+    setShowRefreshConfirm(false);
+    setIsRefreshing(true);
+    try {
+      const result = await triggerRefreshAll({});
+      toast.success(`Queued ${result.packagesQueued} packages for refresh`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to start refresh",
+      );
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const formatRelativeTime = (timestamp: number) => {
+    const diff = Date.now() - timestamp;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return "just now";
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
+  };
+
+  if (!refreshSettings || !refreshStats) return null;
+
+  return (
+    <div className="mb-4 rounded-lg border border-border bg-bg-card overflow-hidden">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Lightning size={16} weight="bold" className="text-yellow-500" />
+          <span className="text-sm font-medium text-text-primary">
+            Auto-Refresh Settings
+          </span>
+          {refreshSettings.autoRefreshEnabled && (
+            <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-100 text-green-700 rounded">
+              ON
+            </span>
+          )}
+        </div>
+        {isExpanded ? (
+          <CaretUp size={16} className="text-text-secondary" />
+        ) : (
+          <CaretDown size={16} className="text-text-secondary" />
+        )}
+      </button>
+
+      {isExpanded && (
+        <div className="p-4 border-t border-border space-y-4">
+          {/* Info section */}
+          <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary space-y-2">
+            <p>
+              Auto-refresh automatically updates npm package data (version,
+              downloads, etc.) for approved packages on a schedule.
+            </p>
+            <p>
+              Only packages that haven't been refreshed within the interval will
+              be updated. Maximum 100 packages per run.
+            </p>
+          </div>
+
+          {/* Enable toggle */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-text-primary">
+                Enable Auto-Refresh
+              </label>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Automatically refresh stale package data
+              </p>
+            </div>
+            <button
+              onClick={handleToggleEnabled}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                refreshSettings.autoRefreshEnabled
+                  ? "bg-green-600"
+                  : "bg-gray-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  refreshSettings.autoRefreshEnabled
+                    ? "translate-x-6"
+                    : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Interval selector */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-text-primary">
+                Refresh Interval
+              </label>
+              <p className="text-xs text-text-secondary mt-0.5">
+                How often to refresh package data
+              </p>
+            </div>
+            <select
+              value={refreshSettings.refreshIntervalDays}
+              onChange={(e) => handleIntervalChange(Number(e.target.value))}
+              className="px-3 py-1.5 text-sm rounded-lg border border-border bg-white text-text-primary focus:outline-none focus:border-button"
+            >
+              <option value={3}>Every 3 days</option>
+              <option value={5}>Every 5 days</option>
+              <option value={7}>Every 7 days</option>
+            </select>
+          </div>
+
+          {/* Stats section */}
+          <div className="p-3 rounded-lg border border-border bg-white">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-text-secondary text-xs">Needs Refresh</p>
+                <p className="font-medium text-text-primary">
+                  {refreshStats.packagesNeedingRefresh} of{" "}
+                  {refreshStats.totalPackages}
+                </p>
+              </div>
+              <div>
+                <p className="text-text-secondary text-xs">Last Run</p>
+                <p className="font-medium text-text-primary">
+                  {refreshStats.lastRefreshRun
+                    ? formatRelativeTime(refreshStats.lastRefreshRun.runAt)
+                    : "Never"}
+                </p>
+              </div>
+            </div>
+            {refreshStats.lastRefreshRun && (
+              <div className="mt-2 pt-2 border-t border-border text-xs text-text-secondary">
+                Last run: {refreshStats.lastRefreshRun.packagesSucceeded}{" "}
+                succeeded
+                {refreshStats.lastRefreshRun.packagesFailed > 0 && (
+                  <span className="text-red-600">
+                    , {refreshStats.lastRefreshRun.packagesFailed} failed
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Manual refresh button */}
+          <button
+            onClick={() => setShowRefreshConfirm(true)}
+            disabled={isRefreshing}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-border bg-white text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ArrowsClockwise
+              size={16}
+              className={isRefreshing ? "animate-spin" : ""}
+            />
+            {isRefreshing ? "Refreshing..." : "Refresh All Packages Now"}
+          </button>
+
+          {/* Recent logs toggle */}
+          <button
+            onClick={() => setShowLogs(!showLogs)}
+            className="flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
+          >
+            {showLogs ? <CaretDown size={12} /> : <CaretRight size={12} />}
+            <ClockCounterClockwise size={12} />
+            <span>Recent Refresh Logs ({recentLogs?.length || 0})</span>
+          </button>
+
+          {/* Recent logs list */}
+          {showLogs && recentLogs && recentLogs.length > 0 && (
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {recentLogs.slice(0, 5).map((log) => (
+                <div
+                  key={log._id}
+                  className="p-2 rounded-lg border border-border bg-white text-xs"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {log.status === "running" ? (
+                        <ArrowsClockwise
+                          size={12}
+                          className="text-blue-500 animate-spin"
+                        />
+                      ) : log.packagesFailed > 0 ? (
+                        <Warning size={12} className="text-yellow-500" />
+                      ) : (
+                        <CheckCircle size={12} className="text-green-500" />
+                      )}
+                      <span className="text-text-secondary">
+                        {formatRelativeTime(log.runAt)}
+                      </span>
+                      {log.isManual && (
+                        <span className="px-1 py-0.5 text-[10px] bg-blue-100 text-blue-700 rounded">
+                          manual
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-text-primary">
+                      {log.packagesSucceeded}/{log.packagesProcessed}
+                    </span>
+                  </div>
+                  {log.errors.length > 0 && (
+                    <div className="mt-1 pt-1 border-t border-border">
+                      <p className="text-red-600">
+                        Failed:{" "}
+                        {log.errors.map((e) => e.packageName).join(", ")}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Refresh All Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showRefreshConfirm}
+        onClose={() => setShowRefreshConfirm(false)}
+        onConfirm={handleRefreshAll}
+        title="Refresh All Packages?"
+        message={`This will refresh npm data for all ${refreshStats.totalPackages} approved packages, regardless of when they were last updated. This may take several minutes.`}
+        confirmText="Refresh All"
+        cancelText="Cancel"
+        type="warning"
+      />
+    </div>
   );
 }
 
@@ -2051,9 +2363,6 @@ function AdminDashboard({
         </div>
       </div>
 
-      {/* Admin Settings */}
-      <AdminSettingsPanel />
-
       {/* Filter tabs */}
       <div className="mb-4">
         <FilterTabs
@@ -2265,7 +2574,11 @@ function AdminDashboard({
                                 onClick={(e) => {
                                   e.preventDefault();
                                   e.stopPropagation();
-                                  window.open(pkg.npmUrl, '_blank', 'noopener,noreferrer');
+                                  window.open(
+                                    pkg.npmUrl,
+                                    "_blank",
+                                    "noopener,noreferrer",
+                                  );
                                 }}
                                 className="px-3 py-1.5 rounded-full text-xs font-medium bg-button text-white hover:bg-button-hover transition-colors cursor-pointer"
                               >
@@ -2279,7 +2592,11 @@ function AdminDashboard({
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    window.open(pkg.repositoryUrl, '_blank', 'noopener,noreferrer');
+                                    window.open(
+                                      pkg.repositoryUrl,
+                                      "_blank",
+                                      "noopener,noreferrer",
+                                    );
                                   }}
                                   className="px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
                                 >
@@ -2294,7 +2611,11 @@ function AdminDashboard({
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    window.open(pkg.demoUrl, '_blank', 'noopener,noreferrer');
+                                    window.open(
+                                      pkg.demoUrl,
+                                      "_blank",
+                                      "noopener,noreferrer",
+                                    );
                                   }}
                                   className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
                                 >
@@ -2303,10 +2624,12 @@ function AdminDashboard({
                                 </a>
                               </Tooltip>
                             )}
-                            {/* Refresh NPM data button - always visible */}
+                            {/* Refresh NPM data button with status - always visible */}
                             <RefreshNpmButton
                               packageId={pkg._id}
                               packageName={pkg.name}
+                              lastRefreshedAt={pkg.lastRefreshedAt}
+                              refreshError={pkg.refreshError}
                             />
                           </div>
                         </div>
@@ -2331,6 +2654,12 @@ function AdminDashboard({
           </div>
         )}
       </div>
+
+      {/* Auto-Refresh Settings */}
+      <AutoRefreshSettingsPanel />
+
+      {/* AI Review Settings */}
+      <AdminSettingsPanel />
 
       {/* Stats section (at bottom) */}
       <div className="rounded-lg border border-border bg-bg-card p-4">
