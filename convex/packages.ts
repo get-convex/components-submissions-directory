@@ -68,33 +68,156 @@ const publicPackageValidator = v.object({
   ),
 });
 
+// ============ SECURITY: Admin package fields ============
+// These fields include sensitive submitter info for admin dashboard only
+// Used by getAllPackages and adminSearchPackages
+const adminPackageValidator = v.object({
+  _id: v.id("packages"),
+  _creationTime: v.number(),
+  name: v.string(),
+  description: v.string(),
+  installCommand: v.string(),
+  repositoryUrl: v.optional(v.string()),
+  homepageUrl: v.optional(v.string()),
+  version: v.string(),
+  license: v.string(),
+  unpackedSize: v.number(),
+  totalFiles: v.number(),
+  lastPublish: v.string(),
+  weeklyDownloads: v.number(),
+  collaborators: v.array(
+    v.object({
+      name: v.string(),
+      avatar: v.string(),
+    }),
+  ),
+  maintainerNames: v.optional(v.string()),
+  npmUrl: v.string(),
+  submittedAt: v.number(),
+  // Submitter info (admin only)
+  submitterName: v.optional(v.string()),
+  submitterEmail: v.optional(v.string()),
+  submitterDiscord: v.optional(v.string()),
+  // Live demo URL
+  demoUrl: v.optional(v.string()),
+  // Review fields
+  reviewStatus: v.optional(
+    v.union(
+      v.literal("pending"),
+      v.literal("in_review"),
+      v.literal("approved"),
+      v.literal("changes_requested"),
+      v.literal("rejected"),
+    ),
+  ),
+  visibility: v.optional(
+    v.union(v.literal("visible"), v.literal("hidden"), v.literal("archived")),
+  ),
+  reviewedBy: v.optional(v.string()),
+  reviewedAt: v.optional(v.number()),
+  reviewNotes: v.optional(v.string()),
+  featured: v.optional(v.boolean()),
+  // AI Review fields
+  aiReviewStatus: v.optional(
+    v.union(
+      v.literal("not_reviewed"),
+      v.literal("reviewing"),
+      v.literal("passed"),
+      v.literal("failed"),
+      v.literal("partial"),
+      v.literal("error"),
+    ),
+  ),
+  aiReviewSummary: v.optional(v.string()),
+  aiReviewCriteria: v.optional(
+    v.array(
+      v.object({
+        name: v.string(),
+        passed: v.boolean(),
+        notes: v.string(),
+      }),
+    ),
+  ),
+  aiReviewedAt: v.optional(v.number()),
+  aiReviewError: v.optional(v.string()),
+  // Refresh fields
+  lastRefreshedAt: v.optional(v.number()),
+  refreshError: v.optional(v.string()),
+});
+
 // Helper function to strip sensitive fields from a package
 // SECURITY: Removes submitter info and AI review details
 function toPublicPackage(pkg: any) {
   return {
     _id: pkg._id,
     _creationTime: pkg._creationTime,
-    name: pkg.name,
-    description: pkg.description,
-    installCommand: pkg.installCommand,
+    name: pkg.name || "",
+    description: pkg.description || "",
+    installCommand: pkg.installCommand || `npm install ${pkg.name || ""}`,
     repositoryUrl: pkg.repositoryUrl,
     homepageUrl: pkg.homepageUrl,
-    version: pkg.version,
-    license: pkg.license,
-    unpackedSize: pkg.unpackedSize,
-    totalFiles: pkg.totalFiles,
-    lastPublish: pkg.lastPublish,
-    weeklyDownloads: pkg.weeklyDownloads,
-    collaborators: pkg.collaborators,
+    version: pkg.version || "0.0.0",
+    license: pkg.license || "Unknown",
+    unpackedSize: pkg.unpackedSize ?? 0,
+    totalFiles: pkg.totalFiles ?? 0,
+    lastPublish: pkg.lastPublish || new Date().toISOString(),
+    weeklyDownloads: pkg.weeklyDownloads ?? 0,
+    collaborators: pkg.collaborators || [],
     maintainerNames: pkg.maintainerNames,
-    npmUrl: pkg.npmUrl,
-    submittedAt: pkg.submittedAt,
+    npmUrl: pkg.npmUrl || `https://www.npmjs.com/package/${pkg.name || ""}`,
+    submittedAt: pkg.submittedAt ?? pkg._creationTime ?? Date.now(),
     demoUrl: pkg.demoUrl,
     reviewStatus: pkg.reviewStatus,
     visibility: pkg.visibility,
     featured: pkg.featured,
     // Only expose status, not summary/criteria/error
     aiReviewStatus: pkg.aiReviewStatus,
+  };
+}
+
+// Helper function to normalize admin package data with default values
+// Ensures older documents with missing fields don't break validators
+function toAdminPackage(pkg: any) {
+  return {
+    _id: pkg._id,
+    _creationTime: pkg._creationTime,
+    name: pkg.name || "",
+    description: pkg.description || "",
+    installCommand: pkg.installCommand || `npm install ${pkg.name || ""}`,
+    repositoryUrl: pkg.repositoryUrl,
+    homepageUrl: pkg.homepageUrl,
+    version: pkg.version || "0.0.0",
+    license: pkg.license || "Unknown",
+    unpackedSize: pkg.unpackedSize ?? 0,
+    totalFiles: pkg.totalFiles ?? 0,
+    lastPublish: pkg.lastPublish || new Date().toISOString(),
+    weeklyDownloads: pkg.weeklyDownloads ?? 0,
+    collaborators: pkg.collaborators || [],
+    maintainerNames: pkg.maintainerNames,
+    npmUrl: pkg.npmUrl || `https://www.npmjs.com/package/${pkg.name || ""}`,
+    submittedAt: pkg.submittedAt ?? pkg._creationTime ?? Date.now(),
+    // Submitter info (admin only)
+    submitterName: pkg.submitterName,
+    submitterEmail: pkg.submitterEmail,
+    submitterDiscord: pkg.submitterDiscord,
+    // Live demo URL
+    demoUrl: pkg.demoUrl,
+    // Review fields
+    reviewStatus: pkg.reviewStatus,
+    visibility: pkg.visibility,
+    reviewedBy: pkg.reviewedBy,
+    reviewedAt: pkg.reviewedAt,
+    reviewNotes: pkg.reviewNotes,
+    featured: pkg.featured,
+    // AI Review fields
+    aiReviewStatus: pkg.aiReviewStatus,
+    aiReviewSummary: pkg.aiReviewSummary,
+    aiReviewCriteria: pkg.aiReviewCriteria,
+    aiReviewedAt: pkg.aiReviewedAt,
+    aiReviewError: pkg.aiReviewError,
+    // Refresh fields
+    lastRefreshedAt: pkg.lastRefreshedAt,
+    refreshError: pkg.refreshError,
   };
 }
 
@@ -464,6 +587,7 @@ export const listPackages = query({
 // Returns full package data including sensitive submitter info for admin dashboard
 export const getAllPackages = query({
   args: {},
+  returns: v.array(adminPackageValidator),
   handler: async (ctx) => {
     // Check if user is authenticated and is an admin
     const userId = await getAuthUserId(ctx);
@@ -485,7 +609,9 @@ export const getAllPackages = query({
     }
 
     // Admin authenticated - return full data
-    return await ctx.db.query("packages").collect();
+    const packages = await ctx.db.query("packages").collect();
+    // Normalize data to ensure all required fields have default values
+    return packages.map(toAdminPackage);
   },
 });
 
@@ -554,81 +680,7 @@ export const searchPackages = query({
 // Searches all packages by name, description, or maintainer names
 export const adminSearchPackages = query({
   args: { searchTerm: v.string() },
-  returns: v.array(
-    v.object({
-      _id: v.id("packages"),
-      _creationTime: v.number(),
-      name: v.string(),
-      description: v.string(),
-      installCommand: v.string(),
-      repositoryUrl: v.optional(v.string()),
-      homepageUrl: v.optional(v.string()),
-      version: v.string(),
-      license: v.string(),
-      unpackedSize: v.number(),
-      totalFiles: v.number(),
-      lastPublish: v.string(),
-      weeklyDownloads: v.number(),
-      collaborators: v.array(
-        v.object({
-          name: v.string(),
-          avatar: v.string(),
-        }),
-      ),
-      maintainerNames: v.optional(v.string()),
-      npmUrl: v.string(),
-      submittedAt: v.number(),
-      // Submitter info (optional - may not exist on older records)
-      submitterName: v.optional(v.string()),
-      submitterEmail: v.optional(v.string()),
-      submitterDiscord: v.optional(v.string()),
-      // Live demo URL (optional)
-      demoUrl: v.optional(v.string()),
-      reviewStatus: v.optional(
-        v.union(
-          v.literal("pending"),
-          v.literal("in_review"),
-          v.literal("approved"),
-          v.literal("changes_requested"),
-          v.literal("rejected"),
-        ),
-      ),
-      visibility: v.optional(
-        v.union(
-          v.literal("visible"),
-          v.literal("hidden"),
-          v.literal("archived"),
-        ),
-      ),
-      reviewedBy: v.optional(v.string()),
-      reviewedAt: v.optional(v.number()),
-      reviewNotes: v.optional(v.string()),
-      featured: v.optional(v.boolean()),
-      // AI Review fields
-      aiReviewStatus: v.optional(
-        v.union(
-          v.literal("not_reviewed"),
-          v.literal("reviewing"),
-          v.literal("passed"),
-          v.literal("failed"),
-          v.literal("partial"),
-          v.literal("error"),
-        ),
-      ),
-      aiReviewSummary: v.optional(v.string()),
-      aiReviewCriteria: v.optional(
-        v.array(
-          v.object({
-            name: v.string(),
-            passed: v.boolean(),
-            notes: v.string(),
-          }),
-        ),
-      ),
-      aiReviewedAt: v.optional(v.number()),
-      aiReviewError: v.optional(v.string()),
-    }),
-  ),
+  returns: v.array(adminPackageValidator),
   handler: async (ctx, args) => {
     // SECURITY: Check if user is authenticated and is an admin
     const userId = await getAuthUserId(ctx);
@@ -647,11 +699,13 @@ export const adminSearchPackages = query({
 
     // If no search term, return all packages sorted by newest
     if (!args.searchTerm.trim()) {
-      return await ctx.db
+      const packages = await ctx.db
         .query("packages")
         .withIndex("by_submitted_at")
         .order("desc")
         .take(100);
+      // Normalize data to ensure all required fields have default values
+      return packages.map(toAdminPackage);
     }
 
     // Search by name using Convex full-text search
@@ -691,7 +745,8 @@ export const adminSearchPackages = query({
       }
     }
 
-    return combined.slice(0, 100);
+    // Normalize data to ensure all required fields have default values
+    return combined.slice(0, 100).map(toAdminPackage);
   },
 });
 
@@ -1408,6 +1463,7 @@ export const getRecentRefreshLogs = query({
   returns: v.array(
     v.object({
       _id: v.id("refreshLogs"),
+      _creationTime: v.number(),
       runAt: v.number(),
       packagesProcessed: v.number(),
       packagesSucceeded: v.number(),
@@ -1484,7 +1540,7 @@ export const _getStalePackages = internalQuery({
   },
 });
 
-// Internal query: Get all approved packages (for manual refresh all)
+// Internal query: Get all approved packages (for manual refresh approved only)
 export const _getAllApprovedPackages = internalQuery({
   args: { limit: v.number() },
   returns: v.array(
@@ -1502,6 +1558,29 @@ export const _getAllApprovedPackages = internalQuery({
           q.neq(q.field("visibility"), "archived"),
         ),
       )
+      .take(args.limit);
+
+    return packages.map((pkg) => ({
+      _id: pkg._id,
+      name: pkg.name,
+    }));
+  },
+});
+
+// Internal query: Get all packages regardless of status (for manual refresh all)
+export const _getAllPackagesForRefresh = internalQuery({
+  args: { limit: v.number() },
+  returns: v.array(
+    v.object({
+      _id: v.id("packages"),
+      name: v.string(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    // Get all non-archived packages regardless of review status
+    const packages = await ctx.db
+      .query("packages")
+      .filter((q) => q.neq(q.field("visibility"), "archived"))
       .take(args.limit);
 
     return packages.map((pkg) => ({
@@ -1827,24 +1906,85 @@ export const _getRefreshIntervalDays = internalQuery({
   },
 });
 
-// Action: Manual "Refresh All" trigger (bypasses staleness check)
+// Action: Manual "Refresh Approved" trigger (bypasses staleness check, approved packages only)
 export const triggerManualRefreshAll = action({
   args: {},
   returns: v.object({
     packagesQueued: v.number(),
-    logId: v.id("refreshLogs"),
+    logId: v.union(v.id("refreshLogs"), v.null()),
   }),
   handler: async (
     ctx,
-  ): Promise<{ packagesQueued: number; logId: Id<"refreshLogs"> }> => {
+  ): Promise<{ packagesQueued: number; logId: Id<"refreshLogs"> | null }> => {
     // Get all approved packages (max 100)
     const packages: { _id: Id<"packages">; name: string }[] =
       await ctx.runQuery(internal.packages._getAllApprovedPackages, {
         limit: 100,
       });
 
+    // Return gracefully if no approved packages found
     if (packages.length === 0) {
-      throw new Error("No approved packages found to refresh");
+      return { packagesQueued: 0, logId: null };
+    }
+
+    // Create refresh log
+    const logId: Id<"refreshLogs"> = await ctx.runMutation(
+      internal.packages._createRefreshLog,
+      {
+        packagesProcessed: packages.length,
+        isManual: true,
+      },
+    );
+
+    // Batch packages into groups of 10
+    const batchSize = 10;
+    const batches: (typeof packages)[] = [];
+    for (let i = 0; i < packages.length; i += batchSize) {
+      batches.push(packages.slice(i, i + batchSize));
+    }
+
+    // Schedule each batch with staggered delays (5 seconds apart)
+    for (let i = 0; i < batches.length; i++) {
+      const delay = i * 5000; // 5 seconds between batches
+      const isLastBatch = i === batches.length - 1;
+
+      await ctx.scheduler.runAfter(
+        delay,
+        internal.packages._refreshPackageBatch,
+        {
+          packages: batches[i],
+          logId,
+          isLastBatch,
+        },
+      );
+    }
+
+    return {
+      packagesQueued: packages.length,
+      logId,
+    };
+  },
+});
+
+// Action: Manual "Refresh All Packages" trigger (all packages regardless of status)
+export const triggerManualRefreshAllPackages = action({
+  args: {},
+  returns: v.object({
+    packagesQueued: v.number(),
+    logId: v.union(v.id("refreshLogs"), v.null()),
+  }),
+  handler: async (
+    ctx,
+  ): Promise<{ packagesQueued: number; logId: Id<"refreshLogs"> | null }> => {
+    // Get all packages regardless of status (max 100)
+    const packages: { _id: Id<"packages">; name: string }[] =
+      await ctx.runQuery(internal.packages._getAllPackagesForRefresh, {
+        limit: 100,
+      });
+
+    // Return gracefully if no packages found
+    if (packages.length === 0) {
+      return { packagesQueued: 0, logId: null };
     }
 
     // Create refresh log

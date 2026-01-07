@@ -1572,15 +1572,21 @@ function InlineActions({
 // Auto-Refresh Settings Panel component
 function AutoRefreshSettingsPanel() {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [showRefreshConfirm, setShowRefreshConfirm] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showRefreshApprovedConfirm, setShowRefreshApprovedConfirm] =
+    useState(false);
+  const [showRefreshAllConfirm, setShowRefreshAllConfirm] = useState(false);
+  const [isRefreshingApproved, setIsRefreshingApproved] = useState(false);
+  const [isRefreshingAll, setIsRefreshingAll] = useState(false);
   const [showLogs, setShowLogs] = useState(false);
 
   const refreshSettings = useQuery(api.packages.getRefreshSettings);
   const refreshStats = useQuery(api.packages.getRefreshStats);
   const recentLogs = useQuery(api.packages.getRecentRefreshLogs);
   const updateRefreshSetting = useMutation(api.packages.updateRefreshSetting);
-  const triggerRefreshAll = useAction(api.packages.triggerManualRefreshAll);
+  const triggerRefreshApproved = useAction(api.packages.triggerManualRefreshAll);
+  const triggerRefreshAllPackages = useAction(
+    api.packages.triggerManualRefreshAllPackages,
+  );
 
   const handleToggleEnabled = async () => {
     if (!refreshSettings) return;
@@ -1611,18 +1617,45 @@ function AutoRefreshSettingsPanel() {
     }
   };
 
-  const handleRefreshAll = async () => {
-    setShowRefreshConfirm(false);
-    setIsRefreshing(true);
+  // Refresh only approved packages
+  const handleRefreshApproved = async () => {
+    setShowRefreshApprovedConfirm(false);
+    setIsRefreshingApproved(true);
     try {
-      const result = await triggerRefreshAll({});
-      toast.success(`Queued ${result.packagesQueued} packages for refresh`);
+      const result = await triggerRefreshApproved({});
+      if (result.packagesQueued === 0) {
+        toast.info("No approved packages to refresh");
+      } else {
+        toast.success(
+          `Queued ${result.packagesQueued} approved packages for refresh`,
+        );
+      }
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to start refresh",
       );
     } finally {
-      setIsRefreshing(false);
+      setIsRefreshingApproved(false);
+    }
+  };
+
+  // Refresh all packages regardless of status
+  const handleRefreshAll = async () => {
+    setShowRefreshAllConfirm(false);
+    setIsRefreshingAll(true);
+    try {
+      const result = await triggerRefreshAllPackages({});
+      if (result.packagesQueued === 0) {
+        toast.info("No packages to refresh");
+      } else {
+        toast.success(`Queued ${result.packagesQueued} packages for refresh`);
+      }
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to start refresh",
+      );
+    } finally {
+      setIsRefreshingAll(false);
     }
   };
 
@@ -1759,18 +1792,34 @@ function AutoRefreshSettingsPanel() {
             )}
           </div>
 
-          {/* Manual refresh button */}
-          <button
-            onClick={() => setShowRefreshConfirm(true)}
-            disabled={isRefreshing}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-border bg-white text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <ArrowsClockwise
-              size={16}
-              className={isRefreshing ? "animate-spin" : ""}
-            />
-            {isRefreshing ? "Refreshing..." : "Refresh All Packages Now"}
-          </button>
+          {/* Manual refresh buttons */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            {/* Refresh All Packages button */}
+            <button
+              onClick={() => setShowRefreshAllConfirm(true)}
+              disabled={isRefreshingAll || isRefreshingApproved}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-border bg-white text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ArrowsClockwise
+                size={16}
+                className={isRefreshingAll ? "animate-spin" : ""}
+              />
+              {isRefreshingAll ? "Refreshing..." : "Refresh All Packages"}
+            </button>
+            {/* Refresh Approved Only button */}
+            <button
+              onClick={() => setShowRefreshApprovedConfirm(true)}
+              disabled={isRefreshingApproved || isRefreshingAll}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-green-200 bg-white text-green-700 hover:bg-green-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <CheckCircle
+                size={16}
+                weight="bold"
+                className={isRefreshingApproved ? "animate-pulse" : ""}
+              />
+              {isRefreshingApproved ? "Refreshing..." : "Refresh Approved Only"}
+            </button>
+          </div>
 
           {/* Recent logs toggle */}
           <button
@@ -1830,14 +1879,26 @@ function AutoRefreshSettingsPanel() {
         </div>
       )}
 
-      {/* Refresh All Confirmation Modal */}
+      {/* Refresh All Packages Confirmation Modal */}
       <ConfirmModal
-        isOpen={showRefreshConfirm}
-        onClose={() => setShowRefreshConfirm(false)}
+        isOpen={showRefreshAllConfirm}
+        onClose={() => setShowRefreshAllConfirm(false)}
         onConfirm={handleRefreshAll}
         title="Refresh All Packages?"
-        message={`This will refresh npm data for all ${refreshStats.totalPackages} approved packages, regardless of when they were last updated. This may take several minutes.`}
+        message="This will refresh npm data for ALL packages (pending, in review, approved, changes requested, rejected), regardless of status or when they were last updated. This may take several minutes."
         confirmText="Refresh All"
+        cancelText="Cancel"
+        type="warning"
+      />
+
+      {/* Refresh Approved Only Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showRefreshApprovedConfirm}
+        onClose={() => setShowRefreshApprovedConfirm(false)}
+        onConfirm={handleRefreshApproved}
+        title="Refresh Approved Packages?"
+        message={`This will refresh npm data for ${refreshStats.totalPackages} approved packages only, regardless of when they were last updated. This may take several minutes.`}
+        confirmText="Refresh Approved"
         cancelText="Cancel"
         type="warning"
       />
