@@ -5,11 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.9] 2025-01-08
+
+### Added
+
+- Copy button on AI review results panel to copy formatted review for Notion
+- Copied content includes: package name, status, maintainers, npm URL, GitHub URL, summary, and criteria checklist
+- Uses Notion-friendly markdown format with checkboxes for criteria
+
 ## [1.3.8] 2025-01-08
 
-### changed
+### Changed
 
-- Changed aiReviews.ts model to opus
+- Changed aiReview.ts model to claude-opus-4-5-20251101
 
 ## [1.3.7] 2025-01-08
 

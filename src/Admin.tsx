@@ -46,6 +46,7 @@ import {
   Lightning,
   ClockCounterClockwise,
   ArrowsClockwise,
+  Copy,
 } from "@phosphor-icons/react";
 
 // Review status type
@@ -817,21 +818,82 @@ function AiReviewStatusBadge({
   );
 }
 
-// AI Review results panel
+// AI Review results panel with copy functionality
 function AiReviewResultsPanel({
   aiReviewStatus,
   aiReviewSummary,
   aiReviewCriteria,
   aiReviewError,
   aiReviewedAt,
+  packageName,
+  collaborators,
+  npmUrl,
+  repositoryUrl,
 }: {
   aiReviewStatus?: AiReviewStatus;
   aiReviewSummary?: string;
   aiReviewCriteria?: Array<{ name: string; passed: boolean; notes: string }>;
   aiReviewError?: string;
   aiReviewedAt?: number;
+  packageName?: string;
+  collaborators?: Array<{ name: string; avatar: string }>;
+  npmUrl?: string;
+  repositoryUrl?: string;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // Copy AI review results to clipboard in Notion-friendly format
+  const handleCopyResults = () => {
+    const statusText =
+      aiReviewStatus === "passed"
+        ? "PASSED"
+        : aiReviewStatus === "partial"
+          ? "PARTIAL"
+          : aiReviewStatus === "failed"
+            ? "FAILED"
+            : aiReviewStatus?.toUpperCase() || "UNKNOWN";
+
+    const maintainerList =
+      collaborators && collaborators.length > 0
+        ? collaborators.map((c) => c.name).join(", ")
+        : "N/A";
+
+    const criteriaList =
+      aiReviewCriteria && aiReviewCriteria.length > 0
+        ? aiReviewCriteria
+            .map((c) => `${c.passed ? "[x]" : "[ ]"} ${c.name}\n    ${c.notes}`)
+            .join("\n")
+        : "No criteria available";
+
+    const reviewDate = aiReviewedAt
+      ? new Date(aiReviewedAt).toLocaleDateString()
+      : "N/A";
+
+    const text = `## AI Review: ${packageName || "Unknown Package"}
+
+**Status:** ${statusText}
+**Reviewed:** ${reviewDate}
+
+### Package Info
+- **npm:** ${npmUrl || "N/A"}
+- **GitHub:** ${repositoryUrl || "N/A"}
+- **Maintainers:** ${maintainerList}
+
+### Summary
+${aiReviewSummary || "No summary available"}
+
+### Criteria Checklist
+${criteriaList}
+${aiReviewError ? `\n### Error\n${aiReviewError}` : ""}
+`;
+
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      toast.success("AI review copied to clipboard");
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   if (!aiReviewStatus || aiReviewStatus === "not_reviewed") {
     return null;
@@ -873,12 +935,24 @@ function AiReviewResultsPanel({
             </span>
           )}
         </div>
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="text-text-secondary hover:text-text-primary transition-colors"
-        >
-          {isExpanded ? <CaretUp size={16} /> : <CaretDown size={16} />}
-        </button>
+        <div className="flex items-center gap-1">
+          {/* Copy button */}
+          <Tooltip content={copied ? "Copied!" : "Copy results for Notion"}>
+            <button
+              onClick={handleCopyResults}
+              className="p-1 text-text-secondary hover:text-text-primary transition-colors rounded hover:bg-bg-primary"
+            >
+              <Copy size={16} weight={copied ? "fill" : "regular"} />
+            </button>
+          </Tooltip>
+          {/* Expand/collapse button */}
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-text-secondary hover:text-text-primary transition-colors"
+          >
+            {isExpanded ? <CaretUp size={16} /> : <CaretDown size={16} />}
+          </button>
+        </div>
       </div>
 
       {/* Summary */}
@@ -1583,7 +1657,9 @@ function AutoRefreshSettingsPanel() {
   const refreshStats = useQuery(api.packages.getRefreshStats);
   const recentLogs = useQuery(api.packages.getRecentRefreshLogs);
   const updateRefreshSetting = useMutation(api.packages.updateRefreshSetting);
-  const triggerRefreshApproved = useAction(api.packages.triggerManualRefreshAll);
+  const triggerRefreshApproved = useAction(
+    api.packages.triggerManualRefreshAll,
+  );
   const triggerRefreshAllPackages = useAction(
     api.packages.triggerManualRefreshAllPackages,
   );
@@ -2598,6 +2674,10 @@ function AdminDashboard({
                             aiReviewCriteria={pkg.aiReviewCriteria}
                             aiReviewError={pkg.aiReviewError}
                             aiReviewedAt={pkg.aiReviewedAt}
+                            packageName={pkg.name}
+                            collaborators={pkg.collaborators}
+                            npmUrl={pkg.npmUrl}
+                            repositoryUrl={pkg.repositoryUrl}
                           />
                         </div>
 
