@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.7] 2025-01-08
+
+### Removed
+
+- Removed "Indexes follow naming convention" criterion from AI review checks
+- This criterion was non-critical and added unnecessary noise to review results
+
+### Changed
+
+- AI review now validates against 9 criteria (5 critical, 4 non-critical) instead of 10
+- Updated admin panel settings explanation to reflect the removed criterion
+- Updated all documentation (aicheck.md, howitworks.md, files.md, README.md, task.md)
+
 ## [1.3.6] 2025-12-05
 
 ### Documentation
@@ -114,7 +127,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Admin settings panel with auto-approve and auto-reject toggles
 - AI Review documentation referencing official Convex docs
 - Support for analyzing GitHub repositories with convex.config.ts detection
-- 10 criteria checklist for Convex component validation
+- 9 criteria checklist for Convex component validation
 - Admin settings table for AI automation preferences
 - Expanded convex.config.ts detection for various component structures
 - Live demo URL field for package submissions (optional but suggested)

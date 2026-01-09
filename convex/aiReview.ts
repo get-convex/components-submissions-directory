@@ -35,11 +35,6 @@ const REVIEW_CRITERIA = [
     critical: true,
   },
   {
-    name: "Indexes follow naming convention",
-    check: "If schema exists, index names match by_field1_and_field2 pattern",
-    critical: false,
-  },
-  {
     name: "Uses withIndex() not filter()",
     check: "Queries use indexes instead of filter",
     critical: false,
@@ -311,8 +306,7 @@ KEY REQUIREMENTS FROM DOCS:
 4. All functions MUST have explicit 'returns' validator (use v.null() for functions that don't return values)
 5. Functions returning nothing MUST use v.null() as the return validator, not undefined
 6. Internal functions should use internalQuery, internalMutation, internalAction
-7. Indexes should follow naming convention: by_field1_and_field2
-8. If component needs authorization, use token-based pattern (like Presence component): methods return tokens, subsequent calls require tokens. Note: Not all components need authorization.
+7. If component needs authorization, use token-based pattern (like Presence component): methods return tokens, subsequent calls require tokens. Note: Not all components need authorization.
 `;
 
       const prompt = `You are reviewing a Convex component package against official Convex component specifications.
@@ -355,7 +349,6 @@ Respond in this exact JSON format:
     {"name": "Functions use new syntax", "passed": true/false, "notes": "Your note"},
     {"name": "All functions have returns: validator", "passed": true/false, "notes": "Your note"},
     {"name": "Uses v.null() for void returns", "passed": true/false, "notes": "Your note"},
-    {"name": "Indexes follow naming convention", "passed": true/false, "notes": "Your note"},
     {"name": "Uses withIndex() not filter()", "passed": true/false, "notes": "Your note"},
     {"name": "Internal functions use internal*", "passed": true/false, "notes": "Your note"},
     {"name": "Has TypeScript with proper types", "passed": true/false, "notes": "Your note"},

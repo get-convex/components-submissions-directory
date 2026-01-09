@@ -2035,11 +2035,6 @@ function AdminSettingsPanel() {
               </p>
               <ul className="list-disc list-inside space-y-1 ml-1 mt-1">
                 <li>
-                  Indexes follow{" "}
-                  <code className="bg-bg-primary px-1 rounded">by_field</code>{" "}
-                  naming
-                </li>
-                <li>
                   Uses{" "}
                   <code className="bg-bg-primary px-1 rounded">
                     withIndex()

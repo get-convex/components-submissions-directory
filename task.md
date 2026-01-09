@@ -111,7 +111,7 @@
 ### Backend (convex/aiReview.ts)
 
 - Added runAiReview action using Anthropic Claude API
-- 10 criteria for Convex component validation (4 critical, 6 non-critical)
+- 9 criteria for Convex component validation (5 critical, 4 non-critical)
 - GitHub API integration for fetching component source files
 - Supports convex.config.ts detection in multiple locations
 - Auto-approve on pass and auto-reject on critical failures

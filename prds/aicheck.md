@@ -36,9 +36,9 @@ A Convex component is an npm package that other Convex applications can install 
 - Installed by other apps via `npm install`
 - Components run in isolated JavaScript contexts (no access to parent app's env vars or auth)
 
-### The 10 Review Criteria
+### The 9 Review Criteria
 
-The AI evaluates submitted packages against these 10 criteria (defined in `convex/aiReview.ts`):
+The AI evaluates submitted packages against these 9 criteria (defined in `convex/aiReview.ts`):
 
 | #   | Criterion                                        | What to Check                                                                                      | Critical |
 | --- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------- | -------- |
@@ -47,11 +47,10 @@ The AI evaluates submitted packages against these 10 criteria (defined in `conve
 | 3   | Functions use new syntax                         | `query({`, `mutation({`, `action({` with args/handler                                              | Yes      |
 | 4   | All functions have `returns:` validator          | Handler signatures include return validators                                                       | Yes      |
 | 5   | Uses `v.null()` for void returns                 | Functions returning nothing use v.null() not undefined                                             | Yes      |
-| 6   | Indexes follow naming convention                 | Index names match `by_field1_and_field2` pattern                                                   | No       |
-| 7   | Uses `withIndex()` not `filter()`                | Queries use indexes instead of filter                                                              | No       |
-| 8   | Internal functions use `internal*`               | Sensitive functions use internalQuery, etc.                                                        | No       |
-| 9   | Has TypeScript with proper types                 | Uses `Id<"table">` types, proper validators                                                        | No       |
-| 10  | Uses token-based authorization (when applicable) | If component needs auth, uses token pattern like Presence component. Not all components need auth. | No       |
+| 6   | Uses `withIndex()` not `filter()`                | Queries use indexes instead of filter                                                              | No       |
+| 7   | Internal functions use `internal*`               | Sensitive functions use internalQuery, etc.                                                        | No       |
+| 8   | Has TypeScript with proper types                 | Uses `Id<"table">` types, proper validators                                                        | No       |
+| 9   | Uses token-based authorization (when applicable) | If component needs auth, uses token pattern like Presence component. Not all components need auth. | No       |
 
 ### Token-Based Authorization Pattern
 
@@ -87,7 +86,7 @@ The AI review determines one of three statuses based on which criteria pass or f
 
 | Status    | Icon              | Condition                                    | Meaning                                      |
 | --------- | ----------------- | -------------------------------------------- | -------------------------------------------- |
-| `passed`  | Green CheckCircle | All 10 criteria pass                         | Component meets all specifications           |
+| `passed`  | Green CheckCircle | All 9 criteria pass                          | Component meets all specifications           |
 | `partial` | Yellow Warning    | No critical failures, some non-critical fail | Component works but has room for improvement |
 | `failed`  | Red XCircle       | At least one critical criterion fails        | Component has fundamental issues             |
 
@@ -101,13 +100,12 @@ The AI review determines one of three statuses based on which criteria pass or f
 4. **All functions have returns: validator** - All functions must declare their return type
 5. **Uses v.null() for void returns** - Functions returning nothing must use v.null()
 
-**Non-critical criteria** (5 total) represent best practices. Failing these results in `partial` status:
+**Non-critical criteria** (4 total) represent best practices. Failing these results in `partial` status:
 
-6. Indexes follow naming convention
-7. Uses withIndex() not filter()
-8. Internal functions use internal\*
-9. Has TypeScript with proper types
-10. Uses token-based authorization (when applicable) - If component needs auth, uses token pattern. Not all components need auth.
+6. Uses withIndex() not filter()
+7. Internal functions use internal\*
+8. Has TypeScript with proper types
+9. Uses token-based authorization (when applicable) - If component needs auth, uses token pattern. Not all components need auth.
 
 ### Auto-Approve and Auto-Reject
 
@@ -160,7 +158,7 @@ The AI review is implemented as a single Convex action that runs in the Node.js 
 
 #### REVIEW_CRITERIA Constant
 
-Defines all 10 criteria with:
+Defines all 9 criteria with:
 
 - `name`: Display name shown in UI
 - `check`: Description of what to check
@@ -231,7 +229,7 @@ The prompt sent to Claude includes:
    - Name and version
 
 4. CRITERIA TO CHECK
-   - All 10 criteria with CRITICAL flag
+   - All 9 criteria with CRITICAL flag
 
 5. SOURCE CODE
    - convex.config.ts content
@@ -244,7 +242,7 @@ The prompt sent to Claude includes:
    - For token-based auth, mark PASS if component doesn't need auth
 
 7. JSON RESPONSE FORMAT
-   - Exact structure with all 10 criteria names
+   - Exact structure with all 9 criteria names
 ```
 
 ### JSON Response Format
@@ -260,7 +258,6 @@ The AI returns:
     {"name": "Functions use new syntax", "passed": true/false, "notes": "..."},
     {"name": "All functions have returns: validator", "passed": true/false, "notes": "..."},
     {"name": "Uses v.null() for void returns", "passed": true/false, "notes": "..."},
-    {"name": "Indexes follow naming convention", "passed": true/false, "notes": "..."},
     {"name": "Uses withIndex() not filter()", "passed": true/false, "notes": "..."},
     {"name": "Internal functions use internal*", "passed": true/false, "notes": "..."},
     {"name": "Has TypeScript with proper types", "passed": true/false, "notes": "..."},

@@ -65,7 +65,7 @@ The NPM Package Directory is a submission platform where users can:
 - **Public Comments**: Add comments visible on the frontend package details
 - **Submitter Information**: View submitter details (name, email, Discord username) for each package submission
 - **AI Review**: Automated code analysis against Convex component specifications using Claude AI
-  - Validates packages against 10 criteria (4 critical, 6 non-critical)
+  - Validates packages against 9 criteria (5 critical, 4 non-critical)
   - Fetches source code from GitHub repositories
   - Detects convex.config.ts in multiple locations
   - Shows detailed results with criteria checklist

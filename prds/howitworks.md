@@ -235,7 +235,7 @@ if (githubToken) {
 
 ## AI Review Process
 
-The AI review uses Anthropic Claude to analyze Convex component code against 10 criteria.
+The AI review uses Anthropic Claude to analyze Convex component code against 9 criteria.
 
 ### Review Criteria
 

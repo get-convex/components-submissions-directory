@@ -58,7 +58,7 @@ Auth configuration file. Currently minimal, can be expanded for additional auth 
 
 AI-powered package review system with security best practices. Contains:
 
-- `REVIEW_CRITERIA`: 10 criteria for validating Convex components (4 critical, 6 non-critical)
+- `REVIEW_CRITERIA`: 9 criteria for validating Convex components (5 critical, 4 non-critical)
 - `fetchGitHubRepo`: Fetches source code from GitHub repositories, detects convex.config.ts in multiple locations (convex/src/component/, convex/component/, convex/, src/component/, src/, root, packages/, lib/)
 - `runAiReview`: Action that orchestrates the AI review process using Anthropic Claude API
 - Uses internal query (`internal.packages._getPackage`) for full package data access including repositoryUrl
