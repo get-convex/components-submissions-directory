@@ -236,9 +236,9 @@ export default function App() {
           <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:justify-between sm:items-center mb-4">
             {/* Left: Title */}
             <h1 className="whitespace-nowrap font-sans text-lg sm:text-xl font-medium text-text-primary">
-              Components npm Submissions Directory
-            </h1>
-
+              Components Submissions Directory
+            </h1>{" "}
+            <span>Submissions are reviewed on a rolling basis.</span>
             {/* Right: Controls */}
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
               {/* About button */}
@@ -987,11 +987,11 @@ function SuccessModal({
   if (!isOpen) return null;
 
   return (
-    <div 
+    <div
       className="fixed inset-0 flex items-center justify-center p-4"
-      style={{ 
+      style={{
         zIndex: 2147483647,
-        position: 'fixed',
+        position: "fixed",
         top: 0,
         left: 0,
         right: 0,
@@ -1128,11 +1128,11 @@ function SubmitPackageModal({ onClose }: { onClose: () => void }) {
     <>
       {/* Modal container with high z-index for iframe support - hide when success is showing */}
       {!showSuccess && (
-        <div 
+        <div
           className="fixed inset-0 flex items-start justify-center pt-8 sm:pt-12 p-4 overflow-y-auto"
-          style={{ 
+          style={{
             zIndex: 2147483647,
-            position: 'fixed',
+            position: "fixed",
             top: 0,
             left: 0,
             right: 0,
@@ -1161,98 +1161,101 @@ function SubmitPackageModal({ onClose }: { onClose: () => void }) {
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-            {/* NPM URL */}
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">
-                npm package URL <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="https://www.npmjs.com/package/your-package"
-                value={npmUrl}
-                onChange={(e) => setNpmUrl(e.target.value)}
-                disabled={isLoading}
-                autoFocus
-                className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20"
-              />
-            </div>
+              {/* NPM URL */}
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-1">
+                  npm package URL <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://www.npmjs.com/package/your-package"
+                  value={npmUrl}
+                  onChange={(e) => setNpmUrl(e.target.value)}
+                  disabled={isLoading}
+                  autoFocus
+                  className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20"
+                />
+              </div>
 
-            {/* Live Demo URL - Optional */}
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">
-                Live Demo URL{" "}
-                <span className="text-text-secondary text-xs font-normal">
-                  (highly suggested but not required)
-                </span>
-              </label>
-              <input
-                type="text"
-                placeholder="https://your-demo-site.com"
-                value={demoUrl}
-                onChange={(e) => setDemoUrl(e.target.value)}
-                disabled={isLoading}
-                className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button"
-              />
-            </div>
+              {/* Live Demo URL - Optional */}
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-1">
+                  Live Demo URL{" "}
+                  <span className="text-text-secondary text-xs font-normal">
+                    (highly suggested but not required)
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://your-demo-site.com"
+                  value={demoUrl}
+                  onChange={(e) => setDemoUrl(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button"
+                />
+              </div>
 
-            {/* Name */}
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">
-                Your Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                placeholder="John Doe"
-                value={submitterName}
-                onChange={(e) => setSubmitterName(e.target.value)}
-                disabled={isLoading}
-                className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button"
-              />
-            </div>
+              {/* Name */}
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-1">
+                  Your Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="John Doe"
+                  value={submitterName}
+                  onChange={(e) => setSubmitterName(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button"
+                />
+              </div>
 
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">
-                Email <span className="text-red-500">*</span>
-              </label>
-              <p className="text-xs text-text-secondary mb-2">
-                Not displayed publicly. Used by the Convex team to contact you about your submission.
-              </p>
-              <input
-                type="email"
-                placeholder="you@example.com"
-                value={submitterEmail}
-                onChange={(e) => setSubmitterEmail(e.target.value)}
-                disabled={isLoading}
-                className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button"
-              />
-            </div>
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-1">
+                  Email <span className="text-red-500">*</span>
+                </label>
+                <p className="text-xs text-text-secondary mb-2">
+                  Not displayed publicly. Used by the Convex team to contact you
+                  about your submission.
+                </p>
+                <input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={submitterEmail}
+                  onChange={(e) => setSubmitterEmail(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button"
+                />
+              </div>
 
-            {/* Discord - Optional */}
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">
-                Convex Discord Username{" "}
-                <span className="text-text-secondary text-xs">(optional)</span>
-              </label>
-              <input
-                type="text"
-                placeholder="username#1234 or @username"
-                value={submitterDiscord}
-                onChange={(e) => setSubmitterDiscord(e.target.value)}
-                disabled={isLoading}
-                className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button"
-              />
-            </div>
+              {/* Discord - Optional */}
+              <div>
+                <label className="block text-sm font-medium text-text-primary mb-1">
+                  Convex Discord Username{" "}
+                  <span className="text-text-secondary text-xs">
+                    (optional)
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="username#1234 or @username"
+                  value={submitterDiscord}
+                  onChange={(e) => setSubmitterDiscord(e.target.value)}
+                  disabled={isLoading}
+                  className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button"
+                />
+              </div>
 
-            {/* Submit button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full px-6 py-3 rounded-full font-normal bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-            >
-              {isLoading ? "Submitting..." : "Submit Package"}
-            </button>
-          </form>
+              {/* Submit button */}
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full px-6 py-3 rounded-full font-normal bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
+                {isLoading ? "Submitting..." : "Submit Package"}
+              </button>
+            </form>
           </div>
         </div>
       )}
@@ -1840,7 +1843,7 @@ function PackageRow({
                 href={pkg.npmUrl}
                 onClick={(e) => {
                   e.preventDefault();
-                  window.open(pkg.npmUrl, '_blank', 'noopener,noreferrer');
+                  window.open(pkg.npmUrl, "_blank", "noopener,noreferrer");
                 }}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors cursor-pointer"
               >
@@ -1854,7 +1857,11 @@ function PackageRow({
                   href={pkg.repositoryUrl}
                   onClick={(e) => {
                     e.preventDefault();
-                    window.open(pkg.repositoryUrl, '_blank', 'noopener,noreferrer');
+                    window.open(
+                      pkg.repositoryUrl,
+                      "_blank",
+                      "noopener,noreferrer",
+                    );
                   }}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
                 >
@@ -1869,7 +1876,11 @@ function PackageRow({
                   href={pkg.homepageUrl}
                   onClick={(e) => {
                     e.preventDefault();
-                    window.open(pkg.homepageUrl, '_blank', 'noopener,noreferrer');
+                    window.open(
+                      pkg.homepageUrl,
+                      "_blank",
+                      "noopener,noreferrer",
+                    );
                   }}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
                 >
@@ -1884,7 +1895,7 @@ function PackageRow({
                   href={pkg.demoUrl}
                   onClick={(e) => {
                     e.preventDefault();
-                    window.open(pkg.demoUrl, '_blank', 'noopener,noreferrer');
+                    window.open(pkg.demoUrl, "_blank", "noopener,noreferrer");
                   }}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
                 >

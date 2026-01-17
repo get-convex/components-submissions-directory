@@ -322,25 +322,45 @@ export const refreshNpmData = action({
       throw new Error("Package not found");
     }
 
-    // Fetch fresh data from npm
-    const packageData: any = await ctx.runAction(api.packages.fetchNpmPackage, {
-      packageName: pkg.name,
-    });
+    try {
+      // Fetch fresh data from npm
+      const packageData: any = await ctx.runAction(
+        api.packages.fetchNpmPackage,
+        {
+          packageName: pkg.name,
+        },
+      );
 
-    // Update the package with fresh npm data (preserves submitter info, review status, etc.)
-    await ctx.runMutation(api.packages.updateNpmData, {
-      packageId: args.packageId,
-      description: packageData.description,
-      version: packageData.version,
-      license: packageData.license,
-      repositoryUrl: packageData.repositoryUrl,
-      homepageUrl: packageData.homepageUrl,
-      unpackedSize: packageData.unpackedSize,
-      totalFiles: packageData.totalFiles,
-      lastPublish: packageData.lastPublish,
-      weeklyDownloads: packageData.weeklyDownloads,
-      collaborators: packageData.collaborators,
-    });
+      // Update the package with fresh npm data (preserves submitter info, review status, etc.)
+      await ctx.runMutation(api.packages.updateNpmData, {
+        packageId: args.packageId,
+        description: packageData.description,
+        version: packageData.version,
+        license: packageData.license,
+        repositoryUrl: packageData.repositoryUrl,
+        homepageUrl: packageData.homepageUrl,
+        unpackedSize: packageData.unpackedSize,
+        totalFiles: packageData.totalFiles,
+        lastPublish: packageData.lastPublish,
+        weeklyDownloads: packageData.weeklyDownloads,
+        collaborators: packageData.collaborators,
+      });
+
+      // Update refresh timestamp and clear any previous error
+      await ctx.runMutation(internal.packages._updatePackageRefreshTimestamp, {
+        packageId: args.packageId,
+        clearError: true,
+      });
+    } catch (error) {
+      // Set error on package so admin can see what failed
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      await ctx.runMutation(internal.packages._setPackageRefreshError, {
+        packageId: args.packageId,
+        error: errorMessage,
+      });
+      throw error;
+    }
 
     return null;
   },
