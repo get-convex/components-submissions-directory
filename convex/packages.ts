@@ -331,14 +331,21 @@ export const refreshNpmData = action({
         },
       );
 
+      // Preserve existing repositoryUrl if already set (don't overwrite with npm data)
+      // Only use npm's repositoryUrl if the package doesn't have one
+      const repositoryUrl = pkg.repositoryUrl || packageData.repositoryUrl;
+
+      // Preserve existing homepageUrl if already set
+      const homepageUrl = pkg.homepageUrl || packageData.homepageUrl;
+
       // Update the package with fresh npm data (preserves submitter info, review status, etc.)
       await ctx.runMutation(api.packages.updateNpmData, {
         packageId: args.packageId,
         description: packageData.description,
         version: packageData.version,
         license: packageData.license,
-        repositoryUrl: packageData.repositoryUrl,
-        homepageUrl: packageData.homepageUrl,
+        repositoryUrl,
+        homepageUrl,
         unpackedSize: packageData.unpackedSize,
         totalFiles: packageData.totalFiles,
         lastPublish: packageData.lastPublish,
@@ -1756,6 +1763,11 @@ export const _refreshPackageBatch = internalAction({
 
     for (const pkg of args.packages) {
       try {
+        // Get the full package data to preserve existing URLs
+        const existingPkg = await ctx.runQuery(internal.packages._getPackage, {
+          packageId: pkg._id,
+        });
+
         // Fetch fresh data from npm
         const packageData: any = await ctx.runAction(
           api.packages.fetchNpmPackage,
@@ -1764,14 +1776,19 @@ export const _refreshPackageBatch = internalAction({
           },
         );
 
-        // Update the package with fresh npm data
+        // Preserve existing repositoryUrl and homepageUrl if already set
+        const repositoryUrl =
+          existingPkg?.repositoryUrl || packageData.repositoryUrl;
+        const homepageUrl = existingPkg?.homepageUrl || packageData.homepageUrl;
+
+        // Update the package with fresh npm data (preserving URLs)
         await ctx.runMutation(api.packages.updateNpmData, {
           packageId: pkg._id,
           description: packageData.description,
           version: packageData.version,
           license: packageData.license,
-          repositoryUrl: packageData.repositoryUrl,
-          homepageUrl: packageData.homepageUrl,
+          repositoryUrl,
+          homepageUrl,
           unpackedSize: packageData.unpackedSize,
           totalFiles: packageData.totalFiles,
           lastPublish: packageData.lastPublish,
