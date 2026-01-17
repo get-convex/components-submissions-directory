@@ -59,14 +59,18 @@ Auth configuration file. Currently minimal, can be expanded for additional auth 
 AI-powered package review system with security best practices. Contains:
 
 - `REVIEW_CRITERIA`: 9 criteria for validating Convex components (5 critical, 4 non-critical)
-- `fetchGitHubRepo`: Fetches source code from GitHub repositories, detects convex.config.ts in multiple locations (convex/src/component/, convex/component/, convex/, src/component/, src/, root, packages/, lib/)
+- `fetchGitHubRepo`: Fetches source code from GitHub repositories with comprehensive URL parsing and monorepo support:
+  - Normalizes GitHub URLs (handles git+ prefix, .git suffix, trailing slashes, tree/blob paths, hash fragments)
+  - Automatically discovers monorepo packages by querying the `packages/` directory
+  - Detects convex.config.ts in multiple locations: monorepo paths (`packages/<name>/src/component/`, `packages/<name>/convex.config.ts`), standard paths (convex/src/component/, convex/component/, convex/, src/component/, src/, root), and additional patterns (packages/component/, lib/)
+  - Debug logging for troubleshooting repository parsing issues
 - `runAiReview`: Action that orchestrates the AI review process using Anthropic Claude API
 - Uses internal query (`internal.packages._getPackage`) for full package data access including repositoryUrl
 - AI prompts only include code and package metadata (never user PII like submitter emails)
 - Auto-approve/reject actions use "AI" identifier (not fake email format)
 - Analyzes packages against official Convex component specifications
 - References official Convex documentation in AI prompt for accurate suggestions
-- Handles deeply nested component structures (like useautumn/typescript patterns)
+- Handles deeply nested component structures (like useautumn/typescript patterns) and monorepo structures (like trestleinc/replicate)
 
 ### `convex/packages.ts`
 
@@ -93,7 +97,7 @@ Main package business logic with security-focused design. Contains:
 **Actions:**
 
 - `fetchNpmPackage`: Fetches package metadata from npm registry and downloads API
-- `refreshNpmData`: Refreshes npm data for a specific package (uses internal query for full access)
+- `refreshNpmData`: Refreshes npm data for a specific package. Preserves existing repositoryUrl and homepageUrl (only fills from npm if empty). Updates lastRefreshedAt timestamp on success, sets refreshError on failure. Uses internal query for full data access.
 - `submitPackage`: Validates URL, checks for duplicates using internal query, fetches data, and inserts package
 
 **Mutations:**

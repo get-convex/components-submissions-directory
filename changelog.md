@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.10] 2025-01-17
+
+### Fixed
+
+- NPM refresh now preserves existing repositoryUrl and homepageUrl instead of overwriting with npm data
+- Single package refresh now properly updates lastRefreshedAt timestamp
+- AI review now handles various GitHub URL formats (git+ prefix, trailing slashes, branch paths)
+
+### Added
+
+- Monorepo package discovery for AI review: automatically detects packages in `packages/<name>/` directories
+- AI review now finds convex.config.ts in monorepo structures like `packages/<name>/src/component/`
+- Debug logging for AI review to help troubleshoot repository parsing issues
+
+### Technical Details
+
+- Updated `refreshNpmData` action to query existing package data and preserve URLs
+- Updated `_refreshPackageBatch` internal action to also preserve URLs during batch refresh
+- Improved URL normalization in `fetchGitHubRepo` to handle git+, .git suffix, trailing slashes, tree/blob paths, and hash fragments
+- AI review now queries GitHub packages directory to discover monorepo subdirectories dynamically
+
 ## [1.3.9] 2025-01-08
 
 ### Added

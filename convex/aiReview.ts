@@ -59,13 +59,27 @@ const REVIEW_CRITERIA = [
 
 // Fetch repository contents from GitHub (for Convex components)
 async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
+  // Normalize the URL to handle various formats
+  let normalizedUrl = repoUrl
+    .replace(/^git\+/, "") // Remove git+ prefix (npm style)
+    .replace(/\.git$/, "") // Remove .git suffix
+    .replace(/\/$/, "") // Remove trailing slash
+    .replace(/\/tree\/[^/]+.*$/, "") // Remove /tree/branch paths
+    .replace(/\/blob\/[^/]+.*$/, "") // Remove /blob/branch/file paths
+    .replace(/#.*$/, ""); // Remove hash fragments
+
   // Extract owner and repo from URL
-  const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?$/);
+  // Supports: github.com/owner/repo, www.github.com/owner/repo
+  const match = normalizedUrl.match(/github\.com\/([^/]+)\/([^/]+)$/);
   if (!match) {
-    throw new Error("Invalid GitHub repository URL");
+    console.error("Failed to parse GitHub URL:", repoUrl, "->", normalizedUrl);
+    throw new Error(
+      `Invalid GitHub repository URL: ${repoUrl}. Expected format: https://github.com/owner/repo`,
+    );
   }
 
   const [, owner, repo] = match;
+  console.log("Fetching GitHub repo:", owner, "/", repo, "from URL:", repoUrl);
 
   const headers: Record<string, string> = {
     Accept: "application/vnd.github.v3+json",
@@ -121,9 +135,32 @@ async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
     return [];
   }
 
+  // First, try to discover monorepo package directories
+  const monorepoPackages: string[] = [];
+  const packagesUrl = `https://api.github.com/repos/${owner}/${repo}/contents/packages`;
+  const packagesResponse = await fetch(packagesUrl, { headers });
+  if (packagesResponse.ok) {
+    const packagesData = await packagesResponse.json();
+    if (Array.isArray(packagesData)) {
+      for (const item of packagesData) {
+        if (item.type === "dir") {
+          monorepoPackages.push(item.name);
+        }
+      }
+    }
+  }
+
   // All possible paths for convex.config.ts (check in priority order)
   // Supports various component structures including deeply nested ones
   const configPaths = [
+    // Monorepo structures (packages/<name>/src/component/)
+    ...monorepoPackages.map(
+      (pkg) => `packages/${pkg}/src/component/convex.config.ts`,
+    ),
+    ...monorepoPackages.map((pkg) => `packages/${pkg}/convex.config.ts`),
+    ...monorepoPackages.map(
+      (pkg) => `packages/${pkg}/component/convex.config.ts`,
+    ),
     // Deep nested structures (like useautumn/typescript: convex/src/component/)
     "convex/src/component/convex.config.ts",
     "convex/component/convex.config.ts",
@@ -151,15 +188,28 @@ async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
   }
 
   if (!foundConfigPath) {
+    console.log(
+      "No convex.config.ts found in repo",
+      owner,
+      "/",
+      repo,
+      "- checked paths:",
+      configPaths,
+    );
     return { exists: false, files: [], isComponent: false };
   }
+
+  console.log("Found convex.config.ts at:", foundConfigPath);
 
   // Determine component directory based on config location
   // Extract the directory containing convex.config.ts
   const configDir = foundConfigPath.replace("/convex.config.ts", "");
   const componentDirPaths: string[] = [];
 
-  if (foundConfigPath.startsWith("convex/src/component/")) {
+  if (foundConfigPath.includes("/src/component/")) {
+    // Config is in .../src/component/, component files are siblings
+    componentDirPaths.push(configDir);
+  } else if (foundConfigPath.startsWith("convex/src/component/")) {
     // Config is in convex/src/component/, look for siblings
     componentDirPaths.push("convex/src/component");
   } else if (foundConfigPath.startsWith("convex/component/")) {
@@ -179,7 +229,7 @@ async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
     // Config is in src/, check src/component/ first, then src/
     componentDirPaths.push("src/component", "src");
   } else if (foundConfigPath.startsWith("packages/")) {
-    // Monorepo structure
+    // Monorepo structure - use the config directory
     componentDirPaths.push(configDir);
   } else if (foundConfigPath.startsWith("lib/")) {
     componentDirPaths.push("lib");
