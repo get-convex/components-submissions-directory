@@ -2641,19 +2641,51 @@ function AdminDashboard({
                                   <span className="flex items-center gap-1 text-text-secondary">
                                     <User size={12} />
                                     {pkg.submitterName}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigator.clipboard.writeText(
+                                          pkg.submitterName || "",
+                                        );
+                                        toast.success(
+                                          "Name copied to clipboard",
+                                        );
+                                      }}
+                                      className="ml-1 p-0.5 rounded hover:bg-bg-hover hover:text-text-primary transition-colors"
+                                      title="Copy name"
+                                    >
+                                      <Copy size={12} />
+                                    </button>
                                   </span>
                                 </Tooltip>
                               )}
                               {pkg.submitterEmail && (
                                 <Tooltip content="Submitter email">
-                                  <a
-                                    href={`mailto:${pkg.submitterEmail}`}
-                                    className="flex items-center gap-1 text-text-secondary hover:text-text-primary"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
+                                  <span className="flex items-center gap-1 text-text-secondary">
                                     <Envelope size={12} />
-                                    {pkg.submitterEmail}
-                                  </a>
+                                    <a
+                                      href={`mailto:${pkg.submitterEmail}`}
+                                      className="hover:text-text-primary"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      {pkg.submitterEmail}
+                                    </a>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigator.clipboard.writeText(
+                                          pkg.submitterEmail || "",
+                                        );
+                                        toast.success(
+                                          "Email copied to clipboard",
+                                        );
+                                      }}
+                                      className="ml-1 p-0.5 rounded hover:bg-bg-hover hover:text-text-primary transition-colors"
+                                      title="Copy email"
+                                    >
+                                      <Copy size={12} />
+                                    </button>
+                                  </span>
                                 </Tooltip>
                               )}
                               {pkg.submitterDiscord && (
@@ -2661,6 +2693,21 @@ function AdminDashboard({
                                   <span className="flex items-center gap-1 text-text-secondary">
                                     <DiscordLogo size={12} />
                                     {pkg.submitterDiscord}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigator.clipboard.writeText(
+                                          pkg.submitterDiscord || "",
+                                        );
+                                        toast.success(
+                                          "Discord username copied to clipboard",
+                                        );
+                                      }}
+                                      className="ml-1 p-0.5 rounded hover:bg-bg-hover hover:text-text-primary transition-colors"
+                                      title="Copy Discord username"
+                                    >
+                                      <Copy size={12} />
+                                    </button>
                                   </span>
                                 </Tooltip>
                               )}
