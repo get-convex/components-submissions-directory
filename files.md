@@ -241,7 +241,7 @@ Setup script (if present) for initial project configuration.
 
 ### `README.md`
 
-Project documentation and setup instructions.
+Convex Components Challenge documentation. Describes the challenge for developers to build reusable backend components, lists reward tiers (featured placement, gift cards, swag), provides links to component authoring guides and submission process, and lists challenge categories (Auth, AI, Analytics, Storage, etc.).
 
 ### `files.md`
 

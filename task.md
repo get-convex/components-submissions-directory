@@ -1,5 +1,8 @@
 # Task List
 
+- [x] Update README.md to focus on Convex Components Challenge
+- [] switch to workos auth
+
 - [x] change submit button back to DF5D34
 - [x] add link to demo app on form and admin for Link to Demo app showing how your component works
 - [x] remove open graph url link https://convex-components.dev
