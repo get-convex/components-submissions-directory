@@ -2,7 +2,7 @@
 
 Build reusable backend components for the Convex ecosystem. Ship something useful, get recognized, and earn rewards.
 
-![Convex Components Challenge](https://github-production-user-asset-6210df.s3.amazonaws.com/720186/540027639-993b8587-74c5-4395-b3dc-09eda548d2e2.png)
+![Convex Components Challenge](public/component-screenshot.png)
 
 ## What are Convex Components
 
@@ -12,7 +12,7 @@ Components have their own tables, functions, and scheduled jobs. They install wi
 
 ## The Challenge
 
-See the list of **[convex components challenges and rewards here.](https://github.com/orgs/get-convex/projects/1/views/1)**
+See the list of **[components challenges and rewards here.](https://github.com/orgs/get-convex/projects/1/views/1)**
 
 We're looking for developers to build and submit components.
 
@@ -39,7 +39,7 @@ Selected components receive:
 
 ## How to Participate
 
-1. Pick a challenge or build something you need from the **[convex components challenges](https://github.com/orgs/get-convex/projects/1/views/1)**
+1. Build a convex component you need or pick challenge from the **[ components challenge list](https://github.com/orgs/get-convex/projects/1/views/1)**
 2. Follow the [authoring guide](https://docs.convex.dev/components/authoring) to structure your component
 3. Publish to npm
 4. [Submit your component](https://www.convex.dev/components/submit) for review
