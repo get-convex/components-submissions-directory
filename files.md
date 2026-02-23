@@ -6,11 +6,10 @@ This document provides a brief description of each file in the codebase and how 
 
 ### `package.json`
 
-Defines project dependencies, scripts, and metadata. Includes React, Convex, Vite, TypeScript, `@convex-dev/self-hosting`, and development tools. Key scripts:
+Defines project dependencies, scripts, and metadata. Includes React, Convex, Vite, TypeScript, and development tools. Key scripts:
 - `dev`: Parallel dev server (frontend + backend)
-- `build`: Production build for Netlify/Vercel
-- `deploy`: One-shot deploy to Convex self-hosting (backend + static files)
-- `deploy:static`: Upload static files only to Convex storage
+- `build`: Production build for Netlify
+- `deploy:backend`: Deploy Convex backend only (`npx convex deploy`)
 
 ### `tsconfig.json`, `tsconfig.app.json`, `tsconfig.node.json`
 
@@ -18,7 +17,7 @@ TypeScript configuration files for different parts of the project. `tsconfig.jso
 
 ### `vite.config.ts`
 
-Vite build configuration. Sets up React plugin, path aliases, and base path `/components/` for all environments (local dev and Netlify production). All routes live under `/components/*`.
+Vite build configuration. Sets up React plugin, path aliases, and base path `/` for Netlify hosting. Assets are served from root, SPA routing is handled by Netlify redirects.
 
 ### `tailwind.config.js`
 
@@ -42,9 +41,14 @@ Git ignore patterns for node_modules, dist, build artifacts, and editor files.
 
 ### `netlify.toml`
 
-Netlify deployment configuration. Sets build command, publish directory, Node version, and redirects:
-- Root `/` redirects to `/components/` (301)
-- `/components/*` falls back to `/components/index.html` for SPA routing (200)
+Netlify deployment configuration. Sets build command (`npm run build`), publish directory (`dist`), Node version (20), and redirects:
+- Root `/` redirects to `/components` (301)
+- `/components` and `/components/*` fall back to `/index.html` for SPA routing (200)
+
+Environment variables must be set in Netlify Dashboard:
+- `VITE_CONVEX_URL`: Convex deployment URL
+- `VITE_WORKOS_CLIENT_ID`: WorkOS Client ID
+- `VITE_WORKOS_REDIRECT_URI`: `https://components-directory.netlify.app/components/callback`
 
 ### `index.html`
 

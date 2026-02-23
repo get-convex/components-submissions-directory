@@ -22,19 +22,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Removed Convex self-hosting integration (2026-02-23)
-  - Deleted `convex/staticHosting.ts` (no longer using `@convex-dev/self-hosting`)
+- Migrated from Convex self-hosting to Netlify hosting (2026-02-23)
+  - Removed `@convex-dev/self-hosting` dependency from `package.json`
   - Simplified `convex/convex.config.ts` to basic app definition
   - Removed `registerStaticRoutes()` from `convex/http.ts`
-  - App now deployed exclusively via Netlify at `components-directory.netlify.app`
+  - Deleted `.env.production` (use Netlify Dashboard environment variables instead)
+  - App now deployed at `https://components-directory.netlify.app`
 
-- All routes now under `/components/*` base path (2026-02-23)
-  - Updated `vite.config.ts` to use `base: "/components/"` for all environments
-  - Updated `netlify.toml` with redirect from `/` to `/components/` and SPA fallback
-  - Updated all `useBasePath()` functions to return `/components` consistently
-  - Updated `src/main.tsx` router to always use `/components` as base path
+- Updated Vite and Netlify configuration for SPA routing (2026-02-23)
+  - Changed `vite.config.ts` to use `base: "/"` (assets served from root)
+  - Updated `netlify.toml` with redirect from `/` to `/components` (301)
+  - Added SPA fallback redirects for `/components` and `/components/*` to `/index.html` (200)
+  - Router in `src/main.tsx` strips `/components` prefix for route matching
   - Updated `.env.local` redirect URI to `http://localhost:5173/components/callback`
-  - Routes: `/components`, `/components/submit`, `/components/profile`, `/components/submissions`, `/components/submissions/admin`, `/components/:slug`
+  - Production routes: `/components`, `/components/submit`, `/components/profile`, `/components/submissions`, `/components/submissions/admin`, `/components/:slug`
+
+- WorkOS callback URLs updated (2026-02-23)
+  - Development: `http://localhost:5173/components/callback`
+  - Production: `https://components-directory.netlify.app/components/callback`
 
 ### Added
 

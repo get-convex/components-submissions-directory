@@ -20,6 +20,15 @@
 
 ## Recent updates
 
+- [x] Migrated from Convex self-hosting to Netlify (2026-02-23)
+  - Removed `@convex-dev/self-hosting` dependency
+  - Simplified `convex/convex.config.ts` (no components)
+  - Removed `registerStaticRoutes()` from `convex/http.ts`
+  - Deleted `.env.production` (use Netlify Dashboard env vars)
+  - Changed `vite.config.ts` to `base: "/"` for asset serving
+  - Updated `netlify.toml` with proper SPA routing redirects
+  - Production URL: `https://components-directory.netlify.app`
+  - WorkOS callback: `https://components-directory.netlify.app/components/callback`
 - [x] SKILL.md generation for AI agent integration (2026-02-23)
   - AI SEO content generation now also generates SKILL.md content
   - SKILL.md follows Agent Skills specification with YAML frontmatter and Markdown body
@@ -34,15 +43,10 @@
   - Updated ComponentDetail.tsx with copy button and pre-formatted display
   - Updated ComponentDetailsEditor.tsx with skillMd prop and status display
   - Updated Admin.tsx to pass skillMd prop to editor
-- [x] Removed Convex self-hosting, all routes under /components/* (2026-02-23)
-  - Deleted `convex/staticHosting.ts` (no longer using `@convex-dev/self-hosting`)
-  - Simplified `convex/convex.config.ts` to basic app definition
-  - Updated `vite.config.ts` to use `base: "/components/"` for all environments
-  - Updated `netlify.toml` with redirect from `/` to `/components/` and SPA fallback
-  - Updated all `useBasePath()` functions to return `/components` consistently
-  - Updated router in `src/main.tsx` to always use `/components` as base path
-  - Updated `.env.local` redirect URI to `/components/callback`
-  - Production routes: `/components`, `/components/submit`, `/components/profile`, `/components/submissions`, `/components/submissions/admin`, `/components/:slug`
+- [x] Configured Netlify SPA routing for /components/* (2026-02-23)
+  - Router in `src/main.tsx` strips `/components` prefix for route matching
+  - `netlify.toml` redirects `/` to `/components` (301)
+  - `netlify.toml` redirects `/components` and `/components/*` to `/index.html` (200)
   - Netlify env vars required: `VITE_CONVEX_URL`, `VITE_WORKOS_CLIENT_ID`, `VITE_WORKOS_REDIRECT_URI`
 - [x] Slug Migration Tool for admin dashboard (2026-02-23)
   - Added `SlugMigrationPanel` component to Admin Settings tab

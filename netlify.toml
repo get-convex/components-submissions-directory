@@ -8,13 +8,17 @@
 # Redirect root to /components
 [[redirects]]
   from = "/"
-  to = "/components/"
+  to = "/components"
   status = 301
 
-# SPA fallback: serve index.html for client-side routes
-# force=false means real files (JS, CSS, images) are served directly
+# SPA fallback for all /components/* routes (serve index.html)
 [[redirects]]
   from = "/components/*"
-  to = "/components/index.html"
+  to = "/index.html"
   status = 200
-  force = false
+
+# SPA fallback for /components (no trailing path)
+[[redirects]]
+  from = "/components"
+  to = "/index.html"
+  status = 200
