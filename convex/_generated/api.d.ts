@@ -17,7 +17,6 @@ import type * as router from "../router.js";
 import type * as seed from "../seed.js";
 import type * as seoContent from "../seoContent.js";
 import type * as seoContentDb from "../seoContentDb.js";
-import type * as staticHosting from "../staticHosting.js";
 import type * as thumbnailGenerator from "../thumbnailGenerator.js";
 import type * as thumbnails from "../thumbnails.js";
 
@@ -37,7 +36,6 @@ declare const fullApi: ApiFromModules<{
   seed: typeof seed;
   seoContent: typeof seoContent;
   seoContentDb: typeof seoContentDb;
-  staticHosting: typeof staticHosting;
   thumbnailGenerator: typeof thumbnailGenerator;
   thumbnails: typeof thumbnails;
 }>;
