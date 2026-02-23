@@ -14,11 +14,9 @@ import {
   X,
 } from "@phosphor-icons/react";
 
-// Get base path for links
+// Get base path for links (always /components)
 function useBasePath() {
-  return useMemo(() => {
-    return window.location.origin.includes("convex.dev") ? "/components" : "";
-  }, []);
+  return "/components";
 }
 
 // Success modal after submission

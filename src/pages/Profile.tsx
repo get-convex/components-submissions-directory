@@ -27,11 +27,9 @@ import {
   ArrowCounterClockwise,
 } from "@phosphor-icons/react";
 
-// Get base path for links (empty for local dev, /components for production)
+// Get base path for links (always /components)
 function useBasePath() {
-  return useMemo(() => {
-    return window.location.origin.includes("convex.dev") ? "/components" : "";
-  }, []);
+  return "/components";
 }
 
 // Status badge component
@@ -803,7 +801,8 @@ function SubmissionCard({
               // Show only cancel delete when marked for deletion
               <>
                 <div className="flex-1 text-xs text-red-600">
-                  This component is scheduled for permanent deletion. Admin will process the removal.
+                  This component is scheduled for permanent deletion. Admin will process the
+                  removal.
                 </div>
                 <button
                   onClick={() => onCancelDelete(submission._id, displayName)}
@@ -813,7 +812,7 @@ function SubmissionCard({
                 </button>
               </>
             ) : (
-              // Normal action buttons
+              // Normal action buttonss
               <>
                 {/* Edit button */}
                 <button
@@ -936,8 +935,7 @@ export default function Profile() {
       // Sign out and redirect to home
       signOut();
     } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Failed to delete account";
+      const errorMessage = err instanceof Error ? err.message : "Failed to delete account";
       toast.error(errorMessage);
       console.error(err);
     } finally {
@@ -1149,9 +1147,7 @@ export default function Profile() {
             </li>
             <li className="flex items-center gap-2">
               <DeletionBadge markedForDeletionAt={Date.now()} />
-              <span className="text-text-secondary">
-                Scheduled for permanent deletion by admin
-              </span>
+              <span className="text-text-secondary">Scheduled for permanent deletion by admin</span>
             </li>
           </ul>
         </div>

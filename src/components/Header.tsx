@@ -1,6 +1,6 @@
 import { useConvexAuth } from "convex/react";
 import { useAuth } from "@workos-inc/authkit-react";
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   SignOut,
   User,
@@ -12,11 +12,9 @@ import {
 } from "@phosphor-icons/react";
 import { FileTextIcon } from "@radix-ui/react-icons";
 
-// Get base path for links (empty for local dev, /components for production)
+// Get base path for links (always /components)
 function useBasePath() {
-  return useMemo(() => {
-    return window.location.origin.includes("convex.dev") ? "/components" : "";
-  }, []);
+  return "/components";
 }
 
 export default function Header() {
@@ -45,7 +43,11 @@ export default function Header() {
           {/* Left: Logo + Nav links */}
           <div className="flex items-center gap-6">
             <a href="https://convex.dev/" className="flex items-center">
-              <img src="/convex-wordmark-black.svg" alt="Convex" className="h-[70px] w-auto" />
+              <img
+                src="/components/convex-wordmark-black.svg"
+                alt="Convex"
+                className="h-[70px] w-auto"
+              />
             </a>
 
             {/* Nav links (desktop) */}

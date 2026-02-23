@@ -20,6 +20,16 @@
 
 ## Recent updates
 
+- [x] Removed Convex self-hosting, all routes under /components/* (2026-02-23)
+  - Deleted `convex/staticHosting.ts` (no longer using `@convex-dev/self-hosting`)
+  - Simplified `convex/convex.config.ts` to basic app definition
+  - Updated `vite.config.ts` to use `base: "/components/"` for all environments
+  - Updated `netlify.toml` with redirect from `/` to `/components/` and SPA fallback
+  - Updated all `useBasePath()` functions to return `/components` consistently
+  - Updated router in `src/main.tsx` to always use `/components` as base path
+  - Updated `.env.local` redirect URI to `/components/callback`
+  - Production routes: `/components`, `/components/submit`, `/components/profile`, `/components/submissions`, `/components/submissions/admin`, `/components/:slug`
+  - Netlify env vars required: `VITE_CONVEX_URL`, `VITE_WORKOS_CLIENT_ID`, `VITE_WORKOS_REDIRECT_URI`
 - [x] Slug Migration Tool for admin dashboard (2026-02-23)
   - Added `SlugMigrationPanel` component to Admin Settings tab
   - Displays count and list of packages missing URL slugs

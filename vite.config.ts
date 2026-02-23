@@ -3,9 +3,8 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 export default defineConfig({
-  // Base path: "/" for Netlify hosting at components-directory.netlify.app
-  // Routes are /components/* handled by React Router
-  base: "/",
+  // Base path for Netlify: all routes live under /components/*
+  base: "/components/",
   plugins: [react()],
   resolve: {
     alias: {

@@ -5,7 +5,14 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# Redirect root to /components
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/"
+  to = "/components/"
+  status = 301
+
+# SPA fallback for all /components/* routes
+[[redirects]]
+  from = "/components/*"
+  to = "/components/index.html"
   status = 200

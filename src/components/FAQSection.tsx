@@ -1,10 +1,6 @@
-import { useMemo } from "react";
-
-// Get base path for links (empty for local dev, /components for production)
+// Get base path for links (always /components)
 function useBasePath() {
-  return useMemo(() => {
-    return window.location.origin.includes("convex.dev") ? "/components" : "";
-  }, []);
+  return "/components";
 }
 
 export function FAQSection() {

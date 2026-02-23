@@ -3,11 +3,8 @@ import Header from "../components/Header";
 
 export default function NotFound() {
   const handleGoHome = () => {
-    // Navigate to directory root (handles both prod and local paths)
-    const basePath = window.location.pathname.startsWith("/components")
-      ? "/components"
-      : "/";
-    window.location.href = basePath;
+    // Navigate to directory root (always /components)
+    window.location.href = "/components";
   };
 
   return (

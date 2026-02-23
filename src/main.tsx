@@ -17,14 +17,13 @@ const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
 // Route mapping for the components directory
 // Production: Netlify at components-directory.netlify.app/components/*
-// Local dev: localhost:5173/*
+// Local dev: localhost:5173/components/*
 function Router() {
   const path = window.location.pathname;
 
-  // Detect base path: Netlify production uses /components, local dev uses /
-  const isNetlify = window.location.hostname.includes("netlify.app");
-  const basePath = isNetlify ? "/components" : "";
-  const normalizedPath = basePath && path.startsWith(basePath)
+  // Always use /components as base path (both local and production)
+  const basePath = "/components";
+  const normalizedPath = path.startsWith(basePath)
     ? path.slice(basePath.length) || "/"
     : path;
 
@@ -90,8 +89,6 @@ function AuthCallback() {
   
   // Get the return path from localStorage (set before sign-in) or default to submit
   const returnPath = useMemo(() => {
-    const isNetlify = window.location.hostname.includes("netlify.app");
-    const basePath = isNetlify ? "/components" : "";
     const storedPath = localStorage.getItem("authReturnPath");
     
     // Clear the stored path after reading
@@ -100,8 +97,8 @@ function AuthCallback() {
       return storedPath;
     }
     
-    // Default to submit page
-    return `${basePath}/submit`;
+    // Default to submit page (always under /components)
+    return "/components/submit";
   }, []);
 
   useEffect(() => {

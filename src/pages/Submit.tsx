@@ -33,11 +33,9 @@ import {
 } from "@phosphor-icons/react";
 import { ExternalLinkIcon as RadixExternalLinkIcon } from "@radix-ui/react-icons";
 
-// Get base path for links (production vs local)
+// Get base path for links (always /components)
 function useBasePath() {
-  return useMemo(() => {
-    return window.location.origin.includes("convex.dev") ? "/components" : "";
-  }, []);
+  return "/components";
 }
 
 // Review status type

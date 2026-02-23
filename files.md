@@ -18,10 +18,7 @@ TypeScript configuration files for different parts of the project. `tsconfig.jso
 
 ### `vite.config.ts`
 
-Vite build configuration. Sets up React plugin, path aliases, and environment-aware base path:
-- `SELF_HOST=true`: Uses `/` for deployment at `giant-grouse-674.convex.site`
-- Production (`npm run build`): Uses `/components/` for Netlify/Vercel deployment
-- Development (`npm run dev`): Uses `/` for local development at `localhost:5173`
+Vite build configuration. Sets up React plugin, path aliases, and base path `/components/` for all environments (local dev and Netlify production). All routes live under `/components/*`.
 
 ### `tailwind.config.js`
 
@@ -42,6 +39,12 @@ shadcn/ui component library configuration. Defines style preferences, aliases, a
 ### `.gitignore`
 
 Git ignore patterns for node_modules, dist, build artifacts, and editor files.
+
+### `netlify.toml`
+
+Netlify deployment configuration. Sets build command, publish directory, Node version, and redirects:
+- Root `/` redirects to `/components/` (301)
+- `/components/*` falls back to `/components/index.html` for SPA routing (200)
 
 ### `index.html`
 
@@ -126,20 +129,15 @@ HTTP router configuration. Defines:
 
 ### `convex/http.ts`
 
-Main HTTP router with all API endpoints and static file serving. Defines:
+Main HTTP router with all API endpoints. Defines:
 - `/api/export-csv` endpoint for CSV export of all packages
 - `/api/badge` endpoint for dynamic SVG badge generation with analytics tracking
 - `/api/markdown` endpoint serving raw markdown for component data
 - `/api/llms.txt` endpoint serving a plain-text index of all approved components
-- Static file routes via `@convex-dev/self-hosting` for serving the React app at `.convex.site`
 
 ### `convex/convex.config.ts`
 
-Convex app configuration file that registers the self-hosting component for static file serving.
-
-### `convex/staticHosting.ts`
-
-Exposes internal upload APIs and deployment query for the self-hosting component. Used by the CLI to upload built static files to Convex storage.
+Convex app configuration file. Basic app definition without components.
 
 ### `convex/tsconfig.json`
 
@@ -153,14 +151,14 @@ Auto-generated files by Convex: `api.d.ts`, `api.js`, `dataModel.d.ts`, `server.
 
 ### `src/main.tsx`
 
-Application entry point. Sets up Convex React client with WorkOS AuthKit (`AuthKitProvider` and `ConvexProviderWithAuthKit`). Uses env variables `VITE_WORKOS_CLIENT_ID` and `VITE_WORKOS_REDIRECT_URI` for auth configuration. Pathname-based routing:
-- `/` = Directory (approved components, public)
-- `/submissions` = Submit.tsx (submissions directory with table view, public)
-- `/submissions/admin` = Admin.tsx (requires @convex.dev email)
-- `/submit` = SubmitForm.tsx (auto sign-in redirect for unauthenticated users)
-- `/profile` = Profile.tsx (user's submissions, auth required)
-- `/callback` = OAuth callback handler (reads `authReturnPath` from localStorage to redirect after auth)
-- `/:slug` = ComponentDetail (public)
+Application entry point. Sets up Convex React client with WorkOS AuthKit (`AuthKitProvider` and `ConvexProviderWithAuthKit`). Uses env variables `VITE_WORKOS_CLIENT_ID` and `VITE_WORKOS_REDIRECT_URI` for auth configuration. All routes live under `/components/*`:
+- `/components` = Directory (approved components, public)
+- `/components/submissions` = Submit.tsx (submissions directory with table view, public)
+- `/components/submissions/admin` = Admin.tsx (requires @convex.dev email)
+- `/components/submit` = SubmitForm.tsx (auto sign-in redirect for unauthenticated users)
+- `/components/profile` = Profile.tsx (user's submissions, auth required)
+- `/components/callback` = OAuth callback handler (reads `authReturnPath` from localStorage to redirect after auth)
+- `/components/:slug` = ComponentDetail (public)
 
 ### `src/components/Header.tsx`
 

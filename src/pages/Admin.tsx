@@ -70,9 +70,9 @@ type ReviewStatus =
   | "rejected";
 type Visibility = "visible" | "hidden" | "archived";
 
-// Get base path for navigation (empty for local dev, /components for production)
+// Get base path for navigation (always /components)
 function useBasePath() {
-  return window.location.origin.includes("convex.dev") ? "/components" : "";
+  return "/components";
 }
 
 // Redirect non-admin users to their profile
