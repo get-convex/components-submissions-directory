@@ -1,123 +1,198 @@
 # Task List
 
-- [x] Update README.md to focus on Convex Components Challenge
-- [] switch to workos auth
+## to do
+- [ ] check url slug, 
+- [ ] vercel.json in website can point to repo app
+- [ ] package name is slug
+- [ ] give package name read https://www.npmjs.com/package/
 
-- [x] change submit button back to DF5D34
-- [x] add link to demo app on form and admin for Link to Demo app showing how your component works
-- [x] remove open graph url link https://convex-components.dev
+- [ ]  fix ai check
+- docs for badges
+- add image builder
+- [ ] add image builder from https://component-thumbnail-gen.netlify.app/ and https://github.com/waynesutton/component-directory-image-generator
+
+- [ ] add incre
+- header and footer
+- [ ] fix font colros a
+- [ ] npm run typecheck
+- [ ] add fonts
+- [ ] add plugin
+- [ ] prod checklist
+- [ ] tailwind css form github
+- [ ] iimport exiting compons
+- [ ] - [ ] add payments api
+
+## Recent updates
+
+- [x] Mark as read notifications (2026-02-22)
+  - Added `adminHasRead` field to `packageNotes` and `packageComments` schemas
+  - Admin Notes panel auto-marks user notes as read when opened
+  - Admin Comments panel auto-marks comments as read when opened
+  - User Profile Messages modal shows unread count and "Mark all read" button
+  - Notes button shows blue badge for unread user notes (red for unreplied requests)
+  - Comments button shows blue badge for unread comments
+  - Added `markNotesAsReadForAdmin`, `markCommentsAsReadForAdmin` mutations
+  - Added `getUnreadUserNotesCount`, `getUnreadCommentsCount` queries
+- [x] Admin submitter email editor (2026-02-22)
+  - Added `SubmitterEmailEditor` component in Admin panel for editing submitter emails
+  - Admin can edit primary submitter email to link submissions to user accounts
+  - Admin can add additional emails for multi-account access
+  - Added `updateSubmitterEmail` mutation for changing primary email
+  - Useful for submissions created before auth was added
+- [x] Admin page UX improvements (2026-02-22)
+  - Changed sign-in message from "Sign in with your @convex.dev email..." to "Admin access only"
+  - Non-admin users are now automatically redirected to `/profile` instead of seeing "Access Denied"
+  - Added `RedirectToProfile` component for seamless redirect with loading spinner
+- [x] User profile enhancements (2026-02-22)
+  - Fixed duplicate "My Submissions" title and "Submit New" button
+  - Added user-controlled visibility: hide/show submissions from directory
+  - Added delete submission with confirmation modal
+  - Added edit submission modal (component name, description, category, tags, demo/video URLs)
+  - Added additionalEmails field to schema for multi-account access
+  - Updated getMySubmissions to check both submitterEmail and additionalEmails
+  - Added visibility guide to status guide section
+  - Users can now manage only their own submissions
+- [x] Changed admin route from `/submit/admin` to `/submissions/admin` (2026-02-22)
+  - Admin dashboard now accessible at `/submissions/admin`
+  - Note: WorkOS JWT template must include `"email": {{ user.email }}` for admin auth to work
+- [x] Fixed WorkOS AuthKit sign-in flow (2026-02-22)
+  - OAuth callback component now waits for AuthKit session before redirecting to `/submit`
+  - Sign-in buttons call `signIn()` directly per Convex WorkOS docs
+  - Added `VITE_WORKOS_REDIRECT_URI` env variable for explicit redirect configuration
+  - Removed `getSignInUrl()` workaround in favor of direct `signIn()` calls
+  - Profile page sign-in now works correctly
+- [x] Reorganized submission routes (2026-02-22)
+  - `/submissions` = Submit.tsx (public table-based directory with Header)
+  - `/submissions/admin` = Admin.tsx (requires @convex.dev email)
+  - `/submit` = SubmitForm.tsx (auth-gated form)
+  - Submit button on directory links to `/submit` form page
+  - Added Submissions link to Header navigation
+
+### WorkOS JWT Template Configuration Required
+
+For admin auth to work, configure your WorkOS JWT template to include the email claim:
+
+1. Go to WorkOS Dashboard > Authentication > Sessions > Configure JWT Template
+2. Add these claims to your template:
+   ```json
+   {
+     "email": {{ user.email }},
+     "name": "{{ user.first_name }} {{ user.last_name }}"
+   }
+   ```
+3. Save and sign out/in to get a new token
+
+- [x] SubmitForm.tsx layout update (2026-02-22)
+  - Checkboxes moved inside form, above submit button
+  - Submit button disabled until all 3 checkboxes checked
+  - FAQ section below form, Terms links at bottom
+- [x] Refactored auth flow with shared Header component (2026-02-22)
+  - Created `src/components/Header.tsx` with global navigation and user menu
+  - Header displays on all pages: Directory, Submit, Profile, Admin, ComponentDetail, NotFound
+  - User menu shows avatar, email, My Submissions link, Sign Out button
+  - Sign In button for unauthenticated users
+- [x] Submit form refactored to dedicated page (2026-02-22)
+  - Replaced `Submit.tsx` modal approach with `SubmitForm.tsx` page
+  - Auth gate: shows sign-in UI for unauthenticated users
+  - Full form for authenticated users
+  - Success modal links to profile page
+- [x] WorkOS AuthKit integration replacing `@convex-dev/auth` (2026-02-22)
+  - Installed `@workos-inc/authkit-react` and `@convex-dev/workos`
+  - Configured `convex/auth.config.ts` with WorkOS JWT providers
+  - Updated admin authorization to use `ctx.auth.getUserIdentity()`
+  - Dynamic Vite base path (`/` local, `/components/` production)
+- [x] User profile page at `/profile` for managing submissions (2026-02-22)
+  - Lists user's submitted components with status badges
+  - "Send Request" button to message admin team
+  - `getMySubmissions` query and `requestSubmissionRefresh` mutation
+  - `by_submitter_email` index on packages table
+- [x] OAuth callback redirect to `/submit` (2026-02-22)
+- [x] Add submission checklist with 3 checkboxes (FAQ, Authoring Components compliance, permission to share)
+- [x] Add FAQ section to Submit page with 4 questions about review process, requirements, post-submission, and learning resources
+- [x] Add Terms of Service and Privacy Policy links on Submit page
+- [x] Add clear thumbnail option in admin `ComponentDetailsEditor`
+- [x] Persist thumbnail removal on Save by wiring `clearThumbnail` through `updateComponentDetails`
+
+
+
+## Components Directory Expansion (v2.0.0)
+
+- [x] Update packages schema with directory fields (slug, category, tags, descriptions, thumbnail, author, verified)
+- [x] Add new indexes (by_slug, by_category, by_category_and_visibility)
+- [x] Add badgeFetches table for badge analytics
+- [x] Build public queries (listApprovedComponents, getComponentBySlug, listCategories, getFeaturedComponents)
+- [x] Build admin mutation (updateComponentDetails)
+- [x] Build thumbnail upload mutations (generateUploadUrl, saveThumbnail)
+- [x] Build autoFillAuthorFromRepo mutation
+- [x] Build internal queries (\_getPackageBySlug, \_recordBadgeFetch, getBadgeStats)
+- [x] Restructure frontend into src/pages/ and src/components/
+- [x] Update client-side router for /, /submit, /submit/admin, /:slug routes
+- [x] Build Directory.tsx page with search, sort, categories, featured section
+- [x] Build ComponentDetail.tsx page with sidebar + content layout
+- [x] Build ComponentCard.tsx, CategorySidebar.tsx, SearchBar.tsx, VerifiedBadge.tsx, InstallCommand.tsx
+- [x] Build ComponentDetailsEditor.tsx for admin
+- [x] Create categories.ts, slugs.ts, seo.ts lib files
+- [x] Add dynamic SVG badge HTTP endpoint (/api/badge)
+- [x] Add markdown HTTP endpoint (/api/markdown) for agents and LLMs
+- [x] Add Share dropdown with View as Markdown, Copy as Markdown, Copy page URL
+- [x] Add markdown source view with copy button
+- [x] Update submission form with category, descriptions, tags, video URL, thumbnail upload
+- [x] Auto-open submit modal from directory sidebar link
+- [x] Add admin thumbnail preview in package list
+- [x] Fix slug 404 for admin-created slugs (relaxed visibility check)
+- [x] Fix auto-fill to update UI instantly without manual toggle
+- [x] Fix Back to Components trailing slash
+- [x] Remove invalid border-border-primary classes
+- [x] Update dropdown styling to match design system
+- [x] Move verified badge below downloads in cards
+- [x] Redesign component detail page layout (sidebar left, content right)
+- [x] Link authorUsername to GitHub profile
+- [x] Make thumbnail half-width and left-aligned
+- [x] Left-align badge snippet section
+- [x] Rename Copy page to Share
+- [x] Set Vite base path to /components/
+- [x] Build seed script for existing components
+- [x] Update files.md with all new files
+- [x] Update changelog.md with v2.0.0 entry
+- [x] Update task.md with directory expansion tasks
+
+## Previous Tasks
+
+- [x] Update README.md to focus on Convex Components Challenge
+- [x] Switch to WorkOS AuthKit (completed 2026-02-22)
+- [x] Change submit button back to DF5D34
+- [x] Add link to demo app on form and admin
+- [x] Remove open graph url link
 - [x] Push to GitHub
-- [ ] Upload to Netlify
 - [x] Add submit collects users names and email and Convex Discord name
 - [x] Admin sees name and admin Convex Discord name
 - [x] Add About modal with app description and status legend
-- [x] Add Featured status for packages (admin only, approved packages only)
+- [x] Add Featured status for packages
 - [x] Add Status legend bar above footer
-- [x] Remove login/signup from frontend header (keep admin auth)
+- [x] Remove login/signup from frontend header
 - [x] Add AI Review feature for validating Convex components
 - [x] Update changelog.md with correct dates from git history
 - [x] Update files.md with current file descriptions
 - [x] Run TypeScript type checks
-- [x] Verify Netlify build readiness (build passes, no 404 errors with \_redirects)
-- [x] Add refresh NPM data button for admin to pull latest package info from npm
-- [x] Streamline frontend layout for iframe embedding (remove header/footer)
+- [x] Verify build readiness
+- [x] Add refresh NPM data button
+- [x] Streamline frontend layout for iframe embedding
 - [x] Move toolbar controls above package listing
-- [x] Update modals to open at top of page for iframe support
-- [x] Simplify Admin page header (remove breadcrumb)
+- [x] Update modals to open at top of page
+- [x] Simplify Admin page header
 - [x] Move Admin status legend below Stats section
-- [x] Fix external links to open in new tabs even in iframes
-- [x] Fix thank you success modal not displaying after submission
+- [x] Fix external links to open in new tabs in iframes
+- [x] Fix success modal display after submission
 - [x] Add email privacy notice to submit form
-- [x] Security fix: Strip PII from public queries (submitter emails, names, Discord)
-- [x] Security fix: Exclude AI review details from public responses (status only)
+- [x] Security fix: Strip PII from public queries
+- [x] Security fix: Exclude AI review details from public responses
 - [x] Security fix: Create internal queries for backend operations
-- [x] Security fix: Rename reviewerEmail to reviewedBy, use "AI" identifier
-- [x] Updated sec-check.mdc with Row-Level Security (RLS) patterns
-- [x] Added AI-Assisted Development Security section for vibe coding
+- [x] Security fix: Rename reviewerEmail to reviewedBy
+- [x] Updated sec-check.mdc with RLS patterns
+- [x] Added AI-Assisted Development Security section
 - [x] Added Convex Auth Token Security section
 - [x] Added Dependency and Supply Chain Security section
-- [x] Enhanced security checklist with comprehensive checks
-
-## Completed
-
-- [x] Replace emojis with Phosphor icons in App.tsx
-- [x] Update Admin.tsx to show pending submissions by default
-- [x] Add review status badges to frontend PackageCard component
-- [x] Update backend listPackages query to show all visible submissions (pending included)
-- [x] Create task.md file
-- [x] Add About modal with status legend explanations
-- [x] Add Featured toggle in admin panel
-- [x] Show star icon on featured packages
-- [x] Add status legend bar with grid background above footer
-- [x] Remove login/signup buttons from public frontend header
-- [x] Add public comments system for packages
-- [x] Add AI Review with Anthropic Claude integration
-- [x] Add AI Review status badges and results panel
-- [x] Add admin settings for auto-approve/reject automation
-- [x] Add live demo URL field to submission form
-- [x] Add demo link button in package details
-- [x] Ensure mobile responsive design throughout
-- [x] Add refresh NPM data button in admin panel
-- [x] Fix external links for iframe compatibility (window.open)
-- [x] Fix success modal z-index for iframe support
-- [x] Add email privacy notice to submission form
-- [x] Security: Strip submitter PII from public query responses
-- [x] Security: Create internal queries for backend data access
-- [x] Security: Use "AI" identifier instead of fake email for automated actions
-- [x] Security: Add explicit return validators to all public queries
-
-## Summary of Recent Changes
-
-### Frontend (App.tsx)
-
-- Streamlined layout: removed header and footer for iframe embedding
-- Compact toolbar above package listing with title, info, search, sort, submit controls
-- Submit modal opens at top of page with max z-index for iframe support
-- About modal opens at top of page for consistency
-- Added About modal with app description and complete status legend
-- Added star icon on featured packages (both mobile and desktop layouts)
-- Added public comments display on package details
-- Added live demo URL field to submission form (optional but suggested)
-- Added Demo button for packages with live demos
-- Mobile responsive design with proper breakpoints
-- Fixed external links (npm, repo, website, demo) to open in new tabs in iframes using window.open()
-- Fixed thank you success modal display (z-index layering issue)
-- Added email privacy notice: "Not displayed publicly. Used by the Convex team to contact you about your submission."
-
-### Admin (Admin.tsx)
-
-- Simplified header: removed breadcrumb, shows only "Admin" text
-- Moved status legend below Stats section
-- Removed footer for streamlined layout
-- Added Featured toggle button (Star icon) in inline actions
-- Featured button only enabled for approved packages
-- Added star icon next to featured package names in list
-- Added public comments management panel
-- Added AI Review button to trigger automated code analysis
-- Added AI Review status badges (passed, failed, partial, reviewing, error)
-- Added AI Review results panel with expandable criteria checklist
-- Added Admin Settings panel with auto-approve/reject toggles
-- Added demo link button for packages with live demos
-- Mobile responsive collapsible package rows
-
-### Backend (convex/packages.ts)
-
-- Added `featured` field to packages schema
-- Added `demoUrl` field to packages schema
-- Added `toggleFeatured` mutation (only approved packages can be featured)
-- Updated query return validators to include featured and demoUrl fields
-- Added public comments queries and mutations
-- Added AI review mutations (updateAiReviewStatus, updateAiReviewResult)
-- Added admin settings queries and mutations (getAdminSettings, updateAdminSetting)
-- Mutations patch directly without reading first to avoid write conflicts
-
-### Backend (convex/aiReview.ts)
-
-- Added runAiReview action using Anthropic Claude API
-- 9 criteria for Convex component validation (5 critical, 4 non-critical)
-- GitHub API integration for fetching component source files
-- Supports convex.config.ts detection in multiple locations
-- Auto-approve on pass and auto-reject on critical failures
+- [x] Enhanced security checklist
 
 ## Review Status Flow
 
@@ -132,7 +207,33 @@
 
 1. Admin clicks "AI Review" button on a package (requires GitHub repository URL)
 2. System fetches source code from GitHub (convex.config.ts + component files)
-3. Claude analyzes code against 10 Convex component criteria
+3. Claude analyzes code against 9 Convex component criteria
 4. Results show passed/failed/partial status with detailed notes
 5. Auto-approve triggers if all criteria pass (when enabled)
 6. Auto-reject triggers if critical criteria fail (when enabled)
+
+-
+
+## Prod release checklist for directory sort refresh
+
+- [ ] Confirm local changes are merged and pushed
+- [ ] Deploy backend and frontend
+  - `npx convex deploy`
+  - `npm run build` (or your normal frontend deploy flow)
+- [ ] Run one time production backfill
+  - `npx convex run packages:backfillPackageReliabilityFields '{}' --prod`
+- [ ] Verify production data paths
+  - Directory sort `Newest` uses newest approved order
+  - `Most downloads` and `Recently updated` still sort correctly
+  - Rating sort still works with unrated items at the bottom
+- [ ] Verify admin behavior
+  - Approving a package sets `approvedAt`
+  - New submissions default to pending and visible
+  - Auto refresh panel still works as expected
+- [ ] Spot check 3 to 5 legacy packages for safe defaults
+  - `reviewStatus`
+  - `visibility`
+  - `submittedAt`
+  - `weeklyDownloads`
+  - `lastPublish`
+- [ ] Monitor logs for 10 to 15 minutes after release

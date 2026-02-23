@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { useMutation, useQuery, useAction } from "convex/react";
-import { api } from "../convex/_generated/api";
-import { SignInForm } from "./SignInForm";
-import { SignOutButton } from "./SignOutButton";
+import { useMutation, useQuery, useAction, useConvexAuth } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { useAuth } from "@workos-inc/authkit-react";
 import { Toaster, toast } from "sonner";
-import { Id } from "../convex/_generated/dataModel";
+import { Id } from "../../convex/_generated/dataModel";
+import { ComponentDetailsEditor } from "../components/ComponentDetailsEditor";
+import Header from "../components/Header";
 import {
   Eye,
   EyeSlash,
@@ -47,7 +48,16 @@ import {
   ClockCounterClockwise,
   ArrowsClockwise,
   Copy,
+  Plus,
+  PencilSimple,
+  TrashSimple,
+  Image,
+  Upload,
+  ArrowsDownUp,
 } from "@phosphor-icons/react";
+import {
+  ExternalLinkIcon as RadixExternalLinkIcon,
+} from "@radix-ui/react-icons";
 
 // Review status type
 type ReviewStatus =
@@ -57,6 +67,584 @@ type ReviewStatus =
   | "changes_requested"
   | "rejected";
 type Visibility = "visible" | "hidden" | "archived";
+
+// Get base path for navigation (empty for local dev, /components for production)
+function useBasePath() {
+  return window.location.origin.includes("convex.dev") ? "/components" : "";
+}
+
+// Redirect non-admin users to their profile
+function RedirectToProfile() {
+  const basePath = useBasePath();
+  
+  useEffect(() => {
+    window.location.replace(`${basePath}/profile`);
+  }, [basePath]);
+  
+  return (
+    <div className="flex justify-center items-center py-12">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-button"></div>
+    </div>
+  );
+}
+
+function PackageComponentDetailsEditor({
+  packageId,
+  componentName,
+  slug,
+  category,
+  tags,
+  shortDescription,
+  longDescription,
+  videoUrl,
+  demoUrl,
+  thumbnailUrl,
+  convexVerified,
+  authorUsername,
+  authorAvatar,
+  logoUrl,
+  logoStorageId,
+  selectedTemplateId,
+  thumbnailGeneratedAt,
+  seoGenerationStatus,
+  seoGeneratedAt,
+  seoGenerationError,
+  seoValueProp,
+}: {
+  packageId: Id<"packages">;
+  componentName?: string;
+  slug?: string;
+  category?: string;
+  tags?: string[];
+  shortDescription?: string;
+  longDescription?: string;
+  videoUrl?: string;
+  demoUrl?: string;
+  thumbnailUrl?: string;
+  convexVerified?: boolean;
+  authorUsername?: string;
+  authorAvatar?: string;
+  logoUrl?: string;
+  logoStorageId?: Id<"_storage">;
+  selectedTemplateId?: Id<"thumbnailTemplates">;
+  thumbnailGeneratedAt?: number;
+  seoGenerationStatus?: string;
+  seoGeneratedAt?: number;
+  seoGenerationError?: string;
+  seoValueProp?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="mt-4 p-3 rounded-lg bg-bg-hover/30 border border-border">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h4 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
+            Component Details
+          </h4>
+          <p className="text-xs text-text-secondary mt-1">
+            Edit submitter provided component details.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors"
+        >
+          {isOpen ? "Hide editor" : "Edit details"}
+        </button>
+      </div>
+
+      {isOpen && (
+        <ComponentDetailsEditor
+          packageId={packageId}
+          componentName={componentName}
+          slug={slug}
+          category={category}
+          tags={tags}
+          shortDescription={shortDescription}
+          longDescription={longDescription}
+          videoUrl={videoUrl}
+          demoUrl={demoUrl}
+          thumbnailUrl={thumbnailUrl}
+          convexVerified={convexVerified}
+          authorUsername={authorUsername}
+          authorAvatar={authorAvatar}
+          logoUrl={logoUrl}
+          logoStorageId={logoStorageId}
+          selectedTemplateId={selectedTemplateId}
+          thumbnailGeneratedAt={thumbnailGeneratedAt}
+          seoGenerationStatus={seoGenerationStatus}
+          seoGeneratedAt={seoGeneratedAt}
+          seoGenerationError={seoGenerationError}
+          seoValueProp={seoValueProp}
+        />
+      )}
+    </div>
+  );
+}
+
+// Submitter email editor component for admin
+function SubmitterEmailEditor({
+  packageId,
+  submitterEmail,
+  additionalEmails,
+}: {
+  packageId: Id<"packages">;
+  submitterEmail?: string;
+  additionalEmails?: string[];
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [email, setEmail] = useState(submitterEmail || "");
+  const [addEmails, setAddEmails] = useState(additionalEmails?.join(", ") || "");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const updateSubmitterEmail = useMutation(api.packages.updateSubmitterEmail);
+  const updateAdditionalEmails = useMutation(api.packages.updateAdditionalEmails);
+
+  // Reset form when props change
+  useEffect(() => {
+    setEmail(submitterEmail || "");
+    setAddEmails(additionalEmails?.join(", ") || "");
+  }, [submitterEmail, additionalEmails]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      // Update primary email if changed
+      if (email !== submitterEmail) {
+        await updateSubmitterEmail({ packageId, submitterEmail: email });
+      }
+      // Update additional emails
+      const emailList = addEmails
+        .split(",")
+        .map((e) => e.trim())
+        .filter((e) => e && e.includes("@"));
+      await updateAdditionalEmails({ packageId, additionalEmails: emailList });
+      toast.success("Submitter info updated");
+      setIsEditing(false);
+    } catch (err) {
+      toast.error("Failed to update submitter info");
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (!isEditing) {
+    return (
+      <div className="flex flex-wrap items-center gap-3 p-2 rounded-lg bg-bg-hover/50 text-xs">
+        <span className="flex items-center gap-1 text-text-secondary">
+          <Envelope size={12} />
+          <span className="font-medium">Primary:</span>
+          {submitterEmail ? (
+            <a
+              href={`mailto:${submitterEmail}`}
+              className="hover:text-text-primary"
+              onClick={(e) => e.stopPropagation()}>
+              {submitterEmail}
+            </a>
+          ) : (
+            <span className="text-text-tertiary italic">Not set</span>
+          )}
+        </span>
+        {additionalEmails && additionalEmails.length > 0 && (
+          <span className="flex items-center gap-1 text-text-secondary">
+            <Plus size={10} />
+            <span className="font-medium">Additional:</span>
+            {additionalEmails.join(", ")}
+          </span>
+        )}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsEditing(true);
+          }}
+          className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded text-xs border border-border hover:bg-bg-hover transition-colors">
+          <PencilSimple size={12} />
+          Edit
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="p-3 rounded-lg bg-bg-hover/50 space-y-3"
+      onClick={(e) => e.stopPropagation()}>
+      <div className="text-xs font-medium text-text-primary">Edit Submitter Info</div>
+      <div>
+        <label className="block text-xs text-text-secondary mb-1">
+          Primary Email (links to user profile)
+        </label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="user@example.com"
+          className="w-full px-2 py-1.5 text-xs rounded border border-border bg-bg-primary text-text-primary outline-none focus:border-button"
+        />
+      </div>
+      <div>
+        <label className="block text-xs text-text-secondary mb-1">
+          Additional Emails (comma separated, for multi-account access)
+        </label>
+        <input
+          type="text"
+          value={addEmails}
+          onChange={(e) => setAddEmails(e.target.value)}
+          placeholder="other@example.com, another@example.com"
+          className="w-full px-2 py-1.5 text-xs rounded border border-border bg-bg-primary text-text-primary outline-none focus:border-button"
+        />
+        <p className="text-[10px] text-text-tertiary mt-1">
+          Users can access this submission from their profile using any of these emails.
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={() => setIsEditing(false)}
+          disabled={isSaving}
+          className="px-3 py-1 text-xs rounded border border-border text-text-secondary hover:bg-bg-hover transition-colors disabled:opacity-50">
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={isSaving || !email}
+          className="px-3 py-1 text-xs rounded bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50">
+          {isSaving ? "Saving..." : "Save"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PackageMetadataEditor({
+  packageId,
+  initialName,
+  initialDescription,
+  initialNpmUrl,
+  initialRepositoryUrl,
+  initialHomepageUrl,
+  initialInstallCommand,
+  initialVersion,
+  initialLicense,
+  initialWeeklyDownloads,
+  initialTotalFiles,
+  initialLastPublish,
+  initialCollaborators,
+}: {
+  packageId: Id<"packages">;
+  initialName?: string;
+  initialDescription?: string;
+  initialNpmUrl?: string;
+  initialRepositoryUrl?: string;
+  initialHomepageUrl?: string;
+  initialInstallCommand?: string;
+  initialVersion?: string;
+  initialLicense?: string;
+  initialWeeklyDownloads?: number;
+  initialTotalFiles?: number;
+  initialLastPublish?: string;
+  initialCollaborators?: Array<{ name: string; avatar: string }>;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [name, setName] = useState(initialName ?? "");
+  const [description, setDescription] = useState(initialDescription ?? "");
+  const [npmUrl, setNpmUrl] = useState(initialNpmUrl ?? "");
+  const [repositoryUrl, setRepositoryUrl] = useState(initialRepositoryUrl ?? "");
+  const [homepageUrl, setHomepageUrl] = useState(initialHomepageUrl ?? "");
+  const [installCommand, setInstallCommand] = useState(initialInstallCommand ?? "");
+  const [version, setVersion] = useState(initialVersion ?? "");
+  const [license, setLicense] = useState(initialLicense ?? "");
+  const [weeklyDownloads, setWeeklyDownloads] = useState(
+    initialWeeklyDownloads?.toString() ?? "",
+  );
+  const [totalFiles, setTotalFiles] = useState(initialTotalFiles?.toString() ?? "");
+  const [lastPublish, setLastPublish] = useState(initialLastPublish ?? "");
+  const [collaboratorsText, setCollaboratorsText] = useState(() =>
+    (initialCollaborators ?? [])
+      .map((c) => `${c.name} | ${c.avatar}`)
+      .join("\n"),
+  );
+  const updateMetadata = useMutation(api.packages.updatePackageSourceMetadata);
+
+  const parseNumber = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+    const num = Number(trimmed);
+    return Number.isFinite(num) ? num : NaN;
+  };
+
+  const parseCollaborators = (value: string) => {
+    const lines = value
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    const parsed: Array<{ name: string; avatar: string }> = [];
+    for (const line of lines) {
+      const [namePart, avatarPart] = line.split("|").map((part) => part.trim());
+      if (!namePart || !avatarPart) {
+        return null;
+      }
+      parsed.push({ name: namePart, avatar: avatarPart });
+    }
+    return parsed;
+  };
+
+  return (
+    <div className="mt-3 p-3 rounded-lg bg-bg-hover/30 border border-border">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <h4 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
+            Package Metadata
+          </h4>
+          <p className="text-xs text-text-secondary mt-1">
+            Manual override for npm and repository sourced fields.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors"
+        >
+          {isOpen ? "Hide editor" : "Edit metadata"}
+        </button>
+      </div>
+
+      {isOpen && (
+        <div className="mt-3 space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+                Package Name
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+                Description
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary resize-y outline-none focus:ring-1 focus:ring-button"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+                npm URL
+              </label>
+              <input
+                type="text"
+                value={npmUrl}
+                onChange={(e) => setNpmUrl(e.target.value)}
+                className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+                Repository URL
+              </label>
+              <input
+                type="text"
+                value={repositoryUrl}
+                onChange={(e) => setRepositoryUrl(e.target.value)}
+                className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+                Homepage URL
+              </label>
+              <input
+                type="text"
+                value={homepageUrl}
+                onChange={(e) => setHomepageUrl(e.target.value)}
+                className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+                Install Command
+              </label>
+              <input
+                type="text"
+                value={installCommand}
+                onChange={(e) => setInstallCommand(e.target.value)}
+                className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+                Version
+              </label>
+              <input
+                type="text"
+                value={version}
+                onChange={(e) => setVersion(e.target.value)}
+                className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+                License
+              </label>
+              <input
+                type="text"
+                value={license}
+                onChange={(e) => setLicense(e.target.value)}
+                className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+                Weekly Downloads
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={weeklyDownloads}
+                onChange={(e) => setWeeklyDownloads(e.target.value)}
+                className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+                File Count
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={totalFiles}
+                onChange={(e) => setTotalFiles(e.target.value)}
+                className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+                Last Publish (ISO datetime)
+              </label>
+              <input
+                type="text"
+                value={lastPublish}
+                onChange={(e) => setLastPublish(e.target.value)}
+                placeholder="2026-02-14T12:00:00.000Z"
+                className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+                Collaborators (one per line: Name | Avatar URL)
+              </label>
+              <textarea
+                value={collaboratorsText}
+                onChange={(e) => setCollaboratorsText(e.target.value)}
+                rows={4}
+                placeholder={"Jane Doe | https://example.com/avatar.png"}
+                className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary resize-y outline-none focus:ring-1 focus:ring-button"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                void (async () => {
+                  setSaving(true);
+                  try {
+                    const parsedWeeklyDownloads = parseNumber(weeklyDownloads);
+                    if (Number.isNaN(parsedWeeklyDownloads)) {
+                      toast.error("Weekly downloads must be a valid number");
+                      return;
+                    }
+                    const parsedTotalFiles = parseNumber(totalFiles);
+                    if (Number.isNaN(parsedTotalFiles)) {
+                      toast.error("File count must be a valid number");
+                      return;
+                    }
+
+                    const parsedCollaborators = parseCollaborators(collaboratorsText);
+                    if (parsedCollaborators === null) {
+                      toast.error(
+                        "Each collaborator line must be in the format: Name | Avatar URL",
+                      );
+                      return;
+                    }
+
+                    await updateMetadata({
+                      packageId,
+                      name: name.trim() || undefined,
+                      description: description.trim() || undefined,
+                      npmUrl: npmUrl.trim() || undefined,
+                      repositoryUrl: repositoryUrl.trim() || undefined,
+                      homepageUrl: homepageUrl.trim() || undefined,
+                      installCommand: installCommand.trim() || undefined,
+                      version: version.trim() || undefined,
+                      license: license.trim() || undefined,
+                      weeklyDownloads: parsedWeeklyDownloads,
+                      totalFiles: parsedTotalFiles,
+                      lastPublish: lastPublish.trim() || undefined,
+                      collaborators:
+                        parsedCollaborators.length > 0
+                          ? parsedCollaborators
+                          : undefined,
+                    });
+                    toast.success("Package metadata saved");
+                  } catch (error) {
+                    const msg =
+                      error instanceof Error
+                        ? error.message
+                        : "Could not save package metadata";
+                    toast.error(msg);
+                  } finally {
+                    setSaving(false);
+                  }
+                })();
+              }}
+              disabled={saving}
+              className="text-xs px-3 py-1.5 rounded-full bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50"
+            >
+              {saving ? "Saving..." : "Save metadata"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ComponentDetailQuickLink({ slug }: { slug?: string }) {
+  if (!slug) return null;
+
+  const basePath = window.location.pathname.startsWith("/components")
+    ? "/components"
+    : "";
+  const detailUrl = `${basePath}/${slug}`;
+
+  return (
+    <Tooltip content="Open component detail page" position="top">
+      <a
+        href={detailUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
+        aria-label="Open component detail page in a new tab"
+        className="inline-flex items-center text-text-secondary hover:text-text-primary transition-colors"
+      >
+        <RadixExternalLinkIcon className="w-3.5 h-3.5" />
+      </a>
+    </Tooltip>
+  );
+}
 
 // Custom tooltip component - supports top/bottom positioning
 function Tooltip({
@@ -176,6 +764,15 @@ function NotesPanel({
   const notes = useQuery(api.packages.getPackageNotes, { packageId });
   const addNote = useMutation(api.packages.addPackageNote);
   const deleteNote = useMutation(api.packages.deletePackageNote);
+  const markAsRead = useMutation(api.packages.markNotesAsReadForAdmin);
+  const unreadCount = useQuery(api.packages.getUnreadUserNotesCount, { packageId });
+
+  // Auto-mark as read when panel opens and there are unread notes
+  useEffect(() => {
+    if (isOpen && unreadCount && unreadCount > 0) {
+      markAsRead({ packageId });
+    }
+  }, [isOpen, unreadCount, packageId, markAsRead]);
 
   // Handle ESC key to close panel
   useEffect(() => {
@@ -267,6 +864,11 @@ function NotesPanel({
           <div>
             <h3 className="text-lg font-normal text-text-primary">
               Admin Notes
+              {unreadCount !== undefined && unreadCount > 0 && (
+                <span className="ml-2 px-1.5 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-600">
+                  {unreadCount} unread
+                </span>
+              )}
             </h3>
             <p className="text-xs text-text-secondary truncate max-w-xs">
               {packageName}
@@ -275,12 +877,22 @@ function NotesPanel({
               Internal only. Not visible to users.
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
-          >
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+            {unreadCount !== undefined && unreadCount > 0 && (
+              <button
+                onClick={() => markAsRead({ packageId })}
+                className="text-xs text-text-secondary hover:text-text-primary transition-colors"
+              >
+                Mark all read
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Notes list */}
@@ -433,7 +1045,7 @@ function NotesPanel({
   );
 }
 
-// Notes button with count badge
+// Notes button with count badge and unreplied user request indicator
 function NotesButton({
   packageId,
   packageName,
@@ -447,21 +1059,43 @@ function NotesButton({
 }) {
   const [showNotes, setShowNotes] = useState(false);
   const noteCount = useQuery(api.packages.getPackageNoteCount, { packageId });
+  const unrepliedCount = useQuery(api.packages.getUnrepliedUserRequestCount, { packageId });
+  const unreadCount = useQuery(api.packages.getUnreadUserNotesCount, { packageId });
+
+  // Show red badge if there are unreplied user requests or unread notes, otherwise orange for total notes
+  const hasUnreplied = unrepliedCount !== undefined && unrepliedCount > 0;
+  const hasUnread = unreadCount !== undefined && unreadCount > 0;
+  const badgeCount = hasUnreplied ? unrepliedCount : hasUnread ? unreadCount : noteCount;
+  const badgeColor = hasUnreplied ? "bg-red-500" : hasUnread ? "bg-blue-500" : "bg-orange-500";
 
   return (
     <>
       <Tooltip
-        content={`Admin notes (internal)${noteCount ? ` (${noteCount})` : ""}`}
+        content={
+          hasUnreplied
+            ? `${unrepliedCount} unreplied user request${unrepliedCount > 1 ? "s" : ""}`
+            : hasUnread
+              ? `${unreadCount} unread user note${unreadCount > 1 ? "s" : ""}`
+              : `Admin notes (internal)${noteCount ? ` (${noteCount})` : ""}`
+        }
       >
         <button
           onClick={() => setShowNotes(true)}
-          className="relative flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border border-orange-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700 transition-all"
+          className={`relative flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+            hasUnreplied
+              ? "border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+              : hasUnread
+                ? "border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                : "border-orange-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+          }`}
         >
           <ChatText size={14} weight="bold" />
           <span className="hidden sm:inline">Notes</span>
-          {noteCount !== undefined && noteCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-orange-500 text-white">
-              {noteCount > 9 ? "9+" : noteCount}
+          {badgeCount !== undefined && badgeCount > 0 && (
+            <span
+              className={`absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full ${badgeColor} text-white`}
+            >
+              {badgeCount > 9 ? "9+" : badgeCount}
             </span>
           )}
         </button>
@@ -476,6 +1110,22 @@ function NotesButton({
         onClose={() => setShowNotes(false)}
       />
     </>
+  );
+}
+
+// Small indicator for unreplied user requests (shown in collapsed package row)
+function UnrepliedNotesIndicator({ packageId }: { packageId: Id<"packages"> }) {
+  const unrepliedCount = useQuery(api.packages.getUnrepliedUserRequestCount, { packageId });
+
+  if (!unrepliedCount || unrepliedCount === 0) return null;
+
+  return (
+    <Tooltip content={`${unrepliedCount} unreplied user request${unrepliedCount > 1 ? "s" : ""}`}>
+      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-600 border border-red-200 shrink-0">
+        <ChatText size={10} weight="bold" />
+        {unrepliedCount}
+      </span>
+    </Tooltip>
   );
 }
 
@@ -501,6 +1151,15 @@ function CommentsPanel({
   const comments = useQuery(api.packages.getPackageComments, { packageId });
   const addComment = useMutation(api.packages.addPackageComment);
   const deleteComment = useMutation(api.packages.deletePackageComment);
+  const markAsRead = useMutation(api.packages.markCommentsAsReadForAdmin);
+  const unreadCount = useQuery(api.packages.getUnreadCommentsCount, { packageId });
+
+  // Auto-mark as read when panel opens and there are unread comments
+  useEffect(() => {
+    if (isOpen && unreadCount && unreadCount > 0) {
+      markAsRead({ packageId });
+    }
+  }, [isOpen, unreadCount, packageId, markAsRead]);
 
   // Handle ESC key to close panel
   useEffect(() => {
@@ -566,6 +1225,11 @@ function CommentsPanel({
           <div>
             <h3 className="text-lg font-normal text-text-primary">
               Public Comments
+              {unreadCount !== undefined && unreadCount > 0 && (
+                <span className="ml-2 px-1.5 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-600">
+                  {unreadCount} unread
+                </span>
+              )}
             </h3>
             <p className="text-xs text-text-secondary truncate max-w-xs">
               {packageName}
@@ -574,12 +1238,22 @@ function CommentsPanel({
               Visible to users on the frontend.
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
-          >
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+            {unreadCount !== undefined && unreadCount > 0 && (
+              <button
+                onClick={() => markAsRead({ packageId })}
+                className="text-xs text-text-secondary hover:text-text-primary transition-colors"
+              >
+                Mark all read
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Comments list */}
@@ -656,7 +1330,7 @@ function CommentsPanel({
   );
 }
 
-// Comments button with count badge
+// Comments button with count badge and unread indicator
 function CommentsButton({
   packageId,
   packageName,
@@ -672,21 +1346,36 @@ function CommentsButton({
   const commentCount = useQuery(api.packages.getPackageCommentCount, {
     packageId,
   });
+  const unreadCount = useQuery(api.packages.getUnreadCommentsCount, {
+    packageId,
+  });
+
+  const hasUnread = unreadCount !== undefined && unreadCount > 0;
+  const badgeCount = hasUnread ? unreadCount : commentCount;
+  const badgeColor = hasUnread ? "bg-blue-500" : "bg-green-500";
 
   return (
     <>
       <Tooltip
-        content={`Public comments${commentCount ? ` (${commentCount})` : ""}`}
+        content={
+          hasUnread
+            ? `${unreadCount} unread comment${unreadCount > 1 ? "s" : ""}`
+            : `Public comments${commentCount ? ` (${commentCount})` : ""}`
+        }
       >
         <button
           onClick={() => setShowComments(true)}
-          className="relative flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border border-green-200 text-green-600 hover:bg-green-50 hover:text-green-700 transition-all"
+          className={`relative flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+            hasUnread
+              ? "border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+              : "border-green-200 text-green-600 hover:bg-green-50 hover:text-green-700"
+          }`}
         >
           <ChatCircleText size={14} weight="bold" />
           <span className="hidden sm:inline">Comments</span>
-          {commentCount !== undefined && commentCount > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-green-500 text-white">
-              {commentCount > 9 ? "9+" : commentCount}
+          {badgeCount !== undefined && badgeCount > 0 && (
+            <span className={`absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full ${badgeColor} text-white`}>
+              {badgeCount > 9 ? "9+" : badgeCount}
             </span>
           )}
         </button>
@@ -1120,12 +1809,14 @@ function StatusLegend() {
 }
 
 export default function Admin() {
+  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
+  const { user, signIn, signOut } = useAuth();
   const loggedInUser = useQuery(api.auth.loggedInUser);
   const isAdmin = useQuery(api.auth.isAdmin);
   const [searchTerm, setSearchTerm] = useState("");
 
   // Loading state
-  const isLoading = loggedInUser === undefined || isAdmin === undefined;
+  const isLoading = authLoading || (isAuthenticated && (loggedInUser === undefined || isAdmin === undefined));
 
   // Use search query when there's a search term, otherwise use all packages
   const searchResults = useQuery(api.packages.adminSearchPackages, {
@@ -1138,15 +1829,15 @@ export default function Admin() {
 
   return (
     <div className="min-h-screen flex flex-col bg-bg-primary">
-      {/* Compact Header */}
-      <header className="sticky top-0 z-10 backdrop-blur-sm  px-4 sm:px-6 py-2 bg-bg-primary">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-          {/* Left: Title */}
-          <span className="text-text-primary font-medium text-sm">Admin</span>
+      {/* Global header with auth */}
+      <Header />
 
-          {/* Center: Search (when logged in as admin) */}
-          {loggedInUser && isAdmin && (
-            <div className="flex-1 max-w-md mx-4 hidden sm:block">
+      {/* Admin-specific search bar */}
+      {loggedInUser && isAdmin && (
+        <div className="sticky top-14 z-10 backdrop-blur-sm px-4 sm:px-6 py-2 bg-bg-primary border-b border-border">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+            <span className="text-text-primary font-medium text-sm">Admin Dashboard</span>
+            <div className="flex-1 max-w-md mx-4">
               <div className="relative">
                 <MagnifyingGlass
                   size={16}
@@ -1162,52 +1853,45 @@ export default function Admin() {
                 {searchTerm && (
                   <button
                     onClick={() => setSearchTerm("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
-                  >
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary">
                     <X size={14} />
                   </button>
                 )}
               </div>
             </div>
-          )}
-
-          {/* Right: Sign out */}
-          <div className="flex items-center gap-2">
-            <SignOutButton />
           </div>
         </div>
-      </header>
+      )}
 
       <main className="flex-1 px-4 sm:px-6 py-4 sm:py-6">
         {isLoading ? (
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-button"></div>
           </div>
-        ) : !loggedInUser ? (
-          // Not logged in - show sign in form
+        ) : !isAuthenticated ? (
+          // Not logged in - show sign in button
           <div className="max-w-md mx-auto">
             <div className="rounded-lg border border-border p-6 bg-bg-card">
               <h2 className="text-xl font-light mb-4 text-text-primary">
-                Sign In
+                Admin Sign In
               </h2>
-              <SignInForm />
+              <p className="text-sm text-text-secondary mb-4">
+                Admin access only.
+              </p>
+              <button
+                onClick={() => {
+                  // Save current path to return after sign-in
+                  localStorage.setItem("authReturnPath", window.location.pathname);
+                  signIn();
+                }}
+                className="w-full px-6 py-3 rounded-full font-normal bg-button text-white hover:bg-button-hover transition-colors text-sm">
+                Sign In
+              </button>
             </div>
           </div>
         ) : !isAdmin ? (
-          // Logged in but not admin
-          <div className="max-w-md mx-auto">
-            <div className="rounded-lg border border-border p-6 text-center bg-bg-card">
-              <h2 className="text-xl font-light mb-4 text-text-primary">
-                Access Denied
-              </h2>
-              <p className="mb-4 text-text-secondary">
-                Admin access is restricted to @convex.dev email addresses.
-              </p>
-              <p className="text-sm text-text-secondary">
-                Signed in as: {loggedInUser.email || "Anonymous user"}
-              </p>
-            </div>
-          </div>
+          // Logged in but not admin - redirect to profile
+          <RedirectToProfile />
         ) : (
           // Admin dashboard
           <AdminDashboard
@@ -1643,6 +2327,367 @@ function InlineActions({
   );
 }
 
+// Inline edit form for a single category row
+function CategoryEditForm({
+  editingId,
+  slug,
+  label,
+  description,
+  sortOrder,
+  enabled,
+  saving,
+  onSlugChange,
+  onLabelChange,
+  onDescriptionChange,
+  onSortOrderChange,
+  onEnabledChange,
+  onSave,
+  onCancel,
+}: {
+  editingId: string | null;
+  slug: string;
+  label: string;
+  description: string;
+  sortOrder: number;
+  enabled: boolean;
+  saving: boolean;
+  onSlugChange: (v: string) => void;
+  onLabelChange: (v: string) => void;
+  onDescriptionChange: (v: string) => void;
+  onSortOrderChange: (v: number) => void;
+  onEnabledChange: (v: boolean) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const formId = editingId || "new";
+  return (
+    <div className="rounded-lg border border-button/30 bg-bg-hover/50 p-4 space-y-3">
+      <h4 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
+        {editingId ? "Edit Category" : "New Category"}
+      </h4>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+            Slug (unique ID)
+          </label>
+          <input
+            type="text"
+            value={slug}
+            onChange={(e) => onSlugChange(e.target.value)}
+            placeholder="e.g. ai"
+            className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+            Label
+          </label>
+          <input
+            type="text"
+            value={label}
+            onChange={(e) => onLabelChange(e.target.value)}
+            placeholder="e.g. AI"
+            className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+            Description
+          </label>
+          <input
+            type="text"
+            value={description}
+            onChange={(e) => onDescriptionChange(e.target.value)}
+            placeholder="Short description of this category"
+            className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+          />
+        </div>
+        <div>
+          <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+            Sort Order
+          </label>
+          <input
+            type="number"
+            value={sortOrder}
+            onChange={(e) => onSortOrderChange(Number(e.target.value))}
+            className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id={`cat-enabled-${formId}`}
+            checked={enabled}
+            onChange={(e) => onEnabledChange(e.target.checked)}
+            className="rounded"
+          />
+          <label htmlFor={`cat-enabled-${formId}`} className="text-xs text-text-primary">
+            Enabled (visible to public)
+          </label>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 pt-1">
+        <button
+          onClick={onSave}
+          disabled={saving}
+          className="text-xs px-4 py-1.5 rounded-full bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50"
+        >
+          {saving ? "Saving..." : editingId ? "Update" : "Add"}
+        </button>
+        <button
+          onClick={onCancel}
+          className="text-xs px-3 py-1.5 rounded-full border border-border text-text-secondary hover:text-text-primary transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Category Management Panel for admin settings
+function CategoryManagementPanel() {
+  const allCategories = useQuery(api.packages.listAllDirectoryCategories);
+  // Fetch counts (same query the directory sidebar uses)
+  const categoryCounts = useQuery(api.packages.listCategories);
+  const upsertCategory = useMutation(api.packages.upsertCategory);
+  const deleteCategory = useMutation(api.packages.deleteCategory);
+  const seedCategories = useMutation(api.packages.seedCategories);
+
+  // Editing state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editSlug, setEditSlug] = useState("");
+  const [editLabel, setEditLabel] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editSortOrder, setEditSortOrder] = useState(0);
+  const [editEnabled, setEditEnabled] = useState(true);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Build a count map from the listCategories query (matches Directory sidebar)
+  const countMap: Record<string, number> = {};
+  if (categoryCounts) {
+    for (const c of categoryCounts) {
+      countMap[c.category] = c.count;
+    }
+  }
+
+  // Seed defaults if empty
+  useEffect(() => {
+    if (allCategories && allCategories.length === 0) {
+      seedCategories();
+    }
+  }, [allCategories, seedCategories]);
+
+  // Start editing a category (inline)
+  const startEdit = (cat: {
+    _id: string;
+    slug: string;
+    label: string;
+    description: string;
+    sortOrder: number;
+    enabled: boolean;
+  }) => {
+    setEditingId(cat._id);
+    setEditSlug(cat.slug);
+    setEditLabel(cat.label);
+    setEditDescription(cat.description);
+    setEditSortOrder(cat.sortOrder);
+    setEditEnabled(cat.enabled);
+    setShowAddForm(false);
+  };
+
+  // Start adding a new category (form at top)
+  const startAdd = () => {
+    setEditingId(null);
+    setEditSlug("");
+    setEditLabel("");
+    setEditDescription("");
+    setEditSortOrder(allCategories ? allCategories.length : 0);
+    setEditEnabled(true);
+    setShowAddForm(true);
+  };
+
+  // Save (create or update)
+  const handleSave = async () => {
+    if (!editSlug.trim() || !editLabel.trim()) {
+      toast.error("Slug and label are required");
+      return;
+    }
+    setSaving(true);
+    try {
+      await upsertCategory({
+        id: editingId ? (editingId as Id<"categories">) : undefined,
+        slug: editSlug.trim().toLowerCase().replace(/\s+/g, "-"),
+        label: editLabel.trim(),
+        description: editDescription.trim(),
+        sortOrder: editSortOrder,
+        enabled: editEnabled,
+      });
+      toast.success(editingId ? "Category updated" : "Category added");
+      setEditingId(null);
+      setShowAddForm(false);
+    } catch (error) {
+      toast.error("Failed to save category");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Delete a category
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteCategory({ id: id as Id<"categories"> });
+      toast.success("Category deleted");
+      if (editingId === id) {
+        setEditingId(null);
+      }
+    } catch {
+      toast.error("Failed to delete category");
+    }
+  };
+
+  // Cancel editing
+  const cancelEdit = () => {
+    setEditingId(null);
+    setShowAddForm(false);
+  };
+
+  if (!allCategories) {
+    return (
+      <div className="rounded-lg border border-border bg-bg-card p-4 mb-6">
+        <div className="animate-pulse h-6 bg-bg-secondary rounded w-40" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-border bg-bg-card p-4 mb-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-medium text-text-primary">
+          Category Management
+        </h3>
+        <button
+          onClick={startAdd}
+          className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full bg-button text-white hover:bg-button-hover transition-colors"
+        >
+          <Plus size={12} weight="bold" />
+          Add Category
+        </button>
+      </div>
+
+      <p className="text-xs text-text-secondary mb-4">
+        Manage categories that appear in the Submit form, Component Details
+        editor, and the Directory page. Disabled categories are hidden from
+        public views.
+      </p>
+
+      {/* New category form at top (only for adding, not editing) */}
+      {showAddForm && !editingId && (
+        <div className="mb-4">
+          <CategoryEditForm
+            editingId={null}
+            slug={editSlug}
+            label={editLabel}
+            description={editDescription}
+            sortOrder={editSortOrder}
+            enabled={editEnabled}
+            saving={saving}
+            onSlugChange={setEditSlug}
+            onLabelChange={setEditLabel}
+            onDescriptionChange={setEditDescription}
+            onSortOrderChange={setEditSortOrder}
+            onEnabledChange={setEditEnabled}
+            onSave={handleSave}
+            onCancel={cancelEdit}
+          />
+        </div>
+      )}
+
+      {/* Category list with inline editing */}
+      <div className="space-y-2">
+        {allCategories.map((cat) => {
+          const isEditing = editingId === cat._id;
+          const componentCount = countMap[cat.slug] ?? 0;
+
+          // Show inline edit form for this row
+          if (isEditing) {
+            return (
+              <CategoryEditForm
+                key={cat._id}
+                editingId={cat._id}
+                slug={editSlug}
+                label={editLabel}
+                description={editDescription}
+                sortOrder={editSortOrder}
+                enabled={editEnabled}
+                saving={saving}
+                onSlugChange={setEditSlug}
+                onLabelChange={setEditLabel}
+                onDescriptionChange={setEditDescription}
+                onSortOrderChange={setEditSortOrder}
+                onEnabledChange={setEditEnabled}
+                onSave={handleSave}
+                onCancel={cancelEdit}
+              />
+            );
+          }
+
+          // Normal category row
+          return (
+            <div
+              key={cat._id}
+              className={`flex items-center justify-between gap-3 p-3 rounded-lg border transition-colors ${
+                !cat.enabled
+                  ? "border-border/50 bg-bg-primary/50 opacity-60"
+                  : "border-border bg-bg-primary"
+              }`}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-sm font-medium text-text-primary">
+                    {cat.label}
+                  </span>
+                  <span className="text-[10px] font-mono text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded">
+                    {cat.slug}
+                  </span>
+                  <span className="text-[10px] font-medium text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded">
+                    {componentCount} {componentCount === 1 ? "component" : "components"}
+                  </span>
+                  {!cat.enabled && (
+                    <span className="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">
+                      disabled
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-text-secondary truncate">
+                  {cat.description}
+                </p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => startEdit(cat)}
+                  className="p-1.5 rounded text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
+                  title="Edit"
+                >
+                  <PencilSimple size={14} />
+                </button>
+                <button
+                  onClick={() => handleDelete(cat._id)}
+                  className="p-1.5 rounded text-text-secondary hover:text-red-600 hover:bg-red-50 transition-colors"
+                  title="Delete"
+                >
+                  <TrashSimple size={14} />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // Auto-Refresh Settings Panel component
 function AutoRefreshSettingsPanel() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -1780,6 +2825,10 @@ function AutoRefreshSettingsPanel() {
             <p>
               Auto-refresh automatically updates npm package data (version,
               downloads, etc.) for approved packages on a schedule.
+            </p>
+            <p>
+              The scheduler runs once per day (3:00 AM UTC), and the interval
+              below controls which packages are considered stale.
             </p>
             <p>
               Only packages that haven't been refreshed within the interval will
@@ -1989,7 +3038,12 @@ function AdminSettingsPanel() {
   const updateSetting = useMutation(api.packages.updateAdminSetting);
 
   const handleToggle = async (
-    key: "autoApproveOnPass" | "autoRejectOnFail",
+    key:
+      | "autoApproveOnPass"
+      | "autoRejectOnFail"
+      | "autoGenerateSeoOnPendingOrInReview"
+      | "autoGenerateThumbnailOnSubmit"
+      | "rotateThumbnailTemplatesOnSubmit",
     currentValue: boolean,
   ) => {
     try {
@@ -2255,6 +3309,502 @@ function AdminSettingsPanel() {
               />
             </button>
           </div>
+
+          {/* Auto-generate SEO on pending/in_review */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-text-primary">
+                Auto-generate AI SEO on pending or in review
+              </label>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Automatically generate AI SEO content when review status changes
+                to pending or in_review
+              </p>
+            </div>
+            <button
+              onClick={() =>
+                handleToggle(
+                  "autoGenerateSeoOnPendingOrInReview",
+                  settings.autoGenerateSeoOnPendingOrInReview,
+                )
+              }
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                settings.autoGenerateSeoOnPendingOrInReview
+                  ? "bg-blue-600"
+                  : "bg-gray-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  settings.autoGenerateSeoOnPendingOrInReview
+                    ? "translate-x-6"
+                    : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Auto-generate thumbnail on submit */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-text-primary">
+                Auto-generate thumbnail on submit
+              </label>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Automatically compose a thumbnail from the uploaded logo and
+                default template when a component is submitted
+              </p>
+            </div>
+            <button
+              onClick={() =>
+                handleToggle(
+                  "autoGenerateThumbnailOnSubmit",
+                  settings.autoGenerateThumbnailOnSubmit,
+                )
+              }
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                settings.autoGenerateThumbnailOnSubmit
+                  ? "bg-blue-600"
+                  : "bg-gray-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  settings.autoGenerateThumbnailOnSubmit
+                    ? "translate-x-6"
+                    : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Rotate templates on submit */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-text-primary">
+                Rotate active templates on submit
+              </label>
+              <p className="text-xs text-text-secondary mt-0.5">
+                If enabled, auto-generated thumbnails rotate across active
+                templates instead of always using the default template
+              </p>
+            </div>
+            <button
+              onClick={() =>
+                handleToggle(
+                  "rotateThumbnailTemplatesOnSubmit",
+                  settings.rotateThumbnailTemplatesOnSubmit,
+                )
+              }
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                settings.rotateThumbnailTemplatesOnSubmit
+                  ? "bg-blue-600"
+                  : "bg-gray-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  settings.rotateThumbnailTemplatesOnSubmit
+                    ? "translate-x-6"
+                    : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ THUMBNAIL TEMPLATE MANAGEMENT ============
+
+function ThumbnailTemplatePanel() {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const templates = useQuery(api.thumbnails.listTemplates);
+  const allPackages = useQuery(api.packages.getAllPackages);
+  const generateUploadUrl = useMutation(api.packages.generateUploadUrl);
+  const createTemplate = useMutation(api.thumbnails.createTemplate);
+  const deleteTemplate = useMutation(api.thumbnails.deleteTemplate);
+  const setDefaultTemplate = useMutation(api.thumbnails.setDefaultTemplate);
+  const updateTemplate = useMutation(api.thumbnails.updateTemplate);
+  const regenerateSelected = useAction(
+    api.thumbnailGenerator.regenerateSelectedThumbnails,
+  );
+  const [isUploading, setIsUploading] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<
+    Id<"thumbnailTemplates"> | ""
+  >("");
+  const [componentDropdownOpen, setComponentDropdownOpen] = useState(false);
+  const [componentSearch, setComponentSearch] = useState("");
+  const [selectedPackageIds, setSelectedPackageIds] = useState<
+    Array<Id<"packages">>
+  >([]);
+  const [isGeneratingSelected, setIsGeneratingSelected] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Upload a new background template
+  const handleUploadTemplate = async (file: File) => {
+    if (!newTemplateName.trim()) {
+      toast.error("Enter a template name first");
+      return;
+    }
+    setIsUploading(true);
+    try {
+      const uploadUrl = await generateUploadUrl();
+      const uploadResult = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!uploadResult.ok) throw new Error("Upload failed");
+      const { storageId } = await uploadResult.json();
+      await createTemplate({
+        name: newTemplateName.trim(),
+        storageId,
+        isDefault: !templates || templates.length === 0,
+      });
+      setNewTemplateName("");
+      toast.success("Template added");
+    } catch {
+      toast.error("Failed to upload template");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Set a template as default
+  const handleSetDefault = async (templateId: Id<"thumbnailTemplates">) => {
+    try {
+      await setDefaultTemplate({ templateId });
+      toast.success("Default template updated");
+    } catch {
+      toast.error("Failed to set default");
+    }
+  };
+
+  // Delete a template
+  const handleDelete = async (templateId: Id<"thumbnailTemplates">) => {
+    try {
+      await deleteTemplate({ templateId });
+      toast.success("Template deleted");
+    } catch {
+      toast.error("Failed to delete template");
+    }
+  };
+
+  // Toggle active state
+  const handleToggleActive = async (
+    templateId: Id<"thumbnailTemplates">,
+    currentActive: boolean,
+  ) => {
+    try {
+      await updateTemplate({ templateId, active: !currentActive });
+      toast.success(currentActive ? "Template disabled" : "Template enabled");
+    } catch {
+      toast.error("Failed to update template");
+    }
+  };
+
+  // Generate thumbnails for selected components from chosen template.
+  const handleGenerateSelected = async () => {
+    if (selectedPackageIds.length === 0) {
+      toast.error("Select at least one component");
+      return;
+    }
+    setIsGeneratingSelected(true);
+    try {
+      const result = await regenerateSelected({
+        packageIds: selectedPackageIds,
+        templateId: selectedTemplateId || undefined,
+      });
+      toast.success(`Queued ${result.queued} selected components`);
+    } catch {
+      toast.error("Failed to start selected generation");
+    } finally {
+      setIsGeneratingSelected(false);
+    }
+  };
+
+  const filteredPackages =
+    allPackages?.filter((pkg) => {
+      if (!componentSearch.trim()) return true;
+      const term = componentSearch.trim().toLowerCase();
+      return (
+        pkg.name.toLowerCase().includes(term) ||
+        (pkg.componentName || "").toLowerCase().includes(term)
+      );
+    }) || [];
+
+  const togglePackageSelection = (packageId: Id<"packages">) => {
+    setSelectedPackageIds((prev) =>
+      prev.includes(packageId)
+        ? prev.filter((id) => id !== packageId)
+        : [...prev, packageId],
+    );
+  };
+
+  return (
+    <div className="mb-4 rounded-lg border border-border bg-bg-card overflow-hidden">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Image size={16} weight="bold" className="text-text-secondary" />
+          <span className="text-sm font-medium text-text-primary">
+            Thumbnail Templates
+          </span>
+          {templates && (
+            <span className="text-xs text-text-secondary">
+              ({templates.filter((t) => t.active).length} active)
+            </span>
+          )}
+        </div>
+        {isExpanded ? (
+          <CaretUp size={16} className="text-text-secondary" />
+        ) : (
+          <CaretDown size={16} className="text-text-secondary" />
+        )}
+      </button>
+
+      {isExpanded && (
+        <div className="p-4 border-t border-border space-y-4">
+          {/* Info */}
+          <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary">
+            <p>
+              Upload background images that serve as templates for auto-generated
+              thumbnails. User logos are centered on top of the selected template
+              to create 16:9 thumbnails.
+            </p>
+          </div>
+
+          {/* Add template */}
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder="Template name"
+              value={newTemplateName}
+              onChange={(e) => setNewTemplateName(e.target.value)}
+              className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-border bg-bg-primary text-text-primary"
+            />
+            <label className="cursor-pointer text-sm px-3 py-1.5 rounded-lg bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors border border-border flex items-center gap-1">
+              <Upload size={14} />
+              {isUploading ? "Uploading..." : "Upload"}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".png,.jpg,.jpeg,.webp"
+                className="hidden"
+                disabled={isUploading}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  if (file.size > 5 * 1024 * 1024) {
+                    toast.error("Template images must be under 5MB");
+                    return;
+                  }
+                  handleUploadTemplate(file);
+                }}
+              />
+            </label>
+          </div>
+
+          {/* Template list */}
+          {templates && templates.length > 0 ? (
+            <div className="space-y-2">
+              {templates.map((template) => (
+                <div
+                  key={template._id}
+                  className={`flex items-center gap-3 p-2 rounded-lg border ${
+                    template.isDefault
+                      ? "border-blue-500/50 bg-blue-500/5"
+                      : "border-border"
+                  }`}
+                >
+                  {/* Preview */}
+                  {template.previewUrl ? (
+                    <img
+                      src={template.previewUrl}
+                      alt={template.name}
+                      className="w-20 h-11 rounded object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-20 h-11 rounded bg-bg-hover flex-shrink-0 flex items-center justify-center">
+                      <Image size={16} className="text-text-secondary" />
+                    </div>
+                  )}
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-text-primary truncate">
+                        {template.name}
+                      </span>
+                      {template.isDefault && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 font-medium">
+                          DEFAULT
+                        </span>
+                      )}
+                      {!template.active && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-500/10 text-gray-500 font-medium">
+                          DISABLED
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {!template.isDefault && (
+                      <button
+                        onClick={() => handleSetDefault(template._id)}
+                        className="text-xs px-2 py-1 rounded hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors"
+                        title="Set as default"
+                      >
+                        Set default
+                      </button>
+                    )}
+                    <button
+                      onClick={() =>
+                        handleToggleActive(template._id, template.active)
+                      }
+                      className="p-1 rounded hover:bg-bg-hover transition-colors"
+                      title={template.active ? "Disable" : "Enable"}
+                    >
+                      {template.active ? (
+                        <Eye size={14} className="text-text-secondary" />
+                      ) : (
+                        <EyeSlash size={14} className="text-text-secondary" />
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(template._id)}
+                      className="p-1 rounded hover:bg-bg-hover transition-colors"
+                      title="Delete template"
+                    >
+                      <TrashSimple
+                        size={14}
+                        className="text-text-secondary hover:text-red-500"
+                      />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-text-secondary text-center py-4">
+              No templates yet. Upload a background image to get started.
+            </p>
+          )}
+
+          {/* Selected component thumbnail generation */}
+          {templates && templates.length > 0 && (
+            <div className="pt-3 border-t border-border space-y-2">
+              <label className="text-xs text-text-secondary">
+                Generate selected component thumbnails
+              </label>
+
+              <div className="flex items-center gap-2">
+                <select
+                  value={selectedTemplateId}
+                  onChange={(e) =>
+                    setSelectedTemplateId(
+                      e.target.value as Id<"thumbnailTemplates"> | "",
+                    )
+                  }
+                  className="text-xs px-2 py-1.5 rounded border border-border bg-bg-primary text-text-primary"
+                >
+                  <option value="">Default template</option>
+                  {templates
+                    .filter((t) => t.active)
+                    .map((template) => (
+                      <option key={template._id} value={template._id}>
+                        {template.name}
+                        {template.isDefault ? " (default)" : ""}
+                      </option>
+                    ))}
+                </select>
+
+                <button
+                  onClick={() => setComponentDropdownOpen((prev) => !prev)}
+                  className="text-xs px-3 py-1.5 rounded border border-border bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors"
+                >
+                  Select components ({selectedPackageIds.length})
+                </button>
+
+                <button
+                  onClick={() => {
+                    setSelectedPackageIds([]);
+                    setComponentSearch("");
+                    setComponentDropdownOpen(false);
+                  }}
+                  disabled={selectedPackageIds.length === 0}
+                  className="text-xs px-3 py-1.5 rounded border border-border bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
+                >
+                  Clear
+                </button>
+
+                <button
+                  onClick={handleGenerateSelected}
+                  disabled={isGeneratingSelected || selectedPackageIds.length === 0}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors border border-border flex items-center gap-1 disabled:opacity-50"
+                >
+                  <ArrowsClockwise
+                    size={12}
+                    className={isGeneratingSelected ? "animate-spin" : ""}
+                  />
+                  {isGeneratingSelected ? "Queueing..." : "Generate selected"}
+                </button>
+              </div>
+
+              {componentDropdownOpen && (
+                <div className="rounded-lg border border-border bg-bg-primary p-2 space-y-2">
+                  <input
+                    value={componentSearch}
+                    onChange={(e) => setComponentSearch(e.target.value)}
+                    placeholder="Search components..."
+                    className="w-full text-xs px-2 py-1.5 rounded border border-border bg-bg-card text-text-primary"
+                  />
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {filteredPackages.length === 0 ? (
+                      <p className="text-xs text-text-secondary px-1 py-2">
+                        No components found
+                      </p>
+                    ) : (
+                      filteredPackages.map((pkg) => (
+                        <label
+                          key={pkg._id}
+                          className="flex items-center justify-between gap-2 px-2 py-1.5 rounded hover:bg-bg-hover text-xs"
+                        >
+                          <span className="truncate text-text-primary">
+                            {pkg.componentName || pkg.name}
+                          </span>
+                          <span className="flex items-center gap-2 shrink-0">
+                            <span
+                              className={`text-[10px] ${
+                                pkg.logoUrl
+                                  ? "text-green-600"
+                                  : "text-text-secondary"
+                              }`}
+                            >
+                              {pkg.logoUrl ? "logo" : "no logo"}
+                            </span>
+                            <input
+                              type="checkbox"
+                              checked={selectedPackageIds.includes(pkg._id)}
+                              onChange={() => togglePackageSelection(pkg._id)}
+                            />
+                          </span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -2262,7 +3812,7 @@ function AdminSettingsPanel() {
 }
 
 // Filter type includes review statuses, all, and archived
-type FilterType = ReviewStatus | "all" | "archived";
+type FilterType = ReviewStatus | "all" | "archived" | "settings";
 
 // Filter tabs component
 function FilterTabs({
@@ -2322,6 +3872,12 @@ function FilterTabs({
       icon: <Archive size={16} />,
       tooltip: "Show archived packages",
     },
+    {
+      value: "settings",
+      label: "Settings",
+      icon: <Gear size={16} />,
+      tooltip: "Auto-refresh, AI review, and stats",
+    },
   ];
 
   return (
@@ -2338,15 +3894,17 @@ function FilterTabs({
           >
             {tab.icon}
             <span className="hidden sm:inline">{tab.label}</span>
-            <span
-              className={`px-1.5 py-0.5 rounded-full text-xs ${
-                activeFilter === tab.value
-                  ? "bg-white/20 text-white"
-                  : "bg-bg-hover text-text-secondary"
-              }`}
-            >
-              {counts[tab.value]}
-            </span>
+            {tab.value !== "settings" && (
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-xs ${
+                  activeFilter === tab.value
+                    ? "bg-white/20 text-white"
+                    : "bg-bg-hover text-text-secondary"
+                }`}
+              >
+                {counts[tab.value]}
+              </span>
+            )}
           </button>
         </Tooltip>
       ))}
@@ -2413,6 +3971,7 @@ function AdminDashboard({
 
   const counts: Record<FilterType, number> = {
     all: nonArchivedPackages.length,
+    settings: 0, // Settings tab doesn't have a count
     pending: nonArchivedPackages.filter(
       (p) => !p.reviewStatus || p.reviewStatus === "pending",
     ).length,
@@ -2430,6 +3989,8 @@ function AdminDashboard({
 
   // Filter packages based on active filter
   const filteredPackages = packages?.filter((pkg) => {
+    // Settings tab shows nothing (no package list)
+    if (activeFilter === "settings") return false;
     // Archived tab shows only archived packages
     if (activeFilter === "archived") return isArchived(pkg);
     // All other tabs exclude archived packages
@@ -2504,8 +4065,8 @@ function AdminDashboard({
         />
       </div>
 
-      {/* Submissions list */}
-      <div className="rounded-lg border border-border bg-light shadow-sm mb-6">
+      {/* Submissions list (hidden in settings view) */}
+      {activeFilter !== "settings" && <div className="rounded-lg border border-border bg-light shadow-sm mb-6">
         <div className="p-3 border-b border-border bg-bg-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <h2 className="text-base font-light text-text-primary">
             Package Submissions
@@ -2592,6 +4153,14 @@ function AdminDashboard({
                           isExpanded ? "rotate-90" : ""
                         }`}
                       />
+                      {/* Thumbnail preview */}
+                      {pkg.thumbnailUrl && (
+                        <img
+                          src={pkg.thumbnailUrl}
+                          alt=""
+                          className="w-8 h-5 object-cover rounded shrink-0"
+                        />
+                      )}
                       {pkg.featured && (
                         <Star
                           size={16}
@@ -2606,7 +4175,12 @@ function AdminDashboard({
                         v{pkg.version}
                       </span>
                       <StatusBadge status={pkg.reviewStatus} />
+                      <ComponentDetailQuickLink slug={pkg.slug} />
                       <VisibilityBadge visibility={pkg.visibility} />
+                      {/* Show unreplied notes indicator when collapsed */}
+                      {!isExpanded && (
+                        <UnrepliedNotesIndicator packageId={pkg._id} />
+                      )}
                     </div>
                     <div className="flex items-center gap-3 shrink-0 text-xs text-text-secondary">
                       <span className="hidden sm:inline">
@@ -2632,87 +4206,65 @@ function AdminDashboard({
                           )}
 
                           {/* Submitter Info */}
-                          {(pkg.submitterName ||
-                            pkg.submitterEmail ||
-                            pkg.submitterDiscord) && (
-                            <div className="flex flex-wrap items-center gap-3 p-2 rounded-lg bg-bg-hover/50 text-xs">
-                              {pkg.submitterName && (
-                                <Tooltip content="Submitter name">
-                                  <span className="flex items-center gap-1 text-text-secondary">
-                                    <User size={12} />
-                                    {pkg.submitterName}
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigator.clipboard.writeText(
-                                          pkg.submitterName || "",
-                                        );
-                                        toast.success(
-                                          "Name copied to clipboard",
-                                        );
-                                      }}
-                                      className="ml-1 p-0.5 rounded hover:bg-bg-hover hover:text-text-primary transition-colors"
-                                      title="Copy name"
-                                    >
-                                      <Copy size={12} />
-                                    </button>
-                                  </span>
-                                </Tooltip>
-                              )}
-                              {pkg.submitterEmail && (
-                                <Tooltip content="Submitter email">
-                                  <span className="flex items-center gap-1 text-text-secondary">
-                                    <Envelope size={12} />
-                                    <a
-                                      href={`mailto:${pkg.submitterEmail}`}
-                                      className="hover:text-text-primary"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      {pkg.submitterEmail}
-                                    </a>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigator.clipboard.writeText(
-                                          pkg.submitterEmail || "",
-                                        );
-                                        toast.success(
-                                          "Email copied to clipboard",
-                                        );
-                                      }}
-                                      className="ml-1 p-0.5 rounded hover:bg-bg-hover hover:text-text-primary transition-colors"
-                                      title="Copy email"
-                                    >
-                                      <Copy size={12} />
-                                    </button>
-                                  </span>
-                                </Tooltip>
-                              )}
-                              {pkg.submitterDiscord && (
-                                <Tooltip content="Convex Discord username">
-                                  <span className="flex items-center gap-1 text-text-secondary">
-                                    <DiscordLogo size={12} />
-                                    {pkg.submitterDiscord}
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        navigator.clipboard.writeText(
-                                          pkg.submitterDiscord || "",
-                                        );
-                                        toast.success(
-                                          "Discord username copied to clipboard",
-                                        );
-                                      }}
-                                      className="ml-1 p-0.5 rounded hover:bg-bg-hover hover:text-text-primary transition-colors"
-                                      title="Copy Discord username"
-                                    >
-                                      <Copy size={12} />
-                                    </button>
-                                  </span>
-                                </Tooltip>
-                              )}
-                            </div>
-                          )}
+                          <div className="space-y-2 mb-3">
+                            {/* Name and Discord row */}
+                            {(pkg.submitterName || pkg.submitterDiscord) && (
+                              <div className="flex flex-wrap items-center gap-3 p-2 rounded-lg bg-bg-hover/50 text-xs">
+                                {pkg.submitterName && (
+                                  <Tooltip content="Submitter name">
+                                    <span className="flex items-center gap-1 text-text-secondary">
+                                      <User size={12} />
+                                      {pkg.submitterName}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigator.clipboard.writeText(
+                                            pkg.submitterName || "",
+                                          );
+                                          toast.success(
+                                            "Name copied to clipboard",
+                                          );
+                                        }}
+                                        className="ml-1 p-0.5 rounded hover:bg-bg-hover hover:text-text-primary transition-colors"
+                                        title="Copy name"
+                                      >
+                                        <Copy size={12} />
+                                      </button>
+                                    </span>
+                                  </Tooltip>
+                                )}
+                                {pkg.submitterDiscord && (
+                                  <Tooltip content="Convex Discord username">
+                                    <span className="flex items-center gap-1 text-text-secondary">
+                                      <DiscordLogo size={12} />
+                                      {pkg.submitterDiscord}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigator.clipboard.writeText(
+                                            pkg.submitterDiscord || "",
+                                          );
+                                          toast.success(
+                                            "Discord username copied to clipboard",
+                                          );
+                                        }}
+                                        className="ml-1 p-0.5 rounded hover:bg-bg-hover hover:text-text-primary transition-colors"
+                                        title="Copy Discord username"
+                                      >
+                                        <Copy size={12} />
+                                      </button>
+                                    </span>
+                                  </Tooltip>
+                                )}
+                              </div>
+                            )}
+                            {/* Editable email section */}
+                            <SubmitterEmailEditor
+                              packageId={pkg._id}
+                              submitterEmail={pkg.submitterEmail}
+                              additionalEmails={pkg.additionalEmails}
+                            />
+                          </div>
 
                           {/* AI Review Results */}
                           <AiReviewResultsPanel
@@ -2725,6 +4277,45 @@ function AdminDashboard({
                             collaborators={pkg.collaborators}
                             npmUrl={pkg.npmUrl}
                             repositoryUrl={pkg.repositoryUrl}
+                          />
+
+                          <PackageComponentDetailsEditor
+                            packageId={pkg._id}
+                            componentName={pkg.componentName}
+                            slug={pkg.slug}
+                            category={pkg.category}
+                            tags={pkg.tags}
+                            shortDescription={pkg.shortDescription}
+                            longDescription={pkg.longDescription}
+                            videoUrl={pkg.videoUrl}
+                            demoUrl={pkg.demoUrl}
+                            thumbnailUrl={pkg.thumbnailUrl}
+                            convexVerified={pkg.convexVerified}
+                            authorUsername={pkg.authorUsername}
+                            authorAvatar={pkg.authorAvatar}
+                            logoUrl={pkg.logoUrl}
+                            logoStorageId={pkg.logoStorageId}
+                            selectedTemplateId={pkg.selectedTemplateId}
+                            thumbnailGeneratedAt={pkg.thumbnailGeneratedAt}
+                            seoGenerationStatus={pkg.seoGenerationStatus}
+                            seoGeneratedAt={pkg.seoGeneratedAt}
+                            seoGenerationError={pkg.seoGenerationError}
+                            seoValueProp={pkg.seoValueProp}
+                          />
+                          <PackageMetadataEditor
+                            packageId={pkg._id}
+                            initialName={pkg.name}
+                            initialDescription={pkg.description}
+                            initialNpmUrl={pkg.npmUrl}
+                            initialRepositoryUrl={pkg.repositoryUrl}
+                            initialHomepageUrl={pkg.homepageUrl}
+                            initialInstallCommand={pkg.installCommand}
+                            initialVersion={pkg.version}
+                            initialLicense={pkg.license}
+                            initialWeeklyDownloads={pkg.weeklyDownloads}
+                            initialTotalFiles={pkg.totalFiles}
+                            initialLastPublish={pkg.lastPublish}
+                            initialCollaborators={pkg.collaborators}
                           />
                         </div>
 
@@ -2836,113 +4427,124 @@ function AdminDashboard({
             })}
           </div>
         )}
-      </div>
+      </div>}
 
-      {/* Auto-Refresh Settings */}
-      <AutoRefreshSettingsPanel />
+      {/* Settings view: Categories, Auto-Refresh, AI Review, Stats */}
+      {activeFilter === "settings" && (
+        <>
+          {/* Category Management */}
+          <CategoryManagementPanel />
 
-      {/* AI Review Settings */}
-      <AdminSettingsPanel />
+          {/* Auto-Refresh Settings */}
+          <AutoRefreshSettingsPanel />
 
-      {/* Stats section (at bottom) */}
-      <div className="rounded-lg border border-border bg-bg-card p-4">
-        <h3 className="text-sm font-medium text-text-primary mb-3">Stats</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-          <Tooltip content="Total packages (excluding archived)" position="top">
-            <div className="rounded-lg border border-border p-2 bg-bg-primary">
-              <div className="flex items-center gap-1 text-text-secondary mb-1">
-                <Package size={12} />
-                <p className="text-xs">Total</p>
-              </div>
-              <p className="text-lg font-light text-text-primary">
-                {counts.all}
-              </p>
-            </div>
-          </Tooltip>
-          <Tooltip content="Packages awaiting review" position="top">
-            <div className="rounded-lg border border-border p-2 bg-bg-primary">
-              <div className="flex items-center gap-1 text-text-secondary mb-1">
-                <Hourglass size={12} />
-                <p className="text-xs">Pending</p>
-              </div>
-              <p className="text-lg font-light text-yellow-600">
-                {counts.pending}
-              </p>
-            </div>
-          </Tooltip>
-          <Tooltip content="Packages in review" position="top">
-            <div className="rounded-lg border border-border p-2 bg-bg-primary">
-              <div className="flex items-center gap-1 text-text-secondary mb-1">
-                <GitPullRequest size={12} />
-                <p className="text-xs">Review</p>
-              </div>
-              <p className="text-lg font-light text-blue-600">
-                {counts.in_review}
-              </p>
-            </div>
-          </Tooltip>
-          <Tooltip content="Approved packages" position="top">
-            <div className="rounded-lg border border-border p-2 bg-bg-primary">
-              <div className="flex items-center gap-1 text-text-secondary mb-1">
-                <CheckCircle size={12} />
-                <p className="text-xs">Approved</p>
-              </div>
-              <p className="text-lg font-light text-green-600">
-                {counts.approved}
-              </p>
-            </div>
-          </Tooltip>
-          <Tooltip content="Packages needing changes" position="top">
-            <div className="rounded-lg border border-border p-2 bg-bg-primary">
-              <div className="flex items-center gap-1 text-text-secondary mb-1">
-                <Warning size={12} />
-                <p className="text-xs">Changes</p>
-              </div>
-              <p className="text-lg font-light text-orange-600">
-                {counts.changes_requested}
-              </p>
-            </div>
-          </Tooltip>
-          <Tooltip content="Rejected packages" position="top">
-            <div className="rounded-lg border border-border p-2 bg-bg-primary">
-              <div className="flex items-center gap-1 text-text-secondary mb-1">
-                <Prohibit size={12} />
-                <p className="text-xs">Rejected</p>
-              </div>
-              <p className="text-lg font-light text-red-600">
-                {counts.rejected}
-              </p>
-            </div>
-          </Tooltip>
-          <Tooltip content="Archived packages" position="top">
-            <div className="rounded-lg border border-border p-2 bg-bg-primary">
-              <div className="flex items-center gap-1 text-text-secondary mb-1">
-                <Archive size={12} />
-                <p className="text-xs">Archived</p>
-              </div>
-              <p className="text-lg font-light text-purple-600">
-                {counts.archived}
-              </p>
-            </div>
-          </Tooltip>
-          <Tooltip content="Combined weekly downloads" position="top">
-            <div className="rounded-lg border border-border p-2 bg-bg-primary">
-              <div className="flex items-center gap-1 text-text-secondary mb-1">
-                <DownloadSimple size={12} />
-                <p className="text-xs">Downloads</p>
-              </div>
-              <p className="text-lg font-light text-text-primary">
-                {nonArchivedPackages
-                  .reduce((sum, pkg) => sum + pkg.weeklyDownloads, 0)
-                  .toLocaleString()}
-              </p>
-            </div>
-          </Tooltip>
-        </div>
-      </div>
+          {/* AI Review Settings */}
+          <AdminSettingsPanel />
 
-      {/* Status Legend below Stats */}
-      <StatusLegend />
+          {/* Thumbnail Template Management */}
+          <ThumbnailTemplatePanel />
+
+          {/* Stats section */}
+          <div className="rounded-lg border border-border bg-bg-card p-4">
+            <h3 className="text-sm font-medium text-text-primary mb-3">Stats</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+              <Tooltip content="Total packages (excluding archived)" position="top">
+                <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                  <div className="flex items-center gap-1 text-text-secondary mb-1">
+                    <Package size={12} />
+                    <p className="text-xs">Total</p>
+                  </div>
+                  <p className="text-lg font-light text-text-primary">
+                    {counts.all}
+                  </p>
+                </div>
+              </Tooltip>
+              <Tooltip content="Packages awaiting review" position="top">
+                <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                  <div className="flex items-center gap-1 text-text-secondary mb-1">
+                    <Hourglass size={12} />
+                    <p className="text-xs">Pending</p>
+                  </div>
+                  <p className="text-lg font-light text-yellow-600">
+                    {counts.pending}
+                  </p>
+                </div>
+              </Tooltip>
+              <Tooltip content="Packages in review" position="top">
+                <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                  <div className="flex items-center gap-1 text-text-secondary mb-1">
+                    <GitPullRequest size={12} />
+                    <p className="text-xs">Review</p>
+                  </div>
+                  <p className="text-lg font-light text-blue-600">
+                    {counts.in_review}
+                  </p>
+                </div>
+              </Tooltip>
+              <Tooltip content="Approved packages" position="top">
+                <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                  <div className="flex items-center gap-1 text-text-secondary mb-1">
+                    <CheckCircle size={12} />
+                    <p className="text-xs">Approved</p>
+                  </div>
+                  <p className="text-lg font-light text-green-600">
+                    {counts.approved}
+                  </p>
+                </div>
+              </Tooltip>
+              <Tooltip content="Packages needing changes" position="top">
+                <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                  <div className="flex items-center gap-1 text-text-secondary mb-1">
+                    <Warning size={12} />
+                    <p className="text-xs">Changes</p>
+                  </div>
+                  <p className="text-lg font-light text-orange-600">
+                    {counts.changes_requested}
+                  </p>
+                </div>
+              </Tooltip>
+              <Tooltip content="Rejected packages" position="top">
+                <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                  <div className="flex items-center gap-1 text-text-secondary mb-1">
+                    <Prohibit size={12} />
+                    <p className="text-xs">Rejected</p>
+                  </div>
+                  <p className="text-lg font-light text-red-600">
+                    {counts.rejected}
+                  </p>
+                </div>
+              </Tooltip>
+              <Tooltip content="Archived packages" position="top">
+                <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                  <div className="flex items-center gap-1 text-text-secondary mb-1">
+                    <Archive size={12} />
+                    <p className="text-xs">Archived</p>
+                  </div>
+                  <p className="text-lg font-light text-purple-600">
+                    {counts.archived}
+                  </p>
+                </div>
+              </Tooltip>
+              <Tooltip content="Combined weekly downloads" position="top">
+                <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                  <div className="flex items-center gap-1 text-text-secondary mb-1">
+                    <DownloadSimple size={12} />
+                    <p className="text-xs">Downloads</p>
+                  </div>
+                  <p className="text-lg font-light text-text-primary">
+                    {nonArchivedPackages
+                      .reduce((sum, pkg) => sum + pkg.weeklyDownloads, 0)
+                      .toLocaleString()}
+                  </p>
+                </div>
+              </Tooltip>
+            </div>
+          </div>
+
+          {/* Status Legend */}
+          <StatusLegend />
+        </>
+      )}
     </div>
   );
 }

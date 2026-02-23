@@ -1,70 +1,78 @@
-import { convexAuth, getAuthUserId } from "@convex-dev/auth/server";
-import { Password } from "@convex-dev/auth/providers/Password";
-import { Anonymous } from "@convex-dev/auth/providers/Anonymous";
-import { query } from "./_generated/server";
+import { query, QueryCtx, MutationCtx, ActionCtx } from "./_generated/server";
 import { v } from "convex/values";
 
-export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
-  providers: [Password, Anonymous],
-});
+type AuthContext = QueryCtx | MutationCtx | ActionCtx;
+
+/**
+ * Helper to check if the current user is an admin (@convex.dev email).
+ * Returns the identity if admin, throws an error otherwise.
+ */
+export async function requireAdminIdentity(ctx: AuthContext) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new Error("Authentication required");
+  }
+  const email = identity.email;
+  if (!email?.endsWith("@convex.dev")) {
+    throw new Error("Admin access requires @convex.dev email");
+  }
+  return identity;
+}
+
+/**
+ * Helper to check if the current user is an admin without throwing.
+ * Returns the identity if admin, null otherwise.
+ */
+export async function getAdminIdentity(ctx: AuthContext) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    return null;
+  }
+  const email = identity.email;
+  if (!email?.endsWith("@convex.dev")) {
+    return null;
+  }
+  return identity;
+}
 
 export const loggedInUser = query({
   args: {},
   returns: v.union(
     v.object({
-      _id: v.id("users"),
-      _creationTime: v.number(),
       email: v.optional(v.string()),
-      isAnonymous: v.optional(v.boolean()),
+      name: v.optional(v.string()),
+      pictureUrl: v.optional(v.string()),
     }),
     v.null()
   ),
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       return null;
     }
-    const user = await ctx.db.get(userId);
-    if (!user) {
-      return null;
-    }
-    
-    // Get user's email from authAccounts table
-    const authAccount = await ctx.db
-      .query("authAccounts")
-      .filter((q) => q.eq(q.field("userId"), userId))
-      .first();
     
     return {
-      _id: user._id,
-      _creationTime: user._creationTime,
-      email: authAccount?.providerAccountId,
-      isAnonymous: user.isAnonymous,
+      email: identity.email,
+      name: identity.name,
+      pictureUrl: identity.pictureUrl,
     };
   },
 });
 
-// Check if the current user is an admin (@convex.dev email)
 export const isAdmin = query({
   args: {},
   returns: v.boolean(),
   handler: async (ctx) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
       return false;
     }
     
-    // Get user's email from authAccounts table
-    const authAccount = await ctx.db
-      .query("authAccounts")
-      .filter((q) => q.eq(q.field("userId"), userId))
-      .first();
-    
-    if (!authAccount?.providerAccountId) {
+    const email = identity.email;
+    if (!email) {
       return false;
     }
     
-    // Check if email ends with @convex.dev
-    return authAccount.providerAccountId.endsWith("@convex.dev");
+    return email.endsWith("@convex.dev");
   },
 });

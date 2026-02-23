@@ -1,0 +1,53 @@
+---
+description: Workflow orchestration and task management for every session
+globs:
+alwaysApply: true
+---
+
+# Workflow
+
+## Before starting any non-trivial task (3+ steps or touches architecture)
+
+1. Stop. Write a PRD to `prds/<feature-name>.md` before touching code.
+   - PRD files end in `.md`, not `.prd`
+   - Include: problem, proposed solution, files to change, edge cases
+   - For bug fixes: problem, root cause, fix, verification steps
+2. Add tasks to `TASK.md` under `## To Do` as checkable items
+3. If anything is unclear, ask before implementing
+
+## During implementation
+
+- Work task by task. Mark `[x]` as you go in `TASK.md`
+- Never mark a task complete without verifying it works
+- Use subagents for research, exploration, and parallel analysis
+- One task per subagent for focused execution
+- When given a bug: just fix it. Find the root cause in logs/errors/types. No handholding needed.
+- If something goes sideways: STOP and re-plan. Don't keep pushing.
+- Before shipping: ask yourself "Would a staff engineer approve this?"
+
+## After every feature or fix
+
+Always update both project docs. No exceptions:
+
+1. `TASK.md` - Move completed items to `## Completed` with bullet details and date
+2. `changelog.md` - Add keepachangelog.com format entry. Run `git log --date=short -n 10` for real dates. No placeholders, no future months.
+3. `files.md` - Update if new files were added or descriptions changed
+
+## Self-improvement
+
+- After any user correction: note the pattern in `prds/lessons.md` to prevent repeat
+- If a fix feels hacky: pause and implement the elegant solution instead
+- Simple obvious fixes: skip the reflection, just fix it
+- Review `prds/lessons.md` at the start of sessions when relevant
+
+## PRD rules
+
+- All PRDs live in `prds/` folder
+- File name: `prds/<feature-or-problem-slug>.md`
+- Extension is always `.md` not `.prd`
+
+## Subagent strategy
+
+- Offload research and exploration to subagents to keep the main context clean
+- Throw more compute at complex problems via subagents
+- Use one subagent per focused task, not one subagent for everything

@@ -8,26 +8,24 @@
  * @module
  */
 
-import type {
-  ApiFromModules,
-  FilterApi,
-  FunctionReference,
-} from "convex/server";
 import type * as aiReview from "../aiReview.js";
 import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as packages from "../packages.js";
 import type * as router from "../router.js";
+import type * as seed from "../seed.js";
+import type * as seoContent from "../seoContent.js";
+import type * as seoContentDb from "../seoContentDb.js";
+import type * as thumbnailGenerator from "../thumbnailGenerator.js";
+import type * as thumbnails from "../thumbnails.js";
 
-/**
- * A utility for referencing Convex functions in your app's API.
- *
- * Usage:
- * ```js
- * const myFunctionReference = api.myModule.myFunction;
- * ```
- */
+import type {
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
+} from "convex/server";
+
 declare const fullApi: ApiFromModules<{
   aiReview: typeof aiReview;
   auth: typeof auth;
@@ -35,12 +33,37 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   packages: typeof packages;
   router: typeof router;
+  seed: typeof seed;
+  seoContent: typeof seoContent;
+  seoContentDb: typeof seoContentDb;
+  thumbnailGenerator: typeof thumbnailGenerator;
+  thumbnails: typeof thumbnails;
 }>;
+
+/**
+ * A utility for referencing Convex functions in your app's public API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = api.myModule.myFunction;
+ * ```
+ */
 export declare const api: FilterApi<
   typeof fullApi,
   FunctionReference<any, "public">
 >;
+
+/**
+ * A utility for referencing Convex functions in your app's internal API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = internal.myModule.myFunction;
+ * ```
+ */
 export declare const internal: FilterApi<
   typeof fullApi,
   FunctionReference<any, "internal">
 >;
+
+export declare const components: {};

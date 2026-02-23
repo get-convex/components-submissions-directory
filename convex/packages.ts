@@ -7,9 +7,17 @@ import {
   internalMutation,
   internalAction,
 } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { getAdminIdentity, requireAdminIdentity } from "./auth";
 import { api, internal } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
+import { Id, Doc } from "./_generated/dataModel";
+
+// ============ HELPER: Check if user owns a package ============
+// Checks both submitterEmail and additionalEmails array
+function userOwnsPackage(pkg: Doc<"packages">, userEmail: string): boolean {
+  if (pkg.submitterEmail === userEmail) return true;
+  if (pkg.additionalEmails?.includes(userEmail)) return true;
+  return false;
+}
 
 // ============ SECURITY: Public-safe package fields ============
 // These fields are safe to expose to the public frontend
@@ -39,6 +47,7 @@ const publicPackageValidator = v.object({
   maintainerNames: v.optional(v.string()),
   npmUrl: v.string(),
   submittedAt: v.number(),
+  approvedAt: v.optional(v.number()),
   // Live demo URL (optional)
   demoUrl: v.optional(v.string()),
   reviewStatus: v.optional(
@@ -63,6 +72,44 @@ const publicPackageValidator = v.object({
       v.literal("passed"),
       v.literal("failed"),
       v.literal("partial"),
+      v.literal("error"),
+    ),
+  ),
+  // --- Directory expansion fields (public) ---
+  slug: v.optional(v.string()),
+  category: v.optional(v.string()),
+  tags: v.optional(v.array(v.string())),
+  shortDescription: v.optional(v.string()),
+  longDescription: v.optional(v.string()),
+  videoUrl: v.optional(v.string()),
+  thumbnailUrl: v.optional(v.string()),
+  convexVerified: v.optional(v.boolean()),
+  authorUsername: v.optional(v.string()),
+  authorAvatar: v.optional(v.string()),
+  componentName: v.optional(v.string()),
+  relatedComponentIds: v.optional(v.array(v.id("packages"))),
+  // Cached GitHub issue counts
+  githubOpenIssues: v.optional(v.number()),
+  githubClosedIssues: v.optional(v.number()),
+  githubIssuesFetchedAt: v.optional(v.number()),
+  // --- AI-generated SEO/AEO/GEO content (public) ---
+  seoValueProp: v.optional(v.string()),
+  seoBenefits: v.optional(v.array(v.string())),
+  seoUseCases: v.optional(
+    v.array(v.object({ query: v.string(), answer: v.string() })),
+  ),
+  seoFaq: v.optional(
+    v.array(v.object({ question: v.string(), answer: v.string() })),
+  ),
+  seoResourceLinks: v.optional(
+    v.array(v.object({ label: v.string(), url: v.string() })),
+  ),
+  seoGeneratedAt: v.optional(v.number()),
+  seoGenerationStatus: v.optional(
+    v.union(
+      v.literal("pending"),
+      v.literal("generating"),
+      v.literal("completed"),
       v.literal("error"),
     ),
   ),
@@ -94,10 +141,12 @@ const adminPackageValidator = v.object({
   maintainerNames: v.optional(v.string()),
   npmUrl: v.string(),
   submittedAt: v.number(),
+  approvedAt: v.optional(v.number()),
   // Submitter info (admin only)
   submitterName: v.optional(v.string()),
   submitterEmail: v.optional(v.string()),
   submitterDiscord: v.optional(v.string()),
+  additionalEmails: v.optional(v.array(v.string())),
   // Live demo URL
   demoUrl: v.optional(v.string()),
   // Review fields
@@ -143,6 +192,50 @@ const adminPackageValidator = v.object({
   // Refresh fields
   lastRefreshedAt: v.optional(v.number()),
   refreshError: v.optional(v.string()),
+  // --- Directory expansion fields (admin) ---
+  slug: v.optional(v.string()),
+  category: v.optional(v.string()),
+  tags: v.optional(v.array(v.string())),
+  shortDescription: v.optional(v.string()),
+  longDescription: v.optional(v.string()),
+  videoUrl: v.optional(v.string()),
+  thumbnailUrl: v.optional(v.string()),
+  // Logo fields (admin-only display)
+  logoStorageId: v.optional(v.id("_storage")),
+  logoUrl: v.optional(v.string()),
+  selectedTemplateId: v.optional(v.id("thumbnailTemplates")),
+  thumbnailGeneratedAt: v.optional(v.number()),
+  convexVerified: v.optional(v.boolean()),
+  authorUsername: v.optional(v.string()),
+  authorAvatar: v.optional(v.string()),
+  componentName: v.optional(v.string()),
+  relatedComponentIds: v.optional(v.array(v.id("packages"))),
+  // Cached GitHub issue counts
+  githubOpenIssues: v.optional(v.number()),
+  githubClosedIssues: v.optional(v.number()),
+  githubIssuesFetchedAt: v.optional(v.number()),
+  // --- AI-generated SEO/AEO/GEO content (admin) ---
+  seoValueProp: v.optional(v.string()),
+  seoBenefits: v.optional(v.array(v.string())),
+  seoUseCases: v.optional(
+    v.array(v.object({ query: v.string(), answer: v.string() })),
+  ),
+  seoFaq: v.optional(
+    v.array(v.object({ question: v.string(), answer: v.string() })),
+  ),
+  seoResourceLinks: v.optional(
+    v.array(v.object({ label: v.string(), url: v.string() })),
+  ),
+  seoGeneratedAt: v.optional(v.number()),
+  seoGenerationStatus: v.optional(
+    v.union(
+      v.literal("pending"),
+      v.literal("generating"),
+      v.literal("completed"),
+      v.literal("error"),
+    ),
+  ),
+  seoGenerationError: v.optional(v.string()),
 });
 
 // Helper function to strip sensitive fields from a package
@@ -166,12 +259,37 @@ function toPublicPackage(pkg: any) {
     maintainerNames: pkg.maintainerNames,
     npmUrl: pkg.npmUrl || `https://www.npmjs.com/package/${pkg.name || ""}`,
     submittedAt: pkg.submittedAt ?? pkg._creationTime ?? Date.now(),
+    approvedAt: pkg.approvedAt,
     demoUrl: pkg.demoUrl,
     reviewStatus: pkg.reviewStatus,
     visibility: pkg.visibility,
     featured: pkg.featured,
     // Only expose status, not summary/criteria/error
     aiReviewStatus: pkg.aiReviewStatus,
+    // Directory expansion fields
+    slug: pkg.slug,
+    category: pkg.category,
+    tags: pkg.tags,
+    shortDescription: pkg.shortDescription,
+    longDescription: pkg.longDescription,
+    videoUrl: pkg.videoUrl,
+    thumbnailUrl: pkg.thumbnailUrl,
+    convexVerified: pkg.convexVerified,
+    authorUsername: pkg.authorUsername,
+    authorAvatar: pkg.authorAvatar,
+    componentName: pkg.componentName,
+    relatedComponentIds: pkg.relatedComponentIds,
+    githubOpenIssues: pkg.githubOpenIssues,
+    githubClosedIssues: pkg.githubClosedIssues,
+    githubIssuesFetchedAt: pkg.githubIssuesFetchedAt,
+    // SEO content (public, no error field)
+    seoValueProp: pkg.seoValueProp,
+    seoBenefits: pkg.seoBenefits,
+    seoUseCases: pkg.seoUseCases,
+    seoFaq: pkg.seoFaq,
+    seoResourceLinks: pkg.seoResourceLinks,
+    seoGeneratedAt: pkg.seoGeneratedAt,
+    seoGenerationStatus: pkg.seoGenerationStatus,
   };
 }
 
@@ -196,10 +314,12 @@ function toAdminPackage(pkg: any) {
     maintainerNames: pkg.maintainerNames,
     npmUrl: pkg.npmUrl || `https://www.npmjs.com/package/${pkg.name || ""}`,
     submittedAt: pkg.submittedAt ?? pkg._creationTime ?? Date.now(),
+    approvedAt: pkg.approvedAt,
     // Submitter info (admin only)
     submitterName: pkg.submitterName,
     submitterEmail: pkg.submitterEmail,
     submitterDiscord: pkg.submitterDiscord,
+    additionalEmails: pkg.additionalEmails,
     // Live demo URL
     demoUrl: pkg.demoUrl,
     // Review fields
@@ -218,7 +338,51 @@ function toAdminPackage(pkg: any) {
     // Refresh fields
     lastRefreshedAt: pkg.lastRefreshedAt,
     refreshError: pkg.refreshError,
+    // Directory expansion fields
+    slug: pkg.slug,
+    category: pkg.category,
+    tags: pkg.tags,
+    shortDescription: pkg.shortDescription,
+    longDescription: pkg.longDescription,
+    videoUrl: pkg.videoUrl,
+    thumbnailUrl: pkg.thumbnailUrl,
+    // Logo fields (admin-only)
+    logoStorageId: pkg.logoStorageId,
+    logoUrl: pkg.logoUrl,
+    selectedTemplateId: pkg.selectedTemplateId,
+    thumbnailGeneratedAt: pkg.thumbnailGeneratedAt,
+    convexVerified: pkg.convexVerified,
+    authorUsername: pkg.authorUsername,
+    authorAvatar: pkg.authorAvatar,
+    componentName: pkg.componentName,
+    relatedComponentIds: pkg.relatedComponentIds,
+    githubOpenIssues: pkg.githubOpenIssues,
+    githubClosedIssues: pkg.githubClosedIssues,
+    githubIssuesFetchedAt: pkg.githubIssuesFetchedAt,
+    // SEO content (admin includes error field)
+    seoValueProp: pkg.seoValueProp,
+    seoBenefits: pkg.seoBenefits,
+    seoUseCases: pkg.seoUseCases,
+    seoFaq: pkg.seoFaq,
+    seoResourceLinks: pkg.seoResourceLinks,
+    seoGeneratedAt: pkg.seoGeneratedAt,
+    seoGenerationStatus: pkg.seoGenerationStatus,
+    seoGenerationError: pkg.seoGenerationError,
   };
+}
+
+// Generate slug from npm package name (server-side version)
+// @convex-dev/agent -> "agent", @scope/name -> "scope/name", unscoped -> as-is
+function generateSlugFromName(npmPackageName: string): string {
+  if (!npmPackageName) return "";
+  if (npmPackageName.startsWith("@")) {
+    const parts = npmPackageName.slice(1).split("/");
+    if (parts.length !== 2) return npmPackageName;
+    const [scope, name] = parts;
+    if (scope === "convex-dev") return name;
+    return `${scope}/${name}`;
+  }
+  return npmPackageName;
 }
 
 export const fetchNpmPackage = action({
@@ -375,20 +539,49 @@ export const refreshNpmData = action({
 
 export const submitPackage = action({
   args: {
+    repositoryUrl: v.string(),
     npmUrl: v.string(),
     submitterName: v.string(),
     submitterEmail: v.string(),
     submitterDiscord: v.optional(v.string()),
-    demoUrl: v.optional(v.string()),
+    demoUrl: v.string(),
+    // Directory expansion: new submission fields
+    componentName: v.string(),
+    category: v.optional(v.string()),
+    shortDescription: v.string(),
+    longDescription: v.string(),
+    tags: v.optional(v.string()), // Comma-separated string, split on backend
+    videoUrl: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<any> => {
-    // Allow unauthenticated submissions
-    const userId = await getAuthUserId(ctx);
+    // Require authentication to submit packages
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Authentication required to submit a package. Please sign in first.");
+    }
+
+    const repositoryUrl = args.repositoryUrl.trim();
+    const npmUrl = args.npmUrl.trim();
+    const componentName = args.componentName.trim();
+    const shortDescription = args.shortDescription.trim();
+    const longDescription = args.longDescription.trim();
+    const demoUrl = args.demoUrl.trim();
+
+    if (!componentName || !shortDescription || !longDescription || !demoUrl) {
+      throw new Error("Please fill in all required fields.");
+    }
+
+    const parsedRepo = parseGitHubRepo(repositoryUrl);
+    if (!parsedRepo) {
+      throw new Error(
+        "Invalid GitHub repository URL. Expected format: https://github.com/owner/repo",
+      );
+    }
 
     // Parse package name from URL
     // Handles: https://www.npmjs.com/package/@convex-dev/agent or https://www.npmjs.com/package/react
     // For scoped packages, capture @scope/name together
-    const urlMatch = args.npmUrl.match(
+    const urlMatch = npmUrl.match(
       /npmjs\.com\/package\/((?:@[^/]+\/)?[^/?#]+)/,
     );
     if (!urlMatch) {
@@ -413,14 +606,39 @@ export const submitPackage = action({
       packageName,
     });
 
-    // Insert into database with submitter info
-    // Package shows up immediately in frontend and admin
+    // Generate slug from package name
+    const slug = generateSlugFromName(packageName);
+
+    // Parse tags from comma-separated string
+    const parsedTags = args.tags
+      ? args.tags.split(",").map((t: string) => t.trim()).filter(Boolean)
+      : undefined;
+
+    // Auto-extract author info from GitHub repository URL
+    let authorUsername: string | undefined;
+    let authorAvatar: string | undefined;
+    if (parsedRepo) {
+      authorUsername = parsedRepo.owner;
+      authorAvatar = `https://github.com/${parsedRepo.owner}.png`;
+    }
+
+    // Insert into database with submitter info and new directory fields
     const packageId = await ctx.runMutation(api.packages.addPackage, {
       ...packageData,
+      repositoryUrl,
       submitterName: args.submitterName,
       submitterEmail: args.submitterEmail,
       submitterDiscord: args.submitterDiscord,
-      demoUrl: args.demoUrl,
+      demoUrl,
+      slug,
+      componentName,
+      category: args.category,
+      shortDescription,
+      longDescription,
+      tags: parsedTags,
+      videoUrl: args.videoUrl,
+      authorUsername,
+      authorAvatar,
     });
 
     // Check if auto-approve or auto-reject is enabled
@@ -431,7 +649,7 @@ export const submitPackage = action({
 
     if (
       (autoApproveEnabled || autoRejectEnabled) &&
-      packageData.repositoryUrl
+      args.repositoryUrl
     ) {
       // Schedule AI review to run immediately in background
       // Package is already in database, so user sees it while AI reviews
@@ -470,11 +688,18 @@ export const addPackage = mutation({
     submitterDiscord: v.optional(v.string()),
     // Live demo URL (optional)
     demoUrl: v.optional(v.string()),
+    // Directory expansion fields from submission form
+    slug: v.optional(v.string()),
+    componentName: v.optional(v.string()),
+    category: v.optional(v.string()),
+    shortDescription: v.optional(v.string()),
+    longDescription: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    videoUrl: v.optional(v.string()),
+    authorUsername: v.optional(v.string()),
+    authorAvatar: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Allow unauthenticated submissions
-    const userId = await getAuthUserId(ctx);
-
     // Create denormalized maintainer names string for search
     const maintainerNames = args.collaborators.map((c) => c.name).join(" ");
 
@@ -486,7 +711,7 @@ export const addPackage = mutation({
 
     if (existing) {
       // Update existing package (keep existing submitter info)
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("packages", existing._id, {
         description: args.description,
         installCommand: args.installCommand,
         repositoryUrl: args.repositoryUrl,
@@ -501,15 +726,45 @@ export const addPackage = mutation({
         maintainerNames,
         npmUrl: args.npmUrl,
         submittedAt: Date.now(),
+        reviewStatus: existing.reviewStatus ?? "pending",
+        visibility: existing.visibility ?? "visible",
       });
       return existing._id;
     }
 
-    // Insert new package with submitter info and maintainer names
+    // Insert new package with submitter info, maintainer names, and directory fields
     return await ctx.db.insert("packages", {
-      ...args,
+      name: args.name,
+      description: args.description,
+      installCommand: args.installCommand,
+      repositoryUrl: args.repositoryUrl,
+      homepageUrl: args.homepageUrl,
+      version: args.version,
+      license: args.license,
+      unpackedSize: args.unpackedSize,
+      totalFiles: args.totalFiles,
+      lastPublish: args.lastPublish,
+      weeklyDownloads: args.weeklyDownloads,
+      collaborators: args.collaborators,
+      npmUrl: args.npmUrl,
+      submitterName: args.submitterName,
+      submitterEmail: args.submitterEmail,
+      submitterDiscord: args.submitterDiscord,
+      demoUrl: args.demoUrl,
       maintainerNames,
       submittedAt: Date.now(),
+      reviewStatus: "pending",
+      visibility: "visible",
+      // Directory expansion fields
+      slug: args.slug,
+      componentName: args.componentName,
+      category: args.category,
+      shortDescription: args.shortDescription,
+      longDescription: args.longDescription,
+      tags: args.tags,
+      videoUrl: args.videoUrl,
+      authorUsername: args.authorUsername,
+      authorAvatar: args.authorAvatar,
     });
   },
 });
@@ -540,7 +795,7 @@ export const updateNpmData = mutation({
     const maintainerNames = args.collaborators.map((c) => c.name).join(" ");
 
     // Patch directly without reading first to avoid write conflicts
-    await ctx.db.patch(args.packageId, {
+    await ctx.db.patch("packages", args.packageId, {
       description: args.description,
       version: args.version,
       license: args.license,
@@ -617,21 +872,8 @@ export const getAllPackages = query({
   returns: v.array(adminPackageValidator),
   handler: async (ctx) => {
     // Check if user is authenticated and is an admin
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      // Not authenticated - return empty array (not an error to avoid info leakage)
-      return [];
-    }
-
-    // Get user's email from authAccounts table
-    const authAccount = await ctx.db
-      .query("authAccounts")
-      .filter((q) => q.eq(q.field("userId"), userId))
-      .first();
-
-    // Check if email ends with @convex.dev (admin check)
-    if (!authAccount?.providerAccountId?.endsWith("@convex.dev")) {
-      // Not an admin - return empty array
+    const adminIdentity = await getAdminIdentity(ctx);
+    if (!adminIdentity) {
       return [];
     }
 
@@ -710,18 +952,9 @@ export const adminSearchPackages = query({
   returns: v.array(adminPackageValidator),
   handler: async (ctx, args) => {
     // SECURITY: Check if user is authenticated and is an admin
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      return []; // Not authenticated
-    }
-
-    const authAccount = await ctx.db
-      .query("authAccounts")
-      .filter((q) => q.eq(q.field("userId"), userId))
-      .first();
-
-    if (!authAccount?.providerAccountId?.endsWith("@convex.dev")) {
-      return []; // Not an admin
+    const adminIdentity = await getAdminIdentity(ctx);
+    if (!adminIdentity) {
+      return [];
     }
 
     // If no search term, return all packages sorted by newest
@@ -783,7 +1016,7 @@ export const _getPackage = internalQuery({
   args: { packageId: v.id("packages") },
   returns: v.union(v.null(), v.any()),
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.packageId);
+    return await ctx.db.get("packages", args.packageId);
   },
 });
 
@@ -792,7 +1025,7 @@ export const getPackage = query({
   args: { packageId: v.id("packages") },
   returns: v.union(v.null(), publicPackageValidator),
   handler: async (ctx, args) => {
-    const pkg = await ctx.db.get(args.packageId);
+    const pkg = await ctx.db.get("packages", args.packageId);
     if (!pkg) return null;
     // SECURITY: Strip sensitive fields before returning to client
     return toPublicPackage(pkg);
@@ -843,13 +1076,43 @@ export const updateReviewStatus = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const reviewedAt = Date.now();
     // Patch directly without reading first to avoid write conflicts
-    await ctx.db.patch(args.packageId, {
+    await ctx.db.patch("packages", args.packageId, {
       reviewStatus: args.reviewStatus,
       reviewedBy: args.reviewedBy,
-      reviewedAt: Date.now(),
+      reviewedAt,
+      ...(args.reviewStatus === "approved" && { approvedAt: reviewedAt }),
       ...(args.reviewNotes !== undefined && { reviewNotes: args.reviewNotes }),
     });
+
+    // Auto-generate SEO content when approved, or on pending/in_review if enabled
+    let shouldAutoGenerateSeo =
+      args.reviewStatus === "approved" ||
+      args.reviewStatus === "pending" ||
+      args.reviewStatus === "in_review";
+
+    if (args.reviewStatus === "pending" || args.reviewStatus === "in_review") {
+      const autoGenerateOnReviewState = await ctx.db
+        .query("adminSettings")
+        .withIndex("by_key", (q) =>
+          q.eq("key", "autoGenerateSeoOnPendingOrInReview"),
+        )
+        .first();
+      shouldAutoGenerateSeo = autoGenerateOnReviewState?.value || false;
+    }
+
+    if (shouldAutoGenerateSeo) {
+      const pkg = await ctx.db.get("packages", args.packageId);
+      if (pkg && !pkg.seoGeneratedAt) {
+        await ctx.scheduler.runAfter(
+          0,
+          internal.seoContent.generateSeoContent,
+          { packageId: args.packageId },
+        );
+      }
+    }
+
     return null;
   },
 });
@@ -866,7 +1129,7 @@ export const updateVisibility = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.packageId, {
+    await ctx.db.patch("packages", args.packageId, {
       visibility: args.visibility,
     });
     return null;
@@ -880,7 +1143,7 @@ export const deletePackage = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.delete(args.packageId);
+    await ctx.db.delete("packages", args.packageId);
     return null;
   },
 });
@@ -893,7 +1156,7 @@ export const toggleFeatured = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     // Get the package to check its current state
-    const pkg = await ctx.db.get(args.packageId);
+    const pkg = await ctx.db.get("packages", args.packageId);
     if (!pkg) {
       throw new Error("Package not found");
     }
@@ -904,7 +1167,7 @@ export const toggleFeatured = mutation({
     }
 
     // Toggle featured status
-    await ctx.db.patch(args.packageId, {
+    await ctx.db.patch("packages", args.packageId, {
       featured: !pkg.featured,
     });
     return null;
@@ -1003,18 +1266,9 @@ export const getPackagesByStatus = query({
   ),
   handler: async (ctx, args) => {
     // SECURITY: Check if user is authenticated and is an admin
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      return []; // Not authenticated
-    }
-
-    const authAccount = await ctx.db
-      .query("authAccounts")
-      .filter((q) => q.eq(q.field("userId"), userId))
-      .first();
-
-    if (!authAccount?.providerAccountId?.endsWith("@convex.dev")) {
-      return []; // Not an admin
+    const adminIdentity = await getAdminIdentity(ctx);
+    if (!adminIdentity) {
+      return [];
     }
 
     const status = args.reviewStatus || "all";
@@ -1096,6 +1350,48 @@ export const getPackageNoteCount = query({
   },
 });
 
+// Query: Get count of unreplied user requests for a package (for admin notification)
+export const getUnrepliedUserRequestCount = query({
+  args: { packageId: v.id("packages") },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const notes = await ctx.db
+      .query("packageNotes")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+
+    // Find user requests (notes starting with [User Request])
+    const userRequestIds = new Set<string>();
+    for (const note of notes) {
+      if (note.content.startsWith("[User Request]")) {
+        userRequestIds.add(note._id);
+      }
+    }
+
+    // Find which user requests have admin replies
+    const repliedRequestIds = new Set<string>();
+    for (const note of notes) {
+      if (
+        note.parentNoteId &&
+        userRequestIds.has(note.parentNoteId) &&
+        note.authorEmail.endsWith("@convex.dev")
+      ) {
+        repliedRequestIds.add(note.parentNoteId);
+      }
+    }
+
+    // Count unreplied user requests
+    let unrepliedCount = 0;
+    for (const requestId of userRequestIds) {
+      if (!repliedRequestIds.has(requestId)) {
+        unrepliedCount++;
+      }
+    }
+
+    return unrepliedCount;
+  },
+});
+
 // Mutation: Add a note to a package
 export const addPackageNote = mutation({
   args: {
@@ -1107,6 +1403,20 @@ export const addPackageNote = mutation({
   },
   returns: v.id("packageNotes"),
   handler: async (ctx, args) => {
+    // Check if this is an admin replying to a user request
+    let isAdminReply = false;
+    if (args.parentNoteId) {
+      const parentNote = await ctx.db.get(args.parentNoteId);
+      // If parent note starts with [User Request] and current author is admin (convex.dev email)
+      if (
+        parentNote &&
+        parentNote.content.startsWith("[User Request]") &&
+        args.authorEmail.endsWith("@convex.dev")
+      ) {
+        isAdminReply = true;
+      }
+    }
+
     // Insert the note with timestamp-based ordering
     return await ctx.db.insert("packageNotes", {
       packageId: args.packageId,
@@ -1115,6 +1425,8 @@ export const addPackageNote = mutation({
       authorName: args.authorName,
       parentNoteId: args.parentNoteId,
       createdAt: Date.now(),
+      isAdminReply: isAdminReply || undefined,
+      userHasRead: isAdminReply ? false : undefined,
     });
   },
 });
@@ -1127,8 +1439,93 @@ export const deletePackageNote = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     // Delete the note directly
-    await ctx.db.delete(args.noteId);
+    await ctx.db.delete("packageNotes", args.noteId);
     return null;
+  },
+});
+
+// Mutation: Mark all notes as read for admin (marks user requests as read)
+export const markNotesAsReadForAdmin = mutation({
+  args: { packageId: v.id("packages") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.email?.endsWith("@convex.dev")) {
+      throw new Error("Admin access required");
+    }
+
+    const notes = await ctx.db
+      .query("packageNotes")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+
+    // Mark user requests (not from @convex.dev emails) as admin-read
+    const updates = notes
+      .filter(
+        (note) =>
+          !note.authorEmail.endsWith("@convex.dev") && note.adminHasRead !== true
+      )
+      .map((note) => ctx.db.patch(note._id, { adminHasRead: true }));
+
+    await Promise.all(updates);
+    return null;
+  },
+});
+
+// Query: Get count of unread user notes for admin
+export const getUnreadUserNotesCount = query({
+  args: { packageId: v.id("packages") },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const notes = await ctx.db
+      .query("packageNotes")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+
+    // Count notes from non-admin users that haven't been read by admin
+    return notes.filter(
+      (note) =>
+        !note.authorEmail.endsWith("@convex.dev") && note.adminHasRead !== true
+    ).length;
+  },
+});
+
+// Mutation: Mark all comments as read for admin
+export const markCommentsAsReadForAdmin = mutation({
+  args: { packageId: v.id("packages") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.email?.endsWith("@convex.dev")) {
+      throw new Error("Admin access required");
+    }
+
+    const comments = await ctx.db
+      .query("packageComments")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+
+    // Mark all unread comments as read
+    const updates = comments
+      .filter((comment) => comment.adminHasRead !== true)
+      .map((comment) => ctx.db.patch(comment._id, { adminHasRead: true }));
+
+    await Promise.all(updates);
+    return null;
+  },
+});
+
+// Query: Get count of unread comments for admin
+export const getUnreadCommentsCount = query({
+  args: { packageId: v.id("packages") },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const comments = await ctx.db
+      .query("packageComments")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+
+    return comments.filter((comment) => comment.adminHasRead !== true).length;
   },
 });
 
@@ -1144,11 +1541,62 @@ export const backfillMaintainerNames = mutation({
     // Update each package with maintainerNames derived from collaborators
     const updates = packagesToUpdate.map((pkg) => {
       const maintainerNames = pkg.collaborators.map((c) => c.name).join(" ");
-      return ctx.db.patch(pkg._id, { maintainerNames });
+      return ctx.db.patch("packages", pkg._id, { maintainerNames });
     });
 
     await Promise.all(updates);
     return packagesToUpdate.length;
+  },
+});
+
+// Migration: Backfill package reliability fields used by directory sorting/visibility
+export const backfillPackageReliabilityFields = mutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const packages = await ctx.db.query("packages").collect();
+    let updatedCount = 0;
+
+    // Patch rows with missing defaults so directory sort/filter remains stable.
+    const updates = packages.map(async (pkg) => {
+      const patch: {
+        reviewStatus?: "pending";
+        visibility?: "visible";
+        submittedAt?: number;
+        weeklyDownloads?: number;
+        lastPublish?: string;
+        approvedAt?: number;
+      } = {};
+
+      if (!pkg.reviewStatus) {
+        patch.reviewStatus = "pending";
+      }
+      if (!pkg.visibility) {
+        patch.visibility = "visible";
+      }
+      if (!pkg.submittedAt) {
+        patch.submittedAt = pkg._creationTime;
+      }
+      if (pkg.weeklyDownloads === undefined) {
+        patch.weeklyDownloads = 0;
+      }
+      if (!pkg.lastPublish) {
+        patch.lastPublish = new Date(pkg._creationTime).toISOString();
+      }
+      if (pkg.reviewStatus === "approved" && !pkg.approvedAt) {
+        patch.approvedAt = pkg.reviewedAt ?? pkg._creationTime;
+      }
+
+      if (Object.keys(patch).length === 0) {
+        return;
+      }
+
+      await ctx.db.patch("packages", pkg._id, patch);
+      updatedCount += 1;
+    });
+
+    await Promise.all(updates);
+    return updatedCount;
   },
 });
 
@@ -1170,7 +1618,7 @@ export const updateAiReviewStatus = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     // Patch directly without reading first to avoid write conflicts
-    await ctx.db.patch(args.packageId, {
+    await ctx.db.patch("packages", args.packageId, {
       aiReviewStatus: args.status,
     });
     return null;
@@ -1200,7 +1648,7 @@ export const updateAiReviewResult = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     // Patch directly without reading first to avoid write conflicts
-    await ctx.db.patch(args.packageId, {
+    await ctx.db.patch("packages", args.packageId, {
       aiReviewStatus: args.status,
       aiReviewSummary: args.summary,
       aiReviewCriteria: args.criteria,
@@ -1211,12 +1659,15 @@ export const updateAiReviewResult = mutation({
   },
 });
 
-// Get admin settings for auto-approve/reject
+// Get admin settings for auto-approve/reject and thumbnail generation
 export const getAdminSettings = query({
   args: {},
   returns: v.object({
     autoApproveOnPass: v.boolean(),
     autoRejectOnFail: v.boolean(),
+    autoGenerateSeoOnPendingOrInReview: v.boolean(),
+    autoGenerateThumbnailOnSubmit: v.boolean(),
+    rotateThumbnailTemplatesOnSubmit: v.boolean(),
   }),
   handler: async (ctx) => {
     const autoApprove = await ctx.db
@@ -1228,10 +1679,31 @@ export const getAdminSettings = query({
       .query("adminSettings")
       .withIndex("by_key", (q) => q.eq("key", "autoRejectOnFail"))
       .first();
+    const autoGenerateSeoOnReview = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q) =>
+        q.eq("key", "autoGenerateSeoOnPendingOrInReview"),
+      )
+      .first();
+    const autoGenerateThumb = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q) =>
+        q.eq("key", "autoGenerateThumbnailOnSubmit"),
+      )
+      .first();
+    const rotateTemplates = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q) =>
+        q.eq("key", "rotateThumbnailTemplatesOnSubmit"),
+      )
+      .first();
 
     return {
       autoApproveOnPass: autoApprove?.value || false,
       autoRejectOnFail: autoReject?.value || false,
+      autoGenerateSeoOnPendingOrInReview: autoGenerateSeoOnReview?.value || false,
+      autoGenerateThumbnailOnSubmit: autoGenerateThumb?.value || false,
+      rotateThumbnailTemplatesOnSubmit: rotateTemplates?.value || false,
     };
   },
 });
@@ -1239,7 +1711,13 @@ export const getAdminSettings = query({
 // Update admin setting
 export const updateAdminSetting = mutation({
   args: {
-    key: v.union(v.literal("autoApproveOnPass"), v.literal("autoRejectOnFail")),
+    key: v.union(
+      v.literal("autoApproveOnPass"),
+      v.literal("autoRejectOnFail"),
+      v.literal("autoGenerateSeoOnPendingOrInReview"),
+      v.literal("autoGenerateThumbnailOnSubmit"),
+      v.literal("rotateThumbnailTemplatesOnSubmit"),
+    ),
     value: v.boolean(),
   },
   returns: v.null(),
@@ -1252,7 +1730,7 @@ export const updateAdminSetting = mutation({
 
     if (existing) {
       // Update existing with direct patch
-      await ctx.db.patch(existing._id, {
+      await ctx.db.patch("adminSettings", existing._id, {
         value: args.value,
       });
     } else {
@@ -1281,6 +1759,7 @@ export const getPackageComments = query({
       authorEmail: v.string(),
       authorName: v.optional(v.string()),
       createdAt: v.number(),
+      adminHasRead: v.optional(v.boolean()),
     }),
   ),
   handler: async (ctx, args) => {
@@ -1338,7 +1817,7 @@ export const deletePackageComment = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     // Delete the comment directly
-    await ctx.db.delete(args.commentId);
+    await ctx.db.delete("packageComments", args.commentId);
     return null;
   },
 });
@@ -1389,7 +1868,7 @@ export const updateRefreshSetting = mutation({
         .first();
 
       if (existing) {
-        await ctx.db.patch(existing._id, { value: args.value as boolean });
+        await ctx.db.patch("adminSettings", existing._id, { value: args.value as boolean });
       } else {
         await ctx.db.insert("adminSettings", {
           key: args.key,
@@ -1404,7 +1883,7 @@ export const updateRefreshSetting = mutation({
         .first();
 
       if (existing) {
-        await ctx.db.patch(existing._id, { value: args.value as number });
+        await ctx.db.patch("adminSettingsNumeric", existing._id, { value: args.value as number });
       } else {
         await ctx.db.insert("adminSettingsNumeric", {
           key: args.key,
@@ -1653,10 +2132,10 @@ export const _updateRefreshLogBatch = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const log = await ctx.db.get(args.logId);
+    const log = await ctx.db.get("refreshLogs", args.logId);
     if (!log) return null;
 
-    await ctx.db.patch(args.logId, {
+    await ctx.db.patch("refreshLogs", args.logId, {
       packagesSucceeded: log.packagesSucceeded + args.succeeded,
       packagesFailed: log.packagesFailed + args.failed,
       errors: [...log.errors, ...args.errors],
@@ -1674,7 +2153,7 @@ export const _finalizeRefreshLog = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.logId, {
+    await ctx.db.patch("refreshLogs", args.logId, {
       completedAt: Date.now(),
       status: args.status,
     });
@@ -1697,7 +2176,7 @@ export const _cleanupOldRefreshLogs = internalMutation({
     // Delete logs beyond the 30th
     const toDelete = logs.slice(30);
     for (const log of toDelete) {
-      await ctx.db.delete(log._id);
+      await ctx.db.delete("refreshLogs", log._id);
     }
 
     return null;
@@ -1718,7 +2197,7 @@ export const _updatePackageRefreshTimestamp = internalMutation({
     if (args.clearError) {
       update.refreshError = undefined;
     }
-    await ctx.db.patch(args.packageId, update);
+    await ctx.db.patch("packages", args.packageId, update);
     return null;
   },
 });
@@ -1731,7 +2210,7 @@ export const _setPackageRefreshError = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.packageId, {
+    await ctx.db.patch("packages", args.packageId, {
       refreshError: args.error,
       lastRefreshedAt: Date.now(), // Still update timestamp to avoid retry loop
     });
@@ -2060,5 +2539,1492 @@ export const triggerManualRefreshAllPackages = action({
       packagesQueued: packages.length,
       logId,
     };
+  },
+});
+
+// ============ DIRECTORY EXPANSION: PUBLIC QUERIES ============
+
+// Validator for directory listing cards (lightweight, no longDescription)
+const directoryCardValidator = v.object({
+  _id: v.id("packages"),
+  _creationTime: v.number(),
+  name: v.string(),
+  componentName: v.optional(v.string()),
+  description: v.string(),
+  slug: v.optional(v.string()),
+  category: v.optional(v.string()),
+  shortDescription: v.optional(v.string()),
+  thumbnailUrl: v.optional(v.string()),
+  convexVerified: v.optional(v.boolean()),
+  authorUsername: v.optional(v.string()),
+  authorAvatar: v.optional(v.string()),
+  weeklyDownloads: v.number(),
+  repositoryUrl: v.optional(v.string()),
+  npmUrl: v.string(),
+  installCommand: v.string(),
+  featured: v.optional(v.boolean()),
+  tags: v.optional(v.array(v.string())),
+  demoUrl: v.optional(v.string()),
+});
+
+// Public query: List approved+visible components for directory page
+export const listApprovedComponents = query({
+  args: {
+    category: v.optional(v.string()),
+    sortBy: v.optional(
+      v.union(
+        v.literal("newest"),
+        v.literal("downloads"),
+        v.literal("updated"),
+        v.literal("rating"),
+      ),
+    ),
+  },
+  returns: v.array(directoryCardValidator),
+  handler: async (ctx, args) => {
+    let packages;
+
+    // Use category index when filtering by category
+    if (args.category) {
+      packages = await ctx.db
+        .query("packages")
+        .withIndex("by_category", (q) => q.eq("category", args.category))
+        .collect();
+      // Keep category-filtered results aligned with global directory visibility/status rules.
+      packages = packages.filter(
+        (pkg) =>
+          pkg.reviewStatus === "approved" &&
+          (!pkg.visibility || pkg.visibility === "visible"),
+      );
+    } else {
+      // Get all approved+visible packages
+      packages = await ctx.db
+        .query("packages")
+        .withIndex("by_review_status", (q) => q.eq("reviewStatus", "approved"))
+        .collect();
+      packages = packages.filter(
+        (pkg) => !pkg.visibility || pkg.visibility === "visible",
+      );
+    }
+
+    // Sort
+    const sortBy = args.sortBy || "newest";
+    if (sortBy === "newest") {
+      packages.sort(
+        (a, b) =>
+          (b.approvedAt ?? b.submittedAt ?? b._creationTime) -
+          (a.approvedAt ?? a.submittedAt ?? a._creationTime),
+      );
+    } else if (sortBy === "downloads") {
+      packages.sort((a, b) => b.weeklyDownloads - a.weeklyDownloads);
+    } else if (sortBy === "updated") {
+      packages.sort(
+        (a, b) =>
+          new Date(b.lastPublish).getTime() -
+          new Date(a.lastPublish).getTime(),
+      );
+    } else if (sortBy === "rating") {
+      // Fetch all ratings and compute average per package
+      const allRatings = await ctx.db.query("componentRatings").collect();
+      const ratingMap: Record<string, { sum: number; count: number }> = {};
+      for (const r of allRatings) {
+        const pid = r.packageId as string;
+        if (!ratingMap[pid]) {
+          ratingMap[pid] = { sum: 0, count: 0 };
+        }
+        ratingMap[pid].sum += r.rating;
+        ratingMap[pid].count += 1;
+      }
+      // Sort by average rating descending (unrated packages go last)
+      packages.sort((a, b) => {
+        const aData = ratingMap[a._id as string];
+        const bData = ratingMap[b._id as string];
+        const aAvg = aData ? aData.sum / aData.count : 0;
+        const bAvg = bData ? bData.sum / bData.count : 0;
+        // If averages are equal, sort by rating count (more ratings = higher confidence)
+        if (bAvg === aAvg) {
+          return (bData?.count || 0) - (aData?.count || 0);
+        }
+        return bAvg - aAvg;
+      });
+    }
+
+    // Return lightweight card data
+    return packages.map((pkg) => ({
+      _id: pkg._id,
+      _creationTime: pkg._creationTime,
+      name: pkg.name || "",
+      componentName: pkg.componentName,
+      description: pkg.description || "",
+      slug: pkg.slug,
+      category: pkg.category,
+      shortDescription: pkg.shortDescription,
+      thumbnailUrl: pkg.thumbnailUrl,
+      convexVerified: pkg.convexVerified,
+      authorUsername: pkg.authorUsername,
+      authorAvatar: pkg.authorAvatar,
+      weeklyDownloads: pkg.weeklyDownloads ?? 0,
+      repositoryUrl: pkg.repositoryUrl,
+      npmUrl: pkg.npmUrl || `https://www.npmjs.com/package/${pkg.name || ""}`,
+      installCommand: pkg.installCommand || `npm install ${pkg.name || ""}`,
+      featured: pkg.featured,
+      tags: pkg.tags,
+      demoUrl: pkg.demoUrl,
+    }));
+  },
+});
+
+// Public query: Get a single component by slug for detail page
+// Allows approved OR pending packages with a slug (admin intentionally set the slug)
+// Only hides explicitly hidden/archived packages
+export const getComponentBySlug = query({
+  args: { slug: v.string() },
+  returns: v.union(v.null(), publicPackageValidator),
+  handler: async (ctx, args) => {
+    const pkg = await ctx.db
+      .query("packages")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .first();
+
+    if (!pkg) return null;
+
+    // Hide explicitly hidden or archived packages
+    if (pkg.visibility === "hidden" || pkg.visibility === "archived") {
+      return null;
+    }
+
+    return toPublicPackage(pkg);
+  },
+});
+
+// Validator for user submission items shown on profile page
+const userSubmissionValidator = v.object({
+  _id: v.id("packages"),
+  _creationTime: v.number(),
+  name: v.string(),
+  componentName: v.optional(v.string()),
+  slug: v.optional(v.string()),
+  reviewStatus: v.optional(
+    v.union(
+      v.literal("pending"),
+      v.literal("in_review"),
+      v.literal("approved"),
+      v.literal("changes_requested"),
+      v.literal("rejected"),
+    ),
+  ),
+  visibility: v.optional(
+    v.union(v.literal("visible"), v.literal("hidden"), v.literal("archived")),
+  ),
+  submittedAt: v.number(),
+  thumbnailUrl: v.optional(v.string()),
+  shortDescription: v.optional(v.string()),
+  category: v.optional(v.string()),
+  unreadAdminReplies: v.number(),
+});
+
+// Public query: Get submissions by the authenticated user's email
+// Returns packages submitted by the current user for profile page
+export const getMySubmissions = query({
+  args: {},
+  returns: v.array(userSubmissionValidator),
+  handler: async (ctx) => {
+    // Get authenticated user identity
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity || !identity.email) {
+      return [];
+    }
+
+    const userEmail = identity.email;
+
+    // Query packages by submitter email
+    const packagesBySubmitter = await ctx.db
+      .query("packages")
+      .withIndex("by_submitter_email", (q) => q.eq("submitterEmail", userEmail))
+      .order("desc")
+      .collect();
+
+    // Also find packages where user is in additionalEmails
+    // Since there's no index on additionalEmails, we do a filtered scan
+    // This is acceptable because the dataset is limited and this is a user-specific query
+    const allPackages = await ctx.db.query("packages").collect();
+    const packagesByAdditionalEmail = allPackages.filter(
+      (pkg) =>
+        pkg.additionalEmails?.includes(userEmail) &&
+        pkg.submitterEmail !== userEmail,
+    );
+
+    // Merge and dedupe
+    const seenIds = new Set(packagesBySubmitter.map((p) => p._id));
+    const packages = [...packagesBySubmitter];
+    for (const pkg of packagesByAdditionalEmail) {
+      if (!seenIds.has(pkg._id)) {
+        packages.push(pkg);
+      }
+    }
+
+    // Sort by submittedAt descending
+    packages.sort((a, b) => b.submittedAt - a.submittedAt);
+
+    // Calculate unread admin replies for each package
+    const packagesWithUnread = await Promise.all(
+      packages.map(async (pkg) => {
+        const notes = await ctx.db
+          .query("packageNotes")
+          .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
+          .collect();
+
+        // Find user request IDs (from this user)
+        const userRequestIds = new Set<string>();
+        for (const note of notes) {
+          if (
+            note.authorEmail === userEmail &&
+            note.content.startsWith("[User Request]")
+          ) {
+            userRequestIds.add(note._id);
+          }
+        }
+
+        // Count unread admin replies
+        let unreadCount = 0;
+        for (const note of notes) {
+          if (
+            note.parentNoteId &&
+            userRequestIds.has(note.parentNoteId) &&
+            note.userHasRead === false
+          ) {
+            unreadCount++;
+          }
+        }
+
+        return {
+          _id: pkg._id,
+          _creationTime: pkg._creationTime,
+          name: pkg.name,
+          componentName: pkg.componentName,
+          slug: pkg.slug,
+          reviewStatus: pkg.reviewStatus,
+          visibility: pkg.visibility,
+          submittedAt: pkg.submittedAt,
+          thumbnailUrl: pkg.thumbnailUrl,
+          shortDescription: pkg.shortDescription,
+          category: pkg.category,
+          unreadAdminReplies: unreadCount,
+        };
+      }),
+    );
+
+    return packagesWithUnread;
+  },
+});
+
+// Mutation: Request refresh/re-review from profile page
+// Creates a note for admin team
+export const requestSubmissionRefresh = mutation({
+  args: {
+    packageId: v.id("packages"),
+    note: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Verify user is authenticated
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity || !identity.email) {
+      throw new Error("Authentication required");
+    }
+
+    // Verify the package belongs to this user
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) {
+      throw new Error("Package not found");
+    }
+    if (!userOwnsPackage(pkg, identity.email)) {
+      throw new Error("You can only request refresh for your own submissions");
+    }
+
+    // Create a note for admin team
+    await ctx.db.insert("packageNotes", {
+      packageId: args.packageId,
+      content: `[User Request] ${args.note}`,
+      authorEmail: identity.email,
+      authorName: identity.name || undefined,
+      createdAt: Date.now(),
+    });
+
+    return null;
+  },
+});
+
+// Query: Get user's notes thread for a package (their requests + admin replies)
+// Returns notes visible to the user (their own requests and any admin replies)
+export const getMyPackageNotes = query({
+  args: { packageId: v.id("packages") },
+  returns: v.array(
+    v.object({
+      _id: v.id("packageNotes"),
+      content: v.string(),
+      authorName: v.optional(v.string()),
+      isFromAdmin: v.boolean(),
+      createdAt: v.number(),
+      parentNoteId: v.optional(v.id("packageNotes")),
+      userHasRead: v.optional(v.boolean()),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity || !identity.email) {
+      return [];
+    }
+
+    // Verify package belongs to user
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg || !userOwnsPackage(pkg, identity.email)) {
+      return [];
+    }
+
+    // Get all notes for this package
+    const notes = await ctx.db
+      .query("packageNotes")
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
+      .order("asc")
+      .collect();
+
+    // Filter to only user requests and admin replies
+    const userRequestIds = new Set<string>();
+    const result: Array<{
+      _id: typeof notes[0]["_id"];
+      content: string;
+      authorName?: string;
+      isFromAdmin: boolean;
+      createdAt: number;
+      parentNoteId?: typeof notes[0]["_id"];
+      userHasRead?: boolean;
+    }> = [];
+
+    // First pass: find user requests
+    for (const note of notes) {
+      if (
+        note.authorEmail === identity.email &&
+        note.content.startsWith("[User Request]")
+      ) {
+        userRequestIds.add(note._id);
+        result.push({
+          _id: note._id,
+          content: note.content.replace("[User Request] ", ""),
+          authorName: note.authorName || "You",
+          isFromAdmin: false,
+          createdAt: note.createdAt,
+          parentNoteId: note.parentNoteId,
+        });
+      }
+    }
+
+    // Second pass: find admin replies to user requests
+    for (const note of notes) {
+      if (note.parentNoteId && userRequestIds.has(note.parentNoteId)) {
+        result.push({
+          _id: note._id,
+          content: note.content,
+          authorName: note.authorName || "Convex Team",
+          isFromAdmin: true,
+          createdAt: note.createdAt,
+          parentNoteId: note.parentNoteId,
+          userHasRead: note.userHasRead,
+        });
+      }
+    }
+
+    // Sort by creation time
+    result.sort((a, b) => a.createdAt - b.createdAt);
+
+    return result;
+  },
+});
+
+// Query: Count unread admin replies for a user's package
+export const getUnreadAdminReplyCount = query({
+  args: { packageId: v.id("packages") },
+  returns: v.number(),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity || !identity.email) {
+      return 0;
+    }
+
+    // Verify package belongs to user
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg || !userOwnsPackage(pkg, identity.email)) {
+      return 0;
+    }
+
+    // Get all notes for this package
+    const notes = await ctx.db
+      .query("packageNotes")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+
+    // Find user request IDs
+    const userRequestIds = new Set<string>();
+    for (const note of notes) {
+      if (
+        note.authorEmail === identity.email &&
+        note.content.startsWith("[User Request]")
+      ) {
+        userRequestIds.add(note._id);
+      }
+    }
+
+    // Count unread admin replies
+    let unreadCount = 0;
+    for (const note of notes) {
+      if (
+        note.parentNoteId &&
+        userRequestIds.has(note.parentNoteId) &&
+        note.userHasRead === false
+      ) {
+        unreadCount++;
+      }
+    }
+
+    return unreadCount;
+  },
+});
+
+// Mutation: Mark admin replies as read for a package
+export const markPackageNotesAsRead = mutation({
+  args: { packageId: v.id("packages") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity || !identity.email) {
+      throw new Error("Authentication required");
+    }
+
+    // Verify package belongs to user
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg || !userOwnsPackage(pkg, identity.email)) {
+      throw new Error("You can only access notes for your own submissions");
+    }
+
+    // Get all notes for this package
+    const notes = await ctx.db
+      .query("packageNotes")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+
+    // Find user request IDs
+    const userRequestIds = new Set<string>();
+    for (const note of notes) {
+      if (
+        note.authorEmail === identity.email &&
+        note.content.startsWith("[User Request]")
+      ) {
+        userRequestIds.add(note._id);
+      }
+    }
+
+    // Mark unread admin replies as read
+    const updates = notes
+      .filter(
+        (note) =>
+          note.parentNoteId &&
+          userRequestIds.has(note.parentNoteId) &&
+          note.userHasRead === false,
+      )
+      .map((note) => ctx.db.patch(note._id, { userHasRead: true }));
+
+    await Promise.all(updates);
+
+    return null;
+  },
+});
+
+// Mutation: User sets their own submission visibility (hide/show)
+export const setMySubmissionVisibility = mutation({
+  args: {
+    packageId: v.id("packages"),
+    visibility: v.union(v.literal("visible"), v.literal("hidden")),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity || !identity.email) {
+      throw new Error("Authentication required");
+    }
+
+    // Verify package belongs to user
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) {
+      throw new Error("Package not found");
+    }
+    if (!userOwnsPackage(pkg, identity.email)) {
+      throw new Error("You can only modify your own submissions");
+    }
+
+    // Users can only toggle between visible and hidden (not archived)
+    await ctx.db.patch(args.packageId, { visibility: args.visibility });
+    return null;
+  },
+});
+
+// Mutation: User requests deletion of their submission
+export const requestDeleteMySubmission = mutation({
+  args: {
+    packageId: v.id("packages"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity || !identity.email) {
+      throw new Error("Authentication required");
+    }
+
+    // Verify package belongs to user
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) {
+      throw new Error("Package not found");
+    }
+    if (!userOwnsPackage(pkg, identity.email)) {
+      throw new Error("You can only delete your own submissions");
+    }
+
+    // Delete the package
+    await ctx.db.delete(args.packageId);
+
+    // Also delete associated notes
+    const notes = await ctx.db
+      .query("packageNotes")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+    await Promise.all(notes.map((note) => ctx.db.delete(note._id)));
+
+    return null;
+  },
+});
+
+// Mutation: User updates their own submission fields
+export const updateMySubmission = mutation({
+  args: {
+    packageId: v.id("packages"),
+    componentName: v.optional(v.string()),
+    shortDescription: v.optional(v.string()),
+    longDescription: v.optional(v.string()),
+    category: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    demoUrl: v.optional(v.string()),
+    videoUrl: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity || !identity.email) {
+      throw new Error("Authentication required");
+    }
+
+    // Verify package belongs to user
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) {
+      throw new Error("Package not found");
+    }
+    if (!userOwnsPackage(pkg, identity.email)) {
+      throw new Error("You can only edit your own submissions");
+    }
+
+    // Build update object with only provided fields
+    const updates: Record<string, string | string[] | undefined> = {};
+    if (args.componentName !== undefined) updates.componentName = args.componentName;
+    if (args.shortDescription !== undefined) updates.shortDescription = args.shortDescription;
+    if (args.longDescription !== undefined) updates.longDescription = args.longDescription;
+    if (args.category !== undefined) updates.category = args.category;
+    if (args.tags !== undefined) updates.tags = args.tags;
+    if (args.demoUrl !== undefined) updates.demoUrl = args.demoUrl;
+    if (args.videoUrl !== undefined) updates.videoUrl = args.videoUrl;
+
+    if (Object.keys(updates).length > 0) {
+      await ctx.db.patch(args.packageId, updates);
+    }
+
+    return null;
+  },
+});
+
+// Query: Get full submission data for editing (user's own submission only)
+export const getMySubmissionForEdit = query({
+  args: { packageId: v.id("packages") },
+  returns: v.union(
+    v.object({
+      _id: v.id("packages"),
+      name: v.string(),
+      componentName: v.optional(v.string()),
+      shortDescription: v.optional(v.string()),
+      longDescription: v.optional(v.string()),
+      category: v.optional(v.string()),
+      tags: v.optional(v.array(v.string())),
+      demoUrl: v.optional(v.string()),
+      videoUrl: v.optional(v.string()),
+      repositoryUrl: v.optional(v.string()),
+      npmUrl: v.string(),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity || !identity.email) {
+      return null;
+    }
+
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg || !userOwnsPackage(pkg, identity.email)) {
+      return null;
+    }
+
+    return {
+      _id: pkg._id,
+      name: pkg.name,
+      componentName: pkg.componentName,
+      shortDescription: pkg.shortDescription,
+      longDescription: pkg.longDescription,
+      category: pkg.category,
+      tags: pkg.tags,
+      demoUrl: pkg.demoUrl,
+      videoUrl: pkg.videoUrl,
+      repositoryUrl: pkg.repositoryUrl,
+      npmUrl: pkg.npmUrl,
+    };
+  },
+});
+
+// Query: Get total unread admin reply count across all user's packages
+export const getTotalUnreadAdminReplies = query({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity || !identity.email) {
+      return 0;
+    }
+
+    // Get all packages submitted by user
+    const packages = await ctx.db
+      .query("packages")
+      .withIndex("by_submitter_email", (q) =>
+        q.eq("submitterEmail", identity.email),
+      )
+      .collect();
+
+    if (packages.length === 0) return 0;
+
+    // Get all notes for user's packages
+    let totalUnread = 0;
+    for (const pkg of packages) {
+      const notes = await ctx.db
+        .query("packageNotes")
+        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
+        .collect();
+
+      // Find user request IDs for this package
+      const userRequestIds = new Set<string>();
+      for (const note of notes) {
+        if (
+          note.authorEmail === identity.email &&
+          note.content.startsWith("[User Request]")
+        ) {
+          userRequestIds.add(note._id);
+        }
+      }
+
+      // Count unread admin replies
+      for (const note of notes) {
+        if (
+          note.parentNoteId &&
+          userRequestIds.has(note.parentNoteId) &&
+          note.userHasRead === false
+        ) {
+          totalUnread++;
+        }
+      }
+    }
+
+    return totalUnread;
+  },
+});
+
+// Public query: List categories from admin-managed table with component counts
+// Only returns enabled categories, sorted by admin-set sortOrder
+export const listCategories = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      category: v.string(),
+      label: v.string(),
+      description: v.string(),
+      count: v.number(),
+    }),
+  ),
+  handler: async (ctx) => {
+    // Read admin-managed categories (enabled only, sorted by sortOrder)
+    const adminCategories = await ctx.db
+      .query("categories")
+      .withIndex("by_sort_order")
+      .collect();
+
+    const enabledCategories = adminCategories.filter((c) => c.enabled);
+
+    // Get all approved+visible packages
+    const packages = await ctx.db
+      .query("packages")
+      .withIndex("by_review_status", (q) => q.eq("reviewStatus", "approved"))
+      .collect();
+
+    const visible = packages.filter(
+      (pkg) => !pkg.visibility || pkg.visibility === "visible",
+    );
+
+    // Count packages per category
+    const categoryCountMap: Record<string, number> = {};
+    for (const pkg of visible) {
+      if (!pkg.category) continue;
+      categoryCountMap[pkg.category] = (categoryCountMap[pkg.category] || 0) + 1;
+    }
+
+    // Return admin categories with their counts (preserves admin sortOrder)
+    return enabledCategories.map((cat) => ({
+      category: cat.slug,
+      label: cat.label,
+      description: cat.description,
+      count: categoryCountMap[cat.slug] || 0,
+    }));
+  },
+});
+
+// Public query: Get featured+approved+visible components
+export const getFeaturedComponents = query({
+  args: {},
+  returns: v.array(directoryCardValidator),
+  handler: async (ctx) => {
+    // Get all approved packages and filter to featured+visible
+    const packages = await ctx.db
+      .query("packages")
+      .withIndex("by_review_status", (q) => q.eq("reviewStatus", "approved"))
+      .collect();
+
+    const featured = packages.filter(
+      (pkg) =>
+        pkg.featured &&
+        (!pkg.visibility || pkg.visibility === "visible"),
+    );
+
+    return featured.map((pkg) => ({
+      _id: pkg._id,
+      _creationTime: pkg._creationTime,
+      name: pkg.name || "",
+      componentName: pkg.componentName,
+      description: pkg.description || "",
+      slug: pkg.slug,
+      category: pkg.category,
+      shortDescription: pkg.shortDescription,
+      thumbnailUrl: pkg.thumbnailUrl,
+      convexVerified: pkg.convexVerified,
+      authorUsername: pkg.authorUsername,
+      authorAvatar: pkg.authorAvatar,
+      weeklyDownloads: pkg.weeklyDownloads ?? 0,
+      repositoryUrl: pkg.repositoryUrl,
+      npmUrl: pkg.npmUrl || `https://www.npmjs.com/package/${pkg.name || ""}`,
+      installCommand: pkg.installCommand || `npm install ${pkg.name || ""}`,
+      featured: pkg.featured,
+      tags: pkg.tags,
+      demoUrl: pkg.demoUrl,
+    }));
+  },
+});
+
+// ============ FILE STORAGE: THUMBNAIL UPLOAD ============
+
+// Generate a Convex upload URL for thumbnail image upload
+export const generateUploadUrl = mutation({
+  args: {},
+  returns: v.string(),
+  handler: async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+// Save uploaded thumbnail to a package
+// Called after the file is uploaded via the upload URL
+export const saveThumbnail = mutation({
+  args: {
+    packageId: v.id("packages"),
+    storageId: v.id("_storage"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Resolve the storage URL for display
+    const url = await ctx.storage.getUrl(args.storageId);
+    // Patch directly without reading first
+    await ctx.db.patch("packages", args.packageId, {
+      thumbnailStorageId: args.storageId,
+      thumbnailUrl: url ?? undefined,
+    });
+    return null;
+  },
+});
+
+// Save uploaded logo to a package (png/webp/svg)
+// Called after the file is uploaded via generateUploadUrl
+// Schedules auto thumbnail generation if the admin setting is enabled
+export const saveLogo = mutation({
+  args: {
+    packageId: v.id("packages"),
+    storageId: v.id("_storage"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Resolve the storage URL for admin display
+    const url = await ctx.storage.getUrl(args.storageId);
+    // Patch directly without reading first
+    await ctx.db.patch(args.packageId, {
+      logoStorageId: args.storageId,
+      logoUrl: url ?? undefined,
+    });
+
+    // Check if auto thumbnail generation is enabled
+    const setting = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q) =>
+        q.eq("key", "autoGenerateThumbnailOnSubmit"),
+      )
+      .first();
+    if (setting?.value) {
+      // Schedule auto-generation in background
+      await ctx.scheduler.runAfter(
+        0,
+        internal.thumbnailGenerator._autoGenerateThumbnail,
+        { packageId: args.packageId },
+      );
+    }
+
+    return null;
+  },
+});
+
+// ============ DIRECTORY EXPANSION: AUTO-FILL AUTHOR FROM GITHUB ============
+
+// Extract GitHub owner from repository URL and auto-populate author fields
+// Returns the extracted values so the UI can update local state immediately
+export const autoFillAuthorFromRepo = mutation({
+  args: { packageId: v.id("packages") },
+  returns: v.union(
+    v.null(),
+    v.object({ authorUsername: v.string(), authorAvatar: v.string() }),
+  ),
+  handler: async (ctx, args) => {
+    const pkg = await ctx.db.get("packages", args.packageId);
+    if (!pkg) return null;
+
+    const repoUrl = pkg.repositoryUrl;
+    if (!repoUrl) return null;
+
+    const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
+    if (!match) return null;
+
+    const owner = match[1];
+    const authorUsername = owner;
+    const authorAvatar = `https://github.com/${owner}.png`;
+
+    // Always overwrite when admin clicks auto-fill
+    await ctx.db.patch("packages", args.packageId, { authorUsername, authorAvatar });
+
+    return { authorUsername, authorAvatar };
+  },
+});
+
+// ============ DIRECTORY EXPANSION: ADMIN MUTATIONS ============
+
+// Admin mutation: Update directory-specific component details
+export const updateComponentDetails = mutation({
+  args: {
+    packageId: v.id("packages"),
+    componentName: v.optional(v.string()),
+    slug: v.optional(v.string()),
+    category: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    shortDescription: v.optional(v.string()),
+    longDescription: v.optional(v.string()),
+    videoUrl: v.optional(v.string()),
+    demoUrl: v.optional(v.string()),
+    thumbnailUrl: v.optional(v.string()),
+    clearThumbnail: v.optional(v.boolean()),
+    convexVerified: v.optional(v.boolean()),
+    authorUsername: v.optional(v.string()),
+    authorAvatar: v.optional(v.string()),
+    relatedComponentIds: v.optional(v.array(v.id("packages"))),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
+    const { packageId, clearThumbnail, ...updates } = args;
+
+    // Build patch object with only defined fields
+    const patch: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined) {
+        patch[key] = value;
+      }
+    }
+
+    // Explicitly clear both URL and storage ID when requested from the editor.
+    if (clearThumbnail) {
+      patch.thumbnailUrl = undefined;
+      patch.thumbnailStorageId = undefined;
+    }
+
+    // Patch directly without reading first to avoid write conflicts
+    if (Object.keys(patch).length > 0) {
+      await ctx.db.patch("packages", packageId, patch);
+    }
+
+    return null;
+  },
+});
+
+// Admin mutation: Update source metadata fields normally pulled from npm/git
+export const updatePackageSourceMetadata = mutation({
+  args: {
+    packageId: v.id("packages"),
+    name: v.optional(v.string()),
+    description: v.optional(v.string()),
+    npmUrl: v.optional(v.string()),
+    repositoryUrl: v.optional(v.string()),
+    homepageUrl: v.optional(v.string()),
+    installCommand: v.optional(v.string()),
+    version: v.optional(v.string()),
+    license: v.optional(v.string()),
+    weeklyDownloads: v.optional(v.number()),
+    totalFiles: v.optional(v.number()),
+    lastPublish: v.optional(v.string()),
+    collaborators: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          avatar: v.string(),
+        }),
+      ),
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
+    const { packageId, ...updates } = args;
+    const patch: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined) {
+        patch[key] = value;
+      }
+    }
+    if (Object.keys(patch).length > 0) {
+      await ctx.db.patch("packages", packageId, patch);
+    }
+    return null;
+  },
+});
+
+// Admin mutation: Update submitter email for a package
+export const updateSubmitterEmail = mutation({
+  args: {
+    packageId: v.id("packages"),
+    submitterEmail: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
+    const email = args.submitterEmail.trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+      throw new Error("Invalid email address");
+    }
+
+    await ctx.db.patch(args.packageId, { submitterEmail: email });
+    return null;
+  },
+});
+
+// Admin mutation: Update additional emails for a package
+export const updateAdditionalEmails = mutation({
+  args: {
+    packageId: v.id("packages"),
+    additionalEmails: v.array(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
+    // Filter and clean email list
+    const cleanEmails = args.additionalEmails
+      .map((e) => e.trim().toLowerCase())
+      .filter((e) => e && e.includes("@"));
+
+    await ctx.db.patch(args.packageId, { additionalEmails: cleanEmails });
+    return null;
+  },
+});
+
+// Internal query: Get package by slug (for badge service)
+export const _getPackageBySlug = internalQuery({
+  args: { slug: v.string() },
+  returns: v.union(v.null(), v.any()),
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("packages")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .first();
+  },
+});
+
+// Internal query: List all approved+visible packages (for llms.txt endpoint)
+export const _listApprovedPackages = internalQuery({
+  args: {},
+  returns: v.any(),
+  handler: async (ctx) => {
+    const packages = await ctx.db
+      .query("packages")
+      .withIndex("by_review_status", (q) => q.eq("reviewStatus", "approved"))
+      .collect();
+    return packages.filter(
+      (pkg) => !pkg.visibility || pkg.visibility === "visible",
+    );
+  },
+});
+
+// Internal mutation: Record a badge fetch event
+export const _recordBadgeFetch = internalMutation({
+  args: {
+    slug: v.string(),
+    packageId: v.optional(v.id("packages")),
+    referrer: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.insert("badgeFetches", {
+      slug: args.slug,
+      packageId: args.packageId,
+      fetchedAt: Date.now(),
+      referrer: args.referrer,
+      userAgent: args.userAgent,
+    });
+    return null;
+  },
+});
+
+// Admin query: Get badge fetch stats for a component
+export const getBadgeStats = query({
+  args: { packageId: v.id("packages") },
+  returns: v.object({
+    last7Days: v.number(),
+    last30Days: v.number(),
+    total: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
+
+    const allFetches = await ctx.db
+      .query("badgeFetches")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+
+    const last7 = allFetches.filter((f) => f.fetchedAt >= sevenDaysAgo).length;
+    const last30 = allFetches.filter(
+      (f) => f.fetchedAt >= thirtyDaysAgo,
+    ).length;
+
+    return {
+      last7Days: last7,
+      last30Days: last30,
+      total: allFetches.length,
+    };
+  },
+});
+
+// ============ COMPONENT RATINGS ============
+
+// Get average rating and count for a component
+export const getComponentRating = query({
+  args: { packageId: v.id("packages") },
+  returns: v.object({
+    average: v.number(),
+    count: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const ratings = await ctx.db
+      .query("componentRatings")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+
+    if (ratings.length === 0) {
+      return { average: 0, count: 0 };
+    }
+
+    const sum = ratings.reduce((acc, r) => acc + r.rating, 0);
+    return {
+      average: Math.round((sum / ratings.length) * 10) / 10,
+      count: ratings.length,
+    };
+  },
+});
+
+// Submit or update a star rating for a component
+export const rateComponent = mutation({
+  args: {
+    packageId: v.id("packages"),
+    rating: v.number(),
+    sessionId: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Validate rating 1-5
+    if (args.rating < 1 || args.rating > 5) {
+      throw new Error("Rating must be between 1 and 5");
+    }
+
+    // Check for existing rating from this session
+    const existing = await ctx.db
+      .query("componentRatings")
+      .withIndex("by_package_and_session", (q) =>
+        q.eq("packageId", args.packageId).eq("sessionId", args.sessionId)
+      )
+      .first();
+
+    if (existing) {
+      // Update existing rating
+      if (existing.rating === args.rating) return null;
+      await ctx.db.patch("componentRatings", existing._id, { rating: args.rating });
+    } else {
+      // Insert new rating
+      await ctx.db.insert("componentRatings", {
+        packageId: args.packageId,
+        rating: args.rating,
+        sessionId: args.sessionId,
+        createdAt: Date.now(),
+      });
+    }
+
+    return null;
+  },
+});
+
+// ============ CATEGORY MANAGEMENT ============
+
+// Default categories to seed if the table is empty
+const DEFAULT_CATEGORIES = [
+  { slug: "ai", label: "AI", description: "Components for building AI-powered applications.", sortOrder: 0 },
+  { slug: "auth", label: "Authentication", description: "Components for authentication and authorization.", sortOrder: 1 },
+  { slug: "backend", label: "Backend", description: "Backend capabilities powering features throughout the stack.", sortOrder: 2 },
+  { slug: "database", label: "Database", description: "Components for real-time data management and synchronization.", sortOrder: 3 },
+  { slug: "durable-functions", label: "Durable Functions", description: "Workflows, crons, and background jobs.", sortOrder: 4 },
+  { slug: "integrations", label: "Integrations", description: "Third-party service integrations.", sortOrder: 5 },
+  { slug: "payments", label: "Payments", description: "Payment processing and billing.", sortOrder: 6 },
+];
+
+// Public: List all enabled categories (sorted by sortOrder)
+export const listEnabledDirectoryCategories = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id("categories"),
+      _creationTime: v.number(),
+      slug: v.string(),
+      label: v.string(),
+      description: v.string(),
+      sortOrder: v.number(),
+      enabled: v.boolean(),
+    }),
+  ),
+  handler: async (ctx) => {
+    const cats = await ctx.db
+      .query("categories")
+      .withIndex("by_sort_order")
+      .collect();
+
+    return cats.filter((c) => c.enabled);
+  },
+});
+
+// Backwards-compatible alias query name.
+export const listDirectoryCategories = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id("categories"),
+      _creationTime: v.number(),
+      slug: v.string(),
+      label: v.string(),
+      description: v.string(),
+      sortOrder: v.number(),
+      enabled: v.boolean(),
+    }),
+  ),
+  handler: async (ctx) => {
+    const cats = await ctx.db
+      .query("categories")
+      .withIndex("by_sort_order")
+      .collect();
+
+    return cats.filter((c) => c.enabled);
+  },
+});
+
+// Admin: List all categories (including disabled)
+export const listAllDirectoryCategories = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id("categories"),
+      _creationTime: v.number(),
+      slug: v.string(),
+      label: v.string(),
+      description: v.string(),
+      sortOrder: v.number(),
+      enabled: v.boolean(),
+    }),
+  ),
+  handler: async (ctx) => {
+    return await ctx.db
+      .query("categories")
+      .withIndex("by_sort_order")
+      .collect();
+  },
+});
+
+// Admin: Create or update a category
+export const upsertCategory = mutation({
+  args: {
+    id: v.optional(v.id("categories")),
+    slug: v.string(),
+    label: v.string(),
+    description: v.string(),
+    sortOrder: v.number(),
+    enabled: v.boolean(),
+  },
+  returns: v.id("categories"),
+  handler: async (ctx, args) => {
+    if (args.id) {
+      await ctx.db.patch("categories", args.id, {
+        slug: args.slug,
+        label: args.label,
+        description: args.description,
+        sortOrder: args.sortOrder,
+        enabled: args.enabled,
+      });
+      return args.id;
+    }
+    return await ctx.db.insert("categories", {
+      slug: args.slug,
+      label: args.label,
+      description: args.description,
+      sortOrder: args.sortOrder,
+      enabled: args.enabled,
+    });
+  },
+});
+
+// Admin: Delete a category
+export const deleteCategory = mutation({
+  args: { id: v.id("categories") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.delete("categories", args.id);
+    return null;
+  },
+});
+
+// Admin: Seed default categories if table is empty
+export const seedCategories = mutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const existing = await ctx.db.query("categories").first();
+    if (existing) return null;
+
+    for (const cat of DEFAULT_CATEGORIES) {
+      await ctx.db.insert("categories", { ...cat, enabled: true });
+    }
+    return null;
+  },
+});
+
+// ============ GITHUB ISSUES ============
+
+// GitHub issue shape returned to the client
+const githubIssueValidator = v.object({
+  number: v.number(),
+  title: v.string(),
+  state: v.string(),
+  html_url: v.string(),
+  created_at: v.string(),
+  user: v.optional(v.string()),
+  labels: v.array(v.string()),
+  comments: v.number(),
+});
+
+// Parse owner/repo from a GitHub repository URL
+function parseGitHubRepo(repoUrl: string): { owner: string; repo: string } | null {
+  const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
+  if (!match) return null;
+  return { owner: match[1], repo: match[2].replace(/\.git$/, "") };
+}
+
+// Public action: Fetch GitHub issues for a component's repository
+// Returns a list of issues (open or closed) for display in the issues tab
+export const fetchGitHubIssues = action({
+  args: {
+    repositoryUrl: v.string(),
+    state: v.union(v.literal("open"), v.literal("closed")),
+    page: v.optional(v.number()),
+  },
+  returns: v.object({
+    issues: v.array(githubIssueValidator),
+    hasMore: v.boolean(),
+  }),
+  handler: async (_ctx, args) => {
+    const parsed = parseGitHubRepo(args.repositoryUrl);
+    if (!parsed) {
+      return { issues: [], hasMore: false };
+    }
+
+    const page = args.page ?? 1;
+    const perPage = 25;
+    const url = `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/issues?state=${args.state}&per_page=${perPage}&page=${page}&sort=created&direction=desc`;
+
+    const headers: Record<string, string> = {
+      Accept: "application/vnd.github.v3+json",
+      "User-Agent": "ConvexComponentsDirectory",
+    };
+
+    // Use GitHub token if available (raises rate limit from 60 to 5000/hr)
+    const token = process.env.GITHUB_TOKEN;
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, { headers });
+
+    if (!response.ok) {
+      console.error(`GitHub API error: ${response.status} ${response.statusText}`);
+      return { issues: [], hasMore: false };
+    }
+
+    const data = await response.json();
+
+    // GitHub issues API also returns pull requests; filter them out
+    const issues = (data as any[])
+      .filter((item: any) => !item.pull_request)
+      .map((item: any) => ({
+        number: item.number,
+        title: item.title,
+        state: item.state,
+        html_url: item.html_url,
+        created_at: item.created_at,
+        user: item.user?.login,
+        labels: (item.labels || []).map((l: any) => l.name),
+        comments: item.comments || 0,
+      }));
+
+    // Check if there could be more pages
+    const linkHeader = response.headers.get("Link");
+    const hasMore = linkHeader ? linkHeader.includes('rel="next"') : data.length === perPage;
+
+    return { issues, hasMore };
+  },
+});
+
+// Public action: Fetch and cache GitHub issue counts for a package
+// Called on demand from the detail page; caches counts in the DB
+export const refreshGitHubIssueCounts = action({
+  args: { packageId: v.id("packages") },
+  returns: v.object({
+    openCount: v.number(),
+    closedCount: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    // Get the package to read its repositoryUrl
+    const pkg = await ctx.runQuery(internal.packages._getPackage, {
+      packageId: args.packageId,
+    });
+
+    if (!pkg || !pkg.repositoryUrl) {
+      return { openCount: 0, closedCount: 0 };
+    }
+
+    const parsed = parseGitHubRepo(pkg.repositoryUrl);
+    if (!parsed) {
+      return { openCount: 0, closedCount: 0 };
+    }
+
+    const headers: Record<string, string> = {
+      Accept: "application/vnd.github.v3+json",
+      "User-Agent": "ConvexComponentsDirectory",
+    };
+
+    const token = process.env.GITHUB_TOKEN;
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    // Fetch open and closed counts in parallel using search API (returns total_count)
+    const [openRes, closedRes] = await Promise.all([
+      fetch(
+        `https://api.github.com/search/issues?q=repo:${parsed.owner}/${parsed.repo}+type:issue+state:open`,
+        { headers },
+      ),
+      fetch(
+        `https://api.github.com/search/issues?q=repo:${parsed.owner}/${parsed.repo}+type:issue+state:closed`,
+        { headers },
+      ),
+    ]);
+
+    let openCount = 0;
+    let closedCount = 0;
+
+    if (openRes.ok) {
+      const openData = await openRes.json();
+      openCount = openData.total_count ?? 0;
+    }
+    if (closedRes.ok) {
+      const closedData = await closedRes.json();
+      closedCount = closedData.total_count ?? 0;
+    }
+
+    // Cache the counts in the database
+    await ctx.runMutation(internal.packages._updateGitHubIssueCounts, {
+      packageId: args.packageId,
+      openCount,
+      closedCount,
+    });
+
+    return { openCount, closedCount };
+  },
+});
+
+// Internal mutation: Cache GitHub issue counts on a package
+export const _updateGitHubIssueCounts = internalMutation({
+  args: {
+    packageId: v.id("packages"),
+    openCount: v.number(),
+    closedCount: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch("packages", args.packageId, {
+      githubOpenIssues: args.openCount,
+      githubClosedIssues: args.closedCount,
+      githubIssuesFetchedAt: Date.now(),
+    });
+    return null;
   },
 });

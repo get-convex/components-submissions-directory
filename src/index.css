@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+.antialiased {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 /* GT America Font Family */
 @font-face {
   font-family: "GT America";
@@ -195,6 +200,11 @@
 @layer utilities {
   .accent-text {
     @apply text-slate-600;
+  }
+
+  .component-detail-page .text-text-primary,
+  .component-detail-page .text-text-secondary {
+    color: rgb(41 41 41 / var(--tw-text-opacity, 1));
   }
 }
 

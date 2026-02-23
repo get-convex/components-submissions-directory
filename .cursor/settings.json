@@ -1,0 +1,10 @@
+{
+  "plugins": {
+    "convex": {
+      "enabled": true
+    },
+    "linear": {
+      "enabled": true
+    }
+  }
+}

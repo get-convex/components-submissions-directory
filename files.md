@@ -14,7 +14,7 @@ TypeScript configuration files for different parts of the project. `tsconfig.jso
 
 ### `vite.config.ts`
 
-Vite build configuration. Sets up React plugin, path aliases, and configurable base path for deployment. Toggle between "/" for localhost and "/components/submit/" for convex.dev deployment by commenting/uncommenting the base path lines.
+Vite build configuration. Sets up React plugin, path aliases, and base path `/components/` for convex.dev deployment.
 
 ### `tailwind.config.js`
 
@@ -44,83 +44,69 @@ Main HTML entry point. Loads the React app and CSS. Includes Open Graph meta tag
 
 ### `convex/schema.ts`
 
-Database schema definition. Defines the `packages` table with all package fields including submitter information (name, email, Discord), review status (pending, in_review, approved, changes_requested, rejected), visibility (visible, hidden, archived), featured flag, demoUrl for live demos, and AI review fields (aiReviewStatus, aiReviewSummary, aiReviewCriteria, aiReviewedAt, aiReviewError). Also defines `packageNotes` table for threaded admin notes, `packageComments` table for public comments, and `adminSettings` table for AI automation preferences. Includes indexes for name lookup, submission date sorting, review status filtering, visibility filtering, admin settings lookup, and full-text search on name, description, and maintainer names. Also includes auth tables from Convex Auth.
+Database schema definition. Defines the `packages` table with all package fields including slug, category, tags, shortDescription, longDescription, videoUrl, thumbnailUrl, thumbnailStorageId, logoStorageId, logoUrl, selectedTemplateId, thumbnailGenerationVersion, thumbnailGeneratedAt, thumbnailGeneratedBy, convexVerified, authorUsername, authorAvatar, relatedComponentIds, submitter information (submitterName, submitterEmail, submitterDiscord, additionalEmails for multi-account access), review status, visibility, featured flag, demoUrl, AI review fields, cached GitHub issue counts, and AI-generated SEO/AEO/GEO fields. Also defines `packageNotes` (with isAdminReply and userHasRead for notification tracking), `packageComments`, `adminSettings`, `badgeFetches`, `thumbnailTemplates`, and `thumbnailJobs` tables.
 
 ### `convex/auth.ts`
 
-Authentication setup using Convex Auth. Configures Password and Anonymous providers. Exports `loggedInUser` query to get current user info and `isAdmin` query to check if user has @convex.dev email.
+Authentication helpers using WorkOS AuthKit. Exports `loggedInUser` query, `isAdmin` query, and admin identity helpers (`requireAdminIdentity`, `getAdminIdentity`) for checking `@convex.dev` email addresses.
 
 ### `convex/auth.config.ts`
 
-Auth configuration file. Currently minimal, can be expanded for additional auth providers.
+Auth configuration file for WorkOS AuthKit JWT validation. Configures custom JWT providers with WorkOS issuer and JWKS endpoints.
 
 ### `convex/aiReview.ts`
 
-AI-powered package review system with security best practices. Contains:
-
-- `REVIEW_CRITERIA`: 9 criteria for validating Convex components (5 critical, 4 non-critical)
-- `fetchGitHubRepo`: Fetches source code from GitHub repositories with comprehensive URL parsing and monorepo support:
-  - Normalizes GitHub URLs (handles git+ prefix, .git suffix, trailing slashes, tree/blob paths, hash fragments)
-  - Automatically discovers monorepo packages by querying the `packages/` directory
-  - Detects convex.config.ts in multiple locations: monorepo paths (`packages/<name>/src/component/`, `packages/<name>/convex.config.ts`), standard paths (convex/src/component/, convex/component/, convex/, src/component/, src/, root), and additional patterns (packages/component/, lib/)
-  - Debug logging for troubleshooting repository parsing issues
-- `runAiReview`: Action that orchestrates the AI review process using Anthropic Claude API
-- Uses internal query (`internal.packages._getPackage`) for full package data access including repositoryUrl
-- AI prompts only include code and package metadata (never user PII like submitter emails)
-- Auto-approve/reject actions use "AI" identifier (not fake email format)
-- Analyzes packages against official Convex component specifications
-- References official Convex documentation in AI prompt for accurate suggestions
-- Handles deeply nested component structures (like useautumn/typescript patterns) and monorepo structures (like trestleinc/replicate)
+AI-powered package review system. Contains review criteria, GitHub repo fetcher with monorepo support, and `runAiReview` action using Anthropic Claude API.
 
 ### `convex/packages.ts`
 
-Main package business logic with security-focused design. Contains:
+Main package business logic. Contains:
 
-**Internal Queries (for backend use only, full data access):**
+**Internal Queries:** `_getPackage`, `_getPackageByName`, `_getPackageBySlug` (for badge/markdown endpoints)
 
-- `_getPackage`: Internal query returning full package data including sensitive fields (used by AI review, backend actions)
-- `_getPackageByName`: Internal query for duplicate checking with full data access
+**Public Queries:** `listPackages`, `searchPackages`, `getPackage`, `getPackageByName`, `listApprovedComponents`, `getComponentBySlug`, `getMySubmissions`, `listCategories`, `getFeaturedComponents`
 
-**Public Queries (sanitized, safe for clients):**
+**User Mutations:** `requestSubmissionRefresh` (sends note to admin team from profile page), `setMySubmissionVisibility` (hide/show own submissions), `requestDeleteMySubmission` (delete own submission), `updateMySubmission` (edit own submission fields)
 
-- `listPackages`: Returns visible packages with PII stripped (excludes submitter email, name, Discord, AI review details)
-- `searchPackages`: Full-text search on visible packages with sanitized returns
-- `getPackage`: Returns single package with sensitive fields removed
-- `getPackageByName`: Public lookup with safe data only
+**User Queries:** `getMyPackageNotes` (thread of user requests and admin replies), `getMySubmissionForEdit` (editable submission data), `getUnreadAdminReplyCount`, `getTotalUnreadAdminReplies`
 
-**Admin Queries:**
+**Admin Queries:** `getAllPackages`, `adminSearchPackages`, `getPackagesByStatus`, `getBadgeStats`
 
-- `getAllPackages`: Admin query returning all packages regardless of visibility
-- `adminSearchPackages`: Admin full-text search across all packages
-- `getPackagesByStatus`: Admin query to filter packages by review status
+**Actions:** `fetchNpmPackage`, `refreshNpmData`, `submitPackage`, `fetchGitHubIssues`, `refreshGitHubIssueCounts`
 
-**Actions:**
+**Mutations:** `addPackage`, `updateNpmData`, `updateReviewStatus`, `updateVisibility`, `deletePackage`, `toggleFeatured`, `updateComponentDetails` (supports `clearThumbnail` to remove thumbnail URL and storage reference), `generateUploadUrl`, `saveThumbnail`, `saveLogo` (uploads logo and triggers auto thumbnail generation if enabled), `autoFillAuthorFromRepo`, `updateSubmitterEmail` (admin: change primary email), `updateAdditionalEmails` (admin: manage multi-account access), `markNotesAsReadForAdmin`, `markCommentsAsReadForAdmin`, note/comment/settings mutations
 
-- `fetchNpmPackage`: Fetches package metadata from npm registry and downloads API
-- `refreshNpmData`: Refreshes npm data for a specific package. Preserves existing repositoryUrl and homepageUrl (only fills from npm if empty). Updates lastRefreshedAt timestamp on success, sets refreshError on failure. Uses internal query for full data access.
-- `submitPackage`: Validates URL, checks for duplicates using internal query, fetches data, and inserts package
+**Admin Queries:** `getUnreadUserNotesCount`, `getUnreadCommentsCount` (for read tracking badges)
 
-**Mutations:**
+**Helper Functions:** `toPublicPackage()`, `toAdminPackage()`, `generateSlugFromName()`, `userOwnsPackage()` (checks submitterEmail and additionalEmails), validators
 
-- `addPackage`: Inserts or updates package in database with submitter info and demoUrl
-- `updateNpmData`: Updates only npm-sourced fields without affecting admin data
-- `updateReviewStatus`: Admin mutation to change package review status (uses `reviewedBy` field, not email)
-- `updateVisibility`: Admin mutation to change package visibility (visible, hidden, archived)
-- `deletePackage`: Admin mutation to permanently delete a package
-- `toggleFeatured`: Admin mutation to toggle featured status (only for approved packages)
-- `addPackageNote`, `deletePackageNote`: Note management with timestamp-based ordering
-- `addPackageComment`, `deletePackageComment`: Public comment management
-- `updateAiReviewStatus`, `updateAiReviewResult`: AI review status mutations
-- `updateAdminSetting`: Toggle auto-approve/reject preferences
+### `convex/seed.ts`
 
-**Helper Functions:**
+Seed script (`seedExistingComponents` internal action) for migrating existing component data into the packages table. Fetches npm data, generates slugs, sets categories, and upserts into the database.
 
-- `toPublicPackage()`: Strips sensitive fields (submitterEmail, submitterName, submitterDiscord, AI review details) from package data
-- `publicPackageValidator`: Type-safe validator for public query returns
+### `convex/thumbnails.ts`
+
+Thumbnail template management and generation API. Contains admin CRUD mutations for background templates (create, update, delete, reorder, set default), internal queries/mutations for logo and template data, thumbnail job tracking, and a cleanup job for failed jobs. All queries and mutations run in the default Convex runtime.
+
+### `convex/thumbnailGenerator.ts`
+
+Node.js action module for composing 16:9 thumbnails. Uses Jimp for raster image composition and @resvg/resvg-wasm for SVG to PNG conversion. Contains `generateThumbnailForPackage` (admin-triggered), `_autoGenerateThumbnail` (submit flow), `regenerateAllThumbnails` (batch), and `_autoGenerateThumbnailWithTemplate` (batch per-package). Runs in Node.js runtime.
+
+### `convex/seoContent.ts`
+
+AI-generated SEO/AEO/GEO content action using Anthropic Claude. Contains `generateSeoContent` internal action and `regenerateSeoContent` public action. Builds structured prompts from component data and parses Claude responses into value props, benefits, use cases, FAQ, and resource links. Runs in Node.js runtime.
+
+### `convex/seoContentDb.ts`
+
+Internal mutations for persisting AI-generated SEO content. Separated from `seoContent.ts` because Convex mutations cannot live in `"use node"` files. Contains `_saveSeoContent`, `_updateSeoStatus`, and `_setSeoError`.
 
 ### `convex/router.ts`
 
-HTTP router configuration. Defines `/api/export-csv` endpoint that fetches all packages and returns CSV format with proper escaping and headers.
+HTTP router configuration. Defines:
+- `/api/export-csv` endpoint for CSV export of all packages
+- `/api/badge` endpoint for dynamic SVG badge generation with analytics tracking
+- `/api/markdown` endpoint serving raw markdown (`Content-Type: text/markdown`) for component data, enhanced with AI-generated SEO sections
+- `/api/llms.txt` endpoint serving a plain-text index of all approved components for AI agent discovery
 
 ### `convex/http.ts`
 
@@ -128,96 +114,142 @@ Main HTTP router setup. Integrates auth routes and exports the router.
 
 ### `convex/tsconfig.json`
 
-TypeScript config for Convex functions. Uses ESNext target and includes DOM types for Convex runtime.
+TypeScript config for Convex functions.
 
 ### `convex/_generated/`
 
-Auto-generated files by Convex:
-
-- `api.d.ts`, `api.js`: Type definitions and runtime for public API
-- `dataModel.d.ts`: TypeScript types for database schema
-- `server.d.ts`, `server.js`: Server-side function definitions
+Auto-generated files by Convex: `api.d.ts`, `api.js`, `dataModel.d.ts`, `server.d.ts`, `server.js`.
 
 ## Frontend Source Files
 
 ### `src/main.tsx`
 
-Application entry point. Sets up Convex React client, ConvexAuthProvider, and simple pathname-based routing to switch between App and Admin components.
+Application entry point. Sets up Convex React client with WorkOS AuthKit (`AuthKitProvider` and `ConvexProviderWithAuthKit`). Uses env variables `VITE_WORKOS_CLIENT_ID` and `VITE_WORKOS_REDIRECT_URI` for auth configuration. Pathname-based routing:
+- `/` = Directory (approved components, public)
+- `/submissions` = Submit.tsx (submissions directory with table view, public)
+- `/submissions/admin` = Admin.tsx (requires @convex.dev email)
+- `/submit` = SubmitForm.tsx (auth-gated submission form with checkboxes)
+- `/profile` = Profile.tsx (user's submissions, auth required)
+- `/callback` = OAuth callback handler
+- `/:slug` = ComponentDetail (public)
+
+### `src/components/Header.tsx`
+
+Shared header component with auth state management. Uses `useConvexAuth()` for auth state and `useAuth()` from WorkOS for user data and sign in/out. Displays navigation links (Directory, Submit, Docs), user menu with avatar, email, My Submissions link, and Sign Out button. Sign In button calls `signIn()` directly to redirect to WorkOS hosted login. Used across all pages for consistent navigation and auth UI.
 
 ### `src/App.tsx`
 
-Main package directory interface. Includes:
+Main package submission interface. Compact toolbar, package submission form, search, sort, package card list, modals, and mobile responsive design.
 
-- Compact toolbar above package listing with title, info icon, search, sort dropdown, and submit button
-- App title: "Components npm Submissions Directory" inline with controls
-- Package submission form with submitter information fields (name, email with privacy notice, optional Discord) and optional live demo URL
-- Submit modal opens at top of page with max z-index for iframe support
-- Success modal with max z-index displays after submission (auto-closes after 3 seconds)
-- About modal opens at top of page with status legend
-- Search input with keyboard shortcut (Cmd+K) and real-time filtering
-- Sort dropdown (newest, downloads, updated)
-- Package card list with expandable details showing review status badges
-- Review status badges using Phosphor icons (pending, in review, approved, changes requested, rejected)
-- Featured star icon on featured packages with tooltip
-- Demo link button for packages with live demos
-- External links (npm, repo, website, demo) use window.open() for iframe compatibility
-- Public comments display on package details
-- Loading skeleton states
-- Empty state when no packages found
-- Custom modal components for errors and confirmations
-- Phosphor icons throughout (replacing emojis)
-- No header or footer (streamlined for iframe embedding)
-- Fully mobile responsive design
+### `src/pages/Directory.tsx`
+
+Component directory listing page at `/components/`. Features shared Header component, search, sort, category sidebar, featured section, component cards grid, and submit link. No auth required to view.
+
+
+### `src/pages/SubmitForm.tsx`
+
+Dedicated component submission form page at `/submit`. Features:
+- Shared Header component with auth state
+- For unauthenticated users: sign-in gate with checklist (all 3 must be checked to enable Sign In button), FAQ, and terms links
+- For authenticated users:
+  - Full submission form with all fields
+  - 3 checkboxes at bottom of form (FAQ read, guidelines compliance, permission to share)
+  - Submit button disabled until all 3 checkboxes are checked
+  - FAQ section below form
+  - Terms of Service and Privacy Policy links at bottom
+- Form collects: component name, GitHub repo, npm URL, demo URL, category, descriptions, tags, video URL, logo upload, submitter info
+- Success/error modals with links to profile page
+
+### `src/pages/Submit.tsx`
+
+Public submissions directory at `/submissions`. Table-based UI showing all submitted components with expandable rows. Features:
+- Shared Header component with auth state
+- Search and sort controls (newest, most downloads, recently updated)
+- Expandable package rows with install command, license, size, files, maintainers
+- npm/Repo/Website/Demo action buttons per package
+- Status badges (pending, in review, approved, changes requested, rejected)
+- Submit button links to `/submit` (auth-gated form page)
+- About modal with status legend
+
+### `src/pages/Profile.tsx`
+
+User profile page for managing submitted components. Accessible at `/profile`. Features:
+- Shared Header component with auth state
+- Sign-in gate for unauthenticated users with Sign In button calling `signIn()` directly
+- Lists all components submitted by the authenticated user (via submitterEmail or additionalEmails)
+- Shows review status (pending, in_review, approved, changes_requested, rejected) and visibility badges
+- "Send Request" button to send notes to admin team (request re-review, removal, or updates)
+- "View Notes" modal showing threaded admin replies with notification badge for unread replies
+- "Edit" button to update submission details (name, descriptions, category, tags, URLs)
+- "Hide/Show" toggle to control visibility in the directory with confirmation
+- "Delete" button to remove submission completely with confirmation
+- Links to view approved components
+- Status guide explaining each review state with visibility guide (Visible, Hidden, Archived)
+- Submit New button linking to submission form
+
+### `src/pages/Admin.tsx`
+
+Admin dashboard at `/submissions/admin` (requires @convex.dev email). Features shared Header component, admin-specific search bar, stats, package management, review status, visibility controls, AI review, component details editor, thumbnail preview in list, notes, comments, CSV export, and SubmitterEmailEditor for managing primary submitter email and additional emails. Non-admin users are automatically redirected to their profile page. Unauthenticated users see a simple "Admin access only" sign-in prompt.
+
+### `src/pages/NotFound.tsx`
+
+404 page component with shared Header and navigation back to directory.
+
+### `src/pages/ComponentDetail.tsx`
+
+Component detail page at `/components/:slug`. Features shared Header component, narrow sidebar (left) with npm link, category, stats, verified badge, source link, Share dropdown, and Back link. Main area (right) with author, title, install command, GitHub issues tab, AI-generated SEO content layer, rendered long description, video embed, tags, and README badge snippet. Includes dual JSON-LD structured data for SEO.
+
+### `src/components/ComponentCard.tsx`
+
+Component card for directory listing. Shows thumbnail, name, description, downloads, version, verified badge.
+
+### `src/components/CategorySidebar.tsx`
+
+Category filter sidebar for the directory page.
+
+### `src/components/SearchBar.tsx`
+
+Reusable search input with clear button.
+
+### `src/components/VerifiedBadge.tsx`
+
+Reusable "Convex Verified" badge component.
+
+### `src/components/InstallCommand.tsx`
+
+Copy-to-clipboard install command component.
+
+### `src/components/ComponentDetailsEditor.tsx`
+
+Admin editor for directory-specific fields: slug, category, tags, descriptions, video URL, verified badge, featured status, thumbnail upload with preview, thumbnail clear option (applies after Save), auto-fill author from GitHub, and AI SEO content generation trigger with status display.
+
+### `src/lib/categories.ts`
+
+Static category definitions and `getCategoryLabel` helper.
+
+### `src/lib/slugs.ts`
+
+Client-side slug generation and parsing utilities for URL-safe component slugs.
+
+### `src/lib/seo.ts`
+
+Client-side utilities to manage document title, meta description, Open Graph tags, JSON-LD structured data injection, and `buildComponentJsonLd()` helper that creates a dual `@graph` schema combining SoftwareSourceCode and FAQPage for SEO/AEO/GEO.
 
 ### `src/Admin.tsx`
 
-Admin dashboard component. Shows:
-
-- Simple "Admin" text header (no breadcrumb or navigation links)
-- Authentication check and sign-in form
-- Access denied message for non-admin users
-- Admin dashboard with statistics cards (total packages by status, downloads)
-- Status legend centered below Stats section
-- Package submissions table with filtering by review status (all, pending, in_review, approved, changes_requested, rejected, archived)
-- Review status management with inline action buttons (approve, review, changes, pending, reject)
-- Visibility controls with inline buttons (show, hide, archive)
-- Featured toggle button (Star icon) for approved packages only
-- AI Review button to trigger automated code analysis against Convex specs
-- AI Review status badges (passed, failed, partial, reviewing, error)
-- AI Review results panel with expandable criteria checklist and suggestions
-- Admin settings panel with auto-approve/reject toggles for AI automation
-- Refresh NPM data button (ArrowClockwise icon) to pull latest package info from npm
-- Package deletion with confirmation modal
-- Submitter information display (name, email, Discord username) for each package
-- External links (npm, repo, demo) use window.open() for iframe compatibility
-- Demo link button for packages with live demos
-- Package notes panel with threaded notes support (internal, admin only)
-- Public comments panel for managing frontend visible comments
-- Notes and comments buttons with count badges on each package row
-- Add note/reply functionality with author information
-- Delete note functionality
-- Star icon display next to featured package names
-- CSV export functionality
-- Custom tooltips and confirmation modals
-- Phosphor icons for all UI elements
-- No footer (streamlined layout)
-- Mobile responsive design with collapsible package rows
-
-### `src/SignInForm.tsx`
-
-Authentication form component. Supports email/password sign-in and sign-up, plus anonymous authentication. Uses Convex Auth hooks.
+Legacy admin file (re-exports from pages/Admin.tsx or contains full admin logic).
 
 ### `src/SignOutButton.tsx`
 
-Simple sign-out button component using Convex Auth.
+Sign-out button component using WorkOS AuthKit `signOut()`.
 
 ### `src/index.css`
 
-Global CSS styles. Includes Tailwind directives and custom CSS variables for the design system (colors, spacing, etc.).
+Global CSS with Tailwind directives and design system variables.
 
 ### `src/lib/utils.ts`
 
-Utility functions. Currently contains `cn` function for merging Tailwind classes with clsx and tailwind-merge.
+Utility functions including `cn` for Tailwind class merging.
 
 ### `src/vite-env.d.ts`
 
@@ -227,7 +259,7 @@ TypeScript declarations for Vite environment variables.
 
 ### `dist/`
 
-Production build output directory. Contains optimized HTML, CSS, and JavaScript bundles ready for deployment to Netlify.
+Production build output directory.
 
 ### `node_modules/`
 
@@ -237,11 +269,11 @@ NPM package dependencies. Not tracked in git.
 
 ### `setup.mjs`
 
-Setup script (if present) for initial project configuration.
+Setup script for initial project configuration.
 
 ### `README.md`
 
-Convex Components Challenge documentation. Describes the challenge for developers to build reusable backend components, lists reward tiers (featured placement, gift cards, swag), provides links to component authoring guides and submission process, and lists challenge categories (Auth, AI, Analytics, Storage, etc.).
+Convex Components Challenge documentation.
 
 ### `files.md`
 
@@ -257,26 +289,20 @@ Task list for tracking project progress and completed features.
 
 ### `prds/`
 
-Product requirements documents folder containing:
-
+Product requirements documents:
+- `architecture-overview.md`: Comprehensive architecture documentation with mermaid diagrams showing user flows, admin flows, AI integration, auth, and database schema
 - `aicheck.md`: AI Review feature specification
-- `howitworks.md`: Technical documentation for data fetching from npm and GitHub, rate limit concerns, and AI review process
+- `howitworks.md`: Technical documentation for data fetching, AI review process
 - `nowriteconflicts.md`: Guidelines for preventing Convex write conflicts
 - `token-based-auth-checks.md`: Token-based authentication guidelines
+- `env-deploy-fix.md`: Environment and deployment configuration
+- `2026-02-22-workos-auth-issues.md`: WorkOS AuthKit integration issues and solutions including JWT claims, dual provider config, callback timing, admin checks, and environment setup
+- `user-profile-enhancements.md`: User profile features including hide/show/delete submissions, edit modal, multi-account access via additionalEmails, and admin email editor
 
-## Cursor Rules
+### `.cursor/rules/`
 
-### `.cursor/rules/sec-check.mdc`
+Cursor rules for development guidelines including `sec-check.mdc`, `dev2.mdc`, `help.mdc`, `gitrules.mdc`, `convex2.mdc`, `rulesforconvex.mdc`.
 
-Comprehensive security guidelines for Convex applications. Activate with `@sec-check` to audit code for vulnerabilities, scan for PII exposure, and verify auth patterns. Includes:
+### `.cursor/plans/`
 
-- Authentication and authorization patterns (identity verification, indexed ownership checks)
-- Input validation and sanitization
-- Public vs internal function separation
-- Data exposure prevention and PII stripping with `toPublicData()` helpers
-- Row-Level Security (RLS) patterns using convex-helpers (`wrapDatabaseReader`, `wrapDatabaseWriter`)
-- AI-Assisted Development Security for vibe coding with Cursor/Copilot
-- Convex Auth token security (XSS prevention, refresh token protection)
-- Dependency and supply chain security (npm audit, version locking)
-- Error handling security (generic error messages, server-side logging)
-- Security checklist for pre-deployment verification
+Plan documents including `components_directory_expansion_dd445bcc.plan.md` for the full directory expansion project.

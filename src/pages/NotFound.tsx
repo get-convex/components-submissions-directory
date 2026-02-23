@@ -1,11 +1,19 @@
 // 404 Not Found page with isometric computer illustration
+import Header from "../components/Header";
+
 export default function NotFound() {
   const handleGoHome = () => {
-    window.location.href = "/";
+    // Navigate to directory root (handles both prod and local paths)
+    const basePath = window.location.pathname.startsWith("/components")
+      ? "/components"
+      : "/";
+    window.location.href = basePath;
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-bg-primary px-4 py-8">
+    <div className="min-h-screen bg-bg-primary">
+      <Header />
+      <div className="flex flex-col items-center justify-center px-4 py-8" style={{ minHeight: "calc(100vh - 56px)" }}>
       {/* Isometric computer illustration */}
       <div className="w-full max-w-md mb-8">
         <svg
@@ -166,6 +174,7 @@ export default function NotFound() {
         >
           Back to Home
         </button>
+      </div>
       </div>
     </div>
   );

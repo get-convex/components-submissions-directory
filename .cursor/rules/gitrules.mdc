@@ -15,6 +15,7 @@ alwaysApply: true
 ## Critical Git Safety Protocol
 
 **🚨 NEVER USE `git checkout` TO REVERT CHANGES 🚨**
+**🚨 NEVER USE `git commit` wihtout asking me and on your own 🚨**
 
 **MANDATORY GIT SAFETY RULES:**
 

@@ -3,7 +3,6 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
-import { Id } from "./_generated/dataModel";
 import Anthropic from "@anthropic-ai/sdk";
 
 // Convex component review criteria
@@ -60,7 +59,7 @@ const REVIEW_CRITERIA = [
 // Fetch repository contents from GitHub (for Convex components)
 async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
   // Normalize the URL to handle various formats
-  let normalizedUrl = repoUrl
+  const normalizedUrl = repoUrl
     .replace(/^git\+/, "") // Remove git+ prefix (npm style)
     .replace(/\.git$/, "") // Remove .git suffix
     .replace(/\/$/, "") // Remove trailing slash
