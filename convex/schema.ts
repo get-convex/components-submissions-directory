@@ -111,6 +111,10 @@ const applicationTables = {
     reviewNotes: v.optional(v.string()),
     // Featured flag - only approved packages can be featured
     featured: v.optional(v.boolean()),
+    // Soft deletion fields - user marks for deletion, admin permanently deletes
+    markedForDeletion: v.optional(v.boolean()),
+    markedForDeletionAt: v.optional(v.number()),
+    markedForDeletionBy: v.optional(v.string()), // email of user who requested deletion
     // AI Review fields
     aiReviewStatus: v.optional(
       v.union(
@@ -238,6 +242,7 @@ const applicationTables = {
     .index("by_category", ["category"])
     .index("by_category_and_visibility", ["category", "visibility"])
     .index("by_submitter_email", ["submitterEmail"])
+    .index("by_marked_for_deletion", ["markedForDeletion"])
     .searchIndex("search_name", {
       searchField: "name",
       filterFields: ["visibility", "reviewStatus"],

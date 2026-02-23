@@ -23,6 +23,8 @@ import {
   Trash,
   SignOut,
   UserMinus,
+  Clock,
+  ArrowCounterClockwise,
 } from "@phosphor-icons/react";
 
 // Get base path for links (empty for local dev, /components for production)
@@ -99,6 +101,23 @@ function VisibilityBadge({ visibility }: { visibility?: string }) {
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
       {config.icon}
       {config.label}
+    </span>
+  );
+}
+
+// Marked for deletion badge component
+function DeletionBadge({ markedForDeletionAt }: { markedForDeletionAt?: number }) {
+  if (!markedForDeletionAt) return null;
+
+  const deletionDate = new Date(markedForDeletionAt).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+      <Clock size={14} />
+      Pending Deletion ({deletionDate})
     </span>
   );
 }
@@ -364,13 +383,16 @@ function DeleteAccountModal({
   onConfirm,
   onClose,
   isLoading,
+  activeSubmissionsCount,
 }: {
   onConfirm: () => void;
   onClose: () => void;
   isLoading: boolean;
+  activeSubmissionsCount: number;
 }) {
   const [confirmText, setConfirmText] = useState("");
   const isConfirmed = confirmText === "DELETE";
+  const hasActiveSubmissions = activeSubmissionsCount > 0;
 
   return (
     <div
@@ -392,51 +414,87 @@ function DeleteAccountModal({
           <h2 className="text-lg font-medium text-text-primary">Delete Account</h2>
         </div>
 
-        <div className="space-y-3 mb-6">
-          <p className="text-sm text-text-secondary">
-            This action is permanent and cannot be undone. Deleting your account will:
-          </p>
-          <ul className="text-sm text-text-secondary list-disc list-inside space-y-1">
-            <li>Remove all your component submissions</li>
-            <li>Delete all associated notes and comments</li>
-            <li>Remove your ratings and feedback</li>
-            <li>Remove your access from shared submissions</li>
-          </ul>
-          <p className="text-sm text-red-600 font-medium">
-            You will need to sign in again to confirm this action.
-          </p>
-        </div>
+        {hasActiveSubmissions ? (
+          // Warning: Must delete submissions first
+          <div className="space-y-4">
+            <div className="p-4 rounded-lg border border-yellow-200 bg-yellow-50">
+              <div className="flex gap-3">
+                <Warning size={20} className="text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-sm font-medium text-yellow-800">
+                    Delete your components first
+                  </h3>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    You have {activeSubmissionsCount} active component
+                    {activeSubmissionsCount > 1 ? "s" : ""} that must be deleted before you can
+                    delete your account.
+                  </p>
+                </div>
+              </div>
+            </div>
 
-        <div className="mb-6">
-          <label className="block text-sm font-medium text-text-primary mb-2">
-            Type DELETE to confirm
-          </label>
-          <input
-            type="text"
-            value={confirmText}
-            onChange={(e) => setConfirmText(e.target.value)}
-            placeholder="DELETE"
-            disabled={isLoading}
-            className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 disabled:opacity-50"
-          />
-        </div>
+            <p className="text-sm text-text-secondary">
+              To delete your account, go to each of your submissions and click the Delete button.
+              Once all your components are marked for deletion, you can return here to delete your
+              account.
+            </p>
 
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isLoading}
-            className="flex-1 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors disabled:opacity-50">
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={isLoading || !isConfirmed}
-            className="flex-1 px-4 py-2 rounded-full text-sm font-normal bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-            {isLoading ? "Deleting..." : "Delete My Account"}
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full px-4 py-2 rounded-full text-sm font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors">
+              Close
+            </button>
+          </div>
+        ) : (
+          // Normal deletion flow
+          <>
+            <div className="space-y-3 mb-6">
+              <p className="text-sm text-text-secondary">
+                This action is permanent and cannot be undone. Deleting your account will:
+              </p>
+              <ul className="text-sm text-text-secondary list-disc list-inside space-y-1">
+                <li>Remove your access from any shared submissions</li>
+                <li>Sign you out of this application</li>
+              </ul>
+              <p className="text-sm text-green-700 bg-green-50 p-2 rounded">
+                All your components have been marked for deletion and will be permanently removed by
+                our admin team.
+              </p>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-text-primary mb-2">
+                Type DELETE to confirm
+              </label>
+              <input
+                type="text"
+                value={confirmText}
+                onChange={(e) => setConfirmText(e.target.value)}
+                placeholder="DELETE"
+                disabled={isLoading}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 disabled:opacity-50"
+              />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isLoading}
+                className="flex-1 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors disabled:opacity-50">
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={onConfirm}
+                disabled={isLoading || !isConfirmed}
+                className="flex-1 px-4 py-2 rounded-full text-sm font-normal bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                {isLoading ? "Deleting..." : "Delete My Account"}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -648,6 +706,7 @@ function SubmissionCard({
   onHide,
   onShow,
   onDelete,
+  onCancelDelete,
   basePath,
 }: {
   submission: {
@@ -662,6 +721,8 @@ function SubmissionCard({
     shortDescription?: string;
     category?: string;
     unreadAdminReplies: number;
+    markedForDeletion?: boolean;
+    markedForDeletionAt?: number;
   };
   onRequestRefresh: (id: Id<"packages">, name: string) => void;
   onViewNotes: (id: Id<"packages">, name: string) => void;
@@ -669,6 +730,7 @@ function SubmissionCard({
   onHide: (id: Id<"packages">, name: string) => void;
   onShow: (id: Id<"packages">, name: string) => void;
   onDelete: (id: Id<"packages">, name: string) => void;
+  onCancelDelete: (id: Id<"packages">, name: string) => void;
   basePath: string;
 }) {
   const displayName = submission.componentName || submission.name;
@@ -719,9 +781,12 @@ function SubmissionCard({
             </div>
 
             {/* Status badges */}
-            <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
               <StatusBadge status={submission.reviewStatus} />
               <VisibilityBadge visibility={submission.visibility} />
+              {submission.markedForDeletion && (
+                <DeletionBadge markedForDeletionAt={submission.markedForDeletionAt} />
+              )}
             </div>
           </div>
 
@@ -734,64 +799,82 @@ function SubmissionCard({
 
           {/* Actions */}
           <div className="flex flex-wrap items-center gap-2 mt-3">
-            {/* Edit button */}
-            <button
-              onClick={() => onEdit(submission._id)}
-              className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
-              <PencilSimple size={14} />
-              Edit
-            </button>
-            {/* Send Request button */}
-            <button
-              onClick={() => onRequestRefresh(submission._id, displayName)}
-              className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
-              <ChatCircleText size={14} />
-              Send Request
-            </button>
-            {/* View Messages button with notification badge */}
-            <button
-              onClick={() => onViewNotes(submission._id, displayName)}
-              className="relative inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
-              <Bell size={14} />
-              Messages
-              {submission.unreadAdminReplies > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-green-500 text-white">
-                  {submission.unreadAdminReplies > 9 ? "9+" : submission.unreadAdminReplies}
-                </span>
-              )}
-            </button>
-            {/* View component link - only when approved AND visible */}
-            {canViewDetail && (
-              <a
-                href={`${basePath}/${submission.slug}`}
-                className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
-                <Eye size={14} />
-                View
-              </a>
-            )}
-            {/* Hide/Show toggle */}
-            {submission.visibility !== "hidden" ? (
-              <button
-                onClick={() => onHide(submission._id, displayName)}
-                className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-200 transition-colors">
-                <EyeSlash size={14} />
-                Hide
-              </button>
+            {submission.markedForDeletion ? (
+              // Show only cancel delete when marked for deletion
+              <>
+                <div className="flex-1 text-xs text-red-600">
+                  This component is scheduled for permanent deletion. Admin will process the removal.
+                </div>
+                <button
+                  onClick={() => onCancelDelete(submission._id, displayName)}
+                  className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-colors">
+                  <ArrowCounterClockwise size={14} />
+                  Cancel Deletion
+                </button>
+              </>
             ) : (
-              <button
-                onClick={() => onShow(submission._id, displayName)}
-                className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-colors">
-                <Eye size={14} />
-                Show
-              </button>
+              // Normal action buttons
+              <>
+                {/* Edit button */}
+                <button
+                  onClick={() => onEdit(submission._id)}
+                  className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+                  <PencilSimple size={14} />
+                  Edit
+                </button>
+                {/* Send Request button */}
+                <button
+                  onClick={() => onRequestRefresh(submission._id, displayName)}
+                  className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+                  <ChatCircleText size={14} />
+                  Send Request
+                </button>
+                {/* View Messages button with notification badge */}
+                <button
+                  onClick={() => onViewNotes(submission._id, displayName)}
+                  className="relative inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+                  <Bell size={14} />
+                  Messages
+                  {submission.unreadAdminReplies > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-green-500 text-white">
+                      {submission.unreadAdminReplies > 9 ? "9+" : submission.unreadAdminReplies}
+                    </span>
+                  )}
+                </button>
+                {/* View component link - only when approved AND visible */}
+                {canViewDetail && (
+                  <a
+                    href={`${basePath}/${submission.slug}`}
+                    className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+                    <Eye size={14} />
+                    View
+                  </a>
+                )}
+                {/* Hide/Show toggle */}
+                {submission.visibility !== "hidden" ? (
+                  <button
+                    onClick={() => onHide(submission._id, displayName)}
+                    className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-200 transition-colors">
+                    <EyeSlash size={14} />
+                    Hide
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => onShow(submission._id, displayName)}
+                    className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-colors">
+                    <Eye size={14} />
+                    Show
+                  </button>
+                )}
+                {/* Delete button */}
+                <button
+                  onClick={() => onDelete(submission._id, displayName)}
+                  className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors">
+                  <Trash size={14} />
+                  Delete
+                </button>
+              </>
             )}
-            {/* Delete button */}
-            <button
-              onClick={() => onDelete(submission._id, displayName)}
-              className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors">
-              <Trash size={14} />
-              Delete
-            </button>
           </div>
         </div>
       </div>
@@ -808,7 +891,13 @@ export default function Profile() {
   // Mutations for user actions
   const setVisibility = useMutation(api.packages.setMySubmissionVisibility);
   const deleteSubmission = useMutation(api.packages.requestDeleteMySubmission);
+  const cancelDeleteSubmission = useMutation(api.packages.cancelDeleteMySubmission);
   const deleteAccount = useMutation(api.packages.deleteMyAccount);
+
+  // Count active (not marked for deletion) submissions
+  const activeSubmissions = useMemo(() => {
+    return submissions?.filter((s) => !s.markedForDeletion) ?? [];
+  }, [submissions]);
 
   // Modal state for request
   const [requestModal, setRequestModal] = useState<{
@@ -827,7 +916,7 @@ export default function Profile() {
 
   // Confirmation modal state
   const [confirmModal, setConfirmModal] = useState<{
-    type: "hide" | "show" | "delete";
+    type: "hide" | "show" | "delete" | "cancel-delete";
     packageId: Id<"packages">;
     packageName: string;
   } | null>(null);
@@ -846,8 +935,10 @@ export default function Profile() {
       setDeleteAccountModal(false);
       // Sign out and redirect to home
       signOut();
-    } catch (err) {
-      toast.error("Failed to delete account");
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to delete account";
+      toast.error(errorMessage);
       console.error(err);
     } finally {
       setDeleteAccountLoading(false);
@@ -867,7 +958,10 @@ export default function Profile() {
         toast.success("Component visible in directory");
       } else if (confirmModal.type === "delete") {
         await deleteSubmission({ packageId: confirmModal.packageId });
-        toast.success("Submission deleted");
+        toast.success("Component marked for deletion");
+      } else if (confirmModal.type === "cancel-delete") {
+        await cancelDeleteSubmission({ packageId: confirmModal.packageId });
+        toast.success("Deletion cancelled");
       }
       setConfirmModal(null);
     } catch (err) {
@@ -1001,6 +1095,9 @@ export default function Profile() {
                   onDelete={(id, name) =>
                     setConfirmModal({ type: "delete", packageId: id, packageName: name })
                   }
+                  onCancelDelete={(id, name) =>
+                    setConfirmModal({ type: "cancel-delete", packageId: id, packageName: name })
+                  }
                 />
               ))}
             </div>
@@ -1050,6 +1147,12 @@ export default function Profile() {
               <VisibilityBadge visibility="archived" />
               <span className="text-text-secondary">Archived by admin</span>
             </li>
+            <li className="flex items-center gap-2">
+              <DeletionBadge markedForDeletionAt={Date.now()} />
+              <span className="text-text-secondary">
+                Scheduled for permanent deletion by admin
+              </span>
+            </li>
           </ul>
         </div>
 
@@ -1064,8 +1167,9 @@ export default function Profile() {
               <div className="flex-1">
                 <h4 className="text-sm font-medium text-red-800">Delete Account</h4>
                 <p className="text-xs text-red-700 mt-1 mb-3">
-                  Permanently delete your account and all associated data. This action cannot be
-                  undone.
+                  To delete your account, first delete all your component submissions using the
+                  Delete button on each component. Once all components are marked for deletion, you
+                  can delete your account.
                 </p>
                 <button
                   onClick={() => setDeleteAccountModal(true)}
@@ -1129,10 +1233,22 @@ export default function Profile() {
 
       {confirmModal?.type === "delete" && (
         <ConfirmModal
-          title="Delete Submission"
-          message={`Permanently delete "${confirmModal.packageName}"? This cannot be undone.`}
-          confirmLabel="Delete"
+          title="Mark for Deletion"
+          message={`Mark "${confirmModal.packageName}" for deletion? The component will be hidden from the directory and permanently deleted by our admin team.`}
+          confirmLabel="Mark for Deletion"
           confirmStyle="danger"
+          onConfirm={handleConfirm}
+          onClose={() => setConfirmModal(null)}
+          isLoading={confirmLoading}
+        />
+      )}
+
+      {confirmModal?.type === "cancel-delete" && (
+        <ConfirmModal
+          title="Cancel Deletion"
+          message={`Cancel deletion request for "${confirmModal.packageName}"? The component will remain hidden but you can show it again.`}
+          confirmLabel="Cancel Deletion"
+          confirmStyle="default"
           onConfirm={handleConfirm}
           onClose={() => setConfirmModal(null)}
           isLoading={confirmLoading}
@@ -1145,6 +1261,7 @@ export default function Profile() {
           onConfirm={handleDeleteAccount}
           onClose={() => setDeleteAccountModal(false)}
           isLoading={deleteAccountLoading}
+          activeSubmissionsCount={activeSubmissions.length}
         />
       )}
     </div>

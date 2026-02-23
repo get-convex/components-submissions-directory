@@ -22,4 +22,15 @@ crons.cron(
   {},
 );
 
+// Run daily at 2 AM UTC to clean up packages marked for deletion
+// Actual deletion is gated by:
+// - autoDeleteMarkedPackages setting
+// - deleteIntervalDays (waiting period before permanent deletion)
+crons.cron(
+  "cleanup-marked-for-deletion",
+  "0 2 * * *",
+  internal.packages.scheduledDeletionCleanup,
+  {},
+);
+
 export default crons;

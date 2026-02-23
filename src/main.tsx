@@ -16,14 +16,15 @@ import { isReservedRoute, parseSlugFromPath } from "./lib/slugs";
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
 // Route mapping for the components directory
-// Production: hosted at /components/* on convex.dev
-// Local dev: hosted at /* on localhost
+// Production: Netlify at components-directory.netlify.app/components/*
+// Local dev: localhost:5173/*
 function Router() {
   const path = window.location.pathname;
 
-  // Detect base path: production uses /components, local dev uses /
-  const basePath = "/components";
-  const normalizedPath = path.startsWith(basePath)
+  // Detect base path: Netlify production uses /components, local dev uses /
+  const isNetlify = window.location.hostname.includes("netlify.app");
+  const basePath = isNetlify ? "/components" : "";
+  const normalizedPath = basePath && path.startsWith(basePath)
     ? path.slice(basePath.length) || "/"
     : path;
 
@@ -89,7 +90,8 @@ function AuthCallback() {
   
   // Get the return path from localStorage (set before sign-in) or default to submit
   const returnPath = useMemo(() => {
-    const basePath = window.location.origin.includes("convex.dev") ? "/components" : "";
+    const isNetlify = window.location.hostname.includes("netlify.app");
+    const basePath = isNetlify ? "/components" : "";
     const storedPath = localStorage.getItem("authReturnPath");
     
     // Clear the stored path after reading

@@ -1,6 +1,5 @@
-# Rewrite /components/submit/* to root for assets to load correctly
-/components/submit/* /:splat 200
+# Netlify SPA routing for components-directory.netlify.app
+# All /components/* routes serve index.html for client-side routing
 
-# SPA fallback
+# SPA fallback for all routes
 /* /index.html 200
-

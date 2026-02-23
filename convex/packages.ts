@@ -236,6 +236,10 @@ const adminPackageValidator = v.object({
     ),
   ),
   seoGenerationError: v.optional(v.string()),
+  // Deletion fields
+  markedForDeletion: v.optional(v.boolean()),
+  markedForDeletionAt: v.optional(v.number()),
+  markedForDeletionBy: v.optional(v.string()),
 });
 
 // Helper function to strip sensitive fields from a package
@@ -368,6 +372,10 @@ function toAdminPackage(pkg: any) {
     seoGeneratedAt: pkg.seoGeneratedAt,
     seoGenerationStatus: pkg.seoGenerationStatus,
     seoGenerationError: pkg.seoGenerationError,
+    // Deletion fields
+    markedForDeletion: pkg.markedForDeletion,
+    markedForDeletionAt: pkg.markedForDeletionAt,
+    markedForDeletionBy: pkg.markedForDeletionBy,
   };
 }
 
@@ -833,10 +841,10 @@ export const listPackages = query({
     const allPackages = await ctx.db.query("packages").collect();
 
     // Filter: show packages that are visible (or no visibility set = visible by default)
-    // Hidden and archived packages are excluded from public view
+    // Hidden, archived, and marked-for-deletion packages are excluded from public view
     const publicPackages = allPackages.filter((pkg) => {
       const isVisible = !pkg.visibility || pkg.visibility === "visible";
-      return isVisible;
+      return isVisible && !pkg.markedForDeletion;
     });
 
     let sortedPackages;
@@ -893,7 +901,11 @@ export const searchPackages = query({
     if (!args.searchTerm.trim()) {
       const allPackages = await ctx.db.query("packages").collect();
       const filtered = allPackages
-        .filter((pkg) => !pkg.visibility || pkg.visibility === "visible")
+        .filter(
+          (pkg) =>
+            (!pkg.visibility || pkg.visibility === "visible") &&
+            !pkg.markedForDeletion,
+        )
         .sort((a, b) => b.submittedAt - a.submittedAt)
         .slice(0, 50);
       // SECURITY: Strip sensitive fields before returning to client
@@ -933,8 +945,11 @@ export const searchPackages = query({
     ]) {
       if (!seen.has(pkg._id)) {
         seen.add(pkg._id);
-        // Filter to only visible packages
-        if (!pkg.visibility || pkg.visibility === "visible") {
+        // Filter to only visible packages (not hidden, not marked for deletion)
+        if (
+          (!pkg.visibility || pkg.visibility === "visible") &&
+          !pkg.markedForDeletion
+        ) {
           combined.push(pkg);
         }
       }
@@ -2591,10 +2606,12 @@ export const listApprovedComponents = query({
         .withIndex("by_category", (q) => q.eq("category", args.category))
         .collect();
       // Keep category-filtered results aligned with global directory visibility/status rules.
+      // Also exclude packages marked for deletion.
       packages = packages.filter(
         (pkg) =>
           pkg.reviewStatus === "approved" &&
-          (!pkg.visibility || pkg.visibility === "visible"),
+          (!pkg.visibility || pkg.visibility === "visible") &&
+          !pkg.markedForDeletion,
       );
     } else {
       // Get all approved+visible packages
@@ -2602,8 +2619,11 @@ export const listApprovedComponents = query({
         .query("packages")
         .withIndex("by_review_status", (q) => q.eq("reviewStatus", "approved"))
         .collect();
+      // Exclude packages marked for deletion
       packages = packages.filter(
-        (pkg) => !pkg.visibility || pkg.visibility === "visible",
+        (pkg) =>
+          (!pkg.visibility || pkg.visibility === "visible") &&
+          !pkg.markedForDeletion,
       );
     }
 
@@ -2688,8 +2708,12 @@ export const getComponentBySlug = query({
 
     if (!pkg) return null;
 
-    // Hide explicitly hidden or archived packages
-    if (pkg.visibility === "hidden" || pkg.visibility === "archived") {
+    // Hide explicitly hidden, archived, or marked-for-deletion packages
+    if (
+      pkg.visibility === "hidden" ||
+      pkg.visibility === "archived" ||
+      pkg.markedForDeletion
+    ) {
       return null;
     }
 
@@ -2721,6 +2745,8 @@ const userSubmissionValidator = v.object({
   shortDescription: v.optional(v.string()),
   category: v.optional(v.string()),
   unreadAdminReplies: v.number(),
+  markedForDeletion: v.optional(v.boolean()),
+  markedForDeletionAt: v.optional(v.number()),
 });
 
 // Public query: Get submissions by the authenticated user's email
@@ -2810,6 +2836,8 @@ export const getMySubmissions = query({
           shortDescription: pkg.shortDescription,
           category: pkg.category,
           unreadAdminReplies: unreadCount,
+          markedForDeletion: pkg.markedForDeletion,
+          markedForDeletionAt: pkg.markedForDeletionAt,
         };
       }),
     );
@@ -3069,7 +3097,8 @@ export const setMySubmissionVisibility = mutation({
   },
 });
 
-// Mutation: User requests deletion of their submission
+// Mutation: User marks their submission for deletion (soft delete)
+// Admin must permanently delete via scheduled cleanup or manual action
 export const requestDeleteMySubmission = mutation({
   args: {
     packageId: v.id("packages"),
@@ -3090,21 +3119,337 @@ export const requestDeleteMySubmission = mutation({
       throw new Error("You can only delete your own submissions");
     }
 
-    // Delete the package
-    await ctx.db.delete(args.packageId);
+    // Mark for deletion instead of immediate delete
+    await ctx.db.patch(args.packageId, {
+      markedForDeletion: true,
+      markedForDeletionAt: Date.now(),
+      markedForDeletionBy: identity.email,
+      // Hide from directory immediately
+      visibility: "hidden",
+    });
 
-    // Also delete associated notes
+    return null;
+  },
+});
+
+// Mutation: User cancels deletion request (unmarks for deletion)
+export const cancelDeleteMySubmission = mutation({
+  args: {
+    packageId: v.id("packages"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity || !identity.email) {
+      throw new Error("Authentication required");
+    }
+
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) {
+      throw new Error("Package not found");
+    }
+    if (!userOwnsPackage(pkg, identity.email)) {
+      throw new Error("You can only manage your own submissions");
+    }
+
+    // Remove deletion mark
+    await ctx.db.patch(args.packageId, {
+      markedForDeletion: undefined,
+      markedForDeletionAt: undefined,
+      markedForDeletionBy: undefined,
+    });
+
+    return null;
+  },
+});
+
+// Internal mutation: Permanently delete a package and all associated data
+export const _permanentlyDeletePackage = internalMutation({
+  args: {
+    packageId: v.id("packages"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) return null;
+
+    // Delete associated notes
     const notes = await ctx.db
       .query("packageNotes")
       .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
       .collect();
     await Promise.all(notes.map((note) => ctx.db.delete(note._id)));
 
+    // Delete associated comments
+    const comments = await ctx.db
+      .query("packageComments")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+    await Promise.all(comments.map((comment) => ctx.db.delete(comment._id)));
+
+    // Delete associated ratings
+    const ratings = await ctx.db
+      .query("componentRatings")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+    await Promise.all(ratings.map((rating) => ctx.db.delete(rating._id)));
+
+    // Delete thumbnail jobs
+    const jobs = await ctx.db
+      .query("thumbnailJobs")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+    await Promise.all(jobs.map((job) => ctx.db.delete(job._id)));
+
+    // Delete badge fetches
+    const fetches = await ctx.db
+      .query("badgeFetches")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+    await Promise.all(fetches.map((fetch) => ctx.db.delete(fetch._id)));
+
+    // Delete the package itself
+    await ctx.db.delete(args.packageId);
+
     return null;
   },
 });
 
-// Mutation: User deletes their entire account and all associated data
+// Admin mutation: Permanently delete a package marked for deletion
+export const adminPermanentlyDeletePackage = mutation({
+  args: {
+    packageId: v.id("packages"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.email?.endsWith("@convex.dev")) {
+      throw new Error("Admin access required");
+    }
+
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) {
+      throw new Error("Package not found");
+    }
+
+    // Delete associated notes
+    const notes = await ctx.db
+      .query("packageNotes")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+    await Promise.all(notes.map((note) => ctx.db.delete(note._id)));
+
+    // Delete associated comments
+    const comments = await ctx.db
+      .query("packageComments")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+    await Promise.all(comments.map((comment) => ctx.db.delete(comment._id)));
+
+    // Delete associated ratings
+    const ratings = await ctx.db
+      .query("componentRatings")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+    await Promise.all(ratings.map((rating) => ctx.db.delete(rating._id)));
+
+    // Delete thumbnail jobs
+    const jobs = await ctx.db
+      .query("thumbnailJobs")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+    await Promise.all(jobs.map((job) => ctx.db.delete(job._id)));
+
+    // Delete badge fetches
+    const fetches = await ctx.db
+      .query("badgeFetches")
+      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
+      .collect();
+    await Promise.all(fetches.map((fetch) => ctx.db.delete(fetch._id)));
+
+    // Delete the package itself
+    await ctx.db.delete(args.packageId);
+
+    return null;
+  },
+});
+
+// Query: Get packages marked for deletion (admin only)
+export const getPackagesMarkedForDeletion = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id("packages"),
+      name: v.string(),
+      componentName: v.optional(v.string()),
+      submitterEmail: v.optional(v.string()),
+      markedForDeletionAt: v.optional(v.number()),
+      markedForDeletionBy: v.optional(v.string()),
+    })
+  ),
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.email?.endsWith("@convex.dev")) {
+      return [];
+    }
+
+    const packages = await ctx.db
+      .query("packages")
+      .withIndex("by_marked_for_deletion", (q) => q.eq("markedForDeletion", true))
+      .collect();
+
+    return packages.map((pkg) => ({
+      _id: pkg._id,
+      name: pkg.name,
+      componentName: pkg.componentName,
+      submitterEmail: pkg.submitterEmail,
+      markedForDeletionAt: pkg.markedForDeletionAt,
+      markedForDeletionBy: pkg.markedForDeletionBy,
+    }));
+  },
+});
+
+// Query: Get deletion cleanup settings
+export const getDeletionCleanupSettings = query({
+  args: {},
+  returns: v.object({
+    autoDeleteEnabled: v.boolean(),
+    deleteIntervalDays: v.number(),
+  }),
+  handler: async (ctx) => {
+    const autoDeleteSetting = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q) => q.eq("key", "autoDeleteMarkedPackages"))
+      .unique();
+
+    const intervalSetting = await ctx.db
+      .query("adminSettingsNumeric")
+      .withIndex("by_key", (q) => q.eq("key", "deleteIntervalDays"))
+      .unique();
+
+    return {
+      autoDeleteEnabled: autoDeleteSetting?.value ?? false,
+      deleteIntervalDays: intervalSetting?.value ?? 7,
+    };
+  },
+});
+
+// Mutation: Update deletion cleanup settings
+export const updateDeletionCleanupSetting = mutation({
+  args: {
+    key: v.union(v.literal("autoDeleteMarkedPackages"), v.literal("deleteIntervalDays")),
+    value: v.union(v.boolean(), v.number()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity?.email?.endsWith("@convex.dev")) {
+      throw new Error("Admin access required");
+    }
+
+    if (args.key === "autoDeleteMarkedPackages" && typeof args.value === "boolean") {
+      const existing = await ctx.db
+        .query("adminSettings")
+        .withIndex("by_key", (q) => q.eq("key", args.key))
+        .unique();
+
+      if (existing) {
+        await ctx.db.patch(existing._id, { value: args.value });
+      } else {
+        await ctx.db.insert("adminSettings", { key: args.key, value: args.value });
+      }
+    } else if (args.key === "deleteIntervalDays" && typeof args.value === "number") {
+      const existing = await ctx.db
+        .query("adminSettingsNumeric")
+        .withIndex("by_key", (q) => q.eq("key", args.key))
+        .unique();
+
+      if (existing) {
+        await ctx.db.patch(existing._id, { value: args.value });
+      } else {
+        await ctx.db.insert("adminSettingsNumeric", { key: args.key, value: args.value });
+      }
+    }
+
+    return null;
+  },
+});
+
+// Internal action: Scheduled cleanup of packages marked for deletion
+export const scheduledDeletionCleanup = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    // Check if auto-delete is enabled
+    const autoDeleteSetting = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q) => q.eq("key", "autoDeleteMarkedPackages"))
+      .unique();
+
+    if (!autoDeleteSetting?.value) {
+      return null;
+    }
+
+    // Get interval setting
+    const intervalSetting = await ctx.db
+      .query("adminSettingsNumeric")
+      .withIndex("by_key", (q) => q.eq("key", "deleteIntervalDays"))
+      .unique();
+
+    const intervalDays = intervalSetting?.value ?? 7;
+    const cutoffTime = Date.now() - intervalDays * 24 * 60 * 60 * 1000;
+
+    // Get packages marked for deletion that are past the waiting period
+    const packagesToDelete = await ctx.db
+      .query("packages")
+      .withIndex("by_marked_for_deletion", (q) => q.eq("markedForDeletion", true))
+      .collect();
+
+    const eligiblePackages = packagesToDelete.filter(
+      (pkg) => pkg.markedForDeletionAt && pkg.markedForDeletionAt < cutoffTime
+    );
+
+    // Delete each eligible package
+    for (const pkg of eligiblePackages) {
+      // Delete associated data
+      const notes = await ctx.db
+        .query("packageNotes")
+        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
+        .collect();
+      await Promise.all(notes.map((note) => ctx.db.delete(note._id)));
+
+      const comments = await ctx.db
+        .query("packageComments")
+        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
+        .collect();
+      await Promise.all(comments.map((comment) => ctx.db.delete(comment._id)));
+
+      const ratings = await ctx.db
+        .query("componentRatings")
+        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
+        .collect();
+      await Promise.all(ratings.map((rating) => ctx.db.delete(rating._id)));
+
+      const jobs = await ctx.db
+        .query("thumbnailJobs")
+        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
+        .collect();
+      await Promise.all(jobs.map((job) => ctx.db.delete(job._id)));
+
+      const fetches = await ctx.db
+        .query("badgeFetches")
+        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
+        .collect();
+      await Promise.all(fetches.map((fetch) => ctx.db.delete(fetch._id)));
+
+      await ctx.db.delete(pkg._id);
+    }
+
+    return null;
+  },
+});
+
+// Mutation: User deletes their entire account (requires no active submissions)
 export const deleteMyAccount = mutation({
   args: {},
   returns: v.null(),
@@ -3116,13 +3461,21 @@ export const deleteMyAccount = mutation({
 
     const userEmail = identity.email;
 
-    // Get all packages owned by user
+    // Get all packages owned by user (not marked for deletion)
     const userPackages = await ctx.db
       .query("packages")
       .withIndex("by_submitter_email", (q) => q.eq("submitterEmail", userEmail))
       .collect();
 
-    // Also get packages where user is in additionalEmails
+    // Check if user has any active submissions (not marked for deletion)
+    const activeSubmissions = userPackages.filter((pkg) => !pkg.markedForDeletion);
+    if (activeSubmissions.length > 0) {
+      throw new Error(
+        `You must delete all your components before deleting your account. You have ${activeSubmissions.length} active submission(s).`
+      );
+    }
+
+    // Remove user from additionalEmails on packages they don't own
     const allPackages = await ctx.db.query("packages").collect();
     const additionalEmailPackages = allPackages.filter(
       (pkg) =>
@@ -3130,48 +3483,6 @@ export const deleteMyAccount = mutation({
         pkg.submitterEmail !== userEmail
     );
 
-    // Delete all user-owned packages and their associated data
-    for (const pkg of userPackages) {
-      // Delete associated notes
-      const notes = await ctx.db
-        .query("packageNotes")
-        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
-        .collect();
-      await Promise.all(notes.map((note) => ctx.db.delete(note._id)));
-
-      // Delete associated comments
-      const comments = await ctx.db
-        .query("packageComments")
-        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
-        .collect();
-      await Promise.all(comments.map((comment) => ctx.db.delete(comment._id)));
-
-      // Delete associated ratings
-      const ratings = await ctx.db
-        .query("componentRatings")
-        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
-        .collect();
-      await Promise.all(ratings.map((rating) => ctx.db.delete(rating._id)));
-
-      // Delete thumbnail jobs
-      const jobs = await ctx.db
-        .query("thumbnailJobs")
-        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
-        .collect();
-      await Promise.all(jobs.map((job) => ctx.db.delete(job._id)));
-
-      // Delete badge fetches
-      const fetches = await ctx.db
-        .query("badgeFetches")
-        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
-        .collect();
-      await Promise.all(fetches.map((fetch) => ctx.db.delete(fetch._id)));
-
-      // Delete the package itself
-      await ctx.db.delete(pkg._id);
-    }
-
-    // Remove user from additionalEmails on packages they don't own
     for (const pkg of additionalEmailPackages) {
       if (pkg.additionalEmails) {
         const updatedEmails = pkg.additionalEmails.filter(
@@ -3397,7 +3708,8 @@ export const getFeaturedComponents = query({
     const featured = packages.filter(
       (pkg) =>
         pkg.featured &&
-        (!pkg.visibility || pkg.visibility === "visible"),
+        (!pkg.visibility || pkg.visibility === "visible") &&
+        !pkg.markedForDeletion,
     );
 
     return featured.map((pkg) => ({
@@ -4110,5 +4422,92 @@ export const _updateGitHubIssueCounts = internalMutation({
       githubIssuesFetchedAt: Date.now(),
     });
     return null;
+  },
+});
+
+// ============ SLUG MIGRATION TOOLS ============
+
+// Admin query: Get packages without slugs
+export const getPackagesWithoutSlugs = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id("packages"),
+      name: v.string(),
+      npmUrl: v.string(),
+      submittedAt: v.number(),
+    }),
+  ),
+  handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
+
+    const packages = await ctx.db.query("packages").collect();
+
+    return packages
+      .filter((pkg) => !pkg.slug || pkg.slug.trim() === "")
+      .map((pkg) => ({
+        _id: pkg._id,
+        name: pkg.name,
+        npmUrl: pkg.npmUrl,
+        submittedAt: pkg.submittedAt,
+      }));
+  },
+});
+
+// Admin mutation: Generate slug for a single package
+export const generateSlugForPackage = mutation({
+  args: { packageId: v.id("packages") },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) return null;
+
+    // Skip if already has a slug
+    if (pkg.slug && pkg.slug.trim() !== "") {
+      return pkg.slug;
+    }
+
+    const slug = generateSlugFromName(pkg.name);
+    if (!slug) return null;
+
+    await ctx.db.patch(args.packageId, { slug });
+    return slug;
+  },
+});
+
+// Admin mutation: Generate slugs for all packages without them
+export const generateMissingSlugs = mutation({
+  args: {},
+  returns: v.object({
+    generated: v.number(),
+    skipped: v.number(),
+  }),
+  handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
+
+    const packages = await ctx.db.query("packages").collect();
+
+    let generated = 0;
+    let skipped = 0;
+
+    for (const pkg of packages) {
+      // Skip if already has a slug
+      if (pkg.slug && pkg.slug.trim() !== "") {
+        skipped++;
+        continue;
+      }
+
+      const slug = generateSlugFromName(pkg.name);
+      if (slug) {
+        await ctx.db.patch(pkg._id, { slug });
+        generated++;
+      } else {
+        skipped++;
+      }
+    }
+
+    return { generated, skipped };
   },
 });

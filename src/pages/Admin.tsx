@@ -54,6 +54,8 @@ import {
   Image,
   Upload,
   ArrowsDownUp,
+  Clock,
+  LinkSimple,
 } from "@phosphor-icons/react";
 import {
   ExternalLinkIcon as RadixExternalLinkIcon,
@@ -1779,6 +1781,60 @@ function RefreshNpmButton({
   );
 }
 
+// Generate Slug button component (shown when package has no slug)
+function GenerateSlugButton({
+  packageId,
+  packageName,
+  currentSlug,
+}: {
+  packageId: Id<"packages">;
+  packageName: string;
+  currentSlug?: string;
+}) {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const generateSlug = useMutation(api.packages.generateSlugForPackage);
+
+  // Only show button if there's no slug
+  if (currentSlug && currentSlug.trim() !== "") {
+    return null;
+  }
+
+  const handleGenerate = async () => {
+    if (isGenerating) return;
+    setIsGenerating(true);
+    try {
+      const slug = await generateSlug({ packageId });
+      if (slug) {
+        toast.success(`Slug generated: ${slug}`);
+      } else {
+        toast.error("Could not generate slug");
+      }
+    } catch {
+      toast.error("Failed to generate slug");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  return (
+    <Tooltip content="Generate URL slug for detail page">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          handleGenerate();
+        }}
+        disabled={isGenerating}
+        className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <LinkSimple size={12} className={isGenerating ? "animate-pulse" : ""} />
+        <span className="hidden sm:inline">
+          {isGenerating ? "..." : "slug"}
+        </span>
+      </button>
+    </Tooltip>
+  );
+}
+
 // Status Legend component for admin dashboard
 function StatusLegend() {
   const legendItems: {
@@ -1959,8 +2015,10 @@ function StatusBadge({ status }: { status: ReviewStatus | undefined }) {
 // Visibility badge component
 function VisibilityBadge({
   visibility,
+  markedForDeletion,
 }: {
   visibility: Visibility | undefined;
+  markedForDeletion?: boolean;
 }) {
   const displayVisibility = visibility || "visible";
 
@@ -1988,14 +2046,24 @@ function VisibilityBadge({
   const { icon, label, className } = config[displayVisibility];
 
   return (
-    <Tooltip content={`Visibility: ${label}`}>
-      <span
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${className}`}
-      >
-        {icon}
-        <span className="hidden sm:inline">{label}</span>
-      </span>
-    </Tooltip>
+    <div className="flex items-center gap-1">
+      <Tooltip content={`Visibility: ${label}`}>
+        <span
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${className}`}
+        >
+          {icon}
+          <span className="hidden sm:inline">{label}</span>
+        </span>
+      </Tooltip>
+      {markedForDeletion && (
+        <Tooltip content="Marked for deletion by user">
+          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border bg-red-500/10 text-red-600 border-red-500/20">
+            <Clock size={14} weight="bold" />
+            <span className="hidden sm:inline">Deletion</span>
+          </span>
+        </Tooltip>
+      )}
+    </div>
   );
 }
 
@@ -3417,6 +3485,359 @@ function AdminSettingsPanel() {
   );
 }
 
+// Deletion Management Panel component
+function DeletionManagementPanel() {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+
+  const deletionSettings = useQuery(api.packages.getDeletionCleanupSettings);
+  const packagesMarkedForDeletion = useQuery(api.packages.getPackagesMarkedForDeletion);
+  const updateDeletionSetting = useMutation(api.packages.updateDeletionCleanupSetting);
+  const permanentlyDelete = useMutation(api.packages.adminPermanentlyDeletePackage);
+
+  const handleToggleAutoDelete = async () => {
+    if (!deletionSettings) return;
+    try {
+      await updateDeletionSetting({
+        key: "autoDeleteMarkedPackages",
+        value: !deletionSettings.autoDeleteEnabled,
+      });
+      toast.success(
+        deletionSettings.autoDeleteEnabled
+          ? "Auto-delete disabled"
+          : "Auto-delete enabled",
+      );
+    } catch {
+      toast.error("Failed to update setting");
+    }
+  };
+
+  const handleIntervalChange = async (days: number) => {
+    try {
+      await updateDeletionSetting({
+        key: "deleteIntervalDays",
+        value: days,
+      });
+      toast.success(`Delete interval set to ${days} days`);
+    } catch {
+      toast.error("Failed to update interval");
+    }
+  };
+
+  const handlePermanentDelete = async (packageId: Id<"packages">, packageName: string) => {
+    if (!confirm(`Permanently delete "${packageName}"? This cannot be undone.`)) {
+      return;
+    }
+    setIsDeleting(packageId);
+    try {
+      await permanentlyDelete({ packageId });
+      toast.success(`"${packageName}" permanently deleted`);
+    } catch {
+      toast.error("Failed to delete package");
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
+  const formatDate = (timestamp?: number) => {
+    if (!timestamp) return "Unknown";
+    return new Date(timestamp).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  const markedCount = packagesMarkedForDeletion?.length ?? 0;
+
+  return (
+    <div className="mb-4 rounded-lg border border-border bg-bg-card overflow-hidden">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Trash size={16} weight="bold" className="text-red-500" />
+          <span className="text-sm font-medium text-text-primary">
+            Deletion Management
+          </span>
+          {markedCount > 0 && (
+            <span className="px-1.5 py-0.5 text-[10px] font-medium bg-red-100 text-red-700 rounded">
+              {markedCount}
+            </span>
+          )}
+        </div>
+        {isExpanded ? (
+          <CaretUp size={16} className="text-text-secondary" />
+        ) : (
+          <CaretDown size={16} className="text-text-secondary" />
+        )}
+      </button>
+
+      {isExpanded && deletionSettings && (
+        <div className="p-4 border-t border-border space-y-4">
+          {/* Auto-delete toggle */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-text-primary">
+                Auto-delete marked packages
+              </label>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Automatically delete packages after the waiting period
+              </p>
+            </div>
+            <button
+              onClick={handleToggleAutoDelete}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                deletionSettings.autoDeleteEnabled
+                  ? "bg-red-600"
+                  : "bg-gray-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  deletionSettings.autoDeleteEnabled
+                    ? "translate-x-6"
+                    : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Waiting period interval */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-text-primary">
+                Waiting period
+              </label>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Days to wait before permanent deletion
+              </p>
+            </div>
+            <select
+              value={deletionSettings.deleteIntervalDays}
+              onChange={(e) => handleIntervalChange(Number(e.target.value))}
+              className="px-3 py-1.5 text-sm rounded-lg border border-border bg-white text-text-primary focus:outline-none focus:border-button"
+            >
+              <option value={1}>1 day</option>
+              <option value={3}>3 days</option>
+              <option value={7}>7 days (default)</option>
+              <option value={14}>14 days</option>
+              <option value={30}>30 days</option>
+            </select>
+          </div>
+
+          {/* Packages marked for deletion */}
+          {markedCount > 0 ? (
+            <div className="mt-4 pt-4 border-t border-border">
+              <h4 className="text-sm font-medium text-text-primary mb-3">
+                Packages Marked for Deletion ({markedCount})
+              </h4>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {packagesMarkedForDeletion?.map((pkg) => (
+                  <div
+                    key={pkg._id}
+                    className="flex items-center justify-between p-2 rounded-lg border border-red-100 bg-red-50"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-text-primary truncate">
+                        {pkg.componentName || pkg.name}
+                      </p>
+                      <p className="text-xs text-text-secondary">
+                        Marked: {formatDate(pkg.markedForDeletionAt)} by {pkg.markedForDeletionBy || "user"}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handlePermanentDelete(pkg._id, pkg.componentName || pkg.name)}
+                      disabled={isDeleting === pkg._id}
+                      className="ml-2 px-2 py-1 text-xs rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+                    >
+                      {isDeleting === pkg._id ? "Deleting..." : "Delete Now"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 pt-4 border-t border-border">
+              <p className="text-sm text-text-secondary text-center py-4">
+                No packages are currently marked for deletion.
+              </p>
+            </div>
+          )}
+
+          {/* Info about cron */}
+          <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary">
+            <p>
+              A scheduled job runs daily at 2 AM UTC to permanently delete packages
+              that have been marked for deletion and have passed the waiting period.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ SLUG MIGRATION PANEL ============
+
+function SlugMigrationPanel() {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+  const [isGeneratingSingle, setIsGeneratingSingle] = useState<string | null>(null);
+
+  const packagesWithoutSlugs = useQuery(api.packages.getPackagesWithoutSlugs);
+  const generateSlugForPackage = useMutation(api.packages.generateSlugForPackage);
+  const generateMissingSlugs = useMutation(api.packages.generateMissingSlugs);
+
+  const missingCount = packagesWithoutSlugs?.length ?? 0;
+
+  const handleGenerateAll = async () => {
+    setIsGeneratingAll(true);
+    try {
+      const result = await generateMissingSlugs({});
+      toast.success(`Generated ${result.generated} slugs (${result.skipped} skipped)`);
+    } catch {
+      toast.error("Failed to generate slugs");
+    } finally {
+      setIsGeneratingAll(false);
+    }
+  };
+
+  const handleGenerateSingle = async (packageId: Id<"packages">, packageName: string) => {
+    setIsGeneratingSingle(packageId);
+    try {
+      const slug = await generateSlugForPackage({ packageId });
+      if (slug) {
+        toast.success(`Slug generated: ${slug}`);
+      } else {
+        toast.error("Could not generate slug");
+      }
+    } catch {
+      toast.error("Failed to generate slug");
+    } finally {
+      setIsGeneratingSingle(null);
+    }
+  };
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  return (
+    <div className="mb-4 rounded-lg border border-border bg-bg-card overflow-hidden">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <LinkSimple size={16} weight="bold" className="text-orange-500" />
+          <span className="text-sm font-medium text-text-primary">
+            Slug Migration
+          </span>
+          {missingCount > 0 && (
+            <span className="px-1.5 py-0.5 text-[10px] font-medium bg-orange-100 text-orange-700 rounded">
+              {missingCount} missing
+            </span>
+          )}
+        </div>
+        {isExpanded ? (
+          <CaretUp size={16} className="text-text-secondary" />
+        ) : (
+          <CaretDown size={16} className="text-text-secondary" />
+        )}
+      </button>
+
+      {isExpanded && (
+        <div className="p-4 border-t border-border space-y-4">
+          {/* Info section */}
+          <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary">
+            <p>
+              Components without URL slugs will not have detail pages at /components/:slug.
+              Use this tool to auto-generate slugs from package names.
+            </p>
+          </div>
+
+          {/* Generate all button */}
+          {missingCount > 0 && (
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-sm font-medium text-text-primary">
+                  Generate All Missing Slugs
+                </label>
+                <p className="text-xs text-text-secondary mt-0.5">
+                  Auto-generate slugs for {missingCount} packages
+                </p>
+              </div>
+              <button
+                onClick={handleGenerateAll}
+                disabled={isGeneratingAll}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors disabled:opacity-50"
+              >
+                {isGeneratingAll ? "Generating..." : `Generate ${missingCount} Slugs`}
+              </button>
+            </div>
+          )}
+
+          {/* Packages missing slugs list */}
+          {missingCount > 0 ? (
+            <div className="mt-4 pt-4 border-t border-border">
+              <h4 className="text-sm font-medium text-text-primary mb-3">
+                Packages Missing Slugs ({missingCount})
+              </h4>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {packagesWithoutSlugs?.map((pkg) => (
+                  <div
+                    key={pkg._id}
+                    className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-bg-primary"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-text-primary truncate">
+                        {pkg.name}
+                      </p>
+                      <p className="text-xs text-text-secondary">
+                        Submitted {formatDate(pkg.submittedAt)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <a
+                        href={pkg.npmUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2 py-1 text-xs rounded border border-border text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
+                      >
+                        npm
+                      </a>
+                      <button
+                        onClick={() => handleGenerateSingle(pkg._id, pkg.name)}
+                        disabled={isGeneratingSingle === pkg._id}
+                        className="px-3 py-1 text-xs font-medium rounded bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors disabled:opacity-50"
+                      >
+                        {isGeneratingSingle === pkg._id ? "..." : "Generate"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4 pt-4 border-t border-border">
+              <p className="text-sm text-green-600 text-center py-4 flex items-center justify-center gap-2">
+                <CheckCircle size={16} />
+                All packages have slugs. No migration needed.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ============ THUMBNAIL TEMPLATE MANAGEMENT ============
 
 function ThumbnailTemplatePanel() {
@@ -3811,8 +4232,8 @@ function ThumbnailTemplatePanel() {
   );
 }
 
-// Filter type includes review statuses, all, and archived
-type FilterType = ReviewStatus | "all" | "archived" | "settings";
+// Filter type includes review statuses, all, archived, marked_for_deletion, and settings
+type FilterType = ReviewStatus | "all" | "archived" | "marked_for_deletion" | "settings";
 
 // Filter tabs component
 function FilterTabs({
@@ -3865,6 +4286,12 @@ function FilterTabs({
       label: "Rejected",
       icon: <Prohibit size={16} />,
       tooltip: "Show rejected packages",
+    },
+    {
+      value: "marked_for_deletion",
+      label: "Deletion",
+      icon: <Clock size={16} />,
+      tooltip: "Show packages marked for deletion",
     },
     {
       value: "archived",
@@ -3969,6 +4396,9 @@ function AdminDashboard({
   const nonArchivedPackages = packages?.filter((p) => !isArchived(p)) ?? [];
   const archivedPackages = packages?.filter((p) => isArchived(p)) ?? [];
 
+  // Packages marked for deletion (across all statuses)
+  const markedForDeletionPackages = packages?.filter((p) => p.markedForDeletion) ?? [];
+
   const counts: Record<FilterType, number> = {
     all: nonArchivedPackages.length,
     settings: 0, // Settings tab doesn't have a count
@@ -3984,6 +4414,7 @@ function AdminDashboard({
     ).length,
     rejected: nonArchivedPackages.filter((p) => p.reviewStatus === "rejected")
       .length,
+    marked_for_deletion: markedForDeletionPackages.length,
     archived: archivedPackages.length,
   };
 
@@ -3991,6 +4422,8 @@ function AdminDashboard({
   const filteredPackages = packages?.filter((pkg) => {
     // Settings tab shows nothing (no package list)
     if (activeFilter === "settings") return false;
+    // Marked for deletion tab shows only packages marked for deletion
+    if (activeFilter === "marked_for_deletion") return pkg.markedForDeletion === true;
     // Archived tab shows only archived packages
     if (activeFilter === "archived") return isArchived(pkg);
     // All other tabs exclude archived packages
@@ -4176,7 +4609,7 @@ function AdminDashboard({
                       </span>
                       <StatusBadge status={pkg.reviewStatus} />
                       <ComponentDetailQuickLink slug={pkg.slug} />
-                      <VisibilityBadge visibility={pkg.visibility} />
+                      <VisibilityBadge visibility={pkg.visibility} markedForDeletion={pkg.markedForDeletion} />
                       {/* Show unreplied notes indicator when collapsed */}
                       {!isExpanded && (
                         <UnrepliedNotesIndicator packageId={pkg._id} />
@@ -4405,6 +4838,12 @@ function AdminDashboard({
                               lastRefreshedAt={pkg.lastRefreshedAt}
                               refreshError={pkg.refreshError}
                             />
+                            {/* Generate slug button - shown when package has no slug */}
+                            <GenerateSlugButton
+                              packageId={pkg._id}
+                              packageName={pkg.name}
+                              currentSlug={pkg.slug}
+                            />
                           </div>
                         </div>
                       </div>
@@ -4440,6 +4879,12 @@ function AdminDashboard({
 
           {/* AI Review Settings */}
           <AdminSettingsPanel />
+
+          {/* Deletion Management */}
+          <DeletionManagementPanel />
+
+          {/* Slug Migration */}
+          <SlugMigrationPanel />
 
           {/* Thumbnail Template Management */}
           <ThumbnailTemplatePanel />

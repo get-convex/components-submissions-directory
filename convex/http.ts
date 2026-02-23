@@ -1,7 +1,6 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import { api, internal, components } from "./_generated/api";
-import { registerStaticRoutes } from "@convex-dev/self-hosting";
+import { api, internal } from "./_generated/api";
 
 const http = httpRouter();
 
@@ -367,9 +366,5 @@ function svgHeaders(): Record<string, string> {
     "Access-Control-Allow-Origin": "*",
   };
 }
-
-// ============ STATIC FILE SERVING ============
-// MUST be last: serves static files with SPA fallback for client-side routing
-registerStaticRoutes(http, components.selfHosting);
 
 export default http;

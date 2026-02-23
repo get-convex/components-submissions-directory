@@ -51,7 +51,7 @@ Main HTML entry point. Loads the React app and CSS. Includes Open Graph meta tag
 
 ### `convex/schema.ts`
 
-Database schema definition. Defines the `packages` table with all package fields including slug, category, tags, shortDescription, longDescription, videoUrl, thumbnailUrl, thumbnailStorageId, logoStorageId, logoUrl, selectedTemplateId, thumbnailGenerationVersion, thumbnailGeneratedAt, thumbnailGeneratedBy, convexVerified, authorUsername, authorAvatar, relatedComponentIds, submitter information (submitterName, submitterEmail, submitterDiscord, additionalEmails for multi-account access), review status, visibility, featured flag, demoUrl, AI review fields, cached GitHub issue counts, and AI-generated SEO/AEO/GEO fields. Also defines `packageNotes` (with isAdminReply and userHasRead for notification tracking), `packageComments`, `adminSettings`, `badgeFetches`, `thumbnailTemplates`, and `thumbnailJobs` tables.
+Database schema definition. Defines the `packages` table with all package fields including slug, category, tags, shortDescription, longDescription, videoUrl, thumbnailUrl, thumbnailStorageId, logoStorageId, logoUrl, selectedTemplateId, thumbnailGenerationVersion, thumbnailGeneratedAt, thumbnailGeneratedBy, convexVerified, authorUsername, authorAvatar, relatedComponentIds, submitter information (submitterName, submitterEmail, submitterDiscord, additionalEmails for multi-account access), review status, visibility, featured flag, demoUrl, AI review fields, cached GitHub issue counts, AI-generated SEO/AEO/GEO fields, and soft deletion fields (markedForDeletion, markedForDeletionAt, markedForDeletionBy). Also defines `packageNotes` (with isAdminReply and userHasRead for notification tracking), `packageComments`, `adminSettings`, `adminSettingsNumeric`, `badgeFetches`, `thumbnailTemplates`, and `thumbnailJobs` tables.
 
 ### `convex/auth.ts`
 
@@ -71,21 +71,30 @@ Main package business logic. Contains:
 
 **Internal Queries:** `_getPackage`, `_getPackageByName`, `_getPackageBySlug` (for badge/markdown endpoints)
 
-**Public Queries:** `listPackages`, `searchPackages`, `getPackage`, `getPackageByName`, `listApprovedComponents`, `getComponentBySlug`, `getMySubmissions`, `listCategories`, `getFeaturedComponents`
+**Public Queries:** `listPackages`, `searchPackages`, `getPackage`, `getPackageByName`, `listApprovedComponents`, `getComponentBySlug`, `getMySubmissions`, `listCategories`, `getFeaturedComponents`, `getPackagesMarkedForDeletion`, `getDeletionCleanupSettings`
 
-**User Mutations:** `requestSubmissionRefresh` (sends note to admin team from profile page), `setMySubmissionVisibility` (hide/show own submissions), `requestDeleteMySubmission` (delete own submission), `updateMySubmission` (edit own submission fields)
+**User Mutations:** `requestSubmissionRefresh` (sends note to admin team from profile page), `setMySubmissionVisibility` (hide/show own submissions), `requestDeleteMySubmission` (marks submission for deletion), `cancelDeleteMySubmission` (cancels deletion request), `updateMySubmission` (edit own submission fields), `deleteMyAccount` (requires no active submissions)
 
 **User Queries:** `getMyPackageNotes` (thread of user requests and admin replies), `getMySubmissionForEdit` (editable submission data), `getUnreadAdminReplyCount`, `getTotalUnreadAdminReplies`
 
-**Admin Queries:** `getAllPackages`, `adminSearchPackages`, `getPackagesByStatus`, `getBadgeStats`
+**Admin Queries:** `getAllPackages`, `adminSearchPackages`, `getPackagesByStatus`, `getBadgeStats`, `getUnreadUserNotesCount`, `getUnreadCommentsCount` (for read tracking badges), `getPackagesWithoutSlugs`
+
+**Admin Mutations:** `adminPermanentlyDeletePackage`, `updateDeletionCleanupSetting`, `generateSlugForPackage`, `generateMissingSlugs`
+
+**Internal Mutations:** `_permanentlyDeletePackage`, `scheduledDeletionCleanup`
 
 **Actions:** `fetchNpmPackage`, `refreshNpmData`, `submitPackage`, `fetchGitHubIssues`, `refreshGitHubIssueCounts`
 
 **Mutations:** `addPackage`, `updateNpmData`, `updateReviewStatus`, `updateVisibility`, `deletePackage`, `toggleFeatured`, `updateComponentDetails` (supports `clearThumbnail` to remove thumbnail URL and storage reference), `generateUploadUrl`, `saveThumbnail`, `saveLogo` (uploads logo and triggers auto thumbnail generation if enabled), `autoFillAuthorFromRepo`, `updateSubmitterEmail` (admin: change primary email), `updateAdditionalEmails` (admin: manage multi-account access), `markNotesAsReadForAdmin`, `markCommentsAsReadForAdmin`, note/comment/settings mutations
 
-**Admin Queries:** `getUnreadUserNotesCount`, `getUnreadCommentsCount` (for read tracking badges)
-
 **Helper Functions:** `toPublicPackage()`, `toAdminPackage()`, `generateSlugFromName()`, `userOwnsPackage()` (checks submitterEmail and additionalEmails), validators
+
+### `convex/crons.ts`
+
+Scheduled cron jobs for background tasks:
+- `check-and-refresh-packages`: Daily at 3 AM UTC, checks for stale packages to refresh npm data
+- `cleanup-old-thumbnail-jobs`: Weekly on Sundays at 4 AM UTC, removes failed thumbnail jobs
+- `cleanup-marked-for-deletion`: Daily at 2 AM UTC, permanently deletes packages past the waiting period (configurable via admin settings)
 
 ### `convex/seed.ts`
 
@@ -223,18 +232,22 @@ User profile page for managing submitted components. Accessible at `/profile`. F
 - Sign-in gate for unauthenticated users with Sign In button calling `signIn()` directly
 - Lists all components submitted by the authenticated user (via submitterEmail or additionalEmails)
 - Shows review status (pending, in_review, approved, changes_requested, rejected) and visibility badges
+- "Pending Deletion" badge for components marked for deletion
 - "Send Request" button to send notes to admin team (request re-review, removal, or updates)
 - "View Notes" modal showing threaded admin replies with notification badge for unread replies
 - "Edit" button to update submission details (name, descriptions, category, tags, URLs)
 - "Hide/Show" toggle to control visibility in the directory with confirmation
-- "Delete" button to remove submission completely with confirmation
+- "Delete" button to mark submission for deletion (soft delete, admin permanently deletes)
+- "Cancel Deletion" button to undo deletion request before admin processes it
 - Links to view approved components
-- Status guide explaining each review state with visibility guide (Visible, Hidden, Archived)
+- Status guide explaining each review state with visibility guide (Visible, Hidden, Archived, Pending Deletion)
+- Account section with Delete Account button (requires all components deleted first)
+- Delete Account modal with warning if active submissions exist
 - Submit New button linking to submission form
 
 ### `src/pages/Admin.tsx`
 
-Admin dashboard at `/submissions/admin` (requires @convex.dev email). Features shared Header component, admin-specific search bar, stats, package management, review status, visibility controls, AI review, component details editor, thumbnail preview in list, notes, comments, CSV export, and SubmitterEmailEditor for managing primary submitter email and additional emails. Non-admin users are automatically redirected to their profile page. Unauthenticated users see a simple "Admin access only" sign-in prompt.
+Admin dashboard at `/submissions/admin` (requires @convex.dev email). Features shared Header component, admin-specific search bar, stats, package management, review status, visibility controls, AI review, component details editor, thumbnail preview in list, notes, comments, CSV export, and SubmitterEmailEditor for managing primary submitter email and additional emails. Settings tab includes Deletion Management panel for managing packages marked for deletion (auto-delete toggle, waiting period config, list of pending deletions with "Delete Now" option), and Slug Migration panel for detecting packages without URL slugs and generating them in bulk or individually. Package cards show a "Generate Slug" button (orange) when no slug exists, appearing next to the npm/repo/demo/refresh buttons. Non-admin users are automatically redirected to their profile page. Unauthenticated users see a simple "Admin access only" sign-in prompt.
 
 ### `src/pages/NotFound.tsx`
 
@@ -266,7 +279,7 @@ Copy-to-clipboard install command component.
 
 ### `src/components/ComponentDetailsEditor.tsx`
 
-Admin editor for directory-specific fields: slug, category, tags, descriptions, video URL, verified badge, featured status, thumbnail upload with preview, thumbnail clear option (applies after Save), auto-fill author from GitHub, and AI SEO content generation trigger with status display.
+Admin editor for directory-specific fields: slug, category, tags, descriptions, video URL, verified badge, featured status, thumbnail upload with preview, thumbnail clear option (applies after Save), auto-fill author from GitHub, and AI SEO content generation trigger with status display. All fields reactively sync with backend updates via `useEffect` hooks, so changes from external mutations (like slug generation) appear immediately without refresh.
 
 ### `src/lib/categories.ts`
 

@@ -11,12 +11,10 @@
     "lint": "tsc -p convex -noEmit --pretty false && tsc -p . -noEmit --pretty false && convex dev --once && vite build",
     "lint:eslint": "eslint .",
     "lint:convex": "eslint \"convex/**/*.ts\"",
-    "deploy": "SELF_HOST=true npx @convex-dev/self-hosting deploy",
-    "deploy:static": "SELF_HOST=true npx @convex-dev/self-hosting upload --build --prod"
+    "deploy:backend": "npx convex deploy"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.0",
-    "@convex-dev/self-hosting": "^0.1.1",
     "@convex-dev/workos": "^0.0.1",
     "@phosphor-icons/react": "^2.1.10",
     "@radix-ui/react-icons": "^1.3.2",
@@ -44,6 +42,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "~10",
     "dotenv": "^16.4.7",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9.21.0",
     "eslint-plugin-react-hooks": "^5.1.0",
     "eslint-plugin-react-refresh": "^0.4.19",

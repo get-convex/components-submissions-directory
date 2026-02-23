@@ -9,6 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Slug Migration Tool for admin dashboard (2026-02-23)
+  - New SlugMigrationPanel in Admin Settings tab to identify and fix packages without URL slugs
+  - Displays count and list of packages missing slugs
+  - "Generate All Slugs" button to bulk generate slugs for all packages missing them
+  - Individual "Generate" button per package in the migration panel
+  - "Generate Slug" button on package cards (orange, shown only when slug is missing)
+  - Button appears next to npm/repo/demo/refresh buttons
+  - Uses existing `generateSlugFromName()` logic from submission flow
+  - After generation, slug is editable in Component Details editor
+  - New backend functions: `getPackagesWithoutSlugs` (query), `generateSlugForPackage` (mutation), `generateMissingSlugs` (mutation)
+
+### Fixed
+
+- ComponentDetailsEditor now reactively syncs slug field with backend updates (2026-02-23)
+  - Added `useEffect` hook to sync local slug state when `initialSlug` prop changes
+  - Slug now appears immediately after clicking "Generate Slug" button without needing refresh
+  - Matches existing reactive behavior for thumbnail, logo, and template fields
+- Soft deletion workflow for components (2026-02-23)
+  - Users mark components for deletion instead of immediate deletion
+  - Components marked for deletion are hidden from directory immediately
+  - Admin can permanently delete marked components from Settings panel
+  - Scheduled cron job runs daily at 2 AM UTC to auto-delete after waiting period
+  - Configurable auto-delete toggle and waiting period (1, 3, 7, 14, or 30 days)
+  - Users can cancel deletion request before admin processes it
+  - "Pending Deletion" badge shown on marked components in profile
+- Account deletion requires deleting all components first (2026-02-23)
+  - Delete Account modal shows warning if user has active submissions
+  - User must delete all components before deleting their account
+  - Clear guidance in Account section and modal
+- Admin Deletion Management panel in Settings (2026-02-23)
+  - Toggle for auto-delete marked packages
+  - Configurable waiting period (days)
+  - List of packages pending deletion with "Delete Now" option
+  - Info about the scheduled cleanup cron job
 - Header redesign with floating pill style (2026-02-23)
   - Floating pill design with `rounded-full`, white/95 background, backdrop blur, and shadow
   - Convex wordmark black SVG logo (70px height)

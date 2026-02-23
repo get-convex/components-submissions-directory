@@ -1,12 +1,8 @@
 # Task List
 
 ## to do
-- [ ] check url slug, 
 - [ ] vercel.json in website can point to repo app
-- [ ] package name is slug
-- [ ] give package name read https://www.npmjs.com/package/
-
-- [ ]  fix ai check
+- [ ] fix ai check
 - docs for badges
 - add image builder
 - [ ] add image builder from https://component-thumbnail-gen.netlify.app/ and https://github.com/waynesutton/component-directory-image-generator
@@ -24,6 +20,50 @@
 
 ## Recent updates
 
+- [x] Slug Migration Tool for admin dashboard (2026-02-23)
+  - Added `SlugMigrationPanel` component to Admin Settings tab
+  - Displays count and list of packages missing URL slugs
+  - "Generate All Slugs" button for bulk slug generation
+  - Individual "Generate" button per package in the migration panel
+  - Added `GenerateSlugButton` component to package cards (orange, next to npm/repo/demo/refresh)
+  - Button only shows when package has no slug, disappears after generation
+  - New backend functions: `getPackagesWithoutSlugs`, `generateSlugForPackage`, `generateMissingSlugs`
+  - Added `LinkSimple` icon import from phosphor-icons
+- [x] Fixed ComponentDetailsEditor reactive slug sync (2026-02-23)
+  - Added `useEffect` hook to sync local slug state when `initialSlug` prop changes from backend
+  - Slug now appears immediately after clicking "Generate Slug" without needing page refresh
+  - Matches existing reactive behavior for thumbnail, logo, and template fields
+- [x] Soft deletion workflow for components (2026-02-23)
+  - Users mark components for deletion instead of immediate delete
+  - Components marked for deletion are hidden from directory immediately
+  - "Pending Deletion" badge shown on marked components in Profile
+  - Users can cancel deletion request via "Cancel Deletion" button
+  - Added schema fields: `markedForDeletion`, `markedForDeletionAt`, `markedForDeletionBy`
+  - Added `by_marked_for_deletion` index on packages table
+  - Updated `requestDeleteMySubmission` to mark for deletion instead of delete
+  - Added `cancelDeleteMySubmission` mutation for users to undo deletion
+  - Added `_permanentlyDeletePackage` internal mutation
+  - Updated public queries to exclude marked-for-deletion packages
+- [x] Account deletion requires deleting all components first (2026-02-23)
+  - Delete Account modal shows warning if user has active submissions
+  - User must delete all components before deleting their account
+  - `deleteMyAccount` mutation now throws error if active submissions exist
+  - Updated Account section and modal text to explain new flow
+- [x] Admin Deletion Management panel in Settings (2026-02-23)
+  - Added `DeletionManagementPanel` component to Admin.tsx Settings tab
+  - Toggle for auto-delete marked packages (`autoDeleteMarkedPackages` setting)
+  - Configurable waiting period (1, 3, 7, 14, or 30 days)
+  - List of packages pending deletion with "Delete Now" button
+  - Added `adminPermanentlyDeletePackage` mutation for admin manual deletion
+  - Added `getPackagesMarkedForDeletion` query
+  - Added `getDeletionCleanupSettings` query
+  - Added `updateDeletionCleanupSetting` mutation
+- [x] Scheduled deletion cleanup cron job (2026-02-23)
+  - Added `cleanup-marked-for-deletion` cron job in `convex/crons.ts`
+  - Runs daily at 2 AM UTC
+  - Deletes packages past the configurable waiting period
+  - Gated by `autoDeleteMarkedPackages` admin setting
+  - Added `scheduledDeletionCleanup` internal mutation
 - [x] Header floating pill redesign (2026-02-23)
   - Floating pill design with `rounded-full`, white/95 background, backdrop blur, and shadow
   - Convex wordmark black SVG logo (70px height)

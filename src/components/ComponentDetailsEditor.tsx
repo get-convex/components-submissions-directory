@@ -116,7 +116,11 @@ export function ComponentDetailsEditor({
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Keep local image state synced with reactive backend updates.
+  // Keep local state synced with reactive backend updates.
+  useEffect(() => {
+    setSlug(initialSlug || "");
+  }, [initialSlug]);
+
   useEffect(() => {
     setThumbnailUrl(initialThumbUrl || "");
     setSavedThumbnailUrl(initialThumbUrl || "");
