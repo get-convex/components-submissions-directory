@@ -4,10 +4,14 @@ import path from "path";
 
 export default defineConfig({
   // Base path configuration:
+  // - Self-hosting (SELF_HOST=true): Uses "/" for deployment at giant-grouse-674.convex.site
   // - Production (npm run build): Uses "/components/" for deployment at convex.dev/components/*
   // - Development (npm run dev): Uses "/" for local development at localhost:5173
-  // NODE_ENV is automatically set to "production" during build and "development" during dev
-  base: process.env.NODE_ENV === "production" ? "/components/" : "/",
+  base: process.env.SELF_HOST === "true"
+    ? "/"
+    : process.env.NODE_ENV === "production"
+      ? "/components/"
+      : "/",
   plugins: [react()],
   resolve: {
     alias: {

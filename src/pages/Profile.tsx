@@ -21,6 +21,8 @@ import {
   User,
   PencilSimple,
   Trash,
+  SignOut,
+  UserMinus,
 } from "@phosphor-icons/react";
 
 // Get base path for links (empty for local dev, /components for production)
@@ -32,10 +34,7 @@ function useBasePath() {
 
 // Status badge component
 function StatusBadge({ status }: { status?: string }) {
-  const statusConfig: Record<
-    string,
-    { label: string; color: string; icon: React.ReactNode }
-  > = {
+  const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
     pending: {
       label: "Pending",
       color: "bg-yellow-100 text-yellow-800",
@@ -78,21 +77,19 @@ function StatusBadge({ status }: { status?: string }) {
 function VisibilityBadge({ visibility }: { visibility?: string }) {
   if (!visibility || visibility === "visible") return null;
 
-  const visibilityConfig: Record<
-    string,
-    { label: string; color: string; icon: React.ReactNode }
-  > = {
-    hidden: {
-      label: "Hidden",
-      color: "bg-gray-100 text-gray-600",
-      icon: <EyeSlash size={14} />,
-    },
-    archived: {
-      label: "Archived",
-      color: "bg-gray-200 text-gray-700",
-      icon: <Archive size={14} />,
-    },
-  };
+  const visibilityConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> =
+    {
+      hidden: {
+        label: "Hidden",
+        color: "bg-gray-100 text-gray-600",
+        icon: <EyeSlash size={14} />,
+      },
+      archived: {
+        label: "Archived",
+        color: "bg-gray-200 text-gray-700",
+        icon: <Archive size={14} />,
+      },
+    };
 
   const config = visibilityConfig[visibility];
   if (!config) return null;
@@ -152,19 +149,15 @@ function RequestModal({
           <X size={20} />
         </button>
 
-        <h2 className="text-lg font-medium text-text-primary mb-2">
-          Request for {packageName}
-        </h2>
+        <h2 className="text-lg font-medium text-text-primary mb-2">Request for {packageName}</h2>
         <p className="text-sm text-text-secondary mb-4">
-          Send a note to the Convex team about this submission. Use this to request a
-          re-review, report an issue, or ask to remove your component.
+          Send a note to the Convex team about this submission. Use this to request a re-review,
+          report an issue, or ask to remove your component.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">
-              Message
-            </label>
+            <label className="block text-sm font-medium text-text-primary mb-1">Message</label>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -249,9 +242,7 @@ function ViewNotesModal({
                 </span>
               )}
             </h3>
-            <p className="text-xs text-text-secondary truncate max-w-xs">
-              {packageName}
-            </p>
+            <p className="text-xs text-text-secondary truncate max-w-xs">{packageName}</p>
           </div>
           <div className="flex items-center gap-2">
             {unreadCount > 0 && (
@@ -290,9 +281,7 @@ function ViewNotesModal({
                 }`}>
                 <div className="flex items-center gap-2 text-xs text-text-secondary mb-2">
                   <User size={12} />
-                  <span className="font-medium">
-                    {note.isFromAdmin ? "Convex Team" : "You"}
-                  </span>
+                  <span className="font-medium">{note.isFromAdmin ? "Convex Team" : "You"}</span>
                   <span>{formatNoteDate(note.createdAt)}</span>
                   {note.isFromAdmin && note.userHasRead === false && (
                     <span className="px-1.5 py-0.5 rounded-full bg-green-500 text-white text-[10px] font-medium">
@@ -300,9 +289,7 @@ function ViewNotesModal({
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-text-primary whitespace-pre-wrap">
-                  {note.content}
-                </p>
+                <p className="text-sm text-text-primary whitespace-pre-wrap">{note.content}</p>
               </div>
             ))
           )}
@@ -372,14 +359,91 @@ function ConfirmModal({
   );
 }
 
-// Edit submission modal
-function EditModal({
-  packageId,
+// Delete account confirmation modal with typed confirmation
+function DeleteAccountModal({
+  onConfirm,
   onClose,
+  isLoading,
 }: {
-  packageId: Id<"packages">;
+  onConfirm: () => void;
   onClose: () => void;
+  isLoading: boolean;
 }) {
+  const [confirmText, setConfirmText] = useState("");
+  const isConfirmed = confirmText === "DELETE";
+
+  return (
+    <div
+      className="fixed inset-0 flex items-start justify-center pt-12 p-4 overflow-y-auto"
+      style={{ zIndex: 2147483647 }}>
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md p-6 rounded-lg bg-white border border-border shadow-lg">
+        <button
+          onClick={onClose}
+          disabled={isLoading}
+          className="absolute top-4 right-4 p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors disabled:opacity-50">
+          <X size={20} />
+        </button>
+
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+            <UserMinus size={20} className="text-red-600" />
+          </div>
+          <h2 className="text-lg font-medium text-text-primary">Delete Account</h2>
+        </div>
+
+        <div className="space-y-3 mb-6">
+          <p className="text-sm text-text-secondary">
+            This action is permanent and cannot be undone. Deleting your account will:
+          </p>
+          <ul className="text-sm text-text-secondary list-disc list-inside space-y-1">
+            <li>Remove all your component submissions</li>
+            <li>Delete all associated notes and comments</li>
+            <li>Remove your ratings and feedback</li>
+            <li>Remove your access from shared submissions</li>
+          </ul>
+          <p className="text-sm text-red-600 font-medium">
+            You will need to sign in again to confirm this action.
+          </p>
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-text-primary mb-2">
+            Type DELETE to confirm
+          </label>
+          <input
+            type="text"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder="DELETE"
+            disabled={isLoading}
+            className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 disabled:opacity-50"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isLoading}
+            className="flex-1 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors disabled:opacity-50">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isLoading || !isConfirmed}
+            className="flex-1 px-4 py-2 rounded-full text-sm font-normal bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+            {isLoading ? "Deleting..." : "Delete My Account"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Edit submission modal
+function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose: () => void }) {
   const submission = useQuery(api.packages.getMySubmissionForEdit, { packageId });
   const categories = useQuery(api.packages.listCategories);
   const updateSubmission = useMutation(api.packages.updateMySubmission);
@@ -416,7 +480,12 @@ function EditModal({
         shortDescription: shortDescription || undefined,
         longDescription: longDescription || undefined,
         category: category || undefined,
-        tags: tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
+        tags: tags
+          ? tags
+              .split(",")
+              .map((t) => t.trim())
+              .filter(Boolean)
+          : undefined,
         demoUrl: demoUrl || undefined,
         videoUrl: videoUrl || undefined,
       });
@@ -457,12 +526,8 @@ function EditModal({
           <X size={20} />
         </button>
 
-        <h2 className="text-lg font-medium text-text-primary mb-1">
-          Edit Submission
-        </h2>
-        <p className="text-xs text-text-secondary mb-4">
-          {submission.name}
-        </p>
+        <h2 className="text-lg font-medium text-text-primary mb-1">Edit Submission</h2>
+        <p className="text-xs text-text-secondary mb-4">{submission.name}</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -507,9 +572,7 @@ function EditModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">
-              Category
-            </label>
+            <label className="block text-sm font-medium text-text-primary mb-1">Category</label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
@@ -524,9 +587,7 @@ function EditModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">
-              Tags
-            </label>
+            <label className="block text-sm font-medium text-text-primary mb-1">Tags</label>
             <input
               type="text"
               value={tags}
@@ -537,9 +598,7 @@ function EditModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">
-              Demo URL
-            </label>
+            <label className="block text-sm font-medium text-text-primary mb-1">Demo URL</label>
             <input
               type="url"
               value={demoUrl}
@@ -550,9 +609,7 @@ function EditModal({
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">
-              Video URL
-            </label>
+            <label className="block text-sm font-medium text-text-primary mb-1">Video URL</label>
             <input
               type="url"
               value={videoUrl}
@@ -656,13 +713,9 @@ function SubmissionCard({
                   {displayName}
                 </a>
               ) : (
-                <span className="text-sm font-medium text-text-primary">
-                  {displayName}
-                </span>
+                <span className="text-sm font-medium text-text-primary">{displayName}</span>
               )}
-              <p className="text-xs text-text-tertiary mt-0.5">
-                Submitted {submittedDate}
-              </p>
+              <p className="text-xs text-text-tertiary mt-0.5">Submitted {submittedDate}</p>
             </div>
 
             {/* Status badges */}
@@ -750,14 +803,12 @@ export default function Profile() {
   const basePath = useBasePath();
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const { user, signIn, signOut } = useAuth();
-  const submissions = useQuery(
-    api.packages.getMySubmissions,
-    isAuthenticated ? {} : "skip",
-  );
+  const submissions = useQuery(api.packages.getMySubmissions, isAuthenticated ? {} : "skip");
 
   // Mutations for user actions
   const setVisibility = useMutation(api.packages.setMySubmissionVisibility);
   const deleteSubmission = useMutation(api.packages.requestDeleteMySubmission);
+  const deleteAccount = useMutation(api.packages.deleteMyAccount);
 
   // Modal state for request
   const [requestModal, setRequestModal] = useState<{
@@ -781,6 +832,27 @@ export default function Profile() {
     packageName: string;
   } | null>(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
+
+  // Delete account modal state
+  const [deleteAccountModal, setDeleteAccountModal] = useState(false);
+  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
+
+  // Handle delete account
+  const handleDeleteAccount = async () => {
+    setDeleteAccountLoading(true);
+    try {
+      await deleteAccount({});
+      toast.success("Your account has been deleted");
+      setDeleteAccountModal(false);
+      // Sign out and redirect to home
+      signOut();
+    } catch (err) {
+      toast.error("Failed to delete account");
+      console.error(err);
+    } finally {
+      setDeleteAccountLoading(false);
+    }
+  };
 
   // Handle confirm action
   const handleConfirm = async () => {
@@ -853,7 +925,7 @@ export default function Profile() {
       <div className="max-w-3xl mx-auto px-4 py-8">
         {/* Page title with submit CTA */}
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-xl font-medium text-text-primary">My Submissions</h1>
+          <h1 className="text-xl font-medium text-text-primary">Component Submissions</h1>
           <a
             href={`${basePath}/submit`}
             className="inline-flex items-center gap-1 px-4 py-2 text-sm rounded-full bg-button text-white hover:bg-button-hover transition-colors">
@@ -863,13 +935,23 @@ export default function Profile() {
         </div>
 
         {/* Profile info */}
-        <div className="flex items-center gap-4 mb-8 p-4 rounded-lg border border-border bg-white">
-          <div className="w-12 h-12 rounded-full bg-button text-white flex items-center justify-center text-lg font-medium">
-            {user?.email?.[0]?.toUpperCase() || "U"}
+        <div className="flex items-center justify-between gap-4 mb-8 p-4 rounded-lg border border-border bg-white">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-button text-white flex items-center justify-center text-lg font-medium">
+              {user?.email?.[0]?.toUpperCase() || "U"}
+            </div>
+            <div>
+              <h1 className="text-lg font-medium text-text-primary">My Profile</h1>
+              <p className="text-sm text-text-secondary">{user?.email}</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-lg font-medium text-text-primary">My Profile</h1>
-            <p className="text-sm text-text-secondary">{user?.email}</p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => signOut()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+              <SignOut size={14} />
+              Sign Out
+            </button>
           </div>
         </div>
 
@@ -908,9 +990,7 @@ export default function Profile() {
                   onRequestRefresh={(id, name) =>
                     setRequestModal({ packageId: id, packageName: name })
                   }
-                  onViewNotes={(id, name) =>
-                    setNotesModal({ packageId: id, packageName: name })
-                  }
+                  onViewNotes={(id, name) => setNotesModal({ packageId: id, packageName: name })}
                   onEdit={(id) => setEditModal(id)}
                   onHide={(id, name) =>
                     setConfirmModal({ type: "hide", packageId: id, packageName: name })
@@ -929,9 +1009,7 @@ export default function Profile() {
 
         {/* Status and Visibility Guide */}
         <div className="mt-12 pt-6 border-t border-border">
-          <h3 className="text-sm font-medium text-text-primary mb-3">
-            Status Guide
-          </h3>
+          <h3 className="text-sm font-medium text-text-primary mb-3">Status Guide</h3>
           <ul className="space-y-2 text-xs mb-6">
             <li className="flex items-center gap-2">
               <StatusBadge status="pending" />
@@ -955,9 +1033,7 @@ export default function Profile() {
             </li>
           </ul>
 
-          <h3 className="text-sm font-medium text-text-primary mb-3">
-            Visibility Guide
-          </h3>
+          <h3 className="text-sm font-medium text-text-primary mb-3">Visibility Guide</h3>
           <ul className="space-y-2 text-xs">
             <li className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -975,6 +1051,31 @@ export default function Profile() {
               <span className="text-text-secondary">Archived by admin</span>
             </li>
           </ul>
+        </div>
+
+        {/* Account section */}
+        <div className="mt-12 pt-6 border-t border-border">
+          <h3 className="text-sm font-medium text-text-primary mb-3">Account</h3>
+          <div className="p-4 rounded-lg border border-red-200 bg-red-50">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <UserMinus size={16} className="text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-medium text-red-800">Delete Account</h4>
+                <p className="text-xs text-red-700 mt-1 mb-3">
+                  Permanently delete your account and all associated data. This action cannot be
+                  undone.
+                </p>
+                <button
+                  onClick={() => setDeleteAccountModal(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors">
+                  <Trash size={14} />
+                  Delete My Account
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -999,12 +1100,7 @@ export default function Profile() {
       )}
 
       {/* Edit modal */}
-      {editModal && (
-        <EditModal
-          packageId={editModal}
-          onClose={() => setEditModal(null)}
-        />
-      )}
+      {editModal && <EditModal packageId={editModal} onClose={() => setEditModal(null)} />}
 
       {/* Confirmation modals */}
       {confirmModal?.type === "hide" && (
@@ -1040,6 +1136,15 @@ export default function Profile() {
           onConfirm={handleConfirm}
           onClose={() => setConfirmModal(null)}
           isLoading={confirmLoading}
+        />
+      )}
+
+      {/* Delete account modal */}
+      {deleteAccountModal && (
+        <DeleteAccountModal
+          onConfirm={handleDeleteAccount}
+          onClose={() => setDeleteAccountModal(false)}
+          isLoading={deleteAccountLoading}
         />
       )}
     </div>

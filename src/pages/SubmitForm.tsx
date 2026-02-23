@@ -7,11 +7,11 @@ import { Toaster, toast } from "sonner";
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useDirectoryCategories } from "../lib/categories";
 import Header from "../components/Header";
+import { FAQSection } from "../components/FAQSection";
 import {
   CheckCircle,
   CaretDown,
   X,
-  ArrowLeft,
 } from "@phosphor-icons/react";
 
 // Get base path for links
@@ -78,76 +78,20 @@ function ErrorModal({ message, onClose }: { message: string; onClose: () => void
   );
 }
 
-// FAQ section
-function FAQSection() {
-  const basePath = useBasePath();
-  return (
-    <section id="faq" className="mt-12 pt-8 border-t border-border">
-      <h2 className="text-lg font-medium text-text-primary mb-4">
-        Frequently Asked Questions
-      </h2>
-      <div className="space-y-4">
-        <div>
-          <h3 className="text-sm font-medium text-text-primary">
-            What happens after I submit?
-          </h3>
-          <p className="text-sm text-text-secondary mt-1">
-            Your component will be reviewed by the Convex team. We check for common errors and ensure it complies with our authoring guidelines. You'll receive an email notification when the review is complete.
-          </p>
-        </div>
-        <div>
-          <h3 className="text-sm font-medium text-text-primary">
-            What are the requirements?
-          </h3>
-          <p className="text-sm text-text-secondary mt-1">
-            Components must be published on npm, have a public GitHub repository, include a working demo, and follow the{" "}
-            <a
-              href="https://docs.convex.dev/components/authoring"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-button hover:underline">
-              Authoring Components
-            </a>{" "}
-            guidelines.
-          </p>
-        </div>
-        <div>
-          <h3 className="text-sm font-medium text-text-primary">
-            Can I update my submission?
-          </h3>
-          <p className="text-sm text-text-secondary mt-1">
-            Yes! Visit your{" "}
-            <a href={`${basePath}/profile`} className="text-button hover:underline">
-              profile page
-            </a>{" "}
-            to view your submissions and request updates from the team.
-          </p>
-        </div>
-        <div>
-          <h3 className="text-sm font-medium text-text-primary">
-            Where can I learn more?
-          </h3>
-          <p className="text-sm text-text-secondary mt-1">
-            Check out the{" "}
-            <a
-              href="https://docs.convex.dev/components"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-button hover:underline">
-              Convex Components documentation
-            </a>{" "}
-            to learn about understanding, using, and authoring components.
-          </p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 export default function SubmitForm() {
   const basePath = useBasePath();
   const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const { user, signIn } = useAuth();
+
+  // Auto-redirect to sign-in when unauthenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      // Store the current path so we return here after sign-in
+      localStorage.setItem("authReturnPath", window.location.pathname);
+      // Trigger the sign-in flow automatically
+      signIn();
+    }
+  }, [authLoading, isAuthenticated, signIn]);
 
   // Checklist state (all three must be checked to enable form)
   const [readFaq, setReadFaq] = useState(false);
@@ -340,112 +284,17 @@ export default function SubmitForm() {
     );
   }
 
-  // Not authenticated - show sign in gate
+  // Not authenticated - show redirecting state (auto sign-in is triggered via useEffect)
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-bg-primary">
         <Header />
-        <div className="max-w-xl mx-auto px-4 py-12">
-          <a
-            href={`${basePath}/`}
-            className="inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary transition-colors mb-8">
-            <ArrowLeft size={16} />
-            Back to Directory
-          </a>
-
-          <div className="bg-white border border-border rounded-lg p-8">
-            <h1 className="text-xl font-medium text-text-primary mb-2">
-              Submit a Component
-            </h1>
-            <p className="text-sm text-text-secondary mb-6">
-              Sign in to submit your Convex component to the directory.
-            </p>
-
-            {/* Submission checklist */}
-            <div className="space-y-3 mb-6">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={readFaq}
-                  onChange={(e) => setReadFaq(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 shrink-0 rounded border-border text-button focus:ring-button/50"
-                />
-                <span className="text-sm text-text-secondary">
-                  I have read the{" "}
-                  <a href="#faq" className="text-button hover:underline">
-                    Frequently Asked Questions
-                  </a>
-                  .
-                </span>
-              </label>
-
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={compliesGuidelines}
-                  onChange={(e) => setCompliesGuidelines(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 shrink-0 rounded border-border text-button focus:ring-button/50"
-                />
-                <span className="text-sm text-text-secondary">
-                  This component complies with the{" "}
-                  <a
-                    href="https://docs.convex.dev/components/authoring"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-button hover:underline">
-                    Authoring Components
-                  </a>{" "}
-                  guidelines.
-                </span>
-              </label>
-
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={hasPermission}
-                  onChange={(e) => setHasPermission(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 shrink-0 rounded border-border text-button focus:ring-button/50"
-                />
-                <span className="text-sm text-text-secondary">
-                  I have permission to submit this component for others to use and share.
-                </span>
-              </label>
-            </div>
-
-            <button
-              onClick={() => {
-                // Save current path to return after sign-in
-                localStorage.setItem("authReturnPath", window.location.pathname);
-                signIn();
-              }}
-              disabled={!allChecklistsComplete}
-              className="w-full px-6 py-3 rounded-full font-normal bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm">
-              Sign in to Submit
-            </button>
+        <div className="flex items-center justify-center py-24">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-button mx-auto mb-4"></div>
+            <p className="text-sm text-text-secondary">Redirecting to sign in...</p>
           </div>
-
-          <FAQSection />
-
-          {/* Terms and Privacy links below FAQ */}
-          <p className="text-xs text-text-secondary mt-6 text-center">
-            <a
-              href="https://www.convex.dev/legal/tos"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-button hover:underline">
-              Terms of Service
-            </a>
-            {" | "}
-            <a
-              href="https://www.convex.dev/legal/privacy"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-button hover:underline">
-              Privacy Policy
-            </a>
-          </p>
         </div>
-        <Toaster />
       </div>
     );
   }
@@ -454,19 +303,12 @@ export default function SubmitForm() {
   return (
     <div className="min-h-screen bg-bg-primary">
       <Header />
-      <div className="max-w-2xl mx-auto px-4 py-8">
-        <a
-          href={`${basePath}/`}
-          className="inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary transition-colors mb-6">
-          <ArrowLeft size={16} />
-          Back to Directory
-        </a>
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        {/* Page title */}
+        <h1 className="text-xl font-medium text-text-primary mb-6">Submit a Component</h1>
 
         {/* Form container */}
         <div className="bg-white border border-border rounded-lg p-6">
-          <h1 className="text-xl font-medium text-text-primary mb-2">
-            Submit a Component
-          </h1>
           <p className="text-sm text-text-secondary mb-6">
             Submit your npm package to the Convex components directory for review.
           </p>

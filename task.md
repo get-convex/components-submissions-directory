@@ -24,6 +24,49 @@
 
 ## Recent updates
 
+- [x] Header floating pill redesign (2026-02-23)
+  - Floating pill design with `rounded-full`, white/95 background, backdrop blur, and shadow
+  - Convex wordmark black SVG logo (70px height)
+  - Added GitHub, Discord, and Docs icons to right side of header
+  - Navigation links (Directory, Submissions, Submit) with medium font weight
+  - Removed user email from profile dropdown
+  - Header height: 3.438rem
+  - Mobile menu fixed: separate dropdown card below header pill (rounded-2xl)
+- [x] SubmitForm.tsx layout improvements (2026-02-23)
+  - Removed "Back to Directory" breadcrumb link
+  - Moved "Submit a Component" title above the form box to match Profile.tsx style
+  - Description text remains inside the form box
+- [x] FAQSection component extraction and expansion (2026-02-22)
+  - Extracted FAQ section from SubmitForm.tsx into reusable `src/components/FAQSection.tsx`
+  - Added FAQSection to bottom of Submit.tsx (submissions directory page)
+  - Expanded FAQ content with new questions:
+    - How are components sandboxed?
+    - Can I build my own?
+    - Do components cost money to use?
+  - Updated review process answer to mention rolling basis review
+  - Updated requirements answer to remove demo requirement
+- [x] Page layout alignment (2026-02-22)
+  - Submit.tsx page width now matches Directory.tsx (`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8`)
+  - SubmitForm.tsx page width now matches Profile.tsx (`max-w-3xl`)
+  - Submit.tsx title "Components Submissions Directory" styled to match Directory.tsx
+  - Search input background changed to white on Submit.tsx
+- [x] Convex self-hosting integration (2026-02-22)
+  - Installed `@convex-dev/self-hosting` for static file serving at `giant-grouse-674.convex.site`
+  - Created `convex/convex.config.ts` to register the self-hosting component
+  - Created `convex/staticHosting.ts` to expose upload APIs for the CLI
+  - Updated `convex/http.ts` with `registerStaticRoutes()` (preserves existing API routes)
+  - Updated `vite.config.ts` with environment-aware base path (`SELF_HOST=true` uses `/`)
+  - Added `deploy` script: `SELF_HOST=true npx @convex-dev/self-hosting deploy`
+  - Added `deploy:static` script: `SELF_HOST=true npx @convex-dev/self-hosting upload --build --prod`
+  - Updated `files.md` with new files and modified descriptions
+  - WorkOS production setup: Add `https://giant-grouse-674.convex.site/callback` to WorkOS dashboard
+  - Convex production setup: Set `WORKOS_CLIENT_ID` env var in Convex dashboard
+- [x] Auto sign-in redirect for `/submit` page (2026-02-22)
+  - Unauthenticated users visiting `/submit` now auto-redirect to WorkOS sign-in
+  - `useEffect` hook in `SubmitForm.tsx` triggers `signIn()` automatically when not authenticated
+  - Stores current path in localStorage before redirect
+  - `AuthCallback` reads stored path and returns user to `/submit` after auth
+  - Replaced sign-in gate UI with "Redirecting to sign in..." loading spinner
 - [x] Mark as read notifications (2026-02-22)
   - Added `adminHasRead` field to `packageNotes` and `packageComments` schemas
   - Admin Notes panel auto-marks user notes as read when opened

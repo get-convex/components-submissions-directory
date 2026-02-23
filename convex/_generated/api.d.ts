@@ -17,6 +17,7 @@ import type * as router from "../router.js";
 import type * as seed from "../seed.js";
 import type * as seoContent from "../seoContent.js";
 import type * as seoContentDb from "../seoContentDb.js";
+import type * as staticHosting from "../staticHosting.js";
 import type * as thumbnailGenerator from "../thumbnailGenerator.js";
 import type * as thumbnails from "../thumbnails.js";
 
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   seed: typeof seed;
   seoContent: typeof seoContent;
   seoContentDb: typeof seoContentDb;
+  staticHosting: typeof staticHosting;
   thumbnailGenerator: typeof thumbnailGenerator;
   thumbnails: typeof thumbnails;
 }>;
@@ -66,4 +68,73 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  selfHosting: {
+    lib: {
+      gcOldAssets: FunctionReference<
+        "mutation",
+        "internal",
+        { currentDeploymentId: string },
+        { blobIds: Array<string>; storageIds: Array<string> }
+      >;
+      generateUploadUrl: FunctionReference<"mutation", "internal", {}, string>;
+      getByPath: FunctionReference<
+        "query",
+        "internal",
+        { path: string },
+        {
+          _creationTime: number;
+          _id: string;
+          blobId?: string;
+          contentType: string;
+          deploymentId: string;
+          path: string;
+          storageId?: string;
+        } | null
+      >;
+      getCurrentDeployment: FunctionReference<
+        "query",
+        "internal",
+        {},
+        {
+          _creationTime: number;
+          _id: string;
+          currentDeploymentId: string;
+          deployedAt: number;
+        } | null
+      >;
+      listAssets: FunctionReference<
+        "query",
+        "internal",
+        { limit?: number },
+        Array<{
+          _creationTime: number;
+          _id: string;
+          blobId?: string;
+          contentType: string;
+          deploymentId: string;
+          path: string;
+          storageId?: string;
+        }>
+      >;
+      recordAsset: FunctionReference<
+        "mutation",
+        "internal",
+        {
+          blobId?: string;
+          contentType: string;
+          deploymentId: string;
+          path: string;
+          storageId?: string;
+        },
+        { oldBlobId: string | null; oldStorageId: string | null }
+      >;
+      setCurrentDeployment: FunctionReference<
+        "mutation",
+        "internal",
+        { deploymentId: string },
+        null
+      >;
+    };
+  };
+};

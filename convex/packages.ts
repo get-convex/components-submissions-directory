@@ -3104,6 +3104,90 @@ export const requestDeleteMySubmission = mutation({
   },
 });
 
+// Mutation: User deletes their entire account and all associated data
+export const deleteMyAccount = mutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity || !identity.email) {
+      throw new Error("Authentication required");
+    }
+
+    const userEmail = identity.email;
+
+    // Get all packages owned by user
+    const userPackages = await ctx.db
+      .query("packages")
+      .withIndex("by_submitter_email", (q) => q.eq("submitterEmail", userEmail))
+      .collect();
+
+    // Also get packages where user is in additionalEmails
+    const allPackages = await ctx.db.query("packages").collect();
+    const additionalEmailPackages = allPackages.filter(
+      (pkg) =>
+        pkg.additionalEmails?.includes(userEmail) &&
+        pkg.submitterEmail !== userEmail
+    );
+
+    // Delete all user-owned packages and their associated data
+    for (const pkg of userPackages) {
+      // Delete associated notes
+      const notes = await ctx.db
+        .query("packageNotes")
+        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
+        .collect();
+      await Promise.all(notes.map((note) => ctx.db.delete(note._id)));
+
+      // Delete associated comments
+      const comments = await ctx.db
+        .query("packageComments")
+        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
+        .collect();
+      await Promise.all(comments.map((comment) => ctx.db.delete(comment._id)));
+
+      // Delete associated ratings
+      const ratings = await ctx.db
+        .query("componentRatings")
+        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
+        .collect();
+      await Promise.all(ratings.map((rating) => ctx.db.delete(rating._id)));
+
+      // Delete thumbnail jobs
+      const jobs = await ctx.db
+        .query("thumbnailJobs")
+        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
+        .collect();
+      await Promise.all(jobs.map((job) => ctx.db.delete(job._id)));
+
+      // Delete badge fetches
+      const fetches = await ctx.db
+        .query("badgeFetches")
+        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
+        .collect();
+      await Promise.all(fetches.map((fetch) => ctx.db.delete(fetch._id)));
+
+      // Delete the package itself
+      await ctx.db.delete(pkg._id);
+    }
+
+    // Remove user from additionalEmails on packages they don't own
+    for (const pkg of additionalEmailPackages) {
+      if (pkg.additionalEmails) {
+        const updatedEmails = pkg.additionalEmails.filter(
+          (e) => e !== userEmail
+        );
+        await ctx.db.patch(pkg._id, {
+          additionalEmails:
+            updatedEmails.length > 0 ? updatedEmails : undefined,
+        });
+      }
+    }
+
+    return null;
+  },
+});
+
 // Mutation: User updates their own submission fields
 export const updateMySubmission = mutation({
   args: {

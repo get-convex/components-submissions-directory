@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { Id } from "../../convex/_generated/dataModel";
 import { useDirectoryCategories } from "../lib/categories";
 import Header from "../components/Header";
+import { FAQSection } from "../components/FAQSection";
 import {
   Package,
   DownloadSimple,
@@ -266,16 +267,23 @@ export default function App() {
       {/* Global header with auth */}
       <Header />
 
+      {/* Page header - matching Directory.tsx style */}
+      <header>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
+          <h1 className="text-2xl font-semibold text-text-primary mb-1">
+            Components Submissions Directory
+          </h1>
+          <p className="text-sm text-text-secondary">
+            Submissions are reviewed on a rolling basis.
+          </p>
+        </div>
+      </header>
+
       {/* Main content */}
-      <main className="flex-1 px-4 sm:px-6 py-4 sm:py-6">
-        <div className="max-w-7xl mx-auto">
+      <main className="flex-1">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           {/* Toolbar above package listing */}
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:justify-between sm:items-center mb-4">
-            {/* Left: Title */}
-            <h1 className="whitespace-nowrap font-sans text-lg sm:text-xl font-medium text-text-primary">
-              Components Submissions Directory
-            </h1>{" "}
-            <span>Submissions are reviewed on a rolling basis.</span>
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:justify-end sm:items-center mb-4">
             {/* Right: Controls */}
             <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap">
               {/* About button */}
@@ -301,7 +309,7 @@ export default function App() {
                       onBlur={() => {
                         if (!searchTerm) setIsSearchExpanded(false);
                       }}
-                      className="w-full pl-3 pr-8 py-1.5 rounded-full border border-border bg-bg-card text-text-primary text-sm outline-none focus:border-button transition-colors"
+                      className="w-full pl-3 pr-8 py-1.5 rounded-full border border-border bg-white text-text-primary text-sm outline-none focus:border-button transition-colors"
                     />
                   </div>
                   <button
@@ -383,6 +391,9 @@ export default function App() {
 
           {/* Package listing */}
           <Content searchTerm={searchTerm} sortBy={sortBy} />
+
+          {/* FAQ Section */}
+          <FAQSection />
         </div>
       </main>
 

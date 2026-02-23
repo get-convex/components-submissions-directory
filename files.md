@@ -6,7 +6,11 @@ This document provides a brief description of each file in the codebase and how 
 
 ### `package.json`
 
-Defines project dependencies, scripts, and metadata. Includes React, Convex, Vite, TypeScript, and development tools. Scripts handle parallel dev server execution and production builds.
+Defines project dependencies, scripts, and metadata. Includes React, Convex, Vite, TypeScript, `@convex-dev/self-hosting`, and development tools. Key scripts:
+- `dev`: Parallel dev server (frontend + backend)
+- `build`: Production build for Netlify/Vercel
+- `deploy`: One-shot deploy to Convex self-hosting (backend + static files)
+- `deploy:static`: Upload static files only to Convex storage
 
 ### `tsconfig.json`, `tsconfig.app.json`, `tsconfig.node.json`
 
@@ -14,7 +18,10 @@ TypeScript configuration files for different parts of the project. `tsconfig.jso
 
 ### `vite.config.ts`
 
-Vite build configuration. Sets up React plugin, path aliases, and base path `/components/` for convex.dev deployment.
+Vite build configuration. Sets up React plugin, path aliases, and environment-aware base path:
+- `SELF_HOST=true`: Uses `/` for deployment at `giant-grouse-674.convex.site`
+- Production (`npm run build`): Uses `/components/` for Netlify/Vercel deployment
+- Development (`npm run dev`): Uses `/` for local development at `localhost:5173`
 
 ### `tailwind.config.js`
 
@@ -110,7 +117,20 @@ HTTP router configuration. Defines:
 
 ### `convex/http.ts`
 
-Main HTTP router setup. Integrates auth routes and exports the router.
+Main HTTP router with all API endpoints and static file serving. Defines:
+- `/api/export-csv` endpoint for CSV export of all packages
+- `/api/badge` endpoint for dynamic SVG badge generation with analytics tracking
+- `/api/markdown` endpoint serving raw markdown for component data
+- `/api/llms.txt` endpoint serving a plain-text index of all approved components
+- Static file routes via `@convex-dev/self-hosting` for serving the React app at `.convex.site`
+
+### `convex/convex.config.ts`
+
+Convex app configuration file that registers the self-hosting component for static file serving.
+
+### `convex/staticHosting.ts`
+
+Exposes internal upload APIs and deployment query for the self-hosting component. Used by the CLI to upload built static files to Convex storage.
 
 ### `convex/tsconfig.json`
 
@@ -128,14 +148,33 @@ Application entry point. Sets up Convex React client with WorkOS AuthKit (`AuthK
 - `/` = Directory (approved components, public)
 - `/submissions` = Submit.tsx (submissions directory with table view, public)
 - `/submissions/admin` = Admin.tsx (requires @convex.dev email)
-- `/submit` = SubmitForm.tsx (auth-gated submission form with checkboxes)
+- `/submit` = SubmitForm.tsx (auto sign-in redirect for unauthenticated users)
 - `/profile` = Profile.tsx (user's submissions, auth required)
-- `/callback` = OAuth callback handler
+- `/callback` = OAuth callback handler (reads `authReturnPath` from localStorage to redirect after auth)
 - `/:slug` = ComponentDetail (public)
 
 ### `src/components/Header.tsx`
 
-Shared header component with auth state management. Uses `useConvexAuth()` for auth state and `useAuth()` from WorkOS for user data and sign in/out. Displays navigation links (Directory, Submit, Docs), user menu with avatar, email, My Submissions link, and Sign Out button. Sign In button calls `signIn()` directly to redirect to WorkOS hosted login. Used across all pages for consistent navigation and auth UI.
+Shared header component with auth state management. Uses `useConvexAuth()` for auth state and `useAuth()` from WorkOS for user data and sign in/out. Features:
+- Floating pill design with `rounded-full`, white/95 background, backdrop blur, and shadow
+- Convex wordmark logo (black SVG, 70px height)
+- Navigation links (Directory, Submissions, Submit) with medium font weight
+- Social icons (GitHub, Discord) and Docs icon linking to external resources
+- User menu with avatar, My Submissions link, and Sign Out button
+- Sticky positioning with top padding for floating effect
+- Mobile responsive with separate dropdown menu card (rounded-2xl) below header pill
+- Header height: 3.438rem
+
+### `src/components/FAQSection.tsx`
+
+Reusable FAQ section component extracted from SubmitForm.tsx. Displays frequently asked questions about component submissions with expandable answers covering:
+- Component sandboxing and data isolation
+- Submission review process (rolling basis review)
+- Requirements for submission
+- Building custom components
+- Updating submissions via profile page
+- Component pricing (open source, usage-based)
+- Links to documentation resources
 
 ### `src/App.tsx`
 
@@ -150,12 +189,15 @@ Component directory listing page at `/components/`. Features shared Header compo
 
 Dedicated component submission form page at `/submit`. Features:
 - Shared Header component with auth state
-- For unauthenticated users: sign-in gate with checklist (all 3 must be checked to enable Sign In button), FAQ, and terms links
+- Page layout matching Profile.tsx width (`max-w-3xl`)
+- Auto sign-in redirect: unauthenticated users are automatically redirected to WorkOS sign-in via `useEffect` hook
+- Stores return path in localStorage before redirect; `AuthCallback` returns user to `/submit` after auth
+- For unauthenticated users: shows "Redirecting to sign in..." loading state
 - For authenticated users:
   - Full submission form with all fields
   - 3 checkboxes at bottom of form (FAQ read, guidelines compliance, permission to share)
   - Submit button disabled until all 3 checkboxes are checked
-  - FAQ section below form
+  - FAQSection component below form
   - Terms of Service and Privacy Policy links at bottom
 - Form collects: component name, GitHub repo, npm URL, demo URL, category, descriptions, tags, video URL, logo upload, submitter info
 - Success/error modals with links to profile page
@@ -164,12 +206,15 @@ Dedicated component submission form page at `/submit`. Features:
 
 Public submissions directory at `/submissions`. Table-based UI showing all submitted components with expandable rows. Features:
 - Shared Header component with auth state
-- Search and sort controls (newest, most downloads, recently updated)
+- Page layout matching Directory.tsx width (`max-w-7xl`)
+- Title "Components Submissions Directory" styled to match Directory page
+- Search and sort controls with white background search input
 - Expandable package rows with install command, license, size, files, maintainers
 - npm/Repo/Website/Demo action buttons per package
 - Status badges (pending, in review, approved, changes requested, rejected)
 - Submit button links to `/submit` (auth-gated form page)
 - About modal with status legend
+- FAQSection component at bottom of page
 
 ### `src/pages/Profile.tsx`
 

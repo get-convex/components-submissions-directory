@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Header redesign with floating pill style (2026-02-23)
+  - Floating pill design with `rounded-full`, white/95 background, backdrop blur, and shadow
+  - Convex wordmark black SVG logo (70px height)
+  - Added GitHub, Discord, and Docs icons to header navigation
+  - Navigation links (Directory, Submissions, Submit) with medium font weight
+  - Removed user email from profile dropdown
+  - Header height set to 3.438rem
+  - Mobile menu redesigned as separate dropdown card below header pill (rounded-2xl)
+- SubmitForm.tsx layout improvements (2026-02-23)
+  - Removed "Back to Directory" breadcrumb link
+  - Moved "Submit a Component" title above the form box to match Profile.tsx style
+  - Description text remains inside the form box
+- FAQSection reusable component (2026-02-22)
+  - Extracted from SubmitForm.tsx into `src/components/FAQSection.tsx`
+  - Added to bottom of Submit.tsx (submissions directory) page
+  - Expanded FAQ content: sandboxing, review process, requirements, building components, pricing, docs links
+- Page layout alignment improvements (2026-02-22)
+  - Submit.tsx page width now matches Directory.tsx (`max-w-7xl`)
+  - SubmitForm.tsx page width now matches Profile.tsx (`max-w-3xl`)
+  - Submit.tsx title styling aligned with Directory.tsx
+  - Search input background changed to white on Submit.tsx
+- Convex self-hosting integration for deploying the React app at `giant-grouse-674.convex.site` (2026-02-22)
+  - Installed `@convex-dev/self-hosting` component for static file serving
+  - Added `convex/convex.config.ts` to register the self-hosting component
+  - Added `convex/staticHosting.ts` to expose upload APIs for the CLI
+  - Updated `convex/http.ts` with `registerStaticRoutes()` for SPA fallback (preserves all existing API routes)
+  - Updated `vite.config.ts` with environment-aware base path (`SELF_HOST=true` uses `/`)
+  - Added `deploy` and `deploy:static` npm scripts for one-shot deployment
+- Auto sign-in redirect for `/submit` page (2026-02-22)
+  - Unauthenticated users visiting `/submit` are now automatically redirected to WorkOS sign-in
+  - After authentication, users are returned to `/submit` to complete their submission
+  - No longer requires clicking "Sign in to Submit" button first
 - Mark as read notification system
   - `adminHasRead` field on `packageNotes` for admin read tracking
   - `adminHasRead` field on `packageComments` for admin read tracking
@@ -35,9 +67,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SubmitterEmailEditor` component in Admin panel for editing submitter emails
 - `userOwnsPackage` helper function for checking ownership via submitterEmail or additionalEmails
 - Shared `Header` component (`src/components/Header.tsx`) with auth state, navigation, and user menu
+- `FAQSection` component (`src/components/FAQSection.tsx`) for reusable FAQ display
 
 ### Changed
 
+- Header.tsx redesigned with white background, Convex wordmark logo, and social icons (2026-02-22)
+- Submit.tsx page layout aligned with Directory.tsx width and styling (2026-02-22)
+- SubmitForm.tsx page width aligned with Profile.tsx (2026-02-22)
+- FAQSection expanded with additional questions about sandboxing, pricing, and building components (2026-02-22)
+
+- `SubmitForm.tsx` now auto-triggers sign-in flow when accessed by unauthenticated users
+  - Replaced sign-in gate UI with "Redirecting to sign in..." loading state
+  - `useEffect` hook stores return path in localStorage and calls `signIn()` automatically
+  - `AuthCallback` component reads stored path and redirects back after authentication
 - `getMySubmissions` query now checks both submitterEmail and additionalEmails for user access
 - Profile page: removed duplicate "My Submissions" header and "Submit New" button
 - Profile page: added Edit, Hide/Show, and Delete buttons to submission cards
