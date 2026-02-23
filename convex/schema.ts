@@ -232,6 +232,8 @@ const applicationTables = {
     ),
     // Error message if generation fails
     seoGenerationError: v.optional(v.string()),
+    // AI-generated SKILL.md content for Claude agent skills
+    skillMd: v.optional(v.string()),
   })
     .index("by_name", ["name"])
     .index("by_submitted_at", ["submittedAt"])

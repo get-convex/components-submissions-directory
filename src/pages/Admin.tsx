@@ -112,6 +112,7 @@ function PackageComponentDetailsEditor({
   seoGeneratedAt,
   seoGenerationError,
   seoValueProp,
+  skillMd,
 }: {
   packageId: Id<"packages">;
   componentName?: string;
@@ -134,6 +135,7 @@ function PackageComponentDetailsEditor({
   seoGeneratedAt?: number;
   seoGenerationError?: string;
   seoValueProp?: string;
+  skillMd?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -180,6 +182,7 @@ function PackageComponentDetailsEditor({
           seoGeneratedAt={seoGeneratedAt}
           seoGenerationError={seoGenerationError}
           seoValueProp={seoValueProp}
+          skillMd={skillMd}
         />
       )}
     </div>
@@ -4734,6 +4737,7 @@ function AdminDashboard({
                             seoGeneratedAt={pkg.seoGeneratedAt}
                             seoGenerationError={pkg.seoGenerationError}
                             seoValueProp={pkg.seoValueProp}
+                            skillMd={pkg.skillMd}
                           />
                           <PackageMetadataEditor
                             packageId={pkg._id}

@@ -113,6 +113,8 @@ const publicPackageValidator = v.object({
       v.literal("error"),
     ),
   ),
+  // AI-generated SKILL.md content for Claude agent skills
+  skillMd: v.optional(v.string()),
 });
 
 // ============ SECURITY: Admin package fields ============
@@ -294,6 +296,7 @@ function toPublicPackage(pkg: any) {
     seoResourceLinks: pkg.seoResourceLinks,
     seoGeneratedAt: pkg.seoGeneratedAt,
     seoGenerationStatus: pkg.seoGenerationStatus,
+    skillMd: pkg.skillMd,
   };
 }
 

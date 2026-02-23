@@ -233,6 +233,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
   const [copyMenuOpen, setCopyMenuOpen] = useState(false);
   const [pageCopied, setPageCopied] = useState(false);
   const [mdCopied, setMdCopied] = useState(false);
+  const [skillCopied, setSkillCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // GitHub issues state
@@ -363,6 +364,15 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
       await navigator.clipboard.writeText(badgeMarkdown);
       setBadgeCopied(true);
       setTimeout(() => setBadgeCopied(false), 2000);
+    } catch {}
+  };
+
+  const handleCopySkill = async () => {
+    if (!component?.skillMd) return;
+    try {
+      await navigator.clipboard.writeText(component.skillMd);
+      setSkillCopied(true);
+      setTimeout(() => setSkillCopied(false), 2000);
     } catch {}
   };
 
@@ -983,6 +993,33 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                       {tag}
                     </span>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* SKILL.md for Claude agents */}
+            {component.skillMd && (
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-text-primary mb-2">
+                  Agent Skill (SKILL.md)
+                </h3>
+                <p className="text-xs text-text-secondary mb-2">
+                  Copy this SKILL.md file to teach Claude how to use this component.
+                </p>
+                <div className="relative rounded-md bg-[#1a1a1a] text-gray-300">
+                  <button
+                    onClick={handleCopySkill}
+                    className="absolute top-2 right-2 p-1.5 rounded hover:bg-white/10 transition-colors"
+                    title={skillCopied ? "Copied" : "Copy SKILL.md"}>
+                    {skillCopied ? (
+                      <CheckIcon className="w-4 h-4 text-green-400" />
+                    ) : (
+                      <CopyIcon className="w-4 h-4 text-gray-400" />
+                    )}
+                  </button>
+                  <pre className="p-3 pr-10 text-xs overflow-x-auto whitespace-pre-wrap font-mono max-h-48 overflow-y-auto">
+                    {component.skillMd}
+                  </pre>
                 </div>
               </div>
             )}

@@ -19,10 +19,11 @@ export const _saveSeoContent = internalMutation({
     resourceLinks: v.array(
       v.object({ label: v.string(), url: v.string() }),
     ),
+    skillMd: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch("packages", args.packageId, {
+    await ctx.db.patch(args.packageId, {
       seoValueProp: args.valueProp,
       seoBenefits: args.benefits,
       seoUseCases: args.useCases,
@@ -31,6 +32,7 @@ export const _saveSeoContent = internalMutation({
       seoGeneratedAt: Date.now(),
       seoGenerationStatus: "completed",
       seoGenerationError: undefined,
+      skillMd: args.skillMd,
     });
     return null;
   },

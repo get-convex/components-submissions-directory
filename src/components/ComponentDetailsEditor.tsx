@@ -36,6 +36,8 @@ interface ComponentDetailsEditorProps {
   seoGeneratedAt?: number;
   seoGenerationError?: string;
   seoValueProp?: string;
+  // SKILL.md generation
+  skillMd?: string;
   mode?: "full" | "submission";
 }
 
@@ -61,6 +63,7 @@ export function ComponentDetailsEditor({
   seoGeneratedAt,
   seoGenerationError,
   seoValueProp,
+  skillMd,
   mode = "full",
 }: ComponentDetailsEditorProps) {
   const isSubmissionMode = mode === "submission";
@@ -699,7 +702,7 @@ export function ComponentDetailsEditor({
         <div className="pt-2 border-t border-border">
           <div className="flex items-center justify-between mb-2">
             <label className="text-[10px] uppercase tracking-wider text-text-secondary">
-              AI SEO Content
+              AI SEO Content + SKILL.md
             </label>
             {seoGenerationStatus === "completed" && seoGeneratedAt && (
               <span className="text-[10px] text-text-secondary">
@@ -722,15 +725,20 @@ export function ComponentDetailsEditor({
               {seoValueProp}
             </p>
           )}
+          {seoGenerationStatus === "completed" && skillMd && (
+            <p className="text-[10px] text-green-600 mb-2">
+              SKILL.md generated
+            </p>
+          )}
 
           <button
             onClick={async () => {
               setGeneratingSeo(true);
               try {
                 await regenerateSeo({ packageId });
-                toast.success("SEO content generation started");
+                toast.success("SEO content + SKILL.md generation started");
               } catch {
-                toast.error("Failed to start SEO generation");
+                toast.error("Failed to start generation");
               } finally {
                 setGeneratingSeo(false);
               }
@@ -740,8 +748,8 @@ export function ComponentDetailsEditor({
             {seoGenerationStatus === "generating"
               ? "Generating..."
               : seoGenerationStatus === "completed"
-                ? "Regenerate SEO"
-                : "Generate SEO Content"}
+                ? "Regenerate SEO + Skill"
+                : "Generate SEO + Skill"}
           </button>
         </div>
       )}

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- SKILL.md generation for AI agent integration (2026-02-23)
+  - AI SEO content generation now also generates SKILL.md content for Claude agent skills
+  - SKILL.md follows the Agent Skills specification with YAML frontmatter and Markdown body
+  - Content includes component description, installation, usage patterns, key features, and API reference
+  - Copyable SKILL.md snippet displayed on ComponentDetail.tsx above the badge section
+  - "SKILL.md generated" status indicator in ComponentDetailsEditor.tsx
+  - Button text updated to "Generate SEO + Skill" / "Regenerate SEO + Skill"
+  - New `skillMd` field added to packages schema
+  - `buildSkillMd()` helper function in `convex/seoContent.ts`
+  - Public queries now include `skillMd` field for frontend access
+
 ### Changed
 
 - Removed Convex self-hosting integration (2026-02-23)

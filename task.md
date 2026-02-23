@@ -20,6 +20,20 @@
 
 ## Recent updates
 
+- [x] SKILL.md generation for AI agent integration (2026-02-23)
+  - AI SEO content generation now also generates SKILL.md content
+  - SKILL.md follows Agent Skills specification with YAML frontmatter and Markdown body
+  - Includes component description, installation, usage patterns, key features, API reference
+  - Copyable SKILL.md snippet on ComponentDetail.tsx (above badge section)
+  - "SKILL.md generated" status indicator in admin ComponentDetailsEditor
+  - Button text updated to "Generate SEO + Skill" / "Regenerate SEO + Skill"
+  - Added `skillMd` field to packages schema
+  - Added `buildSkillMd()` helper in `convex/seoContent.ts`
+  - Updated `_saveSeoContent` in `convex/seoContentDb.ts` to persist skillMd
+  - Updated `publicPackageValidator` and `toPublicPackage()` in `convex/packages.ts`
+  - Updated ComponentDetail.tsx with copy button and pre-formatted display
+  - Updated ComponentDetailsEditor.tsx with skillMd prop and status display
+  - Updated Admin.tsx to pass skillMd prop to editor
 - [x] Removed Convex self-hosting, all routes under /components/* (2026-02-23)
   - Deleted `convex/staticHosting.ts` (no longer using `@convex-dev/self-hosting`)
   - Simplified `convex/convex.config.ts` to basic app definition

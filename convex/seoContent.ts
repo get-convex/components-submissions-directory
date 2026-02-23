@@ -20,6 +20,102 @@ interface SeoContentResponse {
   resourceLinks: { label: string; url: string }[];
 }
 
+// Build SKILL.md content following Agent Skills spec
+function buildSkillMd(pkg: any, seoContent: SeoContentResponse): string {
+  const displayName = pkg.componentName || pkg.name || "component";
+  const kebabName = (pkg.name || displayName)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  
+  const description = seoContent.valueProp || pkg.shortDescription || pkg.description || "";
+  const category = pkg.category || "development";
+  const tags = pkg.tags || [];
+  const repoUrl = pkg.repositoryUrl || "";
+  const npmUrl = pkg.npmUrl || "";
+  const installCmd = pkg.installCommand || `npm install ${pkg.name}`;
+
+  const lines: string[] = [];
+  
+  // YAML frontmatter
+  lines.push("---");
+  lines.push(`name: ${kebabName}`);
+  lines.push(`description: ${description} Use when working with ${category} features, ${tags.slice(0, 3).join(", ") || displayName}.`);
+  lines.push("---");
+  lines.push("");
+  
+  // Main title
+  lines.push(`# ${displayName}`);
+  lines.push("");
+  
+  // Instructions section
+  lines.push("## Instructions");
+  lines.push("");
+  lines.push(`${displayName} is a Convex component that provides ${description.toLowerCase()}`);
+  lines.push("");
+  
+  // Installation
+  lines.push("### Installation");
+  lines.push("");
+  lines.push("```bash");
+  lines.push(installCmd);
+  lines.push("```");
+  lines.push("");
+  
+  // Benefits/capabilities
+  if (seoContent.benefits && seoContent.benefits.length > 0) {
+    lines.push("### Capabilities");
+    lines.push("");
+    for (const benefit of seoContent.benefits) {
+      lines.push(`- ${benefit}`);
+    }
+    lines.push("");
+  }
+  
+  // Use cases as examples
+  if (seoContent.useCases && seoContent.useCases.length > 0) {
+    lines.push("## Examples");
+    lines.push("");
+    for (const uc of seoContent.useCases) {
+      lines.push(`### ${uc.query}`);
+      lines.push("");
+      lines.push(uc.answer);
+      lines.push("");
+    }
+  }
+  
+  // FAQ as troubleshooting
+  if (seoContent.faq && seoContent.faq.length > 0) {
+    lines.push("## Troubleshooting");
+    lines.push("");
+    for (const faq of seoContent.faq) {
+      lines.push(`**${faq.question}**`);
+      lines.push("");
+      lines.push(faq.answer);
+      lines.push("");
+    }
+  }
+  
+  // Resources
+  lines.push("## Resources");
+  lines.push("");
+  if (npmUrl) {
+    lines.push(`- [npm package](${npmUrl})`);
+  }
+  if (repoUrl) {
+    lines.push(`- [GitHub repository](${repoUrl})`);
+  }
+  if (pkg.demoUrl) {
+    lines.push(`- [Live demo](${pkg.demoUrl})`);
+  }
+  if (pkg.slug) {
+    lines.push(`- [Convex Components Directory](https://www.convex.dev/components/${pkg.slug})`);
+  }
+  lines.push("- [Convex documentation](https://docs.convex.dev)");
+  
+  return lines.join("\n");
+}
+
 // Internal action: Generate SEO content for a package using Claude
 export const generateSeoContent = internalAction({
   args: { packageId: v.id("packages") },
@@ -86,6 +182,9 @@ export const generateSeoContent = internalAction({
       // Build resource links from package data + any AI suggested links
       const resourceLinks = buildResourceLinks(pkg, parsed.resourceLinks);
 
+      // Build SKILL.md content from parsed SEO data
+      const skillMd = buildSkillMd(pkg, parsed);
+
       // Save generated content to the database
       await ctx.runMutation(internal.seoContentDb._saveSeoContent, {
         packageId: args.packageId,
@@ -100,6 +199,7 @@ export const generateSeoContent = internalAction({
           answer: f.answer,
         })),
         resourceLinks,
+        skillMd,
       });
     } catch (error) {
       const errorMessage =

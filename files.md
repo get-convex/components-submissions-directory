@@ -54,7 +54,7 @@ Main HTML entry point. Loads the React app and CSS. Includes Open Graph meta tag
 
 ### `convex/schema.ts`
 
-Database schema definition. Defines the `packages` table with all package fields including slug, category, tags, shortDescription, longDescription, videoUrl, thumbnailUrl, thumbnailStorageId, logoStorageId, logoUrl, selectedTemplateId, thumbnailGenerationVersion, thumbnailGeneratedAt, thumbnailGeneratedBy, convexVerified, authorUsername, authorAvatar, relatedComponentIds, submitter information (submitterName, submitterEmail, submitterDiscord, additionalEmails for multi-account access), review status, visibility, featured flag, demoUrl, AI review fields, cached GitHub issue counts, AI-generated SEO/AEO/GEO fields, and soft deletion fields (markedForDeletion, markedForDeletionAt, markedForDeletionBy). Also defines `packageNotes` (with isAdminReply and userHasRead for notification tracking), `packageComments`, `adminSettings`, `adminSettingsNumeric`, `badgeFetches`, `thumbnailTemplates`, and `thumbnailJobs` tables.
+Database schema definition. Defines the `packages` table with all package fields including slug, category, tags, shortDescription, longDescription, videoUrl, thumbnailUrl, thumbnailStorageId, logoStorageId, logoUrl, selectedTemplateId, thumbnailGenerationVersion, thumbnailGeneratedAt, thumbnailGeneratedBy, convexVerified, authorUsername, authorAvatar, relatedComponentIds, submitter information (submitterName, submitterEmail, submitterDiscord, additionalEmails for multi-account access), review status, visibility, featured flag, demoUrl, AI review fields, cached GitHub issue counts, AI-generated SEO/AEO/GEO fields, skillMd (AI-generated SKILL.md content for Claude agent skills), and soft deletion fields (markedForDeletion, markedForDeletionAt, markedForDeletionBy). Also defines `packageNotes` (with isAdminReply and userHasRead for notification tracking), `packageComments`, `adminSettings`, `adminSettingsNumeric`, `badgeFetches`, `thumbnailTemplates`, and `thumbnailJobs` tables.
 
 ### `convex/auth.ts`
 
@@ -113,11 +113,11 @@ Node.js action module for composing 16:9 thumbnails. Uses Jimp for raster image 
 
 ### `convex/seoContent.ts`
 
-AI-generated SEO/AEO/GEO content action using Anthropic Claude. Contains `generateSeoContent` internal action and `regenerateSeoContent` public action. Builds structured prompts from component data and parses Claude responses into value props, benefits, use cases, FAQ, and resource links. Runs in Node.js runtime.
+AI-generated SEO/AEO/GEO content action using Anthropic Claude. Contains `generateSeoContent` internal action and `regenerateSeoContent` public action. Builds structured prompts from component data and parses Claude responses into value props, benefits, use cases, FAQ, and resource links. Also generates SKILL.md content for AI agent integration using the `buildSkillMd()` helper function. Runs in Node.js runtime.
 
 ### `convex/seoContentDb.ts`
 
-Internal mutations for persisting AI-generated SEO content. Separated from `seoContent.ts` because Convex mutations cannot live in `"use node"` files. Contains `_saveSeoContent`, `_updateSeoStatus`, and `_setSeoError`.
+Internal mutations for persisting AI-generated SEO content. Separated from `seoContent.ts` because Convex mutations cannot live in `"use node"` files. Contains `_saveSeoContent` (saves SEO fields and SKILL.md content), `_updateSeoStatus`, and `_setSeoError`.
 
 ### `convex/router.ts`
 
@@ -253,7 +253,7 @@ Admin dashboard at `/submissions/admin` (requires @convex.dev email). Features s
 
 ### `src/pages/ComponentDetail.tsx`
 
-Component detail page at `/components/:slug`. Features shared Header component, narrow sidebar (left) with npm link, category, stats, verified badge, source link, Share dropdown, and Back link. Main area (right) with author, title, install command, GitHub issues tab, AI-generated SEO content layer, rendered long description, video embed, tags, and README badge snippet. Includes dual JSON-LD structured data for SEO.
+Component detail page at `/components/:slug`. Features shared Header component, narrow sidebar (left) with npm link, category, stats, verified badge, source link, Share dropdown, and Back link. Main area (right) with author, title, install command, GitHub issues tab, AI-generated SEO content layer, rendered long description, video embed, tags, SKILL.md copyable snippet, and README badge snippet. Includes dual JSON-LD structured data for SEO.
 
 ### `src/components/ComponentCard.tsx`
 
@@ -277,7 +277,7 @@ Copy-to-clipboard install command component.
 
 ### `src/components/ComponentDetailsEditor.tsx`
 
-Admin editor for directory-specific fields: slug, category, tags, descriptions, video URL, verified badge, featured status, thumbnail upload with preview, thumbnail clear option (applies after Save), auto-fill author from GitHub, and AI SEO content generation trigger with status display. All fields reactively sync with backend updates via `useEffect` hooks, so changes from external mutations (like slug generation) appear immediately without refresh.
+Admin editor for directory-specific fields: slug, category, tags, descriptions, video URL, verified badge, featured status, thumbnail upload with preview, thumbnail clear option (applies after Save), auto-fill author from GitHub, and AI SEO + SKILL.md content generation trigger with status display. Shows "SKILL.md generated" indicator when content exists. All fields reactively sync with backend updates via `useEffect` hooks, so changes from external mutations (like slug generation) appear immediately without refresh.
 
 ### `src/lib/categories.ts`
 

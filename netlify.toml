@@ -11,8 +11,10 @@
   to = "/components/"
   status = 301
 
-# SPA fallback for all /components/* routes
+# SPA fallback: serve index.html for client-side routes
+# force=false means real files (JS, CSS, images) are served directly
 [[redirects]]
   from = "/components/*"
   to = "/components/index.html"
   status = 200
+  force = false
