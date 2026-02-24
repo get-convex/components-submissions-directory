@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Reordered icons in Admin package rows (2026-02-24)
+  - Moved ComponentDetailQuickLink (external link icon) to be last in the badge group
+  - Order is now: StatusBadge, VisibilityBadge, UnrepliedNotesIndicator, ComponentDetailQuickLink
+  - Keeps the external link icon before the downloads/date section on the far right
+
 ### Added
 
 - LLMs.txt and Markdown clean URL support (2026-02-24)

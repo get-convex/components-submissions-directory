@@ -32,6 +32,10 @@
 
 ## Recent updates
 
+- [x] Reordered icons in Admin package rows (2026-02-24)
+  - Moved ComponentDetailQuickLink (external link icon) to be last in the badge group
+  - Order is now: StatusBadge, VisibilityBadge, UnrepliedNotesIndicator, ComponentDetailQuickLink
+  - Icon remains before the downloads/date section on the far right
 - [x] Added LLMs.txt and Markdown clean URL support (2026-02-24)
   - New `/api/markdown-index` endpoint for directory-wide markdown
   - New `/api/component-llms` endpoint for per-component llms.txt

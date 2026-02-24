@@ -5203,12 +5203,12 @@ function AdminDashboard({
                         v{pkg.version}
                       </span>
                       <StatusBadge status={pkg.reviewStatus} />
-                      <ComponentDetailQuickLink slug={pkg.slug} />
                       <VisibilityBadge visibility={pkg.visibility} markedForDeletion={pkg.markedForDeletion} />
                       {/* Show unreplied notes indicator when collapsed */}
                       {!isExpanded && (
                         <UnrepliedNotesIndicator packageId={pkg._id} />
                       )}
+                      <ComponentDetailQuickLink slug={pkg.slug} />
                     </div>
                     <div className="flex items-center gap-3 shrink-0 text-xs text-text-secondary">
                       <span className="hidden sm:inline">
