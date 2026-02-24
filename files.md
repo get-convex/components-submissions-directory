@@ -288,7 +288,7 @@ Admin dashboard at `/submissions/admin` (requires @convex.dev email). Features s
 
 ### `src/pages/ComponentDetail.tsx`
 
-Component detail page at `/components/:slug`. Features shared Header component, narrow sidebar (left) with npm link, category, stats, verified badge, source link, Share dropdown, and Back link. Main area (right) with author, title, install command, GitHub issues tab, AI-generated SEO content layer, rendered long description, video embed, tags, and SKILL.md copyable snippet. README badge snippet is currently commented out until the badge endpoint is working. Includes full SEO support: dual JSON-LD structured data (SoftwareSourceCode + FAQPage), Open Graph tags, Twitter Card tags, canonical URL, and meta description using AI-generated seoValueProp or shortDescription fallback.
+Component detail page at `/components/:slug`. Features shared Header component, narrow sidebar (left) with npm link, category, stats, verified badge, source link, rating stars, and Back link. Main area (right) with author row (package name, author info, Markdown dropdown), title, install command, AI-generated SEO content layer, rendered long description, video embed, tags, and SKILL.md copyable snippet. Markdown dropdown in author row provides View as Markdown, Copy as Markdown, and Copy page URL options. GitHub issues feature and README badge snippet are currently commented out. Includes full SEO support: dual JSON-LD structured data (SoftwareSourceCode + FAQPage), Open Graph tags, Twitter Card tags, canonical URL, and meta description using AI-generated seoValueProp or shortDescription fallback.
 
 ### `src/components/ComponentCard.tsx`
 

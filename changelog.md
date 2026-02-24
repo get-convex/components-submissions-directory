@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Moved Markdown dropdown from sidebar to author row on ComponentDetail.tsx (2026-02-24)
+  - Dropdown now appears in the same row as package name and author info
+  - Separator added before dropdown for visual consistency
+  - Same functionality: View as Markdown, Copy as Markdown, Copy page URL
+
+- Commented out GitHub Issues feature on ComponentDetail.tsx (2026-02-24)
+  - Issues badge button in author row commented out
+  - Issues panel (open/closed tabs, issue list, load more) commented out
+  - Feature preserved in code for future re-enabling
+
 ### Added
 
 - Clear logo button in Component Details editor (2026-02-24)

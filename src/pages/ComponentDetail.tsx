@@ -536,46 +536,6 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               </div>
             )}
 
-            {/* Share dropdown */}
-            <div className="relative" ref={menuRef}>
-              <button
-                onClick={() => setCopyMenuOpen(!copyMenuOpen)}
-                className="flex items-center gap-1.5 text-sm text-text-primary hover:text-text-secondary transition-colors">
-                {pageCopied ? (
-                  <CheckIcon className="w-3.5 h-3.5 text-green-600" />
-                ) : (
-                  <ClipboardIcon className="w-3.5 h-3.5" />
-                )}
-                {pageCopied ? "Copied" : "Markdown"}
-                <ChevronDownIcon className="w-3 h-3 text-text-secondary" />
-              </button>
-
-              {copyMenuOpen && (
-                <div className="absolute left-0 top-full mt-1 w-52 rounded-lg bg-white shadow-hover py-1 z-20">
-                  <button
-                    onClick={() => {
-                      setShowMarkdown(!showMarkdown);
-                      setCopyMenuOpen(false);
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
-                    <EyeOpenIcon className="w-3.5 h-3.5 text-text-secondary" />
-                    {showMarkdown ? "View rendered" : "View as Markdown"}
-                  </button>
-                  <button
-                    onClick={handleCopyMarkdown}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
-                    <FileTextIcon className="w-3.5 h-3.5 text-text-secondary" />
-                    Copy as Markdown
-                  </button>
-                  <button
-                    onClick={handleCopyPageUrl}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
-                    <CopyIcon className="w-3.5 h-3.5 text-text-secondary" />
-                    Copy page URL
-                  </button>
-                </div>
-              )}
-            </div>
             {/* Rating stars */}
             <StarRating packageId={component._id} />
 
@@ -634,7 +594,49 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 </>
               )}
 
-              {/* GitHub issues badge */}
+              {/* Markdown dropdown */}
+              <span className="text-text-secondary/40">|</span>
+              <div className="relative" ref={menuRef}>
+                <button
+                  onClick={() => setCopyMenuOpen(!copyMenuOpen)}
+                  className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors">
+                  {pageCopied ? (
+                    <CheckIcon className="w-3.5 h-3.5 text-green-600" />
+                  ) : (
+                    <ClipboardIcon className="w-3.5 h-3.5" />
+                  )}
+                  {pageCopied ? "Copied" : "Markdown"}
+                  <ChevronDownIcon className="w-3 h-3" />
+                </button>
+
+                {copyMenuOpen && (
+                  <div className="absolute left-0 top-full mt-1 w-52 rounded-lg bg-white shadow-hover py-1 z-20">
+                    <button
+                      onClick={() => {
+                        setShowMarkdown(!showMarkdown);
+                        setCopyMenuOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                      <EyeOpenIcon className="w-3.5 h-3.5 text-text-secondary" />
+                      {showMarkdown ? "View rendered" : "View as Markdown"}
+                    </button>
+                    <button
+                      onClick={handleCopyMarkdown}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                      <FileTextIcon className="w-3.5 h-3.5 text-text-secondary" />
+                      Copy as Markdown
+                    </button>
+                    <button
+                      onClick={handleCopyPageUrl}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                      <CopyIcon className="w-3.5 h-3.5 text-text-secondary" />
+                      Copy page URL
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* GitHub issues badge - commented out
               {component.repositoryUrl && (
                 <>
                   <span className="text-text-secondary/40">|</span>
@@ -658,6 +660,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                   </button>
                 </>
               )}
+              */}
             </div>
 
             {/* Install command */}
@@ -665,13 +668,12 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               <InstallCommand command={component.installCommand} />
             </div>
 
-            {/* GitHub Issues panel (toggled by issues badge) */}
+            {/* GitHub Issues panel - commented out
             {showIssues && component.repositoryUrl && (
               <section
                 aria-label={`GitHub Issues for ${component.componentName || component.name}`}
                 className="mb-6">
                 <div className="border border-border rounded-lg overflow-hidden">
-                  {/* Issues header with open/closed tabs */}
                   <div className="flex items-center justify-between bg-bg-secondary px-4 py-3 border-b border-border">
                     <div className="flex items-center gap-4">
                       <button
@@ -715,7 +717,6 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                     </a>
                   </div>
 
-                  {/* Issues list */}
                   <div className="divide-y divide-border">
                     {issuesLoading && issues.length === 0 ? (
                       <div className="px-4 py-8 text-center">
@@ -736,7 +737,6 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-start gap-3 px-4 py-3 hover:bg-bg-hover transition-colors group">
-                          {/* Issue state icon */}
                           {issue.state === "open" ? (
                             <svg viewBox="0 0 16 16" className="w-4 h-4 mt-0.5 text-green-600 shrink-0" fill="currentColor">
                               <path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" />
@@ -772,7 +772,6 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                                   {issue.comments}
                                 </span>
                               )}
-                              {/* Issue labels */}
                               {issue.labels.slice(0, 3).map((label) => (
                                 <span
                                   key={label}
@@ -788,7 +787,6 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                     )}
                   </div>
 
-                  {/* Load more */}
                   {issuesHasMore && !issuesLoading && (
                     <div className="px-4 py-3 border-t border-border bg-bg-secondary text-center">
                       <button
@@ -806,6 +804,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 </div>
               </section>
             )}
+            */}
 
             {/* Long description title (below install command) */}
             {component.longDescription && (

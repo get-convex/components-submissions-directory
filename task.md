@@ -32,6 +32,14 @@
 
 ## Recent updates
 
+- [x] Moved Markdown dropdown to author row on ComponentDetail.tsx (2026-02-24)
+  - Dropdown relocated from sidebar to main content area (author row)
+  - Appears after author info with separator
+  - Same functionality: View as Markdown, Copy as Markdown, Copy page URL
+- [x] Commented out GitHub Issues feature on ComponentDetail.tsx (2026-02-24)
+  - Issues badge button in author row commented out
+  - Full issues panel (open/closed tabs, issue list, pagination) commented out
+  - Code preserved for future re-enabling
 - [x] Added clear logo button in Component Details editor (2026-02-24)
   - Clear button next to download button when logo exists
   - New `clearLogo` mutation in `convex/packages.ts` to remove logo URL and storage reference
