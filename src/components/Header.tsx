@@ -1,5 +1,6 @@
-import { useConvexAuth } from "convex/react";
-import { useAuth } from "@workos-inc/authkit-react";
+import { useAuth } from "../lib/auth";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { useState, useRef, useEffect } from "react";
 import {
   SignOut,
@@ -19,8 +20,8 @@ function useBasePath() {
 
 export default function Header() {
   const basePath = useBasePath();
-  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
-  const { user, signIn, signOut } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, signIn, signOut } = useAuth();
+  const user = useQuery(api.auth.loggedInUser);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);

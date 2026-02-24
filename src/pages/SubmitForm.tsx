@@ -1,7 +1,6 @@
 // Submit form page - requires authentication
-import { useAction, useMutation } from "convex/react";
-import { useConvexAuth } from "convex/react";
-import { useAuth } from "@workos-inc/authkit-react";
+import { useAction, useMutation, useQuery } from "convex/react";
+import { useAuth } from "../lib/auth";
 import { api } from "../../convex/_generated/api";
 import { Toaster, toast } from "sonner";
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -78,8 +77,8 @@ function ErrorModal({ message, onClose }: { message: string; onClose: () => void
 
 export default function SubmitForm() {
   const basePath = useBasePath();
-  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
-  const { user, signIn } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, signIn } = useAuth();
+  const user = useQuery(api.auth.loggedInUser);
 
   // Auto-redirect to sign-in when unauthenticated
   useEffect(() => {

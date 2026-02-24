@@ -7,18 +7,20 @@ const crons = cronJobs();
 // Actual refresh execution is still gated by:
 // - autoRefreshEnabled
 // - refreshIntervalDays (staleness window)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 crons.cron(
   "check-and-refresh-packages",
   "0 3 * * *",
-  internal.packages.scheduledRefreshCheck,
+  internal.packages.scheduledRefreshCheck as any,
   {},
 );
 
 // Run weekly on Sundays at 4 AM UTC to clean up failed thumbnail jobs
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 crons.cron(
   "cleanup-old-thumbnail-jobs",
   "0 4 * * 0",
-  internal.thumbnails._cleanupOldThumbnailJobs,
+  internal.thumbnails._cleanupOldThumbnailJobs as any,
   {},
 );
 
@@ -26,10 +28,11 @@ crons.cron(
 // Actual deletion is gated by:
 // - autoDeleteMarkedPackages setting
 // - deleteIntervalDays (waiting period before permanent deletion)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 crons.cron(
   "cleanup-marked-for-deletion",
   "0 2 * * *",
-  internal.packages.scheduledDeletionCleanup,
+  internal.packages.scheduledDeletionCleanup as any,
   {},
 );
 

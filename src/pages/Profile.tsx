@@ -1,6 +1,5 @@
 import { useQuery, useMutation } from "convex/react";
-import { useConvexAuth } from "convex/react";
-import { useAuth } from "@workos-inc/authkit-react";
+import { useAuth } from "../lib/auth";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { useState, useMemo, useEffect } from "react";
@@ -883,8 +882,8 @@ function SubmissionCard({
 
 export default function Profile() {
   const basePath = useBasePath();
-  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
-  const { user, signIn, signOut } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, signIn, signOut } = useAuth();
+  const user = useQuery(api.auth.loggedInUser);
   const submissions = useQuery(api.packages.getMySubmissions, isAuthenticated ? {} : "skip");
 
   // Mutations for user actions

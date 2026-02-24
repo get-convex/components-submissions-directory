@@ -1,61 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-
-// Legacy auth tables from @convex-dev/auth - kept to preserve existing data during migration
-// These can be removed once the migration is complete and data is no longer needed
-const legacyAuthTables = {
-  users: defineTable({
-    name: v.optional(v.string()),
-    image: v.optional(v.string()),
-    email: v.optional(v.string()),
-    emailVerificationTime: v.optional(v.number()),
-    phone: v.optional(v.string()),
-    phoneVerificationTime: v.optional(v.number()),
-    isAnonymous: v.optional(v.boolean()),
-  })
-    .index("email", ["email"])
-    .index("phone", ["phone"]),
-  authSessions: defineTable({
-    userId: v.id("users"),
-    expirationTime: v.number(),
-  }).index("userId", ["userId"]),
-  authAccounts: defineTable({
-    userId: v.id("users"),
-    provider: v.string(),
-    providerAccountId: v.string(),
-    secret: v.optional(v.string()),
-    emailVerified: v.optional(v.string()),
-    phoneVerified: v.optional(v.string()),
-  })
-    .index("providerAndAccountId", ["provider", "providerAccountId"])
-    .index("userId", ["userId"]),
-  authRefreshTokens: defineTable({
-    sessionId: v.id("authSessions"),
-    expirationTime: v.number(),
-    firstUsedTime: v.optional(v.number()),
-    parentRefreshTokenId: v.optional(v.id("authRefreshTokens")),
-  }).index("sessionId", ["sessionId"]),
-  authVerificationCodes: defineTable({
-    accountId: v.id("authAccounts"),
-    provider: v.string(),
-    code: v.string(),
-    expirationTime: v.number(),
-    verifier: v.optional(v.string()),
-    emailVerified: v.optional(v.string()),
-    phoneVerified: v.optional(v.string()),
-  })
-    .index("accountId", ["accountId"])
-    .index("code", ["code"]),
-  authVerifiers: defineTable({
-    sessionId: v.optional(v.id("authSessions")),
-    signature: v.optional(v.string()),
-  }).index("sessionId", ["sessionId"]),
-  authRateLimits: defineTable({
-    identifier: v.string(),
-    lastAttemptTime: v.number(),
-    attemptsCount: v.number(),
-  }).index("identifier", ["identifier"]),
-};
+import { authTables } from "@convex-dev/auth/server";
 
 // Review status values: pending, in_review, approved, changes_requested, rejected
 // Visibility values: visible, hidden, archived
@@ -411,6 +356,6 @@ const applicationTables = {
 };
 
 export default defineSchema({
-  ...legacyAuthTables,
+  ...authTables,
   ...applicationTables,
 });

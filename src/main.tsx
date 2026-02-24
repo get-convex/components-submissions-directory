@@ -1,8 +1,8 @@
 import { createRoot } from "react-dom/client";
 import { useEffect, useMemo, useState } from "react";
-import { AuthKitProvider, useAuth } from "@workos-inc/authkit-react";
-import { ConvexProviderWithAuthKit } from "@convex-dev/workos";
 import { ConvexReactClient } from "convex/react";
+import { ConvexAuthProvider, useAuthActions } from "@convex-dev/auth/react";
+import { useConvexAuth } from "convex/react";
 import "./index.css";
 import Directory from "./pages/Directory";
 import Submit from "./pages/Submit";
@@ -13,7 +13,9 @@ import ComponentDetail from "./pages/ComponentDetail";
 import NotFound from "./pages/NotFound";
 import { isReservedRoute, parseSlugFromPath } from "./lib/slugs";
 
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
+const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string, {
+  verbose: true,
+});
 
 // Route mapping for the components directory
 // Production: Netlify at components-directory.netlify.app/components/*
@@ -23,16 +25,22 @@ function Router() {
 
   // Always use /components as base path (both local and production)
   const basePath = "/components";
-  const normalizedPath = path.startsWith(basePath)
-    ? path.slice(basePath.length) || "/"
-    : path;
+
+  // Redirect paths that don't start with /components to the prefixed version
+  if (!path.startsWith(basePath)) {
+    const redirectPath = basePath + (path === "/" ? "" : path);
+    window.location.replace(redirectPath);
+    return null;
+  }
+
+  const normalizedPath = path.slice(basePath.length) || "/";
 
   // Split path into segments (filter empty strings)
   const segments = normalizedPath
     .split("/")
     .filter((s) => s.length > 0);
 
-  // Handle OAuth callback route
+  // Handle OAuth callback route (kept for post-auth redirect handling)
   if (segments[0] === "callback") {
     return <AuthCallback />;
   }
@@ -78,9 +86,10 @@ function Router() {
   return <NotFound />;
 }
 
-// Callback component handles OAuth redirect from WorkOS
+// Callback component handles post-OAuth redirect
 function AuthCallback() {
-  const { isLoading, user, signIn } = useAuth();
+  const { isLoading, isAuthenticated } = useConvexAuth();
+  const { signIn } = useAuthActions();
   const [authFailed, setAuthFailed] = useState(false);
   const hasAuthCode = useMemo(
     () => new URLSearchParams(window.location.search).has("code"),
@@ -102,18 +111,18 @@ function AuthCallback() {
   }, []);
 
   useEffect(() => {
-    // Wait for AuthKit to finish processing the callback
+    // Wait for auth to finish loading
     if (isLoading) {
       return;
     }
 
     // Redirect after authenticated session is established
-    if (user) {
+    if (isAuthenticated) {
       window.location.replace(returnPath);
       return;
     }
 
-    // If we had a callback code but still no user, auth exchange failed
+    // If we had a callback code but still not authenticated, auth exchange failed
     if (hasAuthCode) {
       setAuthFailed(true);
       return;
@@ -121,7 +130,7 @@ function AuthCallback() {
 
     // Callback route without code: send user back to the return path
     window.location.replace(returnPath);
-  }, [hasAuthCode, isLoading, returnPath, user]);
+  }, [hasAuthCode, isLoading, returnPath, isAuthenticated]);
 
   return (
     <div className="min-h-screen bg-bg-primary flex items-center justify-center">
@@ -131,7 +140,7 @@ function AuthCallback() {
         </div>
         {authFailed && (
           <button
-            onClick={() => signIn()}
+            onClick={() => void signIn("github")}
             className="px-4 py-2 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors">
             Try Again
           </button>
@@ -141,18 +150,10 @@ function AuthCallback() {
   );
 }
 
-// Use redirect URI from env variable as recommended by Convex docs
-const redirectUri = import.meta.env.VITE_WORKOS_REDIRECT_URI as string;
-
 createRoot(document.getElementById("root")!).render(
-  <AuthKitProvider
-    clientId={import.meta.env.VITE_WORKOS_CLIENT_ID}
-    redirectUri={redirectUri}
-  >
-    <ConvexProviderWithAuthKit client={convex} useAuth={useAuth}>
-      <div className="antialiased">
-        <Router />
-      </div>
-    </ConvexProviderWithAuthKit>
-  </AuthKitProvider>
+  <ConvexAuthProvider client={convex}>
+    <div className="antialiased">
+      <Router />
+    </div>
+  </ConvexAuthProvider>
 );

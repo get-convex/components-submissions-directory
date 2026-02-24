@@ -6,7 +6,6 @@
 - docs for badges
 - add image builder
 - [ ] add image builder from https://component-thumbnail-gen.netlify.app/ and https://github.com/waynesutton/component-directory-image-generator
-
 - [ ] add incre
 - header and footer
 - [ ] fix font colros a
@@ -20,6 +19,32 @@
 
 ## Recent updates
 
+- [x] Fixed user email not appearing in profile/submissions after GitHub OAuth (2026-02-23)
+  - `@convex-dev/auth` stores user data in database, not JWT claims unlike WorkOS
+  - Added `getAuthUserId` from `@convex-dev/auth/server` to fetch user from database
+  - Updated `loggedInUser` and `isAdmin` queries to use database lookup
+  - Updated `requireAdminIdentity` and `getAdminIdentity` helpers
+  - Added `getCurrentUserEmail` helper in packages.ts
+  - Updated all queries/mutations that used `ctx.auth.getUserIdentity()` for email
+  - Submissions now correctly match by email from the users table
+- [x] Verified GitHub OAuth sign-in flow works end to end (2026-02-23)
+- [x] Verified admin access for `wayne@convex.dev` at `/components/submissions/admin` (2026-02-23)
+- [x] Set `SITE_URL` to `http://localhost:5173/components` for correct OAuth redirect (2026-02-23)
+- [x] Migrated authentication from `@robelest/convex-auth` to official `@convex-dev/auth` (2026-02-23)
+  - Replaced `@robelest/convex-auth` and `arctic` with `@convex-dev/auth` (v0.0.80) and `@auth/core` (v0.37.0)
+  - Updated `convex/auth.ts` to use `convexAuth()` with GitHub provider from `@auth/core`
+  - Created `convex/auth.config.ts` for JWT provider configuration
+  - Deleted `convex/convex.config.ts` (not needed for `@convex-dev/auth`)
+  - Deleted `convex/auth/session.ts` (was for `@robelest/convex-auth` compatibility)
+  - Updated `convex/http.ts` to use `auth.addHttpRoutes(http)`
+  - Updated `convex/schema.ts` to use `authTables` from `@convex-dev/auth/server`
+  - Updated `src/main.tsx` with `ConvexAuthProvider` from `@convex-dev/auth/react`
+  - Updated `src/lib/auth.tsx` with `useAuthActions` and `useConvexAuth` hooks
+  - Added redirect logic in Router for paths not starting with `/components`
+  - Generated and set `JWT_PRIVATE_KEY` and `JWKS` environment variables in Convex Dashboard
+  - Restored `as any` type casts in `convex/crons.ts` and `convex/http.ts` for type inference issues
+  - Cleared Vite dependency cache (`node_modules/.vite`) to fix 504 Outdated Optimize Dep error
+  - Added `jose` dev dependency for JWT key generation
 - [x] Migrated from Convex self-hosting to Netlify (2026-02-23)
   - Removed `@convex-dev/self-hosting` dependency
   - Simplified `convex/convex.config.ts` (no components)
@@ -86,6 +111,15 @@
   - Added `getPackagesMarkedForDeletion` query
   - Added `getDeletionCleanupSettings` query
   - Added `updateDeletionCleanupSetting` mutation
+- [x] Admin "Marked for Deletion" filter tab (2026-02-23)
+  - Added "Deletion" tab to Admin filter bar with Clock icon
+  - Tab shows count of packages marked for deletion
+  - Filter displays only packages with `markedForDeletion: true`
+  - Package rows show red "Deletion" badge next to visibility badge when marked
+  - Updated `VisibilityBadge` component to accept `markedForDeletion` prop
+- [x] Updated Profile.tsx deletion badge display (2026-02-23)
+  - "Pending Deletion" badge now shown next to status and visibility badges
+  - Badges no longer conditionally hidden when marked for deletion
 - [x] Scheduled deletion cleanup cron job (2026-02-23)
   - Added `cleanup-marked-for-deletion` cron job in `convex/crons.ts`
   - Runs daily at 2 AM UTC

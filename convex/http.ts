@@ -1,14 +1,19 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
+import { auth } from "./auth";
 
 const http = httpRouter();
+
+// Register auth HTTP routes (OAuth callbacks, sign-in/sign-out endpoints)
+auth.addHttpRoutes(http);
 
 http.route({
   path: "/api/export-csv",
   method: "GET",
   handler: httpAction(async (ctx) => {
-    const packages = await ctx.runQuery(api.packages.getAllPackages);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const packages = await ctx.runQuery(api.packages.getAllPackages as any);
 
     const headers = [
       "name",

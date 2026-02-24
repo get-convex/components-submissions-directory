@@ -6,10 +6,22 @@ import {
   internalQuery,
   internalMutation,
   internalAction,
+  QueryCtx,
+  MutationCtx,
 } from "./_generated/server";
-import { getAdminIdentity, requireAdminIdentity } from "./auth";
+import { getAdminIdentity, requireAdminIdentity, getAuthUserId } from "./auth";
 import { api, internal } from "./_generated/api";
 import { Id, Doc } from "./_generated/dataModel";
+
+// ============ HELPER: Get current user's email from database ============
+// @convex-dev/auth stores user data in the users table, not in JWT claims
+async function getCurrentUserEmail(ctx: QueryCtx | MutationCtx): Promise<string | null> {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) return null;
+  
+  const user = await ctx.db.get(userId);
+  return user?.email ?? null;
+}
 
 // ============ HELPER: Check if user owns a package ============
 // Checks both submitterEmail and additionalEmails array
@@ -1467,10 +1479,7 @@ export const markNotesAsReadForAdmin = mutation({
   args: { packageId: v.id("packages") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.email?.endsWith("@convex.dev")) {
-      throw new Error("Admin access required");
-    }
+    await requireAdminIdentity(ctx);
 
     const notes = await ctx.db
       .query("packageNotes")
@@ -1513,10 +1522,7 @@ export const markCommentsAsReadForAdmin = mutation({
   args: { packageId: v.id("packages") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.email?.endsWith("@convex.dev")) {
-      throw new Error("Admin access required");
-    }
+    await requireAdminIdentity(ctx);
 
     const comments = await ctx.db
       .query("packageComments")
@@ -2758,13 +2764,11 @@ export const getMySubmissions = query({
   args: {},
   returns: v.array(userSubmissionValidator),
   handler: async (ctx) => {
-    // Get authenticated user identity
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity || !identity.email) {
+    // Get authenticated user email from database
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
       return [];
     }
-
-    const userEmail = identity.email;
 
     // Query packages by submitter email
     const packagesBySubmitter = await ctx.db
@@ -2859,17 +2863,21 @@ export const requestSubmissionRefresh = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     // Verify user is authenticated
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity || !identity.email) {
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
       throw new Error("Authentication required");
     }
+
+    // Get user info for the note
+    const userId = await getAuthUserId(ctx);
+    const user = userId ? await ctx.db.get(userId) : null;
 
     // Verify the package belongs to this user
     const pkg = await ctx.db.get(args.packageId);
     if (!pkg) {
       throw new Error("Package not found");
     }
-    if (!userOwnsPackage(pkg, identity.email)) {
+    if (!userOwnsPackage(pkg, userEmail)) {
       throw new Error("You can only request refresh for your own submissions");
     }
 
@@ -2877,8 +2885,8 @@ export const requestSubmissionRefresh = mutation({
     await ctx.db.insert("packageNotes", {
       packageId: args.packageId,
       content: `[User Request] ${args.note}`,
-      authorEmail: identity.email,
-      authorName: identity.name || undefined,
+      authorEmail: userEmail,
+      authorName: user?.name || undefined,
       createdAt: Date.now(),
     });
 
@@ -2902,14 +2910,14 @@ export const getMyPackageNotes = query({
     }),
   ),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity || !identity.email) {
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
       return [];
     }
 
     // Verify package belongs to user
     const pkg = await ctx.db.get(args.packageId);
-    if (!pkg || !userOwnsPackage(pkg, identity.email)) {
+    if (!pkg || !userOwnsPackage(pkg, userEmail)) {
       return [];
     }
 
@@ -2937,7 +2945,7 @@ export const getMyPackageNotes = query({
     // First pass: find user requests
     for (const note of notes) {
       if (
-        note.authorEmail === identity.email &&
+        note.authorEmail === userEmail &&
         note.content.startsWith("[User Request]")
       ) {
         userRequestIds.add(note._id);
@@ -2979,14 +2987,14 @@ export const getUnreadAdminReplyCount = query({
   args: { packageId: v.id("packages") },
   returns: v.number(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity || !identity.email) {
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
       return 0;
     }
 
     // Verify package belongs to user
     const pkg = await ctx.db.get(args.packageId);
-    if (!pkg || !userOwnsPackage(pkg, identity.email)) {
+    if (!pkg || !userOwnsPackage(pkg, userEmail)) {
       return 0;
     }
 
@@ -3000,7 +3008,7 @@ export const getUnreadAdminReplyCount = query({
     const userRequestIds = new Set<string>();
     for (const note of notes) {
       if (
-        note.authorEmail === identity.email &&
+        note.authorEmail === userEmail &&
         note.content.startsWith("[User Request]")
       ) {
         userRequestIds.add(note._id);
@@ -3028,14 +3036,14 @@ export const markPackageNotesAsRead = mutation({
   args: { packageId: v.id("packages") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity || !identity.email) {
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
       throw new Error("Authentication required");
     }
 
     // Verify package belongs to user
     const pkg = await ctx.db.get(args.packageId);
-    if (!pkg || !userOwnsPackage(pkg, identity.email)) {
+    if (!pkg || !userOwnsPackage(pkg, userEmail)) {
       throw new Error("You can only access notes for your own submissions");
     }
 
@@ -3049,7 +3057,7 @@ export const markPackageNotesAsRead = mutation({
     const userRequestIds = new Set<string>();
     for (const note of notes) {
       if (
-        note.authorEmail === identity.email &&
+        note.authorEmail === userEmail &&
         note.content.startsWith("[User Request]")
       ) {
         userRequestIds.add(note._id);
@@ -3080,8 +3088,8 @@ export const setMySubmissionVisibility = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity || !identity.email) {
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
       throw new Error("Authentication required");
     }
 
@@ -3090,7 +3098,7 @@ export const setMySubmissionVisibility = mutation({
     if (!pkg) {
       throw new Error("Package not found");
     }
-    if (!userOwnsPackage(pkg, identity.email)) {
+    if (!userOwnsPackage(pkg, userEmail)) {
       throw new Error("You can only modify your own submissions");
     }
 
@@ -3108,8 +3116,8 @@ export const requestDeleteMySubmission = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity || !identity.email) {
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
       throw new Error("Authentication required");
     }
 
@@ -3118,7 +3126,7 @@ export const requestDeleteMySubmission = mutation({
     if (!pkg) {
       throw new Error("Package not found");
     }
-    if (!userOwnsPackage(pkg, identity.email)) {
+    if (!userOwnsPackage(pkg, userEmail)) {
       throw new Error("You can only delete your own submissions");
     }
 
@@ -3126,7 +3134,7 @@ export const requestDeleteMySubmission = mutation({
     await ctx.db.patch(args.packageId, {
       markedForDeletion: true,
       markedForDeletionAt: Date.now(),
-      markedForDeletionBy: identity.email,
+      markedForDeletionBy: userEmail,
       // Hide from directory immediately
       visibility: "hidden",
     });
@@ -3142,8 +3150,8 @@ export const cancelDeleteMySubmission = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity || !identity.email) {
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
       throw new Error("Authentication required");
     }
 
@@ -3151,7 +3159,7 @@ export const cancelDeleteMySubmission = mutation({
     if (!pkg) {
       throw new Error("Package not found");
     }
-    if (!userOwnsPackage(pkg, identity.email)) {
+    if (!userOwnsPackage(pkg, userEmail)) {
       throw new Error("You can only manage your own submissions");
     }
 
@@ -3225,10 +3233,7 @@ export const adminPermanentlyDeletePackage = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.email?.endsWith("@convex.dev")) {
-      throw new Error("Admin access required");
-    }
+    await requireAdminIdentity(ctx);
 
     const pkg = await ctx.db.get(args.packageId);
     if (!pkg) {
@@ -3291,8 +3296,8 @@ export const getPackagesMarkedForDeletion = query({
     })
   ),
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.email?.endsWith("@convex.dev")) {
+    const admin = await getAdminIdentity(ctx);
+    if (!admin) {
       return [];
     }
 
@@ -3345,10 +3350,7 @@ export const updateDeletionCleanupSetting = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity?.email?.endsWith("@convex.dev")) {
-      throw new Error("Admin access required");
-    }
+    await requireAdminIdentity(ctx);
 
     if (args.key === "autoDeleteMarkedPackages" && typeof args.value === "boolean") {
       const existing = await ctx.db
@@ -3457,12 +3459,10 @@ export const deleteMyAccount = mutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity || !identity.email) {
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
       throw new Error("Authentication required");
     }
-
-    const userEmail = identity.email;
 
     // Get all packages owned by user (not marked for deletion)
     const userPackages = await ctx.db
@@ -3516,8 +3516,8 @@ export const updateMySubmission = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity || !identity.email) {
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
       throw new Error("Authentication required");
     }
 
@@ -3526,7 +3526,7 @@ export const updateMySubmission = mutation({
     if (!pkg) {
       throw new Error("Package not found");
     }
-    if (!userOwnsPackage(pkg, identity.email)) {
+    if (!userOwnsPackage(pkg, userEmail)) {
       throw new Error("You can only edit your own submissions");
     }
 
@@ -3568,13 +3568,13 @@ export const getMySubmissionForEdit = query({
     v.null(),
   ),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity || !identity.email) {
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
       return null;
     }
 
     const pkg = await ctx.db.get(args.packageId);
-    if (!pkg || !userOwnsPackage(pkg, identity.email)) {
+    if (!pkg || !userOwnsPackage(pkg, userEmail)) {
       return null;
     }
 
@@ -3599,8 +3599,8 @@ export const getTotalUnreadAdminReplies = query({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity || !identity.email) {
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
       return 0;
     }
 
@@ -3608,7 +3608,7 @@ export const getTotalUnreadAdminReplies = query({
     const packages = await ctx.db
       .query("packages")
       .withIndex("by_submitter_email", (q) =>
-        q.eq("submitterEmail", identity.email),
+        q.eq("submitterEmail", userEmail),
       )
       .collect();
 
@@ -3626,7 +3626,7 @@ export const getTotalUnreadAdminReplies = query({
       const userRequestIds = new Set<string>();
       for (const note of notes) {
         if (
-          note.authorEmail === identity.email &&
+          note.authorEmail === userEmail &&
           note.content.startsWith("[User Request]")
         ) {
           userRequestIds.add(note._id);

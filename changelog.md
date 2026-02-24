@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed user email not appearing in profile/submissions after GitHub OAuth login (2026-02-23)
+  - `@convex-dev/auth` stores user data in database, not JWT claims unlike WorkOS
+  - Added `getAuthUserId` import from `@convex-dev/auth/server` in `convex/auth.ts`
+  - Updated `loggedInUser` query to fetch user from database using `getAuthUserId`
+  - Updated `isAdmin` query to use database lookup for email check
+  - Updated `requireAdminIdentity` and `getAdminIdentity` helpers to use database lookup
+  - Added `getCurrentUserEmail` helper function in `convex/packages.ts`
+  - Updated all 15+ queries/mutations in packages.ts that used `ctx.auth.getUserIdentity()` for email
+  - User submissions now correctly match by email from the users table
+  - Profile page shows user info and their submissions
+  - Admin page correctly identifies `@convex.dev` admins
+
+### Changed
+
+- Migrated authentication to official `@convex-dev/auth` library with GitHub OAuth (2026-02-23)
+  - Replaced `@robelest/convex-auth` with `@convex-dev/auth` (v0.0.80) and `@auth/core` (v0.37.0)
+  - Removed `arctic` dependency (now using `@auth/core` providers)
+  - Updated `convex/auth.ts` to use `convexAuth()` from `@convex-dev/auth/server` with GitHub provider
+  - Created `convex/auth.config.ts` for JWT provider configuration (domain and applicationID)
+  - Deleted `convex/convex.config.ts` (not needed for `@convex-dev/auth`)
+  - Deleted `convex/auth/session.ts` (was for `@robelest/convex-auth` client compatibility)
+  - Updated `convex/http.ts` to use `auth.addHttpRoutes(http)`
+  - Updated `convex/schema.ts` to use `authTables` from `@convex-dev/auth/server`
+  - Updated `src/main.tsx` with `ConvexAuthProvider` from `@convex-dev/auth/react`
+  - Updated `src/lib/auth.tsx` with `useAuthActions` from `@convex-dev/auth/react` and `useConvexAuth`
+  - Added redirect logic in Router for paths not starting with `/components`
+  - Admin access pattern preserved: `@convex.dev` email check via `isAdmin` query and `requireAdminIdentity` helper
+  - Environment variables set in Convex Dashboard: `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL`
+  - OAuth callback URL: `https://<deployment>.convex.site/api/auth/callback/github`
+  - Added `jose` dev dependency for JWT key generation
+  - Restored `as any` type casts in `convex/crons.ts` and `convex/http.ts` to work around deep type instantiation errors
+
 ### Added
 
 - SKILL.md generation for AI agent integration (2026-02-23)
@@ -54,6 +88,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - After generation, slug is editable in Component Details editor
   - New backend functions: `getPackagesWithoutSlugs` (query), `generateSlugForPackage` (mutation), `generateMissingSlugs` (mutation)
 
+### Added
+
+- Admin "Marked for Deletion" filter tab (2026-02-23)
+  - New "Deletion" tab in Admin filter bar to show all packages pending deletion
+  - Tab displays count of packages marked for deletion
+  - Package rows in admin show red "Deletion" badge next to visibility badge when marked
+
 ### Fixed
 
 - ComponentDetailsEditor now reactively syncs slug field with backend updates (2026-02-23)
@@ -67,7 +108,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Scheduled cron job runs daily at 2 AM UTC to auto-delete after waiting period
   - Configurable auto-delete toggle and waiting period (1, 3, 7, 14, or 30 days)
   - Users can cancel deletion request before admin processes it
-  - "Pending Deletion" badge shown on marked components in profile
+  - "Pending Deletion" badge shown on marked components in profile (next to visibility badge)
 - Account deletion requires deleting all components first (2026-02-23)
   - Delete Account modal shows warning if user has active submissions
   - User must delete all components before deleting their account
@@ -205,10 +246,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Technical Details
 
 - Legacy auth tables (`authSessions`, `authAccounts`, `authRefreshTokens`, etc.) preserved in schema during migration
-- Admin identity helpers (`requireAdminIdentity`, `getAdminIdentity`) check `@convex.dev` email from JWT claims
-- `WORKOS_CLIENT_ID` environment variable required in Convex dashboard for backend JWT validation
-- `VITE_WORKOS_CLIENT_ID` and `VITE_WORKOS_REDIRECT_URI` environment variables required in `.env.local`
-- WorkOS dashboard must have redirect URI (`http://localhost:5173/callback`) and CORS origin configured
+- Admin identity helpers (`requireAdminIdentity`, `getAdminIdentity`) now use `auth.user.current()` and `auth.user.get()` to check `@convex.dev` email
+- `AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET` environment variables required in Convex dashboard for GitHub OAuth
+- `JWT_PRIVATE_KEY` and `JWKS` generated via `npx @robelest/convex-auth keys` CLI command
+- `SITE_URL` environment variable required for OAuth redirect (production: `https://components-directory.netlify.app`)
+- GitHub OAuth App callback URL: `https://<deployment>.convex.site/api/auth/callback/github`
 - Admin thumbnail template management panel: upload, enable/disable, set default, delete background templates
 - Auto-generate thumbnail toggle in admin settings: when enabled, composites user logo onto default template on submission
 - Thumbnail generation action using Jimp and resvg-wasm for server-side 16:9 image composition with SVG support

@@ -1,11 +1,9 @@
 "use client";
-import { useAuth } from "@workos-inc/authkit-react";
-import { useConvexAuth } from "convex/react";
+import { useAuth } from "./lib/auth";
 import { SignOut } from "@phosphor-icons/react";
 
 export function SignOutButton() {
-  const { isAuthenticated } = useConvexAuth();
-  const { signOut } = useAuth();
+  const { isAuthenticated, signOut } = useAuth();
 
   if (!isAuthenticated) {
     return null;
