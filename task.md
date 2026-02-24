@@ -19,6 +19,12 @@
 
 ## Recent updates
 
+- [x] Added auto-fill description button in Component Details editor (2026-02-23)
+  - "Auto-fill from Package" button next to Long Description field
+  - Copies npm/repo description from Package Metadata into Long Description
+  - Admin can then edit the description before saving
+  - Updated `ComponentDetailsEditor.tsx` with new `npmDescription` prop
+  - Updated `PackageComponentDetailsEditor` in Admin.tsx to pass `pkg.description`
 - [x] Fixed production GitHub OAuth "Missing sign-in verifier" error (2026-02-23)
   - Updated `@convex-dev/auth` from v0.0.80 to v0.0.90
   - Configured GitHub OAuth callback URL: `https://giant-grouse-674.convex.site/api/auth/callback/github`

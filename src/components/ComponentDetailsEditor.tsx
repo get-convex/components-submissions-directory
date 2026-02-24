@@ -39,6 +39,8 @@ interface ComponentDetailsEditorProps {
   // SKILL.md generation
   skillMd?: string;
   mode?: "full" | "submission";
+  // Package metadata for auto-fill
+  npmDescription?: string;
 }
 
 export function ComponentDetailsEditor({
@@ -65,6 +67,7 @@ export function ComponentDetailsEditor({
   seoValueProp,
   skillMd,
   mode = "full",
+  npmDescription,
 }: ComponentDetailsEditorProps) {
   const isSubmissionMode = mode === "submission";
   const [componentName, setComponentName] = useState(initialComponentName || "");
@@ -668,9 +671,24 @@ export function ComponentDetailsEditor({
 
       {/* Long description */}
       <div>
-        <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
-          Long Description (markdown)
-        </label>
+        <div className="flex items-center justify-between mb-0.5">
+          <label className="text-[10px] uppercase tracking-wider text-text-secondary">
+            Long Description (markdown)
+          </label>
+          {!isSubmissionMode && npmDescription && (
+            <button
+              type="button"
+              onClick={() => {
+                setLongDescription(npmDescription);
+                toast.success("Description auto-filled from package metadata");
+              }}
+              className="text-[10px] px-2 py-0.5 rounded bg-bg-primary text-text-secondary hover:text-text-primary transition-colors border border-border hover:border-button"
+              title="Copy description from Package Metadata"
+            >
+              Auto-fill from Package
+            </button>
+          )}
+        </div>
         <textarea
           value={longDescription}
           onChange={(e) => setLongDescription(e.target.value)}

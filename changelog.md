@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Auto-fill description button in Component Details editor (2026-02-23)
+  - "Auto-fill from Package" button next to Long Description field
+  - Copies description from Package Metadata to Long Description for editing
+  - Only shown in admin mode when package has a description
+  - Button click populates field and shows success toast
+
 ### Fixed
 
 - Fixed production GitHub OAuth authentication failing with "Missing sign-in verifier" error (2026-02-23)

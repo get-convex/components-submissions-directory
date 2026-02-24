@@ -113,6 +113,7 @@ function PackageComponentDetailsEditor({
   seoGenerationError,
   seoValueProp,
   skillMd,
+  npmDescription,
 }: {
   packageId: Id<"packages">;
   componentName?: string;
@@ -136,6 +137,7 @@ function PackageComponentDetailsEditor({
   seoGenerationError?: string;
   seoValueProp?: string;
   skillMd?: string;
+  npmDescription?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -183,6 +185,7 @@ function PackageComponentDetailsEditor({
           seoGenerationError={seoGenerationError}
           seoValueProp={seoValueProp}
           skillMd={skillMd}
+          npmDescription={npmDescription}
         />
       )}
     </div>
@@ -4737,6 +4740,7 @@ function AdminDashboard({
                             seoGenerationError={pkg.seoGenerationError}
                             seoValueProp={pkg.seoValueProp}
                             skillMd={pkg.skillMd}
+                            npmDescription={pkg.description}
                           />
                           <PackageMetadataEditor
                             packageId={pkg._id}
