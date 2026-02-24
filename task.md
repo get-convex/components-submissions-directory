@@ -32,6 +32,14 @@
 
 ## Recent updates
 
+- [x] Added LLMs.txt and Markdown clean URL support (2026-02-24)
+  - New `/api/markdown-index` endpoint for directory-wide markdown
+  - New `/api/component-llms` endpoint for per-component llms.txt
+  - Added 6 Netlify redirects for clean URLs: `/components/llms.txt`, `/components.md`, `/components/:slug/llms.txt`, `/components/:slug.md`, plus scoped package variants
+  - All endpoints tested and working via Convex site URL
+- [x] Moved Keywords section below Agent Skill (SKILL.md) section on ComponentDetail.tsx (2026-02-24)
+  - Keywords tags now appear after the SKILL.md copyable snippet
+  - Improves page hierarchy: SEO content > SKILL.md > Keywords
 - [x] Moved Markdown dropdown to author row on ComponentDetail.tsx (2026-02-24)
   - Dropdown relocated from sidebar to main content area (author row)
   - Appears after author info with separator

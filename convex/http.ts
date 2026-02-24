@@ -268,6 +268,177 @@ function markdownHeaders(): Record<string, string> {
   };
 }
 
+// ============ MARKDOWN INDEX ENDPOINT ============
+// Returns markdown listing all approved components (for /components.md)
+http.route({
+  path: "/api/markdown-index",
+  method: "GET",
+  handler: httpAction(async (ctx) => {
+    const packages = await ctx.runQuery(
+      internal.packages._listApprovedPackages,
+    );
+
+    const lines: string[] = [];
+    lines.push("# Convex Components Directory\n");
+    lines.push("A curated index of open-source components for the Convex backend platform.\n");
+    lines.push(`**${packages.length} components** | Updated ${new Date().toISOString().slice(0, 10)}\n`);
+
+    // Group by category
+    const byCategory: Record<string, any[]> = {};
+    for (const pkg of packages) {
+      const cat = pkg.category || "general";
+      if (!byCategory[cat]) byCategory[cat] = [];
+      byCategory[cat].push(pkg);
+    }
+
+    // Sort categories alphabetically
+    const sortedCategories = Object.keys(byCategory).sort();
+
+    for (const category of sortedCategories) {
+      const catLabel = CATEGORY_LABELS[category] || category;
+      lines.push(`## ${catLabel}\n`);
+
+      // Sort packages within category by name
+      const sortedPkgs = byCategory[category].sort((a: any, b: any) =>
+        (a.name || "").localeCompare(b.name || ""),
+      );
+
+      for (const pkg of sortedPkgs) {
+        const name = pkg.componentName || pkg.name || "Unknown";
+        const desc = pkg.shortDescription || pkg.description || "";
+        const slug = pkg.slug || "";
+        const detailUrl = slug
+          ? `https://www.convex.dev/components/${slug}`
+          : pkg.npmUrl;
+        const mdUrl = slug
+          ? `https://www.convex.dev/components/${slug}.md`
+          : "";
+
+        lines.push(`### [${name}](${detailUrl})\n`);
+        if (desc) lines.push(`${desc}\n`);
+        lines.push(`- Install: \`${pkg.installCommand || `npm install ${pkg.name}`}\``);
+        lines.push(`- [npm](${pkg.npmUrl})`);
+        if (pkg.repositoryUrl) lines.push(` | [GitHub](${pkg.repositoryUrl})`);
+        if (mdUrl) lines.push(` | [Markdown](${mdUrl})`);
+        lines.push("\n");
+      }
+    }
+
+    lines.push("---\n");
+    lines.push("[View full directory](https://www.convex.dev/components)\n");
+
+    return new Response(lines.join("\n"), {
+      status: 200,
+      headers: markdownHeaders(),
+    });
+  }),
+});
+
+// ============ COMPONENT LLMs.txt ENDPOINT ============
+// Returns llms.txt format for a single component (for /components/<slug>/llms.txt)
+http.route({
+  path: "/api/component-llms",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    const url = new URL(request.url);
+    const slug = url.searchParams.get("slug") || "";
+
+    if (!slug) {
+      return new Response("# Not Found\n\nNo slug provided.", {
+        status: 404,
+        headers: llmsTxtHeaders(),
+      });
+    }
+
+    const pkg = await ctx.runQuery(internal.packages._getPackageBySlug, {
+      slug,
+    });
+
+    if (!pkg || pkg.visibility === "hidden" || pkg.visibility === "archived") {
+      return new Response(`# Not Found\n\nComponent "${slug}" not found.`, {
+        status: 404,
+        headers: llmsTxtHeaders(),
+      });
+    }
+
+    const lines: string[] = [];
+    const name = pkg.componentName || pkg.name || "Unknown";
+    const desc = pkg.seoValueProp || pkg.shortDescription || pkg.description || "";
+    const catLabel = pkg.category ? CATEGORY_LABELS[pkg.category] || pkg.category : "general";
+
+    lines.push(`# ${name}`);
+    lines.push(`# ${desc}`);
+    lines.push(`# Category: ${catLabel}`);
+    lines.push("");
+
+    lines.push("## Install");
+    lines.push(`- Command: ${pkg.installCommand || `npm install ${pkg.name}`}`);
+    lines.push("");
+
+    lines.push("## Links");
+    lines.push(`- Directory: https://www.convex.dev/components/${slug}`);
+    lines.push(`- Markdown: https://www.convex.dev/components/${slug}.md`);
+    lines.push(`- npm: ${pkg.npmUrl || ""}`);
+    if (pkg.repositoryUrl) lines.push(`- GitHub: ${pkg.repositoryUrl}`);
+    if (pkg.demoUrl) lines.push(`- Demo: ${pkg.demoUrl}`);
+    lines.push("");
+
+    lines.push("## Details");
+    lines.push(`- Version: ${pkg.version || "0.0.0"}`);
+    lines.push(`- Weekly downloads: ${(pkg.weeklyDownloads || 0).toLocaleString()}`);
+    if (pkg.authorUsername) lines.push(`- Author: ${pkg.authorUsername}`);
+    if (pkg.tags && pkg.tags.length > 0) lines.push(`- Tags: ${pkg.tags.join(", ")}`);
+    lines.push("");
+
+    if (pkg.seoBenefits && pkg.seoBenefits.length > 0) {
+      lines.push("## Benefits");
+      for (const benefit of pkg.seoBenefits) {
+        lines.push(`- ${benefit}`);
+      }
+      lines.push("");
+    }
+
+    if (pkg.seoUseCases && pkg.seoUseCases.length > 0) {
+      lines.push("## Use Cases");
+      for (const uc of pkg.seoUseCases) {
+        lines.push(`- Q: ${uc.query}`);
+        lines.push(`  A: ${uc.answer}`);
+      }
+      lines.push("");
+    }
+
+    if (pkg.seoFaq && pkg.seoFaq.length > 0) {
+      lines.push("## FAQ");
+      for (const faq of pkg.seoFaq) {
+        lines.push(`- Q: ${faq.question}`);
+        lines.push(`  A: ${faq.answer}`);
+      }
+      lines.push("");
+    }
+
+    if (pkg.seoResourceLinks && pkg.seoResourceLinks.length > 0) {
+      lines.push("## Resources");
+      for (const link of pkg.seoResourceLinks) {
+        lines.push(`- ${link.label}: ${link.url}`);
+      }
+      lines.push("");
+    }
+
+    return new Response(lines.join("\n"), {
+      status: 200,
+      headers: llmsTxtHeaders(),
+    });
+  }),
+});
+
+function llmsTxtHeaders(): Record<string, string> {
+  return {
+    "Content-Type": "text/plain; charset=utf-8",
+    "Cache-Control": "public, max-age=300, s-maxage=300",
+    "Access-Control-Allow-Origin": "*",
+  };
+}
+
 // ============ BADGE SERVICE ============
 http.route({
   path: "/api/badge",

@@ -7,7 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- LLMs.txt and Markdown clean URL support (2026-02-24)
+  - `/components/llms.txt` serves main directory index for AI agents
+  - `/components.md` serves markdown listing of all approved components
+  - `/components/<slug>/llms.txt` serves per-component llms.txt
+  - `/components/<slug>.md` serves per-component markdown
+  - New `/api/markdown-index` endpoint for directory-wide markdown
+  - New `/api/component-llms` endpoint for per-component llms.txt
+  - Netlify redirects proxy clean URLs to Convex HTTP endpoints
+  - Supports both single-segment and scoped package slugs
+
 ### Changed
+
+- Moved Keywords section below Agent Skill (SKILL.md) section on ComponentDetail.tsx (2026-02-24)
+  - Keywords tags now appear after the SKILL.md copyable snippet
+  - Improves page hierarchy: SEO content > SKILL.md > Keywords
 
 - Moved Markdown dropdown from sidebar to author row on ComponentDetail.tsx (2026-02-24)
   - Dropdown now appears in the same row as package name and author info

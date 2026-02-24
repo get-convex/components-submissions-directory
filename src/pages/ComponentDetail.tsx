@@ -979,24 +979,6 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               </div>
             )}
 
-            {/* Keywords */}
-            {component.tags && component.tags.length > 0 && (
-              <div className="mb-6">
-                <p className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">
-                  Keywords
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {component.tags.map((tag: string) => (
-                    <span
-                      key={tag}
-                      className="text-[11px] px-2 py-0.5 rounded-full bg-bg-secondary text-text-secondary">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* SKILL.md for Claude agents */}
             {component.skillMd && (
               <div className="mb-6">
@@ -1020,6 +1002,24 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                   <pre className="p-3 pr-10 text-xs overflow-x-auto whitespace-pre-wrap font-mono max-h-48 overflow-y-auto">
                     {component.skillMd}
                   </pre>
+                </div>
+              </div>
+            )}
+
+            {/* Keywords */}
+            {component.tags && component.tags.length > 0 && (
+              <div className="mb-6">
+                <p className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">
+                  Keywords
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {component.tags.map((tag: string) => (
+                    <span
+                      key={tag}
+                      className="text-[11px] px-2 py-0.5 rounded-full bg-bg-secondary text-text-secondary">
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               </div>
             )}

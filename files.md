@@ -45,6 +45,12 @@ Git ignore patterns for node_modules, dist, build artifacts, and editor files.
 
 Netlify deployment configuration. Sets build command (`npm run build`), publish directory (`dist`), Node version (20), and redirects:
 - Root `/` redirects to `/components` (301)
+- LLMs.txt and Markdown proxies to Convex HTTP endpoints (must be before SPA fallback):
+  - `/components/llms.txt` -> `/api/llms.txt`
+  - `/components.md` -> `/api/markdown-index`
+  - `/components/:slug/llms.txt` -> `/api/component-llms?slug=:slug`
+  - `/components/:slug.md` -> `/api/markdown?slug=:slug`
+  - Scoped package variants for two-segment slugs
 - `/components` and `/components/*` fall back to `/index.html` for SPA routing (200)
 
 Environment variables must be set in Netlify Dashboard:
@@ -157,8 +163,10 @@ HTTP router configuration. Defines:
 Main HTTP router with all API endpoints. Defines:
 - `/api/export-csv` endpoint for CSV export of all packages
 - `/api/badge` endpoint for dynamic SVG badge generation with analytics tracking
-- `/api/markdown` endpoint serving raw markdown for component data
+- `/api/markdown?slug=<slug>` endpoint serving raw markdown for a single component
+- `/api/markdown-index` endpoint serving markdown listing of all approved components
 - `/api/llms.txt` endpoint serving a plain-text index of all approved components
+- `/api/component-llms?slug=<slug>` endpoint serving llms.txt format for a single component
 
 ### `convex/convex.config.ts`
 
@@ -288,7 +296,7 @@ Admin dashboard at `/submissions/admin` (requires @convex.dev email). Features s
 
 ### `src/pages/ComponentDetail.tsx`
 
-Component detail page at `/components/:slug`. Features shared Header component, narrow sidebar (left) with npm link, category, stats, verified badge, source link, rating stars, and Back link. Main area (right) with author row (package name, author info, Markdown dropdown), title, install command, AI-generated SEO content layer, rendered long description, video embed, tags, and SKILL.md copyable snippet. Markdown dropdown in author row provides View as Markdown, Copy as Markdown, and Copy page URL options. GitHub issues feature and README badge snippet are currently commented out. Includes full SEO support: dual JSON-LD structured data (SoftwareSourceCode + FAQPage), Open Graph tags, Twitter Card tags, canonical URL, and meta description using AI-generated seoValueProp or shortDescription fallback.
+Component detail page at `/components/:slug`. Features shared Header component, narrow sidebar (left) with npm link, category, stats, verified badge, source link, rating stars, and Back link. Main area (right) with author row (package name, author info, Markdown dropdown), title, install command, AI-generated SEO content layer, rendered long description, video embed, SKILL.md copyable snippet, and keywords tags. Markdown dropdown in author row provides View as Markdown, Copy as Markdown, and Copy page URL options. GitHub issues feature and README badge snippet are currently commented out. Includes full SEO support: dual JSON-LD structured data (SoftwareSourceCode + FAQPage), Open Graph tags, Twitter Card tags, canonical URL, and meta description using AI-generated seoValueProp or shortDescription fallback.
 
 ### `src/components/ComponentCard.tsx`
 
