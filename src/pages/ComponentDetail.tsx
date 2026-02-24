@@ -121,12 +121,13 @@ function buildMarkdownDoc(c: {
     lines.push(c.longDescription);
   }
 
-  if (c.slug) {
-    lines.push(`\n---\n`);
-    lines.push(
-      `[![Convex Component](https://www.convex.dev/components/badge/${c.slug})](https://www.convex.dev/components/${c.slug})`
-    );
-  }
+  // Badge disabled until endpoint is working
+  // if (c.slug) {
+  //   lines.push(`\n---\n`);
+  //   lines.push(
+  //     `[![Convex Component](https://www.convex.dev/components/badge/${c.slug})](https://www.convex.dev/components/${c.slug})`
+  //   );
+  // }
 
   return lines.join("\n");
 }
@@ -1024,7 +1025,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               </div>
             )}
 
-            {/* Badge snippet */}
+            {/* Badge snippet - commented out until badge endpoint is working
             {badgeMarkdown && (
               <div>
                 <h3 className="text-sm font-semibold text-text-primary mb-2">
@@ -1044,6 +1045,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 </div>
               </div>
             )}
+            */}
           </main>
         </div>
       </div>

@@ -65,7 +65,7 @@ Main HTML entry point. Loads the React app and CSS. Includes Open Graph meta tag
 
 ### `convex/schema.ts`
 
-Database schema definition. Defines the `packages` table with all package fields including slug, category, tags, shortDescription, longDescription, videoUrl, thumbnailUrl, thumbnailStorageId, logoStorageId, logoUrl, selectedTemplateId, thumbnailGenerationVersion, thumbnailGeneratedAt, thumbnailGeneratedBy, convexVerified, authorUsername, authorAvatar, relatedComponentIds, submitter information (submitterName, submitterEmail, submitterDiscord, additionalEmails for multi-account access), review status, visibility, featured flag, demoUrl, AI review fields, cached GitHub issue counts, AI-generated SEO/AEO/GEO fields, skillMd (AI-generated SKILL.md content for Claude agent skills), and soft deletion fields (markedForDeletion, markedForDeletionAt, markedForDeletionBy). Also defines `packageNotes` (with isAdminReply and userHasRead for notification tracking), `packageComments`, `adminSettings`, `adminSettingsNumeric`, `badgeFetches`, `thumbnailTemplates`, and `thumbnailJobs` tables.
+Database schema definition. Defines the `packages` table with all package fields including slug, category, tags, shortDescription, longDescription, videoUrl, thumbnailUrl, thumbnailStorageId, logoStorageId, logoUrl, selectedTemplateId, thumbnailGenerationVersion, thumbnailGeneratedAt, thumbnailGeneratedBy, convexVerified, authorUsername, authorAvatar, relatedComponentIds, submitter information (submitterName, submitterEmail, submitterDiscord, additionalEmails for multi-account access), review status, visibility, featured flag, demoUrl, AI review fields, cached GitHub issue counts, AI-generated SEO/AEO/GEO fields, skillMd (AI-generated SKILL.md content for Claude agent skills), and soft deletion fields (markedForDeletion, markedForDeletionAt, markedForDeletionBy). Also defines `packageNotes` (with isAdminReply and userHasRead for notification tracking), `packageComments`, `adminSettings`, `adminSettingsNumeric`, `badgeFetches`, `thumbnailTemplates`, `thumbnailJobs`, `aiProviderSettings` (API keys and models for Anthropic, OpenAI, Gemini), and `aiPromptVersions` (versioned AI review prompts) tables.
 
 ### `convex/auth.ts`
 
@@ -77,7 +77,21 @@ JWT provider configuration for `@convex-dev/auth`. Configures the Convex site UR
 
 ### `convex/aiReview.ts`
 
-AI-powered package review system. Contains review criteria, GitHub repo fetcher with monorepo support, and `runAiReview` action using Anthropic Claude API.
+AI-powered package review system. Contains review criteria, GitHub repo fetcher with monorepo support, and `runAiReview` action. Supports multiple AI providers (Anthropic Claude, OpenAI GPT, Google Gemini) with automatic fallback from custom provider settings to environment variables. Uses custom prompts from database when configured.
+
+### `convex/aiSettings.ts`
+
+AI provider and prompt management. Contains:
+- `getAiProviderSettings`: Query to get configured providers (masks API keys for security)
+- `updateAiProviderSettings`: Mutation to save provider API key and model
+- `clearProviderSettings`: Mutation to remove custom settings and revert to env vars
+- `getDefaultPrompt`: Query to get the default review prompt
+- `getActivePrompt`: Query to get current active prompt (custom or default)
+- `getPromptVersions`: Query to list prompt version history
+- `savePromptVersion`: Mutation to save new prompt version
+- `activatePromptVersion`: Mutation to restore a previous version
+- `resetToDefaultPrompt`: Mutation to revert to default prompt
+- Internal queries for aiReview action: `_getActiveProviderSettings`, `_getActivePromptContent`
 
 ### `convex/packages.ts`
 
@@ -272,7 +286,7 @@ Admin dashboard at `/submissions/admin` (requires @convex.dev email). Features s
 
 ### `src/pages/ComponentDetail.tsx`
 
-Component detail page at `/components/:slug`. Features shared Header component, narrow sidebar (left) with npm link, category, stats, verified badge, source link, Share dropdown, and Back link. Main area (right) with author, title, install command, GitHub issues tab, AI-generated SEO content layer, rendered long description, video embed, tags, SKILL.md copyable snippet, and README badge snippet. Includes dual JSON-LD structured data for SEO.
+Component detail page at `/components/:slug`. Features shared Header component, narrow sidebar (left) with npm link, category, stats, verified badge, source link, Share dropdown, and Back link. Main area (right) with author, title, install command, GitHub issues tab, AI-generated SEO content layer, rendered long description, video embed, tags, and SKILL.md copyable snippet. README badge snippet is currently commented out until the badge endpoint is working. Includes dual JSON-LD structured data for SEO.
 
 ### `src/components/ComponentCard.tsx`
 

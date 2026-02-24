@@ -353,6 +353,32 @@ const applicationTables = {
   })
     .index("by_run_at", ["runAt"])
     .index("by_status", ["status"]),
+
+  // AI provider configuration (API keys and models for Anthropic, OpenAI, Gemini)
+  aiProviderSettings: defineTable({
+    provider: v.union(
+      v.literal("anthropic"),
+      v.literal("openai"),
+      v.literal("gemini"),
+    ),
+    apiKey: v.optional(v.string()),
+    model: v.optional(v.string()),
+    isEnabled: v.boolean(),
+    updatedAt: v.number(),
+    updatedBy: v.optional(v.string()),
+  }).index("by_provider", ["provider"]),
+
+  // AI review prompt versions (append-only for history)
+  aiPromptVersions: defineTable({
+    content: v.string(),
+    isActive: v.boolean(),
+    isDefault: v.boolean(),
+    createdAt: v.number(),
+    createdBy: v.optional(v.string()),
+    notes: v.optional(v.string()),
+  })
+    .index("by_active", ["isActive"])
+    .index("by_created_at", ["createdAt"]),
 };
 
 export default defineSchema({

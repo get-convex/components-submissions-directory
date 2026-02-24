@@ -4,6 +4,61 @@ import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+// Helper function to call different AI providers
+async function callAiProvider(
+  provider: "anthropic" | "openai" | "gemini",
+  apiKey: string,
+  model: string,
+  prompt: string,
+): Promise<string> {
+  switch (provider) {
+    case "anthropic": {
+      const anthropic = new Anthropic({ apiKey });
+      const response = await anthropic.messages.create({
+        model,
+        max_tokens: 2048,
+        messages: [{ role: "user", content: prompt }],
+      });
+      const content = response.content[0];
+      if (content.type !== "text") {
+        throw new Error("Unexpected response type from Anthropic");
+      }
+      return content.text;
+    }
+
+    case "openai": {
+      const openai = new OpenAI({ apiKey });
+      const response = await openai.chat.completions.create({
+        model,
+        max_tokens: 2048,
+        messages: [{ role: "user", content: prompt }],
+      });
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error("No content in OpenAI response");
+      }
+      return content;
+    }
+
+    case "gemini": {
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const geminiModel = genAI.getGenerativeModel({ model });
+      const result = await geminiModel.generateContent(prompt);
+      const response = result.response;
+      const text = response.text();
+      if (!text) {
+        throw new Error("No content in Gemini response");
+      }
+      return text;
+    }
+
+    default:
+      throw new Error(`Unsupported provider: ${provider}`);
+  }
+}
 
 // Convex component review criteria
 const REVIEW_CRITERIA = [
@@ -262,7 +317,7 @@ async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
   };
 }
 
-// Run AI review using Anthropic Claude
+// Run AI review using configured provider (Anthropic, OpenAI, or Gemini)
 export const runAiReview = action({
   args: { packageId: v.id("packages") },
   returns: v.null(),
@@ -327,6 +382,14 @@ export const runAiReview = action({
         return null;
       }
 
+      // Get custom provider settings and prompt from aiSettings
+      const customProvider = await ctx.runQuery(
+        internal.aiSettings._getActiveProviderSettings,
+      );
+      const customPromptContent = await ctx.runQuery(
+        internal.aiSettings._getActivePromptContent,
+      );
+
       // Prepare AI prompt
       const filesContext = repoData.files
         .map((f) => `File: ${f.name}\n\`\`\`typescript\n${f.content}\n\`\`\``)
@@ -337,8 +400,13 @@ export const runAiReview = action({
           `${i + 1}. ${c.name}: ${c.check}${c.critical ? " (CRITICAL)" : ""}`,
       ).join("\n");
 
-      // Build the official documentation reference for AI context
-      const docsReference = `
+      // Use custom prompt if available, otherwise use default
+      let basePrompt: string;
+      if (customPromptContent) {
+        basePrompt = customPromptContent;
+      } else {
+        // Default prompt template
+        const docsReference = `
 OFFICIAL CONVEX COMPONENT DOCUMENTATION REFERENCES:
 - Authoring Components: https://docs.convex.dev/components/authoring
 - Understanding Components: https://docs.convex.dev/components/understanding
@@ -358,7 +426,7 @@ KEY REQUIREMENTS FROM DOCS:
 7. If component needs authorization, use token-based pattern (like Presence component): methods return tokens, subsequent calls require tokens. Note: Not all components need authorization.
 `;
 
-      const prompt = `You are reviewing a Convex component package against official Convex component specifications.
+        basePrompt = `You are reviewing a Convex component package against official Convex component specifications.
 
 ${docsReference}
 
@@ -369,15 +437,6 @@ A Convex component is an npm package that:
 - Is installed by other Convex apps via npm install
 - Exports functionality through the component definition
 - Can include schema, client code, and HTTP endpoints
-
-PACKAGE: ${pkg.name}
-VERSION: ${pkg.version}
-
-CRITERIA TO CHECK (in order, marking critical ones):
-${criteriaList}
-
-SOURCE CODE (convex.config.ts + component files):
-${filesContext}
 
 Analyze this code and provide a structured review with:
 1. Overall summary (2-3 sentences about component quality and compliance with official Convex component specs)
@@ -405,34 +464,59 @@ Respond in this exact JSON format:
   ],
   "suggestions": "Improvement suggestions with references to official docs (e.g., 'See https://docs.convex.dev/components/authoring for...')"
 }`;
-
-      // Call Anthropic Claude API
-      const anthropicKey = process.env.ANTHROPIC_API_KEY;
-      if (!anthropicKey) {
-        throw new Error("ANTHROPIC_API_KEY not configured");
       }
 
-      const anthropic = new Anthropic({ apiKey: anthropicKey });
+      // Build final prompt with package-specific context
+      const prompt = `${basePrompt}
 
-      const response = await anthropic.messages.create({
-        model: "claude-opus-4-5-20251101",
-        max_tokens: 2048,
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-      });
+PACKAGE: ${pkg.name}
+VERSION: ${pkg.version}
 
-      // Parse AI response
-      const content = response.content[0];
-      if (content.type !== "text") {
-        throw new Error("Unexpected response type from Claude");
+CRITERIA TO CHECK (in order, marking critical ones):
+${criteriaList}
+
+SOURCE CODE (convex.config.ts + component files):
+${filesContext}`;
+
+      // Call AI provider (custom settings or env var fallback)
+      let aiResponseText: string;
+
+      if (customProvider) {
+        // Use custom provider settings
+        aiResponseText = await callAiProvider(
+          customProvider.provider,
+          customProvider.apiKey,
+          customProvider.model,
+          prompt,
+        );
+      } else {
+        // Fall back to environment variables (default: Anthropic)
+        const anthropicKey = process.env.ANTHROPIC_API_KEY;
+        const openaiKey = process.env.CONVEX_OPENAI_API_KEY;
+
+        if (anthropicKey) {
+          aiResponseText = await callAiProvider(
+            "anthropic",
+            anthropicKey,
+            "claude-opus-4-5-20251101",
+            prompt,
+          );
+        } else if (openaiKey) {
+          aiResponseText = await callAiProvider(
+            "openai",
+            openaiKey,
+            "gpt-4o",
+            prompt,
+          );
+        } else {
+          throw new Error(
+            "No AI provider configured. Set ANTHROPIC_API_KEY or CONVEX_OPENAI_API_KEY environment variable, or configure a provider in Admin Settings.",
+          );
+        }
       }
 
       // Extract JSON from response (it might be wrapped in markdown code blocks)
-      let jsonText = content.text.trim();
+      let jsonText = aiResponseText.trim();
       const jsonMatch =
         jsonText.match(/```json\n?([\s\S]*?)\n?```/) ||
         jsonText.match(/```\n?([\s\S]*?)\n?```/);

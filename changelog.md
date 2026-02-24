@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- AI Provider Settings panel in Admin Settings (2026-02-23)
+  - Configure Anthropic, OpenAI, or Google Gemini as AI provider
+  - Override environment variables with custom API keys and models
+  - Links to model documentation for each provider
+  - Clear settings to revert to environment variable defaults
+  - Active provider indicator badge
+
+- AI Prompt Settings panel in Admin Settings (2026-02-23)
+  - View and customize the AI review prompt
+  - Edit prompt with save as new version
+  - Version history with timestamps and change notes
+  - Restore any previous prompt version
+  - Reset to default prompt option
+  - Custom prompts stored in database with version tracking
+
+- New database tables for AI configuration (2026-02-23)
+  - `aiProviderSettings`: stores API keys and models for each provider
+  - `aiPromptVersions`: stores prompt versions with history
+
+- Multi-provider AI support in aiReview.ts (2026-02-23)
+  - Support for Anthropic Claude, OpenAI GPT, and Google Gemini
+  - Provider selection prioritizes custom settings, then env vars
+  - Custom prompt support with fallback to default
+
+### Changed
+
+- Commented out "Add badge to your README" section on ComponentDetail.tsx (2026-02-23)
+  - Badge snippet UI hidden until badge endpoint is working
+  - Badge markdown line in buildMarkdownDoc also commented out
+  - Can be re-enabled later when badge feature is ready
+
+### Added
+
 - Auto-fill description button in Component Details editor (2026-02-23)
   - "Auto-fill from Package" button next to Long Description field
   - Copies description from Package Metadata to Long Description for editing

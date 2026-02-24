@@ -3490,6 +3490,596 @@ function AdminSettingsPanel() {
   );
 }
 
+// AI Provider Settings Panel component
+function AiProviderSettingsPanel() {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Local state for form inputs
+  const [anthropicKey, setAnthropicKey] = useState("");
+  const [anthropicModel, setAnthropicModel] = useState("");
+  const [openaiKey, setOpenaiKey] = useState("");
+  const [openaiModel, setOpenaiModel] = useState("");
+  const [geminiKey, setGeminiKey] = useState("");
+  const [geminiModel, setGeminiModel] = useState("");
+  const [activeProvider, setActiveProvider] = useState<
+    "anthropic" | "openai" | "gemini" | "env"
+  >("env");
+
+  const providerSettings = useQuery(api.aiSettings.getAiProviderSettings);
+  const updateProvider = useMutation(api.aiSettings.updateAiProviderSettings);
+  const clearProvider = useMutation(api.aiSettings.clearProviderSettings);
+
+  // Sync form state when settings load
+  useEffect(() => {
+    if (providerSettings) {
+      setAnthropicModel(providerSettings.anthropic.model || "");
+      setOpenaiModel(providerSettings.openai.model || "");
+      setGeminiModel(providerSettings.gemini.model || "");
+
+      if (providerSettings.activeProvider) {
+        setActiveProvider(providerSettings.activeProvider);
+      } else {
+        setActiveProvider("env");
+      }
+    }
+  }, [providerSettings]);
+
+  const handleSaveProvider = async (
+    provider: "anthropic" | "openai" | "gemini",
+  ) => {
+    setIsSaving(true);
+    try {
+      const key =
+        provider === "anthropic"
+          ? anthropicKey
+          : provider === "openai"
+            ? openaiKey
+            : geminiKey;
+      const model =
+        provider === "anthropic"
+          ? anthropicModel
+          : provider === "openai"
+            ? openaiModel
+            : geminiModel;
+
+      if (!model) {
+        toast.error("Model is required when setting an API key");
+        return;
+      }
+
+      await updateProvider({
+        provider,
+        apiKey: key || undefined,
+        model,
+        isEnabled: activeProvider === provider,
+      });
+
+      toast.success(`${provider} settings saved`);
+
+      // Clear the key input after save (for security)
+      if (provider === "anthropic") setAnthropicKey("");
+      if (provider === "openai") setOpenaiKey("");
+      if (provider === "gemini") setGeminiKey("");
+    } catch (error) {
+      toast.error("Failed to save provider settings");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleClearProvider = async (
+    provider: "anthropic" | "openai" | "gemini",
+  ) => {
+    try {
+      await clearProvider({ provider });
+      toast.success(`${provider} settings cleared (using env var)`);
+    } catch (error) {
+      toast.error("Failed to clear settings");
+    }
+  };
+
+  const handleSetActive = async (
+    provider: "anthropic" | "openai" | "gemini" | "env",
+  ) => {
+    setActiveProvider(provider);
+
+    if (provider === "env") {
+      // Disable all custom providers
+      const providers = ["anthropic", "openai", "gemini"] as const;
+      for (const p of providers) {
+        if (providerSettings?.[p]?.model) {
+          await updateProvider({
+            provider: p,
+            model: providerSettings[p].model,
+            isEnabled: false,
+          });
+        }
+      }
+      toast.success("Using environment variables for AI");
+    } else {
+      // Enable selected provider
+      const model =
+        provider === "anthropic"
+          ? anthropicModel
+          : provider === "openai"
+            ? openaiModel
+            : geminiModel;
+
+      if (!model) {
+        toast.error("Configure model before enabling this provider");
+        setActiveProvider("env");
+        return;
+      }
+
+      await updateProvider({
+        provider,
+        model,
+        isEnabled: true,
+      });
+      toast.success(`${provider} is now active`);
+    }
+  };
+
+  if (!providerSettings) return null;
+
+  return (
+    <div className="mb-4 rounded-lg border border-border bg-bg-card overflow-hidden">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Gear size={16} weight="bold" className="text-text-secondary" />
+          <span className="text-sm font-medium text-text-primary">
+            AI Provider Settings
+          </span>
+          {providerSettings.activeProvider && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+              {providerSettings.activeProvider}
+            </span>
+          )}
+        </div>
+        {isExpanded ? (
+          <CaretUp size={16} className="text-text-secondary" />
+        ) : (
+          <CaretDown size={16} className="text-text-secondary" />
+        )}
+      </button>
+
+      {isExpanded && (
+        <div className="p-4 border-t border-border space-y-4">
+          <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary">
+            <p>
+              Configure AI providers for component reviews. By default,
+              environment variables (ANTHROPIC_API_KEY, CONVEX_OPENAI_API_KEY)
+              are used. Settings here override environment variables.
+            </p>
+          </div>
+
+          {/* Active provider selector */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm text-text-secondary">Active:</span>
+            {(["env", "anthropic", "openai", "gemini"] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => handleSetActive(p)}
+                className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                  activeProvider === p
+                    ? "bg-button text-white border-button"
+                    : "border-border text-text-secondary hover:bg-bg-hover"
+                }`}
+              >
+                {p === "env" ? "Env Vars (Default)" : p}
+              </button>
+            ))}
+          </div>
+
+          {/* Anthropic */}
+          <div className="p-3 rounded-lg border border-border space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-text-primary">
+                Anthropic (Claude)
+              </span>
+              <a
+                href="https://docs.anthropic.com/en/docs/models"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-button hover:underline"
+              >
+                Model docs
+              </a>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="password"
+                placeholder="API Key (leave empty to keep existing)"
+                value={anthropicKey}
+                onChange={(e) => setAnthropicKey(e.target.value)}
+                className="px-2 py-1.5 text-xs rounded border border-border bg-bg-primary text-text-primary"
+              />
+              <input
+                type="text"
+                placeholder="Model (e.g. claude-opus-4-5-20251101)"
+                value={anthropicModel}
+                onChange={(e) => setAnthropicModel(e.target.value)}
+                className="px-2 py-1.5 text-xs rounded border border-border bg-bg-primary text-text-primary"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleSaveProvider("anthropic")}
+                disabled={isSaving}
+                className="px-3 py-1 text-xs rounded bg-button text-white hover:bg-button-hover disabled:opacity-50"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => handleClearProvider("anthropic")}
+                className="px-3 py-1 text-xs rounded border border-border text-text-secondary hover:bg-bg-hover"
+              >
+                Clear (use env)
+              </button>
+            </div>
+            {providerSettings.anthropic.apiKey && (
+              <p className="text-xs text-green-600">API key configured</p>
+            )}
+          </div>
+
+          {/* OpenAI */}
+          <div className="p-3 rounded-lg border border-border space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-text-primary">
+                OpenAI
+              </span>
+              <a
+                href="https://platform.openai.com/docs/models"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-button hover:underline"
+              >
+                Model docs
+              </a>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="password"
+                placeholder="API Key (leave empty to keep existing)"
+                value={openaiKey}
+                onChange={(e) => setOpenaiKey(e.target.value)}
+                className="px-2 py-1.5 text-xs rounded border border-border bg-bg-primary text-text-primary"
+              />
+              <input
+                type="text"
+                placeholder="Model (e.g. gpt-4o)"
+                value={openaiModel}
+                onChange={(e) => setOpenaiModel(e.target.value)}
+                className="px-2 py-1.5 text-xs rounded border border-border bg-bg-primary text-text-primary"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleSaveProvider("openai")}
+                disabled={isSaving}
+                className="px-3 py-1 text-xs rounded bg-button text-white hover:bg-button-hover disabled:opacity-50"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => handleClearProvider("openai")}
+                className="px-3 py-1 text-xs rounded border border-border text-text-secondary hover:bg-bg-hover"
+              >
+                Clear (use env)
+              </button>
+            </div>
+            {providerSettings.openai.apiKey && (
+              <p className="text-xs text-green-600">API key configured</p>
+            )}
+          </div>
+
+          {/* Gemini */}
+          <div className="p-3 rounded-lg border border-border space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-text-primary">
+                Google Gemini
+              </span>
+              <a
+                href="https://ai.google.dev/gemini-api/docs/models"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-button hover:underline"
+              >
+                Model docs
+              </a>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="password"
+                placeholder="API Key (leave empty to keep existing)"
+                value={geminiKey}
+                onChange={(e) => setGeminiKey(e.target.value)}
+                className="px-2 py-1.5 text-xs rounded border border-border bg-bg-primary text-text-primary"
+              />
+              <input
+                type="text"
+                placeholder="Model (e.g. gemini-1.5-pro)"
+                value={geminiModel}
+                onChange={(e) => setGeminiModel(e.target.value)}
+                className="px-2 py-1.5 text-xs rounded border border-border bg-bg-primary text-text-primary"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleSaveProvider("gemini")}
+                disabled={isSaving}
+                className="px-3 py-1 text-xs rounded bg-button text-white hover:bg-button-hover disabled:opacity-50"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => handleClearProvider("gemini")}
+                className="px-3 py-1 text-xs rounded border border-border text-text-secondary hover:bg-bg-hover"
+              >
+                Clear (use env)
+              </button>
+            </div>
+            {providerSettings.gemini.apiKey && (
+              <p className="text-xs text-green-600">API key configured</p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// AI Prompt Settings Panel component
+function AiPromptSettingsPanel() {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedPrompt, setEditedPrompt] = useState("");
+  const [notes, setNotes] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+
+  const activePrompt = useQuery(api.aiSettings.getActivePrompt);
+  const defaultPrompt = useQuery(api.aiSettings.getDefaultPrompt);
+  const promptVersions = useQuery(api.aiSettings.getPromptVersions);
+  const savePrompt = useMutation(api.aiSettings.savePromptVersion);
+  const activateVersion = useMutation(api.aiSettings.activatePromptVersion);
+  const resetToDefault = useMutation(api.aiSettings.resetToDefaultPrompt);
+
+  useEffect(() => {
+    if (activePrompt && !isEditing) {
+      setEditedPrompt(activePrompt.content);
+    }
+  }, [activePrompt, isEditing]);
+
+  const handleStartEditing = () => {
+    setEditedPrompt(activePrompt?.content || defaultPrompt || "");
+    setIsEditing(true);
+  };
+
+  const handleSavePrompt = async () => {
+    if (!editedPrompt.trim()) {
+      toast.error("Prompt cannot be empty");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await savePrompt({
+        content: editedPrompt,
+        notes: notes || undefined,
+      });
+      toast.success("Prompt saved");
+      setIsEditing(false);
+      setNotes("");
+    } catch (error) {
+      toast.error("Failed to save prompt");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleActivateVersion = async (versionId: string) => {
+    try {
+      await activateVersion({
+        versionId: versionId as any,
+      });
+      toast.success("Prompt version activated");
+    } catch (error) {
+      toast.error("Failed to activate version");
+    }
+  };
+
+  const handleResetToDefault = async () => {
+    try {
+      await resetToDefault({});
+      toast.success("Reset to default prompt");
+      setIsEditing(false);
+    } catch (error) {
+      toast.error("Failed to reset");
+    }
+  };
+
+  if (!activePrompt) return null;
+
+  return (
+    <div className="mb-4 rounded-lg border border-border bg-bg-card overflow-hidden">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <ChatText size={16} weight="bold" className="text-text-secondary" />
+          <span className="text-sm font-medium text-text-primary">
+            AI Review Prompt
+          </span>
+          {!activePrompt.isDefault && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+              Custom
+            </span>
+          )}
+        </div>
+        {isExpanded ? (
+          <CaretUp size={16} className="text-text-secondary" />
+        ) : (
+          <CaretDown size={16} className="text-text-secondary" />
+        )}
+      </button>
+
+      {isExpanded && (
+        <div className="p-4 border-t border-border space-y-4">
+          <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary">
+            <p>
+              View and customize the AI review prompt. The default prompt
+              analyzes components against Convex component specifications.
+              Custom prompts are versioned for history tracking.
+            </p>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {!isEditing ? (
+              <>
+                <button
+                  onClick={handleStartEditing}
+                  className="px-3 py-1.5 text-xs rounded bg-button text-white hover:bg-button-hover"
+                >
+                  Edit Prompt
+                </button>
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className="px-3 py-1.5 text-xs rounded border border-border text-text-secondary hover:bg-bg-hover"
+                >
+                  {showHistory ? "Hide History" : "Version History"}
+                </button>
+                {!activePrompt.isDefault && (
+                  <button
+                    onClick={handleResetToDefault}
+                    className="px-3 py-1.5 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50"
+                  >
+                    Reset to Default
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={handleSavePrompt}
+                  disabled={isSaving}
+                  className="px-3 py-1.5 text-xs rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                >
+                  {isSaving ? "Saving..." : "Save New Version"}
+                </button>
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="px-3 py-1.5 text-xs rounded border border-border text-text-secondary hover:bg-bg-hover"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Current prompt display or editor */}
+          {isEditing ? (
+            <div className="space-y-2">
+              <textarea
+                value={editedPrompt}
+                onChange={(e) => setEditedPrompt(e.target.value)}
+                rows={20}
+                className="w-full px-3 py-2 text-xs font-mono rounded border border-border bg-bg-primary text-text-primary resize-y"
+                placeholder="Enter your custom prompt..."
+              />
+              <input
+                type="text"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Change notes (optional)"
+                className="w-full px-3 py-2 text-xs rounded border border-border bg-bg-primary text-text-primary"
+              />
+            </div>
+          ) : (
+            <div className="p-3 rounded-lg border border-border bg-bg-primary">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-text-secondary">
+                  {activePrompt.isDefault ? "Default Prompt" : "Custom Prompt"}
+                </span>
+                {activePrompt.createdAt && (
+                  <span className="text-xs text-text-secondary">
+                    Last updated:{" "}
+                    {new Date(activePrompt.createdAt).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+              <pre className="text-xs font-mono text-text-primary whitespace-pre-wrap max-h-64 overflow-y-auto">
+                {activePrompt.content}
+              </pre>
+            </div>
+          )}
+
+          {/* Version history */}
+          {showHistory && promptVersions && promptVersions.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-text-primary">
+                Version History
+              </h4>
+              <div className="max-h-64 overflow-y-auto space-y-2">
+                {promptVersions.map((version) => (
+                  <div
+                    key={version._id}
+                    className={`p-2 rounded border ${
+                      version.isActive
+                        ? "border-green-300 bg-green-50"
+                        : "border-border bg-bg-primary"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-text-secondary">
+                          {new Date(version.createdAt).toLocaleString()}
+                        </span>
+                        {version.isDefault && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                            Default
+                          </span>
+                        )}
+                        {version.isActive && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      {!version.isActive && (
+                        <button
+                          onClick={() => handleActivateVersion(version._id)}
+                          className="text-xs text-button hover:underline"
+                        >
+                          Restore
+                        </button>
+                      )}
+                    </div>
+                    {version.notes && (
+                      <p className="text-xs text-text-secondary mt-1">
+                        {version.notes}
+                      </p>
+                    )}
+                    <p className="text-xs text-text-secondary mt-1 truncate">
+                      {version.content.substring(0, 100)}...
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Deletion Management Panel component
 function DeletionManagementPanel() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -4886,6 +5476,12 @@ function AdminDashboard({
 
           {/* AI Review Settings */}
           <AdminSettingsPanel />
+
+          {/* AI Provider Settings */}
+          <AiProviderSettingsPanel />
+
+          {/* AI Prompt Settings */}
+          <AiPromptSettingsPanel />
 
           {/* Deletion Management */}
           <DeletionManagementPanel />

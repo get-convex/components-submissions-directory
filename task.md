@@ -1,6 +1,19 @@
 # Task List
 
 ## to do
+
+### AI Provider Settings and Prompt Versioning (PRD: prds/ai-provider-settings-and-prompt-versioning.md)
+- [x] Add `aiProviderSettings` table to schema
+- [x] Add `aiPromptVersions` table to schema
+- [x] Create `convex/aiSettings.ts` with provider and prompt queries/mutations
+- [x] Update `convex/aiReview.ts` to use custom provider settings and prompts
+- [x] Add `AiProviderSettingsPanel` component to Admin.tsx
+- [x] Add `AiPromptSettingsPanel` component to Admin.tsx
+- [ ] Test default behavior unchanged (env vars work)
+- [ ] Test provider override (Anthropic, OpenAI, Gemini)
+- [ ] Test prompt versioning and restore
+
+### Existing tasks
 - [ ] vercel.json in website can point to repo app
 - [ ] fix ai check
 - docs for badges
@@ -19,6 +32,18 @@
 
 ## Recent updates
 
+- [x] AI Provider Settings and Prompt Versioning feature (2026-02-23)
+  - Added `aiProviderSettings` and `aiPromptVersions` tables to schema
+  - Created `convex/aiSettings.ts` with provider and prompt management functions
+  - Updated `convex/aiReview.ts` to support Anthropic, OpenAI, and Google Gemini
+  - Added `AiProviderSettingsPanel` in Admin Settings (API key, model, docs links)
+  - Added `AiPromptSettingsPanel` in Admin Settings (edit, version history, restore)
+  - Environment variables still work as default fallback
+  - PRD: `prds/ai-provider-settings-and-prompt-versioning.md`
+- [x] Commented out badge section on ComponentDetail.tsx until endpoint is working (2026-02-23)
+  - "Add badge to your README" UI section hidden
+  - Badge markdown line in buildMarkdownDoc function also commented out
+  - Ready to re-enable when badge feature is implemented
 - [x] Added auto-fill description button in Component Details editor (2026-02-23)
   - "Auto-fill from Package" button next to Long Description field
   - Copies npm/repo description from Package Metadata into Long Description
