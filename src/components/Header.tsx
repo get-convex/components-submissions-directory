@@ -45,7 +45,7 @@ export default function Header() {
         <div className="flex items-center h-[3.438rem] rounded-full bg-white/95 backdrop-blur-sm border border-border shadow-sm px-4">
           {/* Left: Logo + Nav links */}
           <div className="flex items-center gap-6">
-            <a href="https://convex.dev/" className="flex items-center">
+            <a href="/" className="flex items-center">
               <img
                 src="/components/convex-wordmark-black.svg"
                 alt="Convex"
