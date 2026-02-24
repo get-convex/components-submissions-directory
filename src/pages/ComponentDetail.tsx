@@ -8,9 +8,7 @@ import { VerifiedBadge } from "../components/VerifiedBadge";
 import Header from "../components/Header";
 import { useDirectoryCategories, getCategoryLabel } from "../lib/categories";
 import {
-  setPageTitle,
-  setPageDescription,
-  setOgTags,
+  setComponentSeoTags,
   injectJsonLd,
   buildComponentJsonLd,
 } from "../lib/seo";
@@ -263,17 +261,19 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
   useEffect(() => {
     if (component) {
       const displayName = component.componentName || component.name;
+      const canonicalUrl = `https://www.convex.dev/components/${component.slug || ""}`;
       // Prefer AI-generated value prop for meta description
       const metaDesc =
         component.seoValueProp ||
         component.shortDescription ||
         component.description ||
         "";
-      setPageTitle(displayName);
-      setPageDescription(metaDesc);
-      setOgTags({
-        title: `${displayName} | Convex Components`,
+
+      // Set all SEO tags: title, description, OG, Twitter cards, canonical URL
+      setComponentSeoTags({
+        title: displayName,
         description: metaDesc,
+        url: canonicalUrl,
         image: component.thumbnailUrl,
       });
 
@@ -281,7 +281,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
       const jsonLd = buildComponentJsonLd({
         name: displayName,
         description: metaDesc,
-        url: `https://www.convex.dev/components/${component.slug || ""}`,
+        url: canonicalUrl,
         repositoryUrl: component.repositoryUrl,
         npmUrl: component.npmUrl,
         version: component.version,

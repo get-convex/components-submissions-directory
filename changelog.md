@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed SubmitForm.tsx sending tags as array instead of string (2026-02-23)
+  - Backend `submitPackage` action expects `tags: v.optional(v.string())` (comma-separated)
+  - SubmitForm.tsx was sending `.split(",").map(...).filter(...)` (array)
+  - Changed to `tags.trim() || undefined` to match validator
+  - Fixes "ArgumentValidationError: Value does not match validator" on component submission
+
+### Added
+
+- Enhanced SEO support for ComponentDetail pages (2026-02-24)
+  - Twitter Card meta tags (summary_large_image with thumbnail)
+  - Canonical URL tag for duplicate content prevention
+  - og:site_name and og:image:alt tags for better sharing
+  - New `setComponentSeoTags()` consolidated helper in seo.ts
+  - New `setTwitterTags()` and `setCanonicalUrl()` functions
+
+### Changed
+
+- Updated index.html fallback meta tags (2026-02-24)
+  - Fixed Twitter meta tags to use `name` attribute (was `property`)
+  - Updated URLs to production domain (www.convex.dev/components)
+  - Added twitter:image:alt for accessibility
+
 ### Added
 
 - AI Provider Settings panel in Admin Settings (2026-02-23)

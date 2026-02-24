@@ -241,6 +241,7 @@ Dedicated component submission form page at `/submit`. Features:
   - FAQSection component below form
   - Terms of Service and Privacy Policy links at bottom
 - Form collects: component name, GitHub repo, npm URL, demo URL, category, descriptions, tags, video URL, logo upload, submitter info
+- Tags sent as comma-separated string (matching `submitPackage` validator `v.optional(v.string())`)
 - Success/error modals with links to profile page
 
 ### `src/pages/Submit.tsx`
@@ -286,7 +287,7 @@ Admin dashboard at `/submissions/admin` (requires @convex.dev email). Features s
 
 ### `src/pages/ComponentDetail.tsx`
 
-Component detail page at `/components/:slug`. Features shared Header component, narrow sidebar (left) with npm link, category, stats, verified badge, source link, Share dropdown, and Back link. Main area (right) with author, title, install command, GitHub issues tab, AI-generated SEO content layer, rendered long description, video embed, tags, and SKILL.md copyable snippet. README badge snippet is currently commented out until the badge endpoint is working. Includes dual JSON-LD structured data for SEO.
+Component detail page at `/components/:slug`. Features shared Header component, narrow sidebar (left) with npm link, category, stats, verified badge, source link, Share dropdown, and Back link. Main area (right) with author, title, install command, GitHub issues tab, AI-generated SEO content layer, rendered long description, video embed, tags, and SKILL.md copyable snippet. README badge snippet is currently commented out until the badge endpoint is working. Includes full SEO support: dual JSON-LD structured data (SoftwareSourceCode + FAQPage), Open Graph tags, Twitter Card tags, canonical URL, and meta description using AI-generated seoValueProp or shortDescription fallback.
 
 ### `src/components/ComponentCard.tsx`
 
@@ -322,7 +323,7 @@ Client-side slug generation and parsing utilities for URL-safe component slugs.
 
 ### `src/lib/seo.ts`
 
-Client-side utilities to manage document title, meta description, Open Graph tags, JSON-LD structured data injection, and `buildComponentJsonLd()` helper that creates a dual `@graph` schema combining SoftwareSourceCode and FAQPage for SEO/AEO/GEO.
+Client-side utilities to manage document title, meta description, Open Graph tags, Twitter Card tags, canonical URLs, JSON-LD structured data injection, and `buildComponentJsonLd()` helper that creates a dual `@graph` schema combining SoftwareSourceCode and FAQPage for SEO/AEO/GEO. Includes `setComponentSeoTags()` consolidated helper that sets all SEO tags at once (title, description, OG, Twitter, canonical).
 
 ### `src/Admin.tsx`
 

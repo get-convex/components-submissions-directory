@@ -221,10 +221,7 @@ export default function SubmitForm() {
         category: category || undefined,
         shortDescription: shortDescription.trim(),
         longDescription: longDescription.trim(),
-        tags: tags
-          .split(",")
-          .map((t) => t.trim())
-          .filter((t) => t),
+        tags: tags.trim() || undefined,
         videoUrl: videoUrl.trim() || undefined,
         demoUrl: demoUrl.trim(),
         componentName: componentName.trim(),

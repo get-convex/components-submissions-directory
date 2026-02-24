@@ -45,8 +45,52 @@ export function setOgTags(opts: {
   setOg("og:title", opts.title);
   setOg("og:description", opts.description);
   setOg("og:type", "website");
+  setOg("og:site_name", SITE_NAME);
   if (opts.url) setOg("og:url", opts.url);
-  if (opts.image) setOg("og:image", opts.image);
+  if (opts.image) {
+    setOg("og:image", opts.image);
+    setOg("og:image:alt", opts.title);
+  }
+}
+
+// Set Twitter Card tags for social sharing
+export function setTwitterTags(opts: {
+  title: string;
+  description: string;
+  image?: string;
+}) {
+  setMetaTag("twitter:card", opts.image ? "summary_large_image" : "summary");
+  setMetaTag("twitter:title", opts.title);
+  setMetaTag("twitter:description", opts.description);
+  if (opts.image) {
+    setMetaTag("twitter:image", opts.image);
+    setMetaTag("twitter:image:alt", opts.title);
+  }
+}
+
+// Set canonical URL to prevent duplicate content issues
+export function setCanonicalUrl(url: string) {
+  let link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+  if (!link) {
+    link = document.createElement("link");
+    link.rel = "canonical";
+    document.head.appendChild(link);
+  }
+  link.href = url;
+}
+
+// Set all SEO tags at once for component detail pages
+export function setComponentSeoTags(opts: {
+  title: string;
+  description: string;
+  url: string;
+  image?: string;
+}) {
+  setPageTitle(opts.title);
+  setPageDescription(opts.description);
+  setOgTags(opts);
+  setTwitterTags(opts);
+  setCanonicalUrl(opts.url);
 }
 
 // Inject or update a JSON-LD structured data script tag (for SEO/AEO/GEO)

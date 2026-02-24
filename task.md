@@ -32,6 +32,19 @@
 
 ## Recent updates
 
+- [x] Fixed SubmitForm.tsx tags validator mismatch (2026-02-23)
+  - Backend `submitPackage` expects `tags: v.optional(v.string())` (comma-separated string)
+  - SubmitForm.tsx was incorrectly sending tags as an array
+  - Changed to `tags.trim() || undefined` to match the validator
+  - Fixes "ArgumentValidationError: Value does not match validator" on live site submissions
+- [x] Enhanced SEO support for ComponentDetail pages (2026-02-24)
+  - Added Twitter Card meta tags (summary_large_image with thumbnail)
+  - Added canonical URL tag for duplicate content prevention
+  - Added og:site_name and og:image:alt tags for better sharing
+  - New `setComponentSeoTags()` consolidated helper in seo.ts
+  - New `setTwitterTags()` and `setCanonicalUrl()` functions
+  - Fixed index.html Twitter meta tags (changed `property` to `name`)
+  - Updated index.html URLs to production domain (www.convex.dev/components)
 - [x] AI Provider Settings and Prompt Versioning feature (2026-02-23)
   - Added `aiProviderSettings` and `aiPromptVersions` tables to schema
   - Created `convex/aiSettings.ts` with provider and prompt management functions
