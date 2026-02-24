@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fixed production GitHub OAuth authentication failing with "Missing sign-in verifier" error (2026-02-23)
+  - Updated `@convex-dev/auth` from v0.0.80 to v0.0.90
+  - Configured GitHub OAuth callback URL to point to Convex backend (`https://giant-grouse-674.convex.site/api/auth/callback/github`)
+  - Generated and set `JWT_PRIVATE_KEY` and `JWKS` for production deployment via `npx @convex-dev/auth --prod`
+  - Set `SITE_URL` to `https://components-directory.netlify.app/components` for correct post-auth redirect
+  - Documented fix in `prds/authfix-2026-02-23.md`
+
+### Changed
+
+- Router now redirects any path without `/components` prefix to the prefixed version (2026-02-23)
+  - `/dodo` redirects to `/components/dodo`
+  - `/submit` redirects to `/components/submit`
+  - Ensures consistent URL structure for both local development and production
+
 ### Added
 
 - Site footer with Convex links (2026-02-23)
@@ -19,10 +35,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Simplified FAQSection to 5 questions from `prds/faq-questions.md` (2026-02-23)
-  - Removed "How are components sandboxed?" question
-  - Removed "Do components cost money to use?" question
-  - Kept: submission process, requirements, building your own, updating submissions, learning more
+- Moved FAQSection from Submit.tsx to Directory.tsx (2026-02-23)
+  - FAQ section now displays below component cards on the main directory page
+  - Removed FAQSection import and usage from submissions page
+  - Updated FAQ heading font to `font-semibold` to match "Components" section heading
+
+- Expanded FAQSection to 8 questions (2026-02-23)
+  - Added: How are components sandboxed? (Convex runtime data isolation)
+  - Added: What projects should use Components? (check component docs)
+  - Added: Do components cost money to use? (open source, usage-based)
+  - Updated: Can I build my own? (now mentions other developers can drop into any project)
+  - Updated: What happens after I submit? (added authoring guidelines link)
+  - Updated `prds/faq-questions.md` to match component content
 
 ### Fixed
 
@@ -41,7 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Migrated authentication to official `@convex-dev/auth` library with GitHub OAuth (2026-02-23)
-  - Replaced `@robelest/convex-auth` with `@convex-dev/auth` (v0.0.80) and `@auth/core` (v0.37.0)
+  - Replaced `@robelest/convex-auth` with `@convex-dev/auth` (v0.0.90) and `@auth/core` (v0.37.0)
   - Removed `arctic` dependency (now using `@auth/core` providers)
   - Updated `convex/auth.ts` to use `convexAuth()` from `@convex-dev/auth/server` with GitHub provider
   - Created `convex/auth.config.ts` for JWT provider configuration (domain and applicationID)

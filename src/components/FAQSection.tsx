@@ -7,7 +7,7 @@ export function FAQSection() {
   const basePath = useBasePath();
   return (
     <section id="faq" className="mt-12 pt-8 border-t border-border">
-      <h2 className="text-lg font-medium text-text-primary mb-4">
+      <h2 className="text-lg font-semibold text-text-primary mb-4">
         Frequently Asked Questions
       </h2>
       <div className="space-y-4">
@@ -16,7 +16,14 @@ export function FAQSection() {
             What happens after I submit?
           </h3>
           <p className="text-sm text-text-secondary mt-1">
-            Submissions are reviewed on a rolling basis. We check for common errors and ensure your component complies with our authoring guidelines.
+            Submissions are reviewed on a rolling basis. We check for common errors and ensure your component complies with our{" "}
+            <a
+              href="https://docs.convex.dev/components/authoring"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-button hover:underline">
+              authoring guidelines
+            </a>.
           </p>
         </div>
         <div>
@@ -37,6 +44,22 @@ export function FAQSection() {
         </div>
         <div>
           <h3 className="text-sm font-medium text-text-primary">
+            How are components sandboxed?
+          </h3>
+          <p className="text-sm text-text-secondary mt-1">
+            The Convex runtime ensures that component tables do not get mixed in with your app's tables. It also ensures that when the component runs its own Convex functions, they are not allowed to access your app's tables without explicit API calls.
+          </p>
+        </div>
+        <div>
+          <h3 className="text-sm font-medium text-text-primary">
+            What projects should use Components?
+          </h3>
+          <p className="text-sm text-text-secondary mt-1">
+            If you see a feature listed above, feel free to use it. Check each component's documentation for further guidance.
+          </p>
+        </div>
+        <div>
+          <h3 className="text-sm font-medium text-text-primary">
             Can I build my own?
           </h3>
           <p className="text-sm text-text-secondary mt-1">
@@ -48,7 +71,15 @@ export function FAQSection() {
               className="text-button hover:underline">
               component authoring docs
             </a>{" "}
-            to get started. Components let you package Convex functions, schemas, and persistent state into reusable modules.
+            to get started. Components let you package Convex functions, schemas, and persistent state into reusable modules that you or other developers can drop into any project.
+          </p>
+        </div>
+        <div>
+          <h3 className="text-sm font-medium text-text-primary">
+            Do components cost money to use?
+          </h3>
+          <p className="text-sm text-text-secondary mt-1">
+            Components are open source and are just code and data in your existing backend. They incur relevant usage charges based on how they are implemented and used.
           </p>
         </div>
         <div>

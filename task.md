@@ -19,10 +19,25 @@
 
 ## Recent updates
 
-- [x] Simplified FAQSection to match `prds/faq-questions.md` (2026-02-23)
-  - Reduced from 7 questions to 5 questions
-  - Removed sandboxing and pricing questions
-  - Kept: submission process, requirements, building your own, updating, learning more
+- [x] Fixed production GitHub OAuth "Missing sign-in verifier" error (2026-02-23)
+  - Updated `@convex-dev/auth` from v0.0.80 to v0.0.90
+  - Configured GitHub OAuth callback URL: `https://giant-grouse-674.convex.site/api/auth/callback/github`
+  - Generated production JWT keys via `npx @convex-dev/auth --prod`
+  - Set `SITE_URL` to `https://components-directory.netlify.app/components`
+  - Created `prds/authfix-2026-02-23.md` documenting the fix
+- [x] Added router redirect for paths without `/components` prefix (2026-02-23)
+  - `/dodo` now redirects to `/components/dodo`
+  - Ensures consistent URL structure across local and production
+  - Updated `prds/routes-components-fix.md` with new redirect behavior
+- [x] Moved FAQSection from Submit.tsx to Directory.tsx (2026-02-23)
+  - FAQ now displays below component cards on the main directory page
+  - Removed from submissions page
+  - Updated heading font to `font-semibold` to match "Components" section heading
+- [x] Expanded FAQSection to 8 questions (2026-02-23)
+  - Added: sandboxing, what projects should use, pricing
+  - Updated "Can I build my own?" with fuller text
+  - Updated "What happens after I submit?" with authoring guidelines link
+  - Updated `prds/faq-questions.md` to match
 - [x] Added site footer with Convex links (2026-02-23)
   - Created `src/components/Footer.tsx` component
   - Convex wordmark logo (40px height) on the left linking to convex.dev
@@ -42,7 +57,7 @@
 - [x] Verified admin access for `wayne@convex.dev` at `/components/submissions/admin` (2026-02-23)
 - [x] Set `SITE_URL` to `http://localhost:5173/components` for correct OAuth redirect (2026-02-23)
 - [x] Migrated authentication from `@robelest/convex-auth` to official `@convex-dev/auth` (2026-02-23)
-  - Replaced `@robelest/convex-auth` and `arctic` with `@convex-dev/auth` (v0.0.80) and `@auth/core` (v0.37.0)
+  - Replaced `@robelest/convex-auth` and `arctic` with `@convex-dev/auth` (v0.0.90) and `@auth/core` (v0.37.0)
   - Updated `convex/auth.ts` to use `convexAuth()` with GitHub provider from `@auth/core`
   - Created `convex/auth.config.ts` for JWT provider configuration
   - Deleted `convex/convex.config.ts` (not needed for `@convex-dev/auth`)

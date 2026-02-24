@@ -11,7 +11,7 @@ Defines project dependencies, scripts, and metadata. Includes React, Convex, Vit
 - `build`: Production build for Netlify
 - `deploy:backend`: Deploy Convex backend only (`npx convex deploy`)
 
-Key auth dependencies: `@convex-dev/auth` (v0.0.80), `@auth/core` (v0.37.0), `jose` (dev, for JWT key generation).
+Key auth dependencies: `@convex-dev/auth` (v0.0.90), `@auth/core` (v0.37.0), `jose` (dev, for JWT key generation).
 
 ### `tsconfig.json`, `tsconfig.app.json`, `tsconfig.node.json`
 
@@ -189,10 +189,13 @@ Shared header component with auth state management. Uses `useAuth()` from `src/l
 
 ### `src/components/FAQSection.tsx`
 
-Reusable FAQ section component for component submissions. Displays 5 frequently asked questions:
-- What happens after I submit? (rolling basis review)
+Reusable FAQ section component displayed on the Directory page (below components). Displays 8 frequently asked questions:
+- What happens after I submit? (rolling basis review with authoring guidelines link)
 - What are the requirements? (npm, GitHub, authoring guidelines)
+- How are components sandboxed? (Convex runtime data isolation)
+- What projects should use Components? (check component docs)
 - Can I build my own? (link to authoring docs)
+- Do components cost money to use? (open source, usage-based)
 - Can I update my submission? (link to profile page)
 - Where can I learn more? (link to Components documentation)
 
@@ -206,7 +209,7 @@ Main package submission interface. Compact toolbar, package submission form, sea
 
 ### `src/pages/Directory.tsx`
 
-Component directory listing page at `/components/`. Features shared Header component, search, sort, category sidebar, featured section, component cards grid, and submit link. No auth required to view.
+Component directory listing page at `/components/`. Features shared Header component, search, sort, category sidebar, featured section, component cards grid, submit link, and FAQSection at the bottom. No auth required to view.
 
 
 ### `src/pages/SubmitForm.tsx`
@@ -238,7 +241,6 @@ Public submissions directory at `/submissions`. Table-based UI showing all submi
 - Status badges (pending, in review, approved, changes requested, rejected)
 - Submit button links to `/submit` (auth-gated form page)
 - About modal with status legend
-- FAQSection component at bottom of page
 
 ### `src/pages/Profile.tsx`
 
@@ -372,7 +374,8 @@ Product requirements documents:
 - `2026-02-22-workos-auth-issues.md`: WorkOS AuthKit integration issues and solutions including JWT claims, dual provider config, callback timing, admin checks, and environment setup
 - `user-profile-enhancements.md`: User profile features including hide/show/delete submissions, edit modal, multi-account access via additionalEmails, and admin email editor
 - `auth-migration-env-vars.md`: Environment variables needed for `@convex-dev/auth` GitHub OAuth setup (AUTH_GITHUB_ID, AUTH_GITHUB_SECRET, JWT_PRIVATE_KEY, JWKS, SITE_URL)
-- `routes-components-fix.md`: SPA routing configuration for Netlify deployment
+- `routes-components-fix.md`: SPA routing configuration for Netlify deployment with `/components` prefix enforcement
+- `authfix-2026-02-23.md`: Production OAuth fix documentation including GitHub OAuth callback URL configuration, JWT key generation, and admin access control via `@convex.dev` email domain
 
 ### `.cursor/rules/`
 

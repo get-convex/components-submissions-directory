@@ -6,6 +6,7 @@ import { ComponentCard } from "../components/ComponentCard";
 import { CategorySidebar } from "../components/CategorySidebar";
 import { SearchBar } from "../components/SearchBar";
 import Header from "../components/Header";
+import { FAQSection } from "../components/FAQSection";
 import { setPageTitle, setPageDescription } from "../lib/seo";
 import { CaretSortIcon, ChevronDownIcon } from "@radix-ui/react-icons";
 
@@ -548,6 +549,9 @@ export default function Directory() {
                 )}
               </>
             ) : null}
+
+            {/* FAQ Section */}
+            <FAQSection />
           </main>
         </div>
       </div>

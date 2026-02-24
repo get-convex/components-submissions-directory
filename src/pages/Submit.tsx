@@ -5,7 +5,6 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { Id } from "../../convex/_generated/dataModel";
 import { useDirectoryCategories } from "../lib/categories";
 import Header from "../components/Header";
-import { FAQSection } from "../components/FAQSection";
 import {
   Package,
   DownloadSimple,
@@ -389,9 +388,6 @@ export default function App() {
 
           {/* Package listing */}
           <Content searchTerm={searchTerm} sortBy={sortBy} />
-
-          {/* FAQ Section */}
-          <FAQSection />
         </div>
       </main>
 
