@@ -8,7 +8,7 @@ export default function Footer() {
             target="_blank"
             rel="noopener noreferrer"
             className="hover:opacity-80 transition-opacity">
-            <img src="/convex-wordmark-black.svg" alt="Convex" className="h-10" />
+            <img src="/components/convex-wordmark-black.svg" alt="Convex" className="h-10" />
           </a>
           <div className="flex items-center gap-6">
             <a
