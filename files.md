@@ -113,7 +113,7 @@ Main package business logic. Contains:
 
 **Actions:** `fetchNpmPackage`, `refreshNpmData`, `submitPackage`, `fetchGitHubIssues`, `refreshGitHubIssueCounts`
 
-**Mutations:** `addPackage`, `updateNpmData`, `updateReviewStatus`, `updateVisibility`, `deletePackage`, `toggleFeatured`, `updateComponentDetails` (supports `clearThumbnail` to remove thumbnail URL and storage reference), `generateUploadUrl`, `saveThumbnail`, `saveLogo` (uploads logo and triggers auto thumbnail generation if enabled), `autoFillAuthorFromRepo`, `updateSubmitterEmail` (admin: change primary email), `updateAdditionalEmails` (admin: manage multi-account access), `markNotesAsReadForAdmin`, `markCommentsAsReadForAdmin`, note/comment/settings mutations
+**Mutations:** `addPackage`, `updateNpmData`, `updateReviewStatus`, `updateVisibility`, `deletePackage`, `toggleFeatured`, `updateComponentDetails` (supports `clearThumbnail` to remove thumbnail URL and storage reference), `generateUploadUrl`, `saveThumbnail`, `saveLogo` (uploads logo and triggers auto thumbnail generation if enabled), `clearLogo` (removes logo URL and storage reference), `autoFillAuthorFromRepo`, `updateSubmitterEmail` (admin: change primary email), `updateAdditionalEmails` (admin: manage multi-account access), `markNotesAsReadForAdmin`, `markCommentsAsReadForAdmin`, note/comment/settings mutations
 
 **Helper Functions:** `toPublicPackage()`, `toAdminPackage()`, `generateSlugFromName()`, `userOwnsPackage()` (checks submitterEmail and additionalEmails), `getCurrentUserEmail()` (uses `getAuthUserId` to fetch email from database), validators
 
@@ -242,7 +242,8 @@ Dedicated component submission form page at `/submit`. Features:
   - Terms of Service and Privacy Policy links at bottom
 - Form collects: component name, GitHub repo, npm URL, demo URL, category, descriptions, tags, video URL, logo upload, submitter info
 - Tags sent as comma-separated string (matching `submitPackage` validator `v.optional(v.string())`)
-- Success/error modals with links to profile page
+- Success modal with horizontal button layout (View My Submissions, Back to Directory)
+- Error modal for submission failures
 
 ### `src/pages/Submit.tsx`
 
@@ -311,7 +312,7 @@ Copy-to-clipboard install command component.
 
 ### `src/components/ComponentDetailsEditor.tsx`
 
-Admin editor for directory-specific fields: slug, category, tags, descriptions, video URL, verified badge, featured status, thumbnail upload with preview, thumbnail clear option (applies after Save), auto-fill author from GitHub, auto-fill long description from package metadata, and AI SEO + SKILL.md content generation trigger with status display. Shows "SKILL.md generated" indicator when content exists. All fields reactively sync with backend updates via `useEffect` hooks, so changes from external mutations (like slug generation) appear immediately without refresh. The "Auto-fill from Package" button copies the npm/repo description into the Long Description field for editing.
+Admin editor for directory-specific fields: slug, category, tags, descriptions, video URL, verified badge, featured status, thumbnail upload with preview, thumbnail clear option (applies after Save), logo upload with clear option, auto-fill author from GitHub, auto-fill long description from package metadata, and AI SEO + SKILL.md content generation trigger with status display. Shows "SKILL.md generated" indicator when content exists. All fields reactively sync with backend updates via `useEffect` hooks, so changes from external mutations (like slug generation) appear immediately without refresh. The "Auto-fill from Package" button copies the npm/repo description into the Long Description field for editing. The logo section includes upload, download, and clear buttons for managing component logos.
 
 ### `src/lib/categories.ts`
 

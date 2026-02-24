@@ -99,6 +99,7 @@ export function ComponentDetailsEditor({
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [clearingLogo, setClearingLogo] = useState(false);
   const [generatingThumb, setGeneratingThumb] = useState(false);
   const [selectedGenTemplate, setSelectedGenTemplate] = useState<Id<"thumbnailTemplates"> | "">(
     initialSelectedTemplateId || "",
@@ -144,6 +145,7 @@ export function ComponentDetailsEditor({
   const generateUploadUrl = useMutation(api.packages.generateUploadUrl);
   const saveThumbnail = useMutation(api.packages.saveThumbnail);
   const saveLogo = useMutation(api.packages.saveLogo);
+  const clearLogo = useMutation(api.packages.clearLogo);
   const autoFillAuthor = useMutation(api.packages.autoFillAuthorFromRepo);
   const regenerateSeo = useAction(api.seoContent.regenerateSeoContent);
   const generateThumbnail = useAction(api.thumbnailGenerator.generateThumbnailForPackage);
@@ -289,6 +291,21 @@ export function ComponentDetailsEditor({
     } finally {
       setUploadingLogo(false);
       if (logoInputRef.current) logoInputRef.current.value = "";
+    }
+  };
+
+  // Clear logo from package
+  const handleClearLogo = async () => {
+    setClearingLogo(true);
+    try {
+      await clearLogo({ packageId });
+      setLogoUrl("");
+      toast.success("Logo cleared");
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Clear failed";
+      toast.error(msg);
+    } finally {
+      setClearingLogo(false);
     }
   };
 
@@ -541,6 +558,17 @@ export function ComponentDetailsEditor({
               >
                 <DownloadSimple size={14} className="text-text-secondary" />
               </a>
+            )}
+
+            {/* Clear logo */}
+            {logoUrl && (
+              <button
+                onClick={handleClearLogo}
+                disabled={clearingLogo || uploadingLogo}
+                className="text-xs px-3 py-1.5 rounded bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
+              >
+                {clearingLogo ? "Clearing..." : "Clear"}
+              </button>
             )}
 
             <span className="text-[10px] text-text-secondary">

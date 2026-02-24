@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Clear logo button in Component Details editor (2026-02-24)
+  - Clear button appears next to download button when logo exists
+  - Calls new `clearLogo` mutation to remove logo URL and storage reference
+  - Matches existing clear thumbnail functionality
+  - New `clearLogo` mutation in `convex/packages.ts`
+
 ### Fixed
+
+- Fixed SubmitForm.tsx success modal button layout (2026-02-23)
+  - Buttons now display horizontally side by side instead of stacked vertically
+  - Added `flex-row` and `inline-flex` for proper alignment
+  - Improved button spacing and font weight for better visual hierarchy
 
 - Fixed SubmitForm.tsx sending tags as array instead of string (2026-02-23)
   - Backend `submitPackage` action expects `tags: v.optional(v.string())` (comma-separated)

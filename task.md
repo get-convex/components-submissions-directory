@@ -32,6 +32,15 @@
 
 ## Recent updates
 
+- [x] Added clear logo button in Component Details editor (2026-02-24)
+  - Clear button next to download button when logo exists
+  - New `clearLogo` mutation in `convex/packages.ts` to remove logo URL and storage reference
+  - Added `clearingLogo` state and `handleClearLogo` handler in `ComponentDetailsEditor.tsx`
+  - Matches existing thumbnail clear functionality
+- [x] Fixed SubmitForm.tsx success modal button layout (2026-02-23)
+  - Buttons now display horizontally with `flex-row` instead of stacked
+  - Improved spacing with `gap-3` and `inline-flex` for alignment
+  - Changed font weight to medium and text color to primary for outline button
 - [x] Fixed SubmitForm.tsx tags validator mismatch (2026-02-23)
   - Backend `submitPackage` expects `tags: v.optional(v.string())` (comma-separated string)
   - SubmitForm.tsx was incorrectly sending tags as an array

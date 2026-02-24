@@ -3808,6 +3808,21 @@ export const saveLogo = mutation({
   },
 });
 
+// Clear the logo from a package
+export const clearLogo = mutation({
+  args: {
+    packageId: v.id("packages"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.packageId, {
+      logoStorageId: undefined,
+      logoUrl: undefined,
+    });
+    return null;
+  },
+});
+
 // ============ DIRECTORY EXPANSION: AUTO-FILL AUTHOR FROM GITHUB ============
 
 // Extract GitHub owner from repository URL and auto-populate author fields

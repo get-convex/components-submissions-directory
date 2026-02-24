@@ -36,15 +36,15 @@ function SuccessModal({ onClose }: { onClose: () => void }) {
             <p className="mt-1 text-sm text-text-secondary">
               Your component is now pending for review. We'll notify you via email once it's been reviewed.
             </p>
-            <div className="mt-4 flex gap-2">
+            <div className="mt-4 flex flex-row gap-3">
               <a
                 href={`${basePath}/profile`}
-                className="px-4 py-2 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors">
+                className="inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-medium bg-button text-white hover:bg-button-hover transition-colors">
                 View My Submissions
               </a>
               <a
                 href={`${basePath}/`}
-                className="px-4 py-2 rounded-full text-sm font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors">
+                className="inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors">
                 Back to Directory
               </a>
             </div>
