@@ -7,7 +7,7 @@
 - add image builder
 - [ ] add image builder from https://component-thumbnail-gen.netlify.app/ and https://github.com/waynesutton/component-directory-image-generator
 - [ ] add incre
-- header and footer
+- [x] header and footer
 - [ ] fix font colros a
 - [ ] npm run typecheck
 - [ ] add fonts
@@ -19,6 +19,17 @@
 
 ## Recent updates
 
+- [x] Simplified FAQSection to match `prds/faq-questions.md` (2026-02-23)
+  - Reduced from 7 questions to 5 questions
+  - Removed sandboxing and pricing questions
+  - Kept: submission process, requirements, building your own, updating, learning more
+- [x] Added site footer with Convex links (2026-02-23)
+  - Created `src/components/Footer.tsx` component
+  - Convex wordmark logo (40px height) on the left linking to convex.dev
+  - GitHub repo and Discord links on the right
+  - 50px top padding above footer
+  - Responsive layout for mobile/desktop
+  - Integrated into global layout in `src/main.tsx`
 - [x] Fixed user email not appearing in profile/submissions after GitHub OAuth (2026-02-23)
   - `@convex-dev/auth` stores user data in database, not JWT claims unlike WorkOS
   - Added `getAuthUserId` from `@convex-dev/auth/server` to fetch user from database

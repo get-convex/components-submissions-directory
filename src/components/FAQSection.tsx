@@ -13,14 +13,6 @@ export function FAQSection() {
       <div className="space-y-4">
         <div>
           <h3 className="text-sm font-medium text-text-primary">
-            How are components sandboxed?
-          </h3>
-          <p className="text-sm text-text-secondary mt-1">
-            The Convex runtime ensures that the component tables don't get mixed in with your app's tables. It also ensures that when the component runs its own Convex functions, they are not allowed to access your app's tables without explicit API calls.
-          </p>
-        </div>
-        <div>
-          <h3 className="text-sm font-medium text-text-primary">
             What happens after I submit?
           </h3>
           <p className="text-sm text-text-secondary mt-1">
@@ -69,14 +61,6 @@ export function FAQSection() {
               profile page
             </a>{" "}
             to view your submissions and request updates from the team.
-          </p>
-        </div>
-        <div>
-          <h3 className="text-sm font-medium text-text-primary">
-            Do components cost money to use?
-          </h3>
-          <p className="text-sm text-text-secondary mt-1">
-            Components are open source and are just code and data in your existing backend. They incur relevant usage charges based on how they are implemented and used.
           </p>
         </div>
         <div>

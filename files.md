@@ -162,7 +162,7 @@ Auto-generated files by Convex: `api.d.ts`, `api.js`, `dataModel.d.ts`, `server.
 
 ### `src/main.tsx`
 
-Application entry point. Sets up Convex React client with @robelest/convex-auth (`ConvexProvider` and `ConvexAuthProvider` from `src/lib/auth.tsx`). All routes live under `/components/*`:
+Application entry point. Sets up Convex React client with `@convex-dev/auth` (`ConvexAuthProvider` from `@convex-dev/auth/react`). Includes global Footer component with 50px top padding. All routes live under `/components/*`:
 - `/components` = Directory (approved components, public)
 - `/components/submissions` = Submit.tsx (submissions directory with table view, public)
 - `/components/submissions/admin` = Admin.tsx (requires @convex.dev email)
@@ -189,14 +189,16 @@ Shared header component with auth state management. Uses `useAuth()` from `src/l
 
 ### `src/components/FAQSection.tsx`
 
-Reusable FAQ section component extracted from SubmitForm.tsx. Displays frequently asked questions about component submissions with expandable answers covering:
-- Component sandboxing and data isolation
-- Submission review process (rolling basis review)
-- Requirements for submission
-- Building custom components
-- Updating submissions via profile page
-- Component pricing (open source, usage-based)
-- Links to documentation resources
+Reusable FAQ section component for component submissions. Displays 5 frequently asked questions:
+- What happens after I submit? (rolling basis review)
+- What are the requirements? (npm, GitHub, authoring guidelines)
+- Can I build my own? (link to authoring docs)
+- Can I update my submission? (link to profile page)
+- Where can I learn more? (link to Components documentation)
+
+### `src/components/Footer.tsx`
+
+Site footer component with Convex links. Layout has Convex wordmark logo (40px height, links to convex.dev) on the left and GitHub repo and Discord links on the right. Includes 50px top padding via wrapper in main.tsx. Responsive design stacks links on mobile.
 
 ### `src/App.tsx`
 

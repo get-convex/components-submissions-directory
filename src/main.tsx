@@ -11,6 +11,7 @@ import Admin from "./pages/Admin";
 import Profile from "./pages/Profile";
 import ComponentDetail from "./pages/ComponentDetail";
 import NotFound from "./pages/NotFound";
+import Footer from "./components/Footer";
 import { isReservedRoute, parseSlugFromPath } from "./lib/slugs";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string, {
@@ -152,8 +153,13 @@ function AuthCallback() {
 
 createRoot(document.getElementById("root")!).render(
   <ConvexAuthProvider client={convex}>
-    <div className="antialiased">
-      <Router />
+    <div className="antialiased min-h-screen flex flex-col">
+      <div className="flex-1">
+        <Router />
+      </div>
+      <div className="pt-[50px]">
+        <Footer />
+      </div>
     </div>
   </ConvexAuthProvider>
 );

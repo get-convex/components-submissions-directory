@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Site footer with Convex links (2026-02-23)
+  - Footer component at `src/components/Footer.tsx`
+  - Convex wordmark logo (40px height) on the left side linking to convex.dev
+  - GitHub repo (get-convex/convex-backend) and Discord links on the right side
+  - 50px top padding above footer
+  - Responsive layout (stacks on mobile, side by side on desktop)
+  - Added to global layout in `src/main.tsx`
+
+### Changed
+
+- Simplified FAQSection to 5 questions from `prds/faq-questions.md` (2026-02-23)
+  - Removed "How are components sandboxed?" question
+  - Removed "Do components cost money to use?" question
+  - Kept: submission process, requirements, building your own, updating submissions, learning more
+
 ### Fixed
 
 - Fixed user email not appearing in profile/submissions after GitHub OAuth login (2026-02-23)
