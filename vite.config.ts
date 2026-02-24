@@ -3,8 +3,11 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 export default defineConfig({
-  // Base path "/" for Netlify - assets served from root, routing handled by redirects
-  base: "/",
+  // All URLs under /components/ (HTML, assets, routing)
+  base: "/components/",
+  build: {
+    outDir: "dist/components",
+  },
   plugins: [react()],
   resolve: {
     alias: {

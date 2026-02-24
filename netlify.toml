@@ -11,14 +11,8 @@
   to = "/components"
   status = 301
 
-# SPA fallback for all /components/* routes (serve index.html)
+# SPA fallback (Netlify serves matching files first, only non-file routes hit this)
 [[redirects]]
   from = "/components/*"
-  to = "/index.html"
-  status = 200
-
-# SPA fallback for /components (no trailing path)
-[[redirects]]
-  from = "/components"
-  to = "/index.html"
+  to = "/components/index.html"
   status = 200
