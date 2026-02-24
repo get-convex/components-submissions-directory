@@ -6,7 +6,7 @@ Build reusable backend components for the Convex ecosystem. Ship something usefu
 
 ## What are Convex Components
 
-Convex Components are self-contained TypeScript modules that add backend functionality to any Convex app. Think of them as npm packages for your backend: authentication, file storage, rate limiting, analytics, or any reusable pattern you find yourself rebuilding across projects.
+Convex Components are self-contained TypeScript modules that add backend functionality to Convex app. Think of them as npm packages for your backend: authentication, file storage, rate limiting, analytics, or any reusable pattern you find yourself rebuilding across projects.
 
 Components have their own tables, functions, and scheduled jobs. They install with npm and wire into your existing Convex app without touching your schema.
 
