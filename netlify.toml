@@ -10,8 +10,16 @@
   from = "/"
   to = "/components"
   status = 301
+  force = true
 
-# SPA fallback (Netlify serves matching files first, only non-file routes hit this)
+# Serve index.html for /components (force prevents Netlify directory trailing-slash loop)
+[[redirects]]
+  from = "/components"
+  to = "/components/index.html"
+  status = 200
+  force = true
+
+# SPA fallback for client-side routes (real files like assets/fonts are served directly)
 [[redirects]]
   from = "/components/*"
   to = "/components/index.html"
