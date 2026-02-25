@@ -2081,6 +2081,7 @@ function InlineActions({
   currentStatus,
   currentVisibility,
   currentFeatured,
+  currentFeaturedSortOrder,
   userEmail,
   packageName,
   repositoryUrl,
@@ -2090,6 +2091,7 @@ function InlineActions({
   currentStatus: ReviewStatus | undefined;
   currentVisibility: Visibility | undefined;
   currentFeatured: boolean | undefined;
+  currentFeaturedSortOrder: number | undefined;
   userEmail: string;
   packageName: string;
   repositoryUrl?: string;
@@ -2097,15 +2099,24 @@ function InlineActions({
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [sortOrderInput, setSortOrderInput] = useState<string>(
+    currentFeaturedSortOrder?.toString() ?? ""
+  );
 
   const updateReviewStatus = useMutation(api.packages.updateReviewStatus);
   const updateVisibility = useMutation(api.packages.updateVisibility);
   const deletePackage = useMutation(api.packages.deletePackage);
   const toggleFeatured = useMutation(api.packages.toggleFeatured);
+  const setFeaturedSortOrder = useMutation(api.packages.setFeaturedSortOrder);
 
   const status = currentStatus || "pending";
   const visibility = currentVisibility || "visible";
   const featured = currentFeatured || false;
+
+  // Sync input when prop changes
+  useEffect(() => {
+    setSortOrderInput(currentFeaturedSortOrder?.toString() ?? "");
+  }, [currentFeaturedSortOrder]);
 
   const handleUnarchive = async () => {
     if (isLoading) return;
@@ -2178,6 +2189,25 @@ function InlineActions({
       toast.success(featured ? "Package unfeatured" : "Package featured");
     } catch (error) {
       toast.error("Failed to toggle featured status");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveSortOrder = async () => {
+    if (isLoading) return;
+    const value = sortOrderInput.trim();
+    const sortOrder = value === "" ? null : parseInt(value, 10);
+    if (value !== "" && isNaN(sortOrder as number)) {
+      toast.error("Sort order must be a number");
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await setFeaturedSortOrder({ packageId, sortOrder });
+      toast.success(sortOrder === null ? "Sort order cleared" : `Sort order set to ${sortOrder}`);
+    } catch (error) {
+      toast.error("Failed to update sort order");
     } finally {
       setIsLoading(false);
     }
@@ -2352,6 +2382,22 @@ function InlineActions({
                 </span>
               </button>
             </Tooltip>
+            {/* Featured Sort Order - only shown when featured */}
+            {featured && (
+              <Tooltip content="Lower numbers appear first in Featured section">
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={sortOrderInput}
+                    onChange={(e) => setSortOrderInput(e.target.value)}
+                    onBlur={handleSaveSortOrder}
+                    onKeyDown={(e) => e.key === "Enter" && handleSaveSortOrder()}
+                    placeholder="#"
+                    className="w-10 px-1.5 py-1 text-xs text-center rounded border border-amber-200 bg-amber-50 text-amber-700 focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+              </Tooltip>
+            )}
             {/* Notes Button - admin only (internal) */}
             <NotesButton
               packageId={packageId}
@@ -5541,6 +5587,7 @@ function AdminDashboard({
                         currentStatus={pkg.reviewStatus}
                         currentVisibility={pkg.visibility}
                         currentFeatured={pkg.featured}
+                        currentFeaturedSortOrder={pkg.featuredSortOrder}
                         userEmail={userEmail || ""}
                         packageName={pkg.name}
                         repositoryUrl={pkg.repositoryUrl}

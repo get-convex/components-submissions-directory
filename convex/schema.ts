@@ -56,6 +56,8 @@ const applicationTables = {
     reviewNotes: v.optional(v.string()),
     // Featured flag - only approved packages can be featured
     featured: v.optional(v.boolean()),
+    // Admin-managed sort order for featured section (lower = first)
+    featuredSortOrder: v.optional(v.number()),
     // Soft deletion fields - user marks for deletion, admin permanently deletes
     markedForDeletion: v.optional(v.boolean()),
     markedForDeletionAt: v.optional(v.number()),

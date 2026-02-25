@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Featured components sort order for admin control (2026-02-25)
+  - New `featuredSortOrder` field on packages schema for admin-managed ordering
+  - Featured section in Directory respects admin sort order (lower numbers first)
+  - Sort order input appears next to Featured toggle in Admin when package is featured
+  - Dropdown sort (downloads, newest, etc.) only affects category sections, not Featured
+  - Packages without sort order default to the end, sorted by newest first
+
 - Hide thumbnail in category option for components (2026-02-25)
   - New `hideThumbnailInCategory` field on packages schema
   - Checkbox in Admin Component Details editor (appears when thumbnail exists)

@@ -1208,6 +1208,22 @@ export const toggleFeatured = mutation({
   },
 });
 
+// Admin mutation: Set featured sort order for a package
+export const setFeaturedSortOrder = mutation({
+  args: {
+    packageId: v.id("packages"),
+    sortOrder: v.union(v.number(), v.null()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Patch directly - will throw if package doesn't exist
+    await ctx.db.patch(args.packageId, {
+      featuredSortOrder: args.sortOrder ?? undefined,
+    });
+    return null;
+  },
+});
+
 // SECURITY: Admin-only query - requires @convex.dev email authentication
 // Get packages filtered by review status
 export const getPackagesByStatus = query({
@@ -1273,6 +1289,7 @@ export const getPackagesByStatus = query({
       reviewedAt: v.optional(v.number()),
       reviewNotes: v.optional(v.string()),
       featured: v.optional(v.boolean()),
+      featuredSortOrder: v.optional(v.number()),
       // AI Review fields
       aiReviewStatus: v.optional(
         v.union(
@@ -3720,6 +3737,14 @@ export const getFeaturedComponents = query({
         (!pkg.visibility || pkg.visibility === "visible") &&
         !pkg.markedForDeletion,
     );
+
+    // Sort by admin-managed featuredSortOrder (nulls last), then newest first
+    featured.sort((a, b) => {
+      const orderA = a.featuredSortOrder ?? Number.MAX_SAFE_INTEGER;
+      const orderB = b.featuredSortOrder ?? Number.MAX_SAFE_INTEGER;
+      if (orderA !== orderB) return orderA - orderB;
+      return b._creationTime - a._creationTime;
+    });
 
     return featured.map((pkg) => ({
       _id: pkg._id,

@@ -32,6 +32,14 @@
 
 ## Recent updates
 
+- [x] Added featured components sort order for admin control (2026-02-25)
+  - New `featuredSortOrder` field on packages schema
+  - `getFeaturedComponents` query sorts by `featuredSortOrder` (nulls last), then newest first
+  - `setFeaturedSortOrder` mutation for admin to set order value
+  - Sort order input in Admin.tsx next to Featured toggle (only shown when featured)
+  - Dropdown sort (downloads, newest, etc.) does NOT affect Featured section order
+  - PRD: `prds/featured-sort-order.md`
+
 - [x] Added hide thumbnail in category option for components (2026-02-25)
   - New `hideThumbnailInCategory` field on packages schema
   - Checkbox in Admin Component Details editor (visible when thumbnail exists)
