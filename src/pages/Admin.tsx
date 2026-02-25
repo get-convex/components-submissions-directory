@@ -2087,6 +2087,9 @@ function InlineActions({
   packageName,
   repositoryUrl,
   isArchivedView,
+  convexVerified,
+  seoGenerationStatus,
+  npmDescription,
 }: {
   packageId: Id<"packages">;
   currentStatus: ReviewStatus | undefined;
@@ -2098,12 +2101,17 @@ function InlineActions({
   packageName: string;
   repositoryUrl?: string;
   isArchivedView?: boolean;
+  convexVerified?: boolean;
+  seoGenerationStatus?: string;
+  npmDescription?: string;
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [sortOrderInput, setSortOrderInput] = useState<string>(
     currentFeaturedSortOrder?.toString() ?? ""
   );
+  const [isAutoFilling, setIsAutoFilling] = useState(false);
+  const [isRegeneratingSeo, setIsRegeneratingSeo] = useState(false);
 
   const updateReviewStatus = useMutation(api.packages.updateReviewStatus);
   const updateVisibility = useMutation(api.packages.updateVisibility);
@@ -2111,6 +2119,9 @@ function InlineActions({
   const toggleFeatured = useMutation(api.packages.toggleFeatured);
   const setFeaturedSortOrder = useMutation(api.packages.setFeaturedSortOrder);
   const toggleHideFromSubmissions = useMutation(api.packages.toggleHideFromSubmissions);
+  const updateComponentDetails = useMutation(api.packages.updateComponentDetails);
+  const autoFillAuthor = useMutation(api.packages.autoFillAuthorFromRepo);
+  const regenerateSeo = useAction(api.seoContent.regenerateSeoContent);
 
   const status = currentStatus || "pending";
   const visibility = currentVisibility || "visible";
@@ -2230,6 +2241,86 @@ function InlineActions({
     }
   };
 
+  // Toggle Convex Verified status
+  const handleToggleVerified = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
+    try {
+      await updateComponentDetails({
+        packageId,
+        convexVerified: !convexVerified,
+      });
+      toast.success(convexVerified ? "Convex Verified removed" : "Marked as Convex Verified");
+    } catch (error) {
+      toast.error("Failed to update verified status");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Regenerate SEO + SKILL.md content
+  const handleRegenerateSeo = async () => {
+    if (isRegeneratingSeo || seoGenerationStatus === "generating") return;
+    setIsRegeneratingSeo(true);
+    try {
+      await regenerateSeo({ packageId });
+      toast.success("SEO + Skill generation started");
+    } catch (error) {
+      toast.error("Failed to start SEO generation");
+    } finally {
+      setIsRegeneratingSeo(false);
+    }
+  };
+
+  // Combined Auto-fill: Author from GitHub + Description from npm
+  const handleAutoFill = async () => {
+    if (isAutoFilling) return;
+    setIsAutoFilling(true);
+    const results: string[] = [];
+    
+    try {
+      // Run both operations in parallel if available
+      const promises: Promise<void>[] = [];
+      
+      if (repositoryUrl) {
+        promises.push(
+          autoFillAuthor({ packageId }).then((result) => {
+            if (result) {
+              results.push("author info");
+            }
+          }).catch(() => {
+            // Silently skip author fill if it fails
+          })
+        );
+      }
+      
+      if (npmDescription) {
+        promises.push(
+          updateComponentDetails({
+            packageId,
+            longDescription: npmDescription,
+          }).then(() => {
+            results.push("description");
+          }).catch(() => {
+            // Silently skip description fill if it fails
+          })
+        );
+      }
+      
+      await Promise.all(promises);
+      
+      if (results.length > 0) {
+        toast.success(`Auto-filled: ${results.join(" and ")}`);
+      } else {
+        toast.error("Nothing to auto-fill");
+      }
+    } catch (error) {
+      toast.error("Auto-fill failed");
+    } finally {
+      setIsAutoFilling(false);
+    }
+  };
+
   // Review status button configs
   const statusButtons: {
     value: ReviewStatus;
@@ -2306,10 +2397,80 @@ function InlineActions({
     },
   ];
 
+  // Check if auto-fill is available
+  const canAutoFill = !!repositoryUrl || !!npmDescription;
+  const isSeoGenerating = seoGenerationStatus === "generating" || isRegeneratingSeo;
+
   return (
     <>
       {/* Actions section with warm background */}
       <div className="mt-4 pt-4 px-4 pb-4 bg-[#FDFBF7] border-t border-border rounded-b-lg">
+        {/* Actions Row - Convex Verified, SEO, Auto-fill */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
+          <span className="text-xs font-medium text-text-secondary w-16 shrink-0">
+            Actions
+          </span>
+          <div className="flex gap-1 flex-wrap items-center">
+            {/* Convex Verified Toggle */}
+            <Tooltip content={convexVerified ? "Remove Convex Verified badge" : "Mark as Convex Verified"}>
+              <button
+                onClick={handleToggleVerified}
+                disabled={isLoading}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all disabled:opacity-50 ${
+                  convexVerified
+                    ? "bg-teal-600 text-white border-teal-600"
+                    : "border-teal-200 text-teal-600 hover:bg-teal-50"
+                }`}
+              >
+                <CheckCircle size={14} weight={convexVerified ? "fill" : "bold"} />
+                <span className="hidden sm:inline">Convex Verified</span>
+              </button>
+            </Tooltip>
+
+            {/* Regenerate SEO + Skill Button */}
+            <Tooltip content={isSeoGenerating ? "Generating..." : "Generate AI SEO content and SKILL.md"}>
+              <button
+                onClick={handleRegenerateSeo}
+                disabled={isLoading || isSeoGenerating}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all disabled:opacity-50 ${
+                  seoGenerationStatus === "completed"
+                    ? "border-green-200 text-green-600 hover:bg-green-50"
+                    : "border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                }`}
+              >
+                <ArrowsClockwise size={14} weight="bold" className={isSeoGenerating ? "animate-spin" : ""} />
+                <span className="hidden sm:inline">
+                  {isSeoGenerating ? "Generating..." : "Regenerate SEO + Skill"}
+                </span>
+              </button>
+            </Tooltip>
+
+            {/* Combined Auto-fill Button */}
+            <Tooltip 
+              content={
+                !canAutoFill 
+                  ? "No data available to auto-fill" 
+                  : `Auto-fill${repositoryUrl ? " author from GitHub" : ""}${repositoryUrl && npmDescription ? " and" : ""}${npmDescription ? " description from package" : ""}`
+              }
+            >
+              <button
+                onClick={handleAutoFill}
+                disabled={isLoading || isAutoFilling || !canAutoFill}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all disabled:opacity-50 ${
+                  canAutoFill
+                    ? "border-blue-200 text-blue-600 hover:bg-blue-50"
+                    : "border-border text-text-secondary cursor-not-allowed"
+                }`}
+              >
+                <Lightning size={14} weight={isAutoFilling ? "fill" : "bold"} className={isAutoFilling ? "animate-pulse" : ""} />
+                <span className="hidden sm:inline">
+                  {isAutoFilling ? "Filling..." : "Auto-fill"}
+                </span>
+              </button>
+            </Tooltip>
+          </div>
+        </div>
+
         {/* Review Status Buttons */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
           <span className="text-xs font-medium text-text-secondary w-16 shrink-0">
@@ -5633,6 +5794,9 @@ function AdminDashboard({
                         packageName={pkg.name}
                         repositoryUrl={pkg.repositoryUrl}
                         isArchivedView={activeFilter === "archived"}
+                        convexVerified={pkg.convexVerified}
+                        seoGenerationStatus={pkg.seoGenerationStatus}
+                        npmDescription={pkg.description}
                       />
                     </div>
                   )}

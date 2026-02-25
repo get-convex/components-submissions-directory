@@ -32,6 +32,15 @@
 
 ## Recent updates
 
+- [x] Added Actions row to Admin InlineActions panel (2026-02-25)
+  - New "Actions" row above Status and Visibility rows in expanded package view
+  - Convex Verified toggle button (teal, shows fill when verified)
+  - Regenerate SEO + Skill button (shows spinner during generation, green when completed)
+  - Combined Auto-fill button (fills author from GitHub and description from npm in parallel)
+  - Auto-fill shows what was filled in success toast
+  - All buttons match existing Admin theme with Phosphor icons
+  - PRD: `prds/admin-actions-row.md`
+
 - [x] Added hide from submissions page feature for admin control (2026-02-25)
   - New `hideFromSubmissions` field on packages schema
   - `toggleHideFromSubmissions` mutation to toggle visibility on Submit.tsx

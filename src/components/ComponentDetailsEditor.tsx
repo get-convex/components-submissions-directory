@@ -150,6 +150,19 @@ export function ComponentDetailsEditor({
     setSelectedGenTemplate(initialSelectedTemplateId || "");
   }, [initialSelectedTemplateId]);
 
+  // Sync author fields when backend updates (e.g., from InlineActions auto-fill)
+  useEffect(() => {
+    setAuthorUsername(initialAuthorUser || "");
+  }, [initialAuthorUser]);
+
+  useEffect(() => {
+    setAuthorAvatar(initialAuthorAvatar || "");
+  }, [initialAuthorAvatar]);
+
+  useEffect(() => {
+    setConvexVerified(initialVerified || false);
+  }, [initialVerified]);
+
   const updateDetails = useMutation(api.packages.updateComponentDetails);
   const generateUploadUrl = useMutation(api.packages.generateUploadUrl);
   const saveThumbnail = useMutation(api.packages.saveThumbnail);

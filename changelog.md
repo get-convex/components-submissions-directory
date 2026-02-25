@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Admin Actions row in expanded package view (2026-02-25)
+  - New "Actions" row above Status and Visibility rows in InlineActions panel
+  - Convex Verified toggle button with teal styling (fill icon when verified)
+  - Regenerate SEO + Skill button with loading spinner and completion indicator
+  - Combined Auto-fill button that fills both author from GitHub and description from npm
+  - Auto-fill runs both operations in parallel and reports what was filled in toast
+  - All buttons use Phosphor icons and match existing Admin theme styling
+
 - Hide from Submissions page feature for admin control (2026-02-25)
   - New `hideFromSubmissions` field on packages schema
   - Admin toggle button labeled "Sub Hide" / "Sub Hidden" in package row to differentiate from directory Hide
