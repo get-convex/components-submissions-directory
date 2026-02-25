@@ -225,6 +225,7 @@ const adminPackageValidator = v.object({
   authorAvatar: v.optional(v.string()),
   componentName: v.optional(v.string()),
   hideThumbnailInCategory: v.optional(v.boolean()),
+  hideFromSubmissions: v.optional(v.boolean()),
   relatedComponentIds: v.optional(v.array(v.id("packages"))),
   // Cached GitHub issue counts
   githubOpenIssues: v.optional(v.number()),
@@ -378,6 +379,7 @@ function toAdminPackage(pkg: any) {
     authorAvatar: pkg.authorAvatar,
     componentName: pkg.componentName,
     hideThumbnailInCategory: pkg.hideThumbnailInCategory,
+    hideFromSubmissions: pkg.hideFromSubmissions,
     relatedComponentIds: pkg.relatedComponentIds,
     githubOpenIssues: pkg.githubOpenIssues,
     githubClosedIssues: pkg.githubClosedIssues,
@@ -860,10 +862,10 @@ export const listPackages = query({
     const allPackages = await ctx.db.query("packages").collect();
 
     // Filter: show packages that are visible (or no visibility set = visible by default)
-    // Hidden, archived, and marked-for-deletion packages are excluded from public view
+    // Hidden, archived, marked-for-deletion, and hideFromSubmissions packages are excluded
     const publicPackages = allPackages.filter((pkg) => {
       const isVisible = !pkg.visibility || pkg.visibility === "visible";
-      return isVisible && !pkg.markedForDeletion;
+      return isVisible && !pkg.markedForDeletion && !pkg.hideFromSubmissions;
     });
 
     let sortedPackages;
@@ -923,7 +925,8 @@ export const searchPackages = query({
         .filter(
           (pkg) =>
             (!pkg.visibility || pkg.visibility === "visible") &&
-            !pkg.markedForDeletion,
+            !pkg.markedForDeletion &&
+            !pkg.hideFromSubmissions,
         )
         .sort((a, b) => b.submittedAt - a.submittedAt)
         .slice(0, 50);
@@ -964,10 +967,11 @@ export const searchPackages = query({
     ]) {
       if (!seen.has(pkg._id)) {
         seen.add(pkg._id);
-        // Filter to only visible packages (not hidden, not marked for deletion)
+        // Filter to only visible packages (not hidden, not marked for deletion, not hidden from submissions)
         if (
           (!pkg.visibility || pkg.visibility === "visible") &&
-          !pkg.markedForDeletion
+          !pkg.markedForDeletion &&
+          !pkg.hideFromSubmissions
         ) {
           combined.push(pkg);
         }
@@ -1219,6 +1223,25 @@ export const setFeaturedSortOrder = mutation({
     // Patch directly - will throw if package doesn't exist
     await ctx.db.patch(args.packageId, {
       featuredSortOrder: args.sortOrder ?? undefined,
+    });
+    return null;
+  },
+});
+
+// Admin mutation: Toggle hideFromSubmissions for a package
+// Hides from Submit.tsx but not from Directory.tsx
+export const toggleHideFromSubmissions = mutation({
+  args: {
+    packageId: v.id("packages"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) {
+      throw new Error("Package not found");
+    }
+    await ctx.db.patch(args.packageId, {
+      hideFromSubmissions: !pkg.hideFromSubmissions,
     });
     return null;
   },

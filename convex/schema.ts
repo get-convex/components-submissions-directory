@@ -129,6 +129,8 @@ const applicationTables = {
     componentName: v.optional(v.string()),
     // Hide thumbnail in category listings (show only in Featured section)
     hideThumbnailInCategory: v.optional(v.boolean()),
+    // Hide from submissions page only (still shows on Directory if approved)
+    hideFromSubmissions: v.optional(v.boolean()),
     // Related component IDs (admin-managed)
     relatedComponentIds: v.optional(v.array(v.id("packages"))),
     // Cached GitHub issue counts (refreshed via action)

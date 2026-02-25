@@ -32,6 +32,15 @@
 
 ## Recent updates
 
+- [x] Added hide from submissions page feature for admin control (2026-02-25)
+  - New `hideFromSubmissions` field on packages schema
+  - `toggleHideFromSubmissions` mutation to toggle visibility on Submit.tsx
+  - `listPackages` and `searchPackages` filter out hidden packages
+  - Toggle button in Admin.tsx package row labeled "Sub Hide" / "Sub Hidden" to differentiate from directory Hide
+  - Hidden packages still appear in Directory if approved
+  - Admin panel shows all packages regardless of this setting
+  - PRD: `prds/hide-from-submissions.md`
+
 - [x] Added featured components sort order for admin control (2026-02-25)
   - New `featuredSortOrder` field on packages schema
   - `getFeaturedComponents` query sorts by `featuredSortOrder` (nulls last), then newest first

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Hide from Submissions page feature for admin control (2026-02-25)
+  - New `hideFromSubmissions` field on packages schema
+  - Admin toggle button labeled "Sub Hide" / "Sub Hidden" in package row to differentiate from directory Hide
+  - `listPackages` and `searchPackages` queries filter out hidden packages
+  - Hidden packages still appear in Directory if approved (uses separate `listApprovedComponents`)
+  - All admin features remain fully functional for hidden packages
+
 - Featured components sort order for admin control (2026-02-25)
   - New `featuredSortOrder` field on packages schema for admin-managed ordering
   - Featured section in Directory respects admin sort order (lower numbers first)

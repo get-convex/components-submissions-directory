@@ -2082,6 +2082,7 @@ function InlineActions({
   currentVisibility,
   currentFeatured,
   currentFeaturedSortOrder,
+  currentHideFromSubmissions,
   userEmail,
   packageName,
   repositoryUrl,
@@ -2092,6 +2093,7 @@ function InlineActions({
   currentVisibility: Visibility | undefined;
   currentFeatured: boolean | undefined;
   currentFeaturedSortOrder: number | undefined;
+  currentHideFromSubmissions: boolean | undefined;
   userEmail: string;
   packageName: string;
   repositoryUrl?: string;
@@ -2108,10 +2110,12 @@ function InlineActions({
   const deletePackage = useMutation(api.packages.deletePackage);
   const toggleFeatured = useMutation(api.packages.toggleFeatured);
   const setFeaturedSortOrder = useMutation(api.packages.setFeaturedSortOrder);
+  const toggleHideFromSubmissions = useMutation(api.packages.toggleHideFromSubmissions);
 
   const status = currentStatus || "pending";
   const visibility = currentVisibility || "visible";
   const featured = currentFeatured || false;
+  const hideFromSubmissions = currentHideFromSubmissions || false;
 
   // Sync input when prop changes
   useEffect(() => {
@@ -2208,6 +2212,19 @@ function InlineActions({
       toast.success(sortOrder === null ? "Sort order cleared" : `Sort order set to ${sortOrder}`);
     } catch (error) {
       toast.error("Failed to update sort order");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleToggleHideFromSubmissions = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
+    try {
+      await toggleHideFromSubmissions({ packageId });
+      toast.success(hideFromSubmissions ? "Visible on Submissions page" : "Hidden from Submissions page");
+    } catch (error) {
+      toast.error("Failed to toggle hide from submissions");
     } finally {
       setIsLoading(false);
     }
@@ -2398,6 +2415,29 @@ function InlineActions({
                 </div>
               </Tooltip>
             )}
+            {/* Hide from Submissions toggle */}
+            <Tooltip
+              content={
+                hideFromSubmissions
+                  ? "Show on Submissions page"
+                  : "Hide from Submissions page (still shows on Directory if approved)"
+              }
+            >
+              <button
+                onClick={handleToggleHideFromSubmissions}
+                disabled={isLoading}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all disabled:opacity-50 ${
+                  hideFromSubmissions
+                    ? "bg-slate-600 text-white border-slate-600"
+                    : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                }`}
+              >
+                <EyeSlash size={14} weight={hideFromSubmissions ? "fill" : "bold"} />
+                <span className="hidden sm:inline">
+                  {hideFromSubmissions ? "Sub Hidden" : "Sub Hide"}
+                </span>
+              </button>
+            </Tooltip>
             {/* Notes Button - admin only (internal) */}
             <NotesButton
               packageId={packageId}
@@ -5588,6 +5628,7 @@ function AdminDashboard({
                         currentVisibility={pkg.visibility}
                         currentFeatured={pkg.featured}
                         currentFeaturedSortOrder={pkg.featuredSortOrder}
+                        currentHideFromSubmissions={pkg.hideFromSubmissions}
                         userEmail={userEmail || ""}
                         packageName={pkg.name}
                         repositoryUrl={pkg.repositoryUrl}
