@@ -8,6 +8,8 @@ interface ComponentCardProps {
   description: string;
   category?: string;
   thumbnailUrl?: string;
+  // Override to hide thumbnail even if URL exists (used for category listings)
+  showThumbnail?: boolean;
   authorUsername?: string;
   authorAvatar?: string;
   weeklyDownloads: number;
@@ -25,6 +27,7 @@ export function ComponentCard({
   shortDescription,
   description,
   thumbnailUrl,
+  showThumbnail = true,
   authorUsername,
   authorAvatar,
   weeklyDownloads,
@@ -37,8 +40,10 @@ export function ComponentCard({
   const rawDescription = shortDescription || description;
   const displayDescription =
     rawDescription.length > 113 ? `${rawDescription.slice(0, 113).trimEnd()}...` : rawDescription;
-  const cardHeightClass = featured || thumbnailUrl ? "h-full" : "h-[190px]";
-  const descriptionHeightClass = featured || thumbnailUrl ? "" : "min-h-[3rem]";
+  // Only show thumbnail if URL exists AND showThumbnail is true
+  const shouldShowThumbnail = thumbnailUrl && showThumbnail;
+  const cardHeightClass = featured || shouldShowThumbnail ? "h-full" : "h-[190px]";
+  const descriptionHeightClass = featured || shouldShowThumbnail ? "" : "min-h-[3rem]";
 
   // Use the base path for navigation
   const basePath = window.location.pathname.startsWith("/components") ? "/components" : "";
@@ -56,7 +61,7 @@ export function ComponentCard({
       href={href}
       className={`group flex ${cardHeightClass} flex-col overflow-hidden rounded-xl border border-border bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${className ?? ""}`}>
       {/* Thumbnail */}
-      {thumbnailUrl && (
+      {shouldShowThumbnail && (
         <div className="aspect-video w-full overflow-hidden rounded-t-lg bg-bg-secondary">
           <img
             src={thumbnailUrl}

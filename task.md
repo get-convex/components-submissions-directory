@@ -32,6 +32,15 @@
 
 ## Recent updates
 
+- [x] Added hide thumbnail in category option for components (2026-02-25)
+  - New `hideThumbnailInCategory` field on packages schema
+  - Checkbox in Admin Component Details editor (visible when thumbnail exists)
+  - Thumbnails always shown in Featured section
+  - Thumbnails hidden in category listings when checkbox is checked
+  - Fixed: Added field to `directoryCardValidator` and query return maps (`listApprovedComponents`, `getFeaturedComponents`)
+  - Updated `ComponentCard` with `showThumbnail` prop override
+  - PRD: `prds/hide-thumbnail-in-category.md`
+
 - [x] Imported 41 official Convex components to production database (2026-02-24)
   - Created `seedOfficialComponents` internal action with `importAsPending` and `dryRun` flags
   - Added `browser-use` component (AI category) and synced with convex.dev/components source

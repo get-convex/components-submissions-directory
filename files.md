@@ -71,7 +71,7 @@ Main HTML entry point. Loads the React app and CSS. Includes Open Graph meta tag
 
 ### `convex/schema.ts`
 
-Database schema definition. Defines the `packages` table with all package fields including slug, category, tags, shortDescription, longDescription, videoUrl, thumbnailUrl, thumbnailStorageId, logoStorageId, logoUrl, selectedTemplateId, thumbnailGenerationVersion, thumbnailGeneratedAt, thumbnailGeneratedBy, convexVerified, authorUsername, authorAvatar, relatedComponentIds, submitter information (submitterName, submitterEmail, submitterDiscord, additionalEmails for multi-account access), review status, visibility, featured flag, demoUrl, AI review fields, cached GitHub issue counts, AI-generated SEO/AEO/GEO fields, skillMd (AI-generated SKILL.md content for Claude agent skills), and soft deletion fields (markedForDeletion, markedForDeletionAt, markedForDeletionBy). Also defines `packageNotes` (with isAdminReply and userHasRead for notification tracking), `packageComments`, `adminSettings`, `adminSettingsNumeric`, `badgeFetches`, `thumbnailTemplates`, `thumbnailJobs`, `aiProviderSettings` (API keys and models for Anthropic, OpenAI, Gemini), and `aiPromptVersions` (versioned AI review prompts) tables.
+Database schema definition. Defines the `packages` table with all package fields including slug, category, tags, shortDescription, longDescription, videoUrl, thumbnailUrl, thumbnailStorageId, hideThumbnailInCategory (controls thumbnail visibility in category listings vs Featured section), logoStorageId, logoUrl, selectedTemplateId, thumbnailGenerationVersion, thumbnailGeneratedAt, thumbnailGeneratedBy, convexVerified, authorUsername, authorAvatar, relatedComponentIds, submitter information (submitterName, submitterEmail, submitterDiscord, additionalEmails for multi-account access), review status, visibility, featured flag, demoUrl, AI review fields, cached GitHub issue counts, AI-generated SEO/AEO/GEO fields, skillMd (AI-generated SKILL.md content for Claude agent skills), and soft deletion fields (markedForDeletion, markedForDeletionAt, markedForDeletionBy). Also defines `packageNotes` (with isAdminReply and userHasRead for notification tracking), `packageComments`, `adminSettings`, `adminSettingsNumeric`, `badgeFetches`, `thumbnailTemplates`, `thumbnailJobs`, `aiProviderSettings` (API keys and models for Anthropic, OpenAI, Gemini), and `aiPromptVersions` (versioned AI review prompts) tables.
 
 ### `convex/auth.ts`
 
@@ -309,7 +309,7 @@ Component detail page at `/components/:slug`. Features shared Header component, 
 
 ### `src/components/ComponentCard.tsx`
 
-Component card for directory listing. Shows thumbnail, name, description, downloads, version, verified badge.
+Component card for directory listing. Shows thumbnail, name, description, downloads, version, verified badge. Supports `showThumbnail` prop to conditionally hide thumbnails (used for hiding thumbnails in category listings while showing them in Featured section).
 
 ### `src/components/CategorySidebar.tsx`
 
@@ -329,7 +329,7 @@ Copy-to-clipboard install command component.
 
 ### `src/components/ComponentDetailsEditor.tsx`
 
-Admin editor for directory-specific fields: slug, category, tags, descriptions, video URL, verified badge, featured status, thumbnail upload with preview, thumbnail clear option (applies after Save), logo upload with clear option, auto-fill author from GitHub, auto-fill long description from package metadata, and AI SEO + SKILL.md content generation trigger with status display. Shows "SKILL.md generated" indicator when content exists. All fields reactively sync with backend updates via `useEffect` hooks, so changes from external mutations (like slug generation) appear immediately without refresh. The "Auto-fill from Package" button copies the npm/repo description into the Long Description field for editing. The logo section includes upload, download, and clear buttons for managing component logos.
+Admin editor for directory-specific fields: slug, category, tags, descriptions, video URL, verified badge, featured status, thumbnail upload with preview, thumbnail clear option (applies after Save), "Hide thumbnail in category listings" checkbox (shows thumbnail only in Featured section when checked), logo upload with clear option, auto-fill author from GitHub, auto-fill long description from package metadata, and AI SEO + SKILL.md content generation trigger with status display. Shows "SKILL.md generated" indicator when content exists. All fields reactively sync with backend updates via `useEffect` hooks, so changes from external mutations (like slug generation) appear immediately without refresh. The "Auto-fill from Package" button copies the npm/repo description into the Long Description field for editing. The logo section includes upload, download, and clear buttons for managing component logos.
 
 ### `src/lib/categories.ts`
 

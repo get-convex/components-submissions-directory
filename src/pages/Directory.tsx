@@ -321,6 +321,7 @@ export default function Directory() {
                       description={comp.description}
                       category={comp.category}
                       thumbnailUrl={comp.thumbnailUrl}
+                      showThumbnail={true}
                       authorUsername={comp.authorUsername}
                       authorAvatar={comp.authorAvatar}
                       weeklyDownloads={comp.weeklyDownloads}
@@ -347,6 +348,7 @@ export default function Directory() {
                           description={comp.description}
                           category={comp.category}
                           thumbnailUrl={comp.thumbnailUrl}
+                          showThumbnail={true}
                           authorUsername={comp.authorUsername}
                           authorAvatar={comp.authorAvatar}
                           weeklyDownloads={comp.weeklyDownloads}
@@ -435,6 +437,7 @@ export default function Directory() {
                             description={comp.description}
                             category={comp.category}
                             thumbnailUrl={comp.thumbnailUrl}
+                            showThumbnail={!comp.hideThumbnailInCategory}
                             authorUsername={comp.authorUsername}
                             authorAvatar={comp.authorAvatar}
                             weeklyDownloads={comp.weeklyDownloads}
@@ -487,6 +490,7 @@ export default function Directory() {
                             description={comp.description}
                             category={comp.category}
                             thumbnailUrl={comp.thumbnailUrl}
+                            showThumbnail={!comp.hideThumbnailInCategory}
                             authorUsername={comp.authorUsername}
                             authorAvatar={comp.authorAvatar}
                             weeklyDownloads={comp.weeklyDownloads}
@@ -527,6 +531,7 @@ export default function Directory() {
                         description={comp.description}
                         category={comp.category}
                         thumbnailUrl={comp.thumbnailUrl}
+                        showThumbnail={!comp.hideThumbnailInCategory}
                         authorUsername={comp.authorUsername}
                         authorAvatar={comp.authorAvatar}
                         weeklyDownloads={comp.weeklyDownloads}

@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Hide thumbnail in category option for components (2026-02-25)
+  - New `hideThumbnailInCategory` field on packages schema
+  - Checkbox in Admin Component Details editor (appears when thumbnail exists)
+  - Thumbnails always display in Featured section regardless of setting
+  - Category, search, and other listings respect the hide flag
+  - Added field to `directoryCardValidator` and query return maps for proper data flow
+  - `ComponentCard` accepts `showThumbnail` prop for conditional rendering
+  - Allows components to have thumbnails for Featured without cluttering category views
+
 - Official Convex Components import system (2026-02-24)
   - `seedOfficialComponents` internal action for importing 41 components from convex.dev/components
   - `importAsPending` flag to import new components as "pending" for admin review

@@ -23,6 +23,7 @@ interface ComponentDetailsEditorProps {
   videoUrl?: string;
   demoUrl?: string;
   thumbnailUrl?: string;
+  hideThumbnailInCategory?: boolean;
   convexVerified?: boolean;
   authorUsername?: string;
   authorAvatar?: string;
@@ -54,6 +55,7 @@ export function ComponentDetailsEditor({
   videoUrl: initialVideoUrl,
   demoUrl: initialDemoUrl,
   thumbnailUrl: initialThumbUrl,
+  hideThumbnailInCategory: initialHideThumbnailInCategory,
   convexVerified: initialVerified,
   authorUsername: initialAuthorUser,
   authorAvatar: initialAuthorAvatar,
@@ -86,6 +88,9 @@ export function ComponentDetailsEditor({
   const [demoUrl, setDemoUrl] = useState(initialDemoUrl || "");
   const [thumbnailUrl, setThumbnailUrl] = useState(initialThumbUrl || "");
   const [savedThumbnailUrl, setSavedThumbnailUrl] = useState(initialThumbUrl || "");
+  const [hideThumbnailInCategory, setHideThumbnailInCategory] = useState(
+    initialHideThumbnailInCategory || false,
+  );
   const [logoUrl, setLogoUrl] = useState(initialLogoUrl || "");
   const [convexVerified, setConvexVerified] = useState(
     initialVerified || false,
@@ -134,6 +139,10 @@ export function ComponentDetailsEditor({
   }, [initialThumbUrl]);
 
   useEffect(() => {
+    setHideThumbnailInCategory(initialHideThumbnailInCategory || false);
+  }, [initialHideThumbnailInCategory]);
+
+  useEffect(() => {
     setLogoUrl(initialLogoUrl || "");
   }, [initialLogoUrl]);
 
@@ -171,6 +180,7 @@ export function ComponentDetailsEditor({
         demoUrl?: string;
         thumbnailUrl?: string;
         clearThumbnail?: boolean;
+        hideThumbnailInCategory?: boolean;
         slug?: string;
         convexVerified?: boolean;
         authorUsername?: string;
@@ -192,6 +202,7 @@ export function ComponentDetailsEditor({
       if (!isSubmissionMode) {
         payload.slug = slug || undefined;
         payload.convexVerified = convexVerified;
+        payload.hideThumbnailInCategory = hideThumbnailInCategory;
         payload.authorUsername = authorUsername || undefined;
         payload.authorAvatar = authorAvatar || undefined;
       }
@@ -667,6 +678,27 @@ export function ComponentDetailsEditor({
             .webp, .png, .jpg
           </span>
         </div>
+        {/* Hide thumbnail in category listings checkbox (admin only, shown when thumbnail exists) */}
+        {!isSubmissionMode && thumbnailUrl && (
+          <div className="flex items-center gap-2 mt-2">
+            <input
+              type="checkbox"
+              id={`hide-thumb-cat-${packageId}`}
+              checked={hideThumbnailInCategory}
+              onChange={(e) => setHideThumbnailInCategory(e.target.checked)}
+              className="rounded"
+            />
+            <label
+              htmlFor={`hide-thumb-cat-${packageId}`}
+              className="text-xs text-text-primary"
+            >
+              Hide thumbnail in category listings
+            </label>
+            <span className="text-[10px] text-text-secondary">
+              (show only in Featured section)
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Keywords */}

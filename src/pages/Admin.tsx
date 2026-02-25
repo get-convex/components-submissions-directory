@@ -101,6 +101,7 @@ function PackageComponentDetailsEditor({
   videoUrl,
   demoUrl,
   thumbnailUrl,
+  hideThumbnailInCategory,
   convexVerified,
   authorUsername,
   authorAvatar,
@@ -125,6 +126,7 @@ function PackageComponentDetailsEditor({
   videoUrl?: string;
   demoUrl?: string;
   thumbnailUrl?: string;
+  hideThumbnailInCategory?: boolean;
   convexVerified?: boolean;
   authorUsername?: string;
   authorAvatar?: string;
@@ -173,6 +175,7 @@ function PackageComponentDetailsEditor({
           videoUrl={videoUrl}
           demoUrl={demoUrl}
           thumbnailUrl={thumbnailUrl}
+          hideThumbnailInCategory={hideThumbnailInCategory}
           convexVerified={convexVerified}
           authorUsername={authorUsername}
           authorAvatar={authorAvatar}
@@ -5404,6 +5407,7 @@ function AdminDashboard({
                             videoUrl={pkg.videoUrl}
                             demoUrl={pkg.demoUrl}
                             thumbnailUrl={pkg.thumbnailUrl}
+                            hideThumbnailInCategory={pkg.hideThumbnailInCategory}
                             convexVerified={pkg.convexVerified}
                             authorUsername={pkg.authorUsername}
                             authorAvatar={pkg.authorAvatar}

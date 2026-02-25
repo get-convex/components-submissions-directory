@@ -125,6 +125,8 @@ const applicationTables = {
     authorAvatar: v.optional(v.string()),
     // Human-readable component display name (e.g. "Convex Agent")
     componentName: v.optional(v.string()),
+    // Hide thumbnail in category listings (show only in Featured section)
+    hideThumbnailInCategory: v.optional(v.boolean()),
     // Related component IDs (admin-managed)
     relatedComponentIds: v.optional(v.array(v.id("packages"))),
     // Cached GitHub issue counts (refreshed via action)
