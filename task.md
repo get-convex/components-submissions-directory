@@ -32,6 +32,16 @@
 
 ## Recent updates
 
+- [x] Imported 41 official Convex components to production database (2026-02-24)
+  - Created `seedOfficialComponents` internal action with `importAsPending` and `dryRun` flags
+  - Added `browser-use` component (AI category) and synced with convex.dev/components source
+  - Renamed `_upsertSeededComponent` to `_upsertOfficialComponent` with improved logic
+  - Preserves existing `reviewStatus` on updates, only sets new status on inserts
+  - Returns detailed stats: total, created, updated, failed, dryRun, wouldImport
+  - Legacy `seedExistingComponents` alias preserved for backward compatibility
+  - Production import: 27 created as pending, 14 updated, 0 failed
+  - Run: `npx convex run --prod seed:seedOfficialComponents '{"importAsPending": true}'`
+
 - [x] Added pagination with configurable items per page to Admin panel (2026-02-24)
   - Package list now shows 20 items per page by default
   - Page navigation with Previous/Next buttons and numbered page buttons

@@ -132,7 +132,16 @@ Scheduled cron jobs for background tasks:
 
 ### `convex/seed.ts`
 
-Seed script (`seedExistingComponents` internal action) for migrating existing component data into the packages table. Fetches npm data, generates slugs, sets categories, and upserts into the database.
+Seed script for importing official Convex components from convex.dev/components. Contains `seedOfficialComponents` internal action with support for:
+- `importAsPending: boolean` flag to control whether new components enter as "pending" (for admin review) or "approved"
+- `dryRun: boolean` flag to preview what would be imported without making changes
+- Fetches live npm data for each component
+- Uses existing `by_name` index for duplicate detection
+- Preserves existing `reviewStatus` on updates, only sets new status on inserts
+- Legacy `seedExistingComponents` alias for backward compatibility
+
+Run via CLI: `npx convex run seed:seedOfficialComponents '{"importAsPending": true}'`
+Production: `npx convex run --prod seed:seedOfficialComponents '{"importAsPending": true}'`
 
 ### `convex/thumbnails.ts`
 

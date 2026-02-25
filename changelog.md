@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Official Convex Components import system (2026-02-24)
+  - `seedOfficialComponents` internal action for importing 41 components from convex.dev/components
+  - `importAsPending` flag to import new components as "pending" for admin review
+  - `dryRun` flag to preview imports without making changes
+  - Preserves existing `reviewStatus` on updates, only sets new status on inserts
+  - Added `browser-use` component (AI category) and synced with upstream source
+  - Run: `npx convex run seed:seedOfficialComponents '{"importAsPending": true}'`
+  - Production: `npx convex run --prod seed:seedOfficialComponents '{"importAsPending": true}'`
+
 - Admin panel pagination with configurable items per page (2026-02-24)
   - Package list shows 20 items per page by default
   - Pagination controls with Previous/Next buttons and numbered page buttons
