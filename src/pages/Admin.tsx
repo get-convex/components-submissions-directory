@@ -4948,6 +4948,24 @@ function AdminDashboard({
 }) {
   // Default to pending to show new submissions first
   const [activeFilter, setActiveFilter] = useState<FilterType>("pending");
+  // Pagination state - track current page for each filter
+  const [currentPage, setCurrentPage] = useState<Record<FilterType, number>>({
+    all: 1,
+    pending: 1,
+    in_review: 1,
+    approved: 1,
+    changes_requested: 1,
+    rejected: 1,
+    marked_for_deletion: 1,
+    archived: 1,
+    settings: 1,
+  });
+  // Items per page options
+  type ItemsPerPageOption = 5 | 10 | 20 | 40 | 100;
+  const [itemsPerPage, setItemsPerPage] = useState<ItemsPerPageOption>(20);
+  const [showItemsPerPageDropdown, setShowItemsPerPageDropdown] = useState(false);
+  const itemsPerPageOptions: ItemsPerPageOption[] = [5, 10, 20, 40, 100];
+  
   // Track which packages are expanded (open)
   const [expandedPackages, setExpandedPackages] = useState<Set<string>>(
     new Set(),
@@ -4961,6 +4979,29 @@ function AdminDashboard({
     | "downloads";
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
+  
+  // Reset page to 1 when filter changes
+  const handleFilterChange = (filter: FilterType) => {
+    setActiveFilter(filter);
+    setCurrentPage((prev) => ({ ...prev, [filter]: 1 }));
+  };
+  
+  // Reset all pages to 1 when items per page changes
+  const handleItemsPerPageChange = (value: ItemsPerPageOption) => {
+    setItemsPerPage(value);
+    setCurrentPage({
+      all: 1,
+      pending: 1,
+      in_review: 1,
+      approved: 1,
+      changes_requested: 1,
+      rejected: 1,
+      marked_for_deletion: 1,
+      archived: 1,
+      settings: 1,
+    });
+    setShowItemsPerPageDropdown(false);
+  };
 
   // Sort options config
   const sortOptions: { value: SortOption; label: string }[] = [
@@ -5088,7 +5129,7 @@ function AdminDashboard({
       <div className="mb-4">
         <FilterTabs
           activeFilter={activeFilter}
-          onFilterChange={setActiveFilter}
+          onFilterChange={handleFilterChange}
           counts={counts}
         />
       </div>
@@ -5142,8 +5183,48 @@ function AdminDashboard({
                 </>
               )}
             </div>
+            
+            {/* Items per page dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowItemsPerPageDropdown(!showItemsPerPageDropdown)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border bg-white text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+              >
+                <List size={14} />
+                <span className="hidden sm:inline">{itemsPerPage}</span>
+                <span className="sm:hidden">{itemsPerPage}</span>
+                <CaretDown
+                  size={12}
+                  className={`transition-transform ${showItemsPerPageDropdown ? "rotate-180" : ""}`}
+                />
+              </button>
+              {showItemsPerPageDropdown && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowItemsPerPageDropdown(false)}
+                  />
+                  <div className="absolute right-0 top-full mt-1 z-20 min-w-[80px] py-1 rounded-lg border border-border bg-white shadow-lg">
+                    {itemsPerPageOptions.map((option) => (
+                      <button
+                        key={option}
+                        onClick={() => handleItemsPerPageChange(option)}
+                        className={`w-full px-3 py-1.5 text-left text-xs transition-colors ${
+                          itemsPerPage === option
+                            ? "bg-bg-hover text-text-primary font-medium"
+                            : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                        }`}
+                      >
+                        {option} per page
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            
             <span className="text-xs text-text-secondary">
-              Showing {filteredPackages?.length ?? 0} of {packages?.length ?? 0}
+              Showing {Math.min((currentPage[activeFilter] - 1) * itemsPerPage + 1, filteredPackages?.length ?? 0)}-{Math.min(currentPage[activeFilter] * itemsPerPage, filteredPackages?.length ?? 0)} of {filteredPackages?.length ?? 0}
             </span>
           </div>
         </div>
@@ -5160,7 +5241,12 @@ function AdminDashboard({
           </div>
         ) : (
           <div className="flex flex-col gap-4 p-4">
-            {sortPackages(filteredPackages || []).map((pkg) => {
+            {sortPackages(filteredPackages || [])
+              .slice(
+                (currentPage[activeFilter] - 1) * itemsPerPage,
+                currentPage[activeFilter] * itemsPerPage
+              )
+              .map((pkg) => {
               const isExpanded = expandedPackages.has(pkg._id);
               return (
                 <div
@@ -5461,6 +5547,49 @@ function AdminDashboard({
                 </div>
               );
             })}
+            
+            {/* Pagination controls */}
+            {(() => {
+              const totalPages = Math.ceil((filteredPackages?.length ?? 0) / itemsPerPage);
+              const page = currentPage[activeFilter];
+              if (totalPages <= 1) return null;
+              
+              return (
+                <div className="flex items-center justify-center gap-2 pt-4 border-t border-border mt-4">
+                  <button
+                    onClick={() => setCurrentPage((prev) => ({ ...prev, [activeFilter]: Math.max(1, page - 1) }))}
+                    disabled={page === 1}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage((prev) => ({ ...prev, [activeFilter]: pageNum }))}
+                        className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${
+                          page === pageNum
+                            ? "bg-button text-white"
+                            : "border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+                  </div>
+                  
+                  <button
+                    onClick={() => setCurrentPage((prev) => ({ ...prev, [activeFilter]: Math.min(totalPages, page + 1) }))}
+                    disabled={page === totalPages}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>}

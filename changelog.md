@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Admin panel pagination with configurable items per page (2026-02-24)
+  - Package list shows 20 items per page by default
+  - Pagination controls with Previous/Next buttons and numbered page buttons
+  - Items per page dropdown selector (5, 10, 20, 40, 100 options)
+  - Each filter tab maintains independent page state
+  - "Showing X-Y of Z" counter reflects current pagination
+  - Page resets to 1 when changing filter or items per page
+
 ### Changed
 
 - Reordered icons in Admin package rows (2026-02-24)

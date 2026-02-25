@@ -32,6 +32,13 @@
 
 ## Recent updates
 
+- [x] Added pagination with configurable items per page to Admin panel (2026-02-24)
+  - Package list now shows 20 items per page by default
+  - Page navigation with Previous/Next buttons and numbered page buttons
+  - Items per page dropdown (5, 10, 20, 40, 100) next to sort dropdown
+  - Each filter tab (All, Pending, Review, Approved, Changes, Rejected, Deletion, Archived) maintains its own page state
+  - "Showing X-Y of Z" counter updates based on current page and items per page
+  - Page resets to 1 when changing filter or items per page
 - [x] Reordered icons in Admin package rows (2026-02-24)
   - Moved ComponentDetailQuickLink (external link icon) to be last in the badge group
   - Order is now: StatusBadge, VisibilityBadge, UnrepliedNotesIndicator, ComponentDetailQuickLink
