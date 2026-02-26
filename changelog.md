@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Directory sidebar sticky position adjusted (2026-02-25)
+  - Changed sticky top from `top-6` to `top-20` (80px)
+  - Submit button now remains visible below the header when scrolling
+  - Entire sidebar (Submit, Search, Sort, Categories) stays sticky together
+
 ### Added
 
 - SEO Prompt Settings panel in Admin Settings (2026-02-25)
@@ -18,11 +25,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Uses placeholders like `{{displayName}}`, `{{packageName}}` for dynamic content
   - New `seoPromptVersions` table in schema for version tracking
 
-- Multi-provider AI support in seoContent.ts (2026-02-25)
-  - Support for Anthropic Claude, OpenAI GPT, and Google Gemini
-  - Provider selection prioritizes admin settings, then environment variables
-  - Custom SEO prompt support with fallback to default template
-  - New `callAiProvider` helper function for unified provider calls
+- Multi-provider AI support across all AI features (2026-02-25)
+  - Support for Anthropic Claude, OpenAI GPT, and Google Gemini in both AI Review and SEO Content generation
+  - Provider selection prioritizes admin settings (AI Provider Settings panel), then falls back to environment variables (ANTHROPIC_API_KEY, CONVEX_OPENAI_API_KEY)
+  - Both `convex/aiReview.ts` and `convex/seoContent.ts` use the same provider configuration
+  - New `callAiProvider` helper function in both files for unified provider calls
+
+- Confirmation modal for clearing AI provider settings (2026-02-25)
+  - Clear (use env) buttons now show red styling to indicate destructive action
+  - Clicking Clear shows confirmation modal warning that API keys will be deleted
+  - Modal explains fallback to environment variables and that all AI features are affected
+  - Prevents accidental deletion of API key configuration
 
 - Moved Refresh and Generate Slug buttons to InlineActions component (2026-02-25)
   - Refresh npm data button now in Actions row of expanded package view

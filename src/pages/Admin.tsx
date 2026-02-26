@@ -3758,6 +3758,9 @@ function AdminSettingsPanel() {
 function AiProviderSettingsPanel() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [clearConfirmProvider, setClearConfirmProvider] = useState<
+    "anthropic" | "openai" | "gemini" | null
+  >(null);
 
   // Local state for form inputs
   const [anthropicKey, setAnthropicKey] = useState("");
@@ -3838,6 +3841,7 @@ function AiProviderSettingsPanel() {
     try {
       await clearProvider({ provider });
       toast.success(`${provider} settings cleared (using env var)`);
+      setClearConfirmProvider(null);
     } catch (error) {
       toast.error("Failed to clear settings");
     }
@@ -3979,8 +3983,8 @@ function AiProviderSettingsPanel() {
                 Save
               </button>
               <button
-                onClick={() => handleClearProvider("anthropic")}
-                className="px-3 py-1 text-xs rounded border border-border text-text-secondary hover:bg-bg-hover"
+                onClick={() => setClearConfirmProvider("anthropic")}
+                className="px-3 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50"
               >
                 Clear (use env)
               </button>
@@ -4030,8 +4034,8 @@ function AiProviderSettingsPanel() {
                 Save
               </button>
               <button
-                onClick={() => handleClearProvider("openai")}
-                className="px-3 py-1 text-xs rounded border border-border text-text-secondary hover:bg-bg-hover"
+                onClick={() => setClearConfirmProvider("openai")}
+                className="px-3 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50"
               >
                 Clear (use env)
               </button>
@@ -4081,8 +4085,8 @@ function AiProviderSettingsPanel() {
                 Save
               </button>
               <button
-                onClick={() => handleClearProvider("gemini")}
-                className="px-3 py-1 text-xs rounded border border-border text-text-secondary hover:bg-bg-hover"
+                onClick={() => setClearConfirmProvider("gemini")}
+                className="px-3 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50"
               >
                 Clear (use env)
               </button>
@@ -4093,6 +4097,20 @@ function AiProviderSettingsPanel() {
           </div>
         </div>
       )}
+
+      {/* Clear Provider Confirmation Modal */}
+      <ConfirmModal
+        isOpen={clearConfirmProvider !== null}
+        onClose={() => setClearConfirmProvider(null)}
+        onConfirm={() =>
+          clearConfirmProvider && handleClearProvider(clearConfirmProvider)
+        }
+        title="Clear API Key Settings?"
+        message={`This will permanently delete your saved ${clearConfirmProvider?.toUpperCase()} API key and model configuration. The app will fall back to using environment variables (ANTHROPIC_API_KEY, CONVEX_OPENAI_API_KEY). This affects ALL AI features including AI Review and SEO Content generation.`}
+        confirmText="Yes, Clear Settings"
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   );
 }

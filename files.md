@@ -83,7 +83,7 @@ JWT provider configuration for `@convex-dev/auth`. Configures the Convex site UR
 
 ### `convex/aiReview.ts`
 
-AI-powered package review system. Contains review criteria, GitHub repo fetcher with monorepo support, and `runAiReview` action. Supports multiple AI providers (Anthropic Claude, OpenAI GPT, Google Gemini) with automatic fallback from custom provider settings to environment variables. Uses custom prompts from database when configured.
+AI-powered package review system. Contains review criteria, GitHub repo fetcher with monorepo support, and `runAiReview` action. Supports multiple AI providers (Anthropic Claude, OpenAI GPT, Google Gemini) via the `callAiProvider` helper function. Provider selection prioritizes admin settings from `aiProviderSettings` table, then falls back to environment variables (ANTHROPIC_API_KEY, CONVEX_OPENAI_API_KEY). Uses custom prompts from `aiPromptVersions` table when configured. Shares the same provider configuration as `seoContent.ts` for consistent AI behavior across all features.
 
 ### `convex/aiSettings.ts`
 
@@ -247,7 +247,7 @@ Main package submission interface. Compact toolbar, package submission form, sea
 
 ### `src/pages/Directory.tsx`
 
-Component directory listing page at `/components/`. Features shared Header component, search, sort, category sidebar, featured section, component cards grid, submit link, and FAQSection at the bottom. No auth required to view.
+Component directory listing page at `/components/`. Features shared Header component, search, sort, category sidebar, featured section, component cards grid, submit link, and FAQSection at the bottom. No auth required to view. Sidebar uses `sticky top-20` positioning so Submit button remains visible below the header when scrolling.
 
 
 ### `src/pages/SubmitForm.tsx`

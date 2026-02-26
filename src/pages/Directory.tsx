@@ -134,7 +134,7 @@ export default function Directory() {
         <div className="flex gap-8">
           {/* Sidebar: search + categories, sticky on desktop */}
           <aside className="hidden lg:block w-52 shrink-0 lg:pt-12">
-            <div className="sticky top-6">
+            <div className="sticky top-20">
               {/* Submit link */}
               <div className="pb-6">
                 <a

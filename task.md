@@ -32,6 +32,11 @@
 
 ## Recent updates
 
+- [x] Directory sidebar sticky position adjusted (2026-02-25)
+  - Changed sticky top from `top-6` to `top-20` (80px from viewport top)
+  - Submit button now remains visible below the header when scrolling
+  - Entire sidebar (Submit, Search, Sort, Categories) stays sticky together
+
 - [x] SEO Prompt Versioning and Multi-Provider AI support (2026-02-25)
   - Added `seoPromptVersions` table to schema for SEO prompt version history
   - Added SEO prompt queries/mutations to `convex/aiSettings.ts`: `getSeoDefaultPrompt`, `getSeoActivePrompt`, `getSeoPromptVersions`, `saveSeoPromptVersion`, `activateSeoPromptVersion`, `resetSeoToDefaultPrompt`
@@ -43,6 +48,8 @@
   - Moved Refresh npm data and Generate Slug buttons from package card row to InlineActions Actions row
   - Removed standalone `RefreshNpmButton` and `GenerateSlugButton` components
   - Auto-refresh settings verified to update all package metadata fields (File Count, Weekly Downloads, etc.)
+  - Multi-provider AI support works for ALL AI features (AI Review + SEO Content): both use same admin provider settings or env var fallback
+  - Added confirmation modal for "Clear (use env)" buttons with danger styling and warning message
 
 - [x] Added Actions row to Admin InlineActions panel (2026-02-25)
   - New "Actions" row above Status and Visibility rows in expanded package view
