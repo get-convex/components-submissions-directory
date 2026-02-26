@@ -385,6 +385,240 @@ export const _getActivePromptContent = internalQuery({
   },
 });
 
+// ============ SEO PROMPT MANAGEMENT ============
+
+// Get the default SEO prompt
+export const getSeoDefaultPrompt = query({
+  args: {},
+  returns: v.string(),
+  handler: async () => {
+    return DEFAULT_SEO_PROMPT;
+  },
+});
+
+// Get the active SEO prompt (custom or default)
+export const getSeoActivePrompt = query({
+  args: {},
+  returns: v.object({
+    content: v.string(),
+    isDefault: v.boolean(),
+    versionId: v.optional(v.id("seoPromptVersions")),
+    createdAt: v.optional(v.number()),
+    createdBy: v.optional(v.string()),
+  }),
+  handler: async (ctx) => {
+    const activeVersion = await ctx.db
+      .query("seoPromptVersions")
+      .withIndex("by_active", (q) => q.eq("isActive", true))
+      .first();
+
+    if (activeVersion && !activeVersion.isDefault) {
+      return {
+        content: activeVersion.content,
+        isDefault: false,
+        versionId: activeVersion._id,
+        createdAt: activeVersion.createdAt,
+        createdBy: activeVersion.createdBy,
+      };
+    }
+
+    return {
+      content: DEFAULT_SEO_PROMPT,
+      isDefault: true,
+      versionId: undefined,
+      createdAt: undefined,
+      createdBy: undefined,
+    };
+  },
+});
+
+// Get all SEO prompt versions for history
+export const getSeoPromptVersions = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id("seoPromptVersions"),
+      content: v.string(),
+      isActive: v.boolean(),
+      isDefault: v.boolean(),
+      createdAt: v.number(),
+      createdBy: v.optional(v.string()),
+      notes: v.optional(v.string()),
+    }),
+  ),
+  handler: async (ctx) => {
+    const versions = await ctx.db
+      .query("seoPromptVersions")
+      .withIndex("by_created_at")
+      .order("desc")
+      .take(50);
+
+    return versions;
+  },
+});
+
+// Save a new SEO prompt version
+export const saveSeoPromptVersion = mutation({
+  args: {
+    content: v.string(),
+    notes: v.optional(v.string()),
+    createdBy: v.optional(v.string()),
+  },
+  returns: v.id("seoPromptVersions"),
+  handler: async (ctx, args) => {
+    if (!args.content.trim()) {
+      throw new Error("Prompt content cannot be empty");
+    }
+
+    // Deactivate all existing versions
+    const existingVersions = await ctx.db.query("seoPromptVersions").collect();
+    for (const ver of existingVersions) {
+      if (ver.isActive) {
+        await ctx.db.patch(ver._id, { isActive: false });
+      }
+    }
+
+    // Insert new version as active
+    const id = await ctx.db.insert("seoPromptVersions", {
+      content: args.content,
+      isActive: true,
+      isDefault: false,
+      createdAt: Date.now(),
+      createdBy: args.createdBy,
+      notes: args.notes,
+    });
+
+    return id;
+  },
+});
+
+// Activate a specific SEO prompt version
+export const activateSeoPromptVersion = mutation({
+  args: {
+    versionId: v.id("seoPromptVersions"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const version = await ctx.db.get(args.versionId);
+    if (!version) {
+      throw new Error("SEO prompt version not found");
+    }
+
+    // Deactivate all versions
+    const allVersions = await ctx.db.query("seoPromptVersions").collect();
+    for (const ver of allVersions) {
+      if (ver.isActive) {
+        await ctx.db.patch(ver._id, { isActive: false });
+      }
+    }
+
+    // Activate the selected version
+    await ctx.db.patch(args.versionId, { isActive: true });
+
+    return null;
+  },
+});
+
+// Reset SEO prompt to default
+export const resetSeoToDefaultPrompt = mutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    // Deactivate all custom versions
+    const allVersions = await ctx.db.query("seoPromptVersions").collect();
+    for (const ver of allVersions) {
+      if (ver.isActive) {
+        await ctx.db.patch(ver._id, { isActive: false });
+      }
+    }
+
+    // Check if default version exists
+    const defaultVersion = await ctx.db
+      .query("seoPromptVersions")
+      .filter((q) => q.eq(q.field("isDefault"), true))
+      .first();
+
+    if (defaultVersion) {
+      await ctx.db.patch(defaultVersion._id, { isActive: true });
+    } else {
+      // Create default version
+      await ctx.db.insert("seoPromptVersions", {
+        content: DEFAULT_SEO_PROMPT,
+        isActive: true,
+        isDefault: true,
+        createdAt: Date.now(),
+        createdBy: "system",
+        notes: "Default SEO prompt",
+      });
+    }
+
+    return null;
+  },
+});
+
+// Internal query to get active SEO prompt content
+// Used by seoContent action
+export const _getSeoActivePromptContent = internalQuery({
+  args: {},
+  returns: v.string(),
+  handler: async (ctx) => {
+    const activeVersion = await ctx.db
+      .query("seoPromptVersions")
+      .withIndex("by_active", (q) => q.eq("isActive", true))
+      .first();
+
+    if (activeVersion && !activeVersion.isDefault) {
+      return activeVersion.content;
+    }
+
+    // Return empty string to indicate use default
+    return "";
+  },
+});
+
+// Default SEO prompt template (with placeholders for package data)
+const DEFAULT_SEO_PROMPT = `You are writing structured content for a Convex developer component page. This content will be used for SEO (Google), AEO (answer engine optimization for AI search), and GEO (generative engine optimization for LLMs).
+
+COMPONENT DATA:
+- Display name: {{displayName}}
+- npm package: {{packageName}}
+- Category: {{category}}
+- Tags: {{tags}}
+- Short description: {{shortDesc}}
+- Full description: {{longDesc}}
+- Repository: {{repoUrl}}
+- Install command: {{installCmd}}
+- npm URL: {{npmUrl}}
+- Demo URL: {{demoUrl}}
+
+Generate the following as valid JSON (no markdown fences, just raw JSON):
+
+{
+  "valueProp": "A single sentence under 155 characters that explains what this component does and why a developer would use it. This becomes the meta description and the sentence AI search engines cite. Be specific and technical, not generic.",
+
+  "benefits": ["Array of 3-4 strings. Each is an outcome-focused benefit starting with a verb. Focus on what developers get: faster development, fewer bugs, specific capabilities. No filler words."],
+
+  "useCases": [{"query": "A real search phrase a developer would type, like 'how to add retry logic to Convex mutations'", "answer": "2-3 sentences explaining how this component solves the problem. Be specific about the API and what it enables."}],
+
+  "faq": [{"question": "A question developers actually ask about this type of component", "answer": "A self-contained answer that makes sense without any other context. 2-4 sentences. Include the component name so AI engines can cite it directly."}],
+
+  "resourceLinks": [{"label": "Display text", "url": "Full URL"}]
+}
+
+Rules:
+- valueProp must be under 155 characters
+- benefits: exactly 3-4 items
+- useCases: 2-4 items, queries should match real search intent
+- faq: 3-5 items, answers must be self-contained (no "as mentioned above")
+- resourceLinks: include npm, GitHub repo, and Convex docs links where available
+- Write for senior developers who dislike hype
+- Be specific and technical
+- No em dashes
+- No emojis
+- Output valid JSON only`;
+
+// ============ AI REVIEW PROMPT ============
+
 // Default review prompt (extracted from aiReview.ts)
 const DEFAULT_REVIEW_PROMPT = `You are reviewing a Convex component package against official Convex component specifications.
 

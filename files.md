@@ -71,7 +71,7 @@ Main HTML entry point. Loads the React app and CSS. Includes Open Graph meta tag
 
 ### `convex/schema.ts`
 
-Database schema definition. Defines the `packages` table with all package fields including slug, category, tags, shortDescription, longDescription, videoUrl, thumbnailUrl, thumbnailStorageId, hideThumbnailInCategory (controls thumbnail visibility in category listings vs Featured section), hideFromSubmissions (hides from Submit.tsx page only, not Directory), logoStorageId, logoUrl, selectedTemplateId, thumbnailGenerationVersion, thumbnailGeneratedAt, thumbnailGeneratedBy, convexVerified, authorUsername, authorAvatar, relatedComponentIds, submitter information (submitterName, submitterEmail, submitterDiscord, additionalEmails for multi-account access), review status, visibility, featured flag, featuredSortOrder (admin-managed numeric order for Featured section display), demoUrl, AI review fields, cached GitHub issue counts, AI-generated SEO/AEO/GEO fields, skillMd (AI-generated SKILL.md content for Claude agent skills), and soft deletion fields (markedForDeletion, markedForDeletionAt, markedForDeletionBy). Also defines `packageNotes` (with isAdminReply and userHasRead for notification tracking), `packageComments`, `adminSettings`, `adminSettingsNumeric`, `badgeFetches`, `thumbnailTemplates`, `thumbnailJobs`, `aiProviderSettings` (API keys and models for Anthropic, OpenAI, Gemini), and `aiPromptVersions` (versioned AI review prompts) tables.
+Database schema definition. Defines the `packages` table with all package fields including slug, category, tags, shortDescription, longDescription, videoUrl, thumbnailUrl, thumbnailStorageId, hideThumbnailInCategory (controls thumbnail visibility in category listings vs Featured section), hideFromSubmissions (hides from Submit.tsx page only, not Directory), logoStorageId, logoUrl, selectedTemplateId, thumbnailGenerationVersion, thumbnailGeneratedAt, thumbnailGeneratedBy, convexVerified, authorUsername, authorAvatar, relatedComponentIds, submitter information (submitterName, submitterEmail, submitterDiscord, additionalEmails for multi-account access), review status, visibility, featured flag, featuredSortOrder (admin-managed numeric order for Featured section display), demoUrl, AI review fields, cached GitHub issue counts, AI-generated SEO/AEO/GEO fields, skillMd (AI-generated SKILL.md content for Claude agent skills), and soft deletion fields (markedForDeletion, markedForDeletionAt, markedForDeletionBy). Also defines `packageNotes` (with isAdminReply and userHasRead for notification tracking), `packageComments`, `adminSettings`, `adminSettingsNumeric`, `badgeFetches`, `thumbnailTemplates`, `thumbnailJobs`, `aiProviderSettings` (API keys and models for Anthropic, OpenAI, Gemini), `aiPromptVersions` (versioned AI review prompts), and `seoPromptVersions` (versioned SEO/SKILL.md generation prompts) tables.
 
 ### `convex/auth.ts`
 
@@ -91,13 +91,20 @@ AI provider and prompt management. Contains:
 - `getAiProviderSettings`: Query to get configured providers (masks API keys for security)
 - `updateAiProviderSettings`: Mutation to save provider API key and model
 - `clearProviderSettings`: Mutation to remove custom settings and revert to env vars
-- `getDefaultPrompt`: Query to get the default review prompt
-- `getActivePrompt`: Query to get current active prompt (custom or default)
-- `getPromptVersions`: Query to list prompt version history
-- `savePromptVersion`: Mutation to save new prompt version
-- `activatePromptVersion`: Mutation to restore a previous version
-- `resetToDefaultPrompt`: Mutation to revert to default prompt
+- `getDefaultPrompt`: Query to get the default AI review prompt
+- `getActivePrompt`: Query to get current active AI review prompt (custom or default)
+- `getPromptVersions`: Query to list AI review prompt version history
+- `savePromptVersion`: Mutation to save new AI review prompt version
+- `activatePromptVersion`: Mutation to restore a previous AI review prompt version
+- `resetToDefaultPrompt`: Mutation to revert to default AI review prompt
+- `getSeoDefaultPrompt`: Query to get the default SEO/SKILL.md prompt
+- `getSeoActivePrompt`: Query to get current active SEO prompt (custom or default)
+- `getSeoPromptVersions`: Query to list SEO prompt version history
+- `saveSeoPromptVersion`: Mutation to save new SEO prompt version
+- `activateSeoPromptVersion`: Mutation to restore a previous SEO prompt version
+- `resetSeoToDefaultPrompt`: Mutation to revert to default SEO prompt
 - Internal queries for aiReview action: `_getActiveProviderSettings`, `_getActivePromptContent`
+- Internal queries for seoContent action: `_getSeoActivePromptContent`
 
 ### `convex/packages.ts`
 
@@ -153,7 +160,7 @@ Node.js action module for composing 16:9 thumbnails. Uses Jimp for raster image 
 
 ### `convex/seoContent.ts`
 
-AI-generated SEO/AEO/GEO content action using Anthropic Claude. Contains `generateSeoContent` internal action and `regenerateSeoContent` public action. Builds structured prompts from component data and parses Claude responses into value props, benefits, use cases, FAQ, and resource links. Also generates SKILL.md content for AI agent integration using the `buildSkillMd()` helper function. Runs in Node.js runtime.
+AI-generated SEO/AEO/GEO content action supporting multiple AI providers. Contains `generateSeoContent` internal action and `regenerateSeoContent` public action. Supports custom prompts from database with fallback to hardcoded default. Supports Anthropic Claude, OpenAI GPT, and Google Gemini via admin provider settings or environment variables (ANTHROPIC_API_KEY, CONVEX_OPENAI_API_KEY). Builds structured prompts from component data using placeholder substitution and parses AI responses into value props, benefits, use cases, FAQ, and resource links. Also generates SKILL.md content for AI agent integration using the `buildSkillMd()` helper function. Runs in Node.js runtime.
 
 ### `convex/seoContentDb.ts`
 
@@ -297,7 +304,7 @@ User profile page for managing submitted components. Accessible at `/profile`. F
 
 ### `src/pages/Admin.tsx`
 
-Admin dashboard at `/submissions/admin` (requires @convex.dev email). Features shared Header component, admin-specific search bar, stats, package management, review status, visibility controls, AI review, component details editor, thumbnail preview in list, notes, comments, CSV export, and SubmitterEmailEditor for managing primary submitter email and additional emails. Pagination with configurable items per page (5, 10, 20, 40, 100) and page navigation controls; each filter tab maintains independent page state. Filter tabs include a "Deletion" tab (Clock icon) to show packages marked for deletion, with count badge. Package rows display badges in order: StatusBadge, VisibilityBadge, UnrepliedNotesIndicator (when collapsed), and ComponentDetailQuickLink (external link icon) as the last item before the downloads/date section. A red "Deletion" badge appears next to the visibility badge when marked for deletion. Featured toggle shows a sort order input when package is featured (lower numbers appear first in Featured section, independent of directory dropdown sort). Expanded package InlineActions includes Actions row (above Status row) with Convex Verified toggle, Regenerate SEO + Skill button, and combined Auto-fill button. Settings tab includes Deletion Management panel for managing packages marked for deletion (auto-delete toggle, waiting period config, list of pending deletions with "Delete Now" option), and Slug Migration panel for detecting packages without URL slugs and generating them in bulk or individually. Package cards show a "Generate Slug" button (orange) when no slug exists, appearing next to the npm/repo/demo/refresh buttons. Non-admin users are automatically redirected to their profile page. Unauthenticated users see a simple "Admin access only" sign-in prompt.
+Admin dashboard at `/submissions/admin` (requires @convex.dev email). Features shared Header component, admin-specific search bar, stats, package management, review status, visibility controls, AI review, component details editor, thumbnail preview in list, notes, comments, CSV export, and SubmitterEmailEditor for managing primary submitter email and additional emails. Pagination with configurable items per page (5, 10, 20, 40, 100) and page navigation controls; each filter tab maintains independent page state. Filter tabs include a "Deletion" tab (Clock icon) to show packages marked for deletion, with count badge. Package rows display badges in order: StatusBadge, VisibilityBadge, UnrepliedNotesIndicator (when collapsed), and ComponentDetailQuickLink (external link icon) as the last item before the downloads/date section. A red "Deletion" badge appears next to the visibility badge when marked for deletion. Featured toggle shows a sort order input when package is featured (lower numbers appear first in Featured section, independent of directory dropdown sort). Expanded package InlineActions includes Actions row (above Status row) with Convex Verified toggle, Regenerate SEO + Skill button, combined Auto-fill button, Refresh npm data button, and Generate Slug button (when no slug exists). Settings tab includes Deletion Management panel for managing packages marked for deletion (auto-delete toggle, waiting period config, list of pending deletions with "Delete Now" option), Slug Migration panel for detecting packages without URL slugs and generating them in bulk or individually, AI Provider Settings panel for configuring Anthropic/OpenAI/Gemini providers, AI Prompt Settings panel for versioning AI review prompts, and SEO Prompt Settings panel for versioning SEO/SKILL.md generation prompts. Non-admin users are automatically redirected to their profile page. Unauthenticated users see a simple "Admin access only" sign-in prompt.
 
 ### `src/pages/NotFound.tsx`
 

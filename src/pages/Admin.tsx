@@ -1709,141 +1709,6 @@ ${aiReviewError ? `\n### Error\n${aiReviewError}` : ""}
   );
 }
 
-// Refresh NPM Data button component with status indicator
-function RefreshNpmButton({
-  packageId,
-  packageName,
-  lastRefreshedAt,
-  refreshError,
-}: {
-  packageId: Id<"packages">;
-  packageName: string;
-  lastRefreshedAt?: number;
-  refreshError?: string;
-}) {
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const refreshNpmData = useAction(api.packages.refreshNpmData);
-
-  const handleRefresh = async () => {
-    if (isRefreshing) return;
-    setIsRefreshing(true);
-    try {
-      await refreshNpmData({ packageId });
-      toast.success("NPM data refreshed!");
-    } catch (error) {
-      toast.error("Failed to refresh NPM data");
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  const formatRelativeTime = (timestamp: number) => {
-    const diff = Date.now() - timestamp;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days = Math.floor(diff / 86400000);
-
-    if (minutes < 1) return "just now";
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return `${days}d ago`;
-  };
-
-  return (
-    <div className="flex items-center gap-2">
-      {/* Refresh error indicator */}
-      {refreshError && (
-        <Tooltip content={`Refresh failed: ${refreshError}`}>
-          <div className="flex items-center text-orange-500">
-            <Warning size={14} weight="bold" />
-          </div>
-        </Tooltip>
-      )}
-
-      {/* Last refreshed time */}
-      {lastRefreshedAt && !refreshError && (
-        <span className="text-[10px] text-text-secondary hidden lg:inline">
-          {formatRelativeTime(lastRefreshedAt)}
-        </span>
-      )}
-
-      {/* Refresh button */}
-      <Tooltip content="Refresh package data from npm">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleRefresh();
-          }}
-          disabled={isRefreshing}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <ArrowClockwise
-            size={12}
-            className={isRefreshing ? "animate-spin" : ""}
-          />
-          <span className="hidden sm:inline">
-            {isRefreshing ? "Refreshing..." : "refresh"}
-          </span>
-        </button>
-      </Tooltip>
-    </div>
-  );
-}
-
-// Generate Slug button component (shown when package has no slug)
-function GenerateSlugButton({
-  packageId,
-  packageName,
-  currentSlug,
-}: {
-  packageId: Id<"packages">;
-  packageName: string;
-  currentSlug?: string;
-}) {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const generateSlug = useMutation(api.packages.generateSlugForPackage);
-
-  // Only show button if there's no slug
-  if (currentSlug && currentSlug.trim() !== "") {
-    return null;
-  }
-
-  const handleGenerate = async () => {
-    if (isGenerating) return;
-    setIsGenerating(true);
-    try {
-      const slug = await generateSlug({ packageId });
-      if (slug) {
-        toast.success(`Slug generated: ${slug}`);
-      } else {
-        toast.error("Could not generate slug");
-      }
-    } catch {
-      toast.error("Failed to generate slug");
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  return (
-    <Tooltip content="Generate URL slug for detail page">
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          handleGenerate();
-        }}
-        disabled={isGenerating}
-        className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <LinkSimple size={12} className={isGenerating ? "animate-pulse" : ""} />
-        <span className="hidden sm:inline">
-          {isGenerating ? "..." : "slug"}
-        </span>
-      </button>
-    </Tooltip>
-  );
-}
-
 // Status Legend component for admin dashboard
 function StatusLegend() {
   const legendItems: {
@@ -2090,6 +1955,11 @@ function InlineActions({
   convexVerified,
   seoGenerationStatus,
   npmDescription,
+  hideThumbnailInCategory,
+  thumbnailUrl,
+  lastRefreshedAt,
+  refreshError,
+  slug,
 }: {
   packageId: Id<"packages">;
   currentStatus: ReviewStatus | undefined;
@@ -2104,6 +1974,11 @@ function InlineActions({
   convexVerified?: boolean;
   seoGenerationStatus?: string;
   npmDescription?: string;
+  hideThumbnailInCategory?: boolean;
+  thumbnailUrl?: string;
+  lastRefreshedAt?: number;
+  refreshError?: string;
+  slug?: string;
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -2112,6 +1987,8 @@ function InlineActions({
   );
   const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [isRegeneratingSeo, setIsRegeneratingSeo] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isGeneratingSlug, setIsGeneratingSlug] = useState(false);
 
   const updateReviewStatus = useMutation(api.packages.updateReviewStatus);
   const updateVisibility = useMutation(api.packages.updateVisibility);
@@ -2122,6 +1999,8 @@ function InlineActions({
   const updateComponentDetails = useMutation(api.packages.updateComponentDetails);
   const autoFillAuthor = useMutation(api.packages.autoFillAuthorFromRepo);
   const regenerateSeo = useAction(api.seoContent.regenerateSeoContent);
+  const refreshNpmData = useAction(api.packages.refreshNpmData);
+  const generateSlug = useMutation(api.packages.generateSlugForPackage);
 
   const status = currentStatus || "pending";
   const visibility = currentVisibility || "visible";
@@ -2258,6 +2137,23 @@ function InlineActions({
     }
   };
 
+  // Toggle hide thumbnail in category listings
+  const handleToggleHideThumbnail = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
+    try {
+      await updateComponentDetails({
+        packageId,
+        hideThumbnailInCategory: !hideThumbnailInCategory,
+      });
+      toast.success(hideThumbnailInCategory ? "Thumbnail shown in category listings" : "Thumbnail hidden in category listings (shows in Featured only)");
+    } catch (error) {
+      toast.error("Failed to update thumbnail visibility");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Regenerate SEO + SKILL.md content
   const handleRegenerateSeo = async () => {
     if (isRegeneratingSeo || seoGenerationStatus === "generating") return;
@@ -2270,6 +2166,51 @@ function InlineActions({
     } finally {
       setIsRegeneratingSeo(false);
     }
+  };
+
+  // Refresh NPM data
+  const handleRefreshNpm = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await refreshNpmData({ packageId });
+      toast.success("NPM data refreshed!");
+    } catch (error) {
+      toast.error("Failed to refresh NPM data");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Generate slug for package
+  const handleGenerateSlug = async () => {
+    if (isGeneratingSlug) return;
+    setIsGeneratingSlug(true);
+    try {
+      const newSlug = await generateSlug({ packageId });
+      if (newSlug) {
+        toast.success(`Slug generated: ${newSlug}`);
+      } else {
+        toast.error("Could not generate slug");
+      }
+    } catch {
+      toast.error("Failed to generate slug");
+    } finally {
+      setIsGeneratingSlug(false);
+    }
+  };
+
+  // Format relative time for refresh timestamp
+  const formatRelativeTime = (timestamp: number) => {
+    const diff = Date.now() - timestamp;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+
+    if (minutes < 1) return "just now";
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return `${days}d ago`;
   };
 
   // Combined Auto-fill: Author from GitHub + Description from npm
@@ -2468,6 +2409,79 @@ function InlineActions({
                 </span>
               </button>
             </Tooltip>
+
+            {/* Hide Thumbnail in Category Toggle - only show if thumbnail exists */}
+            {thumbnailUrl && (
+              <Tooltip content={hideThumbnailInCategory ? "Show thumbnail in category listings" : "Hide thumbnail in category listings (show only in Featured)"}>
+                <button
+                  onClick={handleToggleHideThumbnail}
+                  disabled={isLoading}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all disabled:opacity-50 ${
+                    hideThumbnailInCategory
+                      ? "bg-orange-600 text-white border-orange-600"
+                      : "border-orange-200 text-orange-600 hover:bg-orange-50"
+                  }`}
+                >
+                  <Image size={14} weight={hideThumbnailInCategory ? "fill" : "bold"} />
+                  <span className="hidden sm:inline">
+                    {hideThumbnailInCategory ? "Thumb Hidden" : "Hide Thumb"}
+                  </span>
+                </button>
+              </Tooltip>
+            )}
+
+            {/* Refresh NPM Data Button */}
+            <div className="flex items-center gap-1">
+              {refreshError && (
+                <Tooltip content={`Refresh failed: ${refreshError}`}>
+                  <div className="flex items-center text-orange-500">
+                    <Warning size={14} weight="bold" />
+                  </div>
+                </Tooltip>
+              )}
+              {lastRefreshedAt && !refreshError && (
+                <span className="text-[10px] text-text-secondary hidden lg:inline">
+                  {formatRelativeTime(lastRefreshedAt)}
+                </span>
+              )}
+              <Tooltip content="Refresh package data from npm">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRefreshNpm();
+                  }}
+                  disabled={isRefreshing}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ArrowClockwise
+                    size={14}
+                    className={isRefreshing ? "animate-spin" : ""}
+                  />
+                  <span className="hidden sm:inline">
+                    {isRefreshing ? "Refreshing..." : "Refresh"}
+                  </span>
+                </button>
+              </Tooltip>
+            </div>
+
+            {/* Generate Slug Button - only show if no slug */}
+            {(!slug || slug.trim() === "") && (
+              <Tooltip content="Generate URL slug for detail page">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleGenerateSlug();
+                  }}
+                  disabled={isGeneratingSlug}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700 hover:bg-orange-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <LinkSimple size={14} className={isGeneratingSlug ? "animate-pulse" : ""} />
+                  <span className="hidden sm:inline">
+                    {isGeneratingSlug ? "..." : "Slug"}
+                  </span>
+                </button>
+              </Tooltip>
+            )}
           </div>
         </div>
 
@@ -4330,6 +4344,261 @@ function AiPromptSettingsPanel() {
   );
 }
 
+// SEO/SKILL.md Prompt Settings Panel component
+function SeoPromptSettingsPanel() {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedPrompt, setEditedPrompt] = useState("");
+  const [notes, setNotes] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+
+  const activePrompt = useQuery(api.aiSettings.getSeoActivePrompt);
+  const defaultPrompt = useQuery(api.aiSettings.getSeoDefaultPrompt);
+  const promptVersions = useQuery(api.aiSettings.getSeoPromptVersions);
+  const savePrompt = useMutation(api.aiSettings.saveSeoPromptVersion);
+  const activateVersion = useMutation(api.aiSettings.activateSeoPromptVersion);
+  const resetToDefault = useMutation(api.aiSettings.resetSeoToDefaultPrompt);
+
+  useEffect(() => {
+    if (activePrompt && !isEditing) {
+      setEditedPrompt(activePrompt.content);
+    }
+  }, [activePrompt, isEditing]);
+
+  const handleStartEditing = () => {
+    setEditedPrompt(activePrompt?.content || defaultPrompt || "");
+    setIsEditing(true);
+  };
+
+  const handleSavePrompt = async () => {
+    if (!editedPrompt.trim()) {
+      toast.error("Prompt cannot be empty");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await savePrompt({
+        content: editedPrompt,
+        notes: notes || undefined,
+      });
+      toast.success("SEO prompt saved");
+      setIsEditing(false);
+      setNotes("");
+    } catch (error) {
+      toast.error("Failed to save SEO prompt");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleActivateVersion = async (versionId: string) => {
+    try {
+      await activateVersion({
+        versionId: versionId as any,
+      });
+      toast.success("SEO prompt version activated");
+    } catch (error) {
+      toast.error("Failed to activate version");
+    }
+  };
+
+  const handleResetToDefault = async () => {
+    try {
+      await resetToDefault({});
+      toast.success("Reset to default SEO prompt");
+      setIsEditing(false);
+    } catch (error) {
+      toast.error("Failed to reset");
+    }
+  };
+
+  if (!activePrompt) return null;
+
+  return (
+    <div className="mb-4 rounded-lg border border-border bg-bg-card overflow-hidden">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Robot size={16} weight="bold" className="text-text-secondary" />
+          <span className="text-sm font-medium text-text-primary">
+            SEO + SKILL.md Prompt
+          </span>
+          {!activePrompt.isDefault && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+              Custom
+            </span>
+          )}
+        </div>
+        {isExpanded ? (
+          <CaretUp size={16} className="text-text-secondary" />
+        ) : (
+          <CaretDown size={16} className="text-text-secondary" />
+        )}
+      </button>
+
+      {isExpanded && (
+        <div className="p-4 border-t border-border space-y-4">
+          <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary">
+            <p>
+              View and customize the AI SEO content generation prompt. This prompt
+              generates value propositions, benefits, use cases, FAQs, and SKILL.md
+              files for each component. Uses placeholders like {"{{displayName}}"}, {"{{packageName}}"}, etc.
+            </p>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {!isEditing ? (
+              <>
+                <button
+                  onClick={handleStartEditing}
+                  className="px-3 py-1.5 text-xs rounded bg-button text-white hover:bg-button-hover"
+                >
+                  Edit Prompt
+                </button>
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className="px-3 py-1.5 text-xs rounded border border-border text-text-secondary hover:bg-bg-hover"
+                >
+                  {showHistory ? "Hide History" : "Version History"}
+                </button>
+                {!activePrompt.isDefault && (
+                  <button
+                    onClick={handleResetToDefault}
+                    className="px-3 py-1.5 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50"
+                  >
+                    Reset to Default
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={handleSavePrompt}
+                  disabled={isSaving}
+                  className="px-3 py-1.5 text-xs rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+                >
+                  {isSaving ? "Saving..." : "Save New Version"}
+                </button>
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="px-3 py-1.5 text-xs rounded border border-border text-text-secondary hover:bg-bg-hover"
+                >
+                  Cancel
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Placeholder Reference */}
+          <div className="p-2 rounded border border-border bg-bg-primary">
+            <p className="text-xs font-medium text-text-primary mb-1">Available Placeholders:</p>
+            <p className="text-xs text-text-secondary font-mono">
+              {"{{displayName}}"} {"{{packageName}}"} {"{{category}}"} {"{{tags}}"} {"{{shortDesc}}"} {"{{longDesc}}"} {"{{repoUrl}}"} {"{{installCmd}}"} {"{{npmUrl}}"} {"{{demoUrl}}"}
+            </p>
+          </div>
+
+          {/* Current prompt display or editor */}
+          {isEditing ? (
+            <div className="space-y-2">
+              <textarea
+                value={editedPrompt}
+                onChange={(e) => setEditedPrompt(e.target.value)}
+                rows={20}
+                className="w-full px-3 py-2 text-xs font-mono rounded border border-border bg-bg-primary text-text-primary resize-y"
+                placeholder="Enter your custom SEO prompt..."
+              />
+              <input
+                type="text"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Change notes (optional)"
+                className="w-full px-3 py-2 text-xs rounded border border-border bg-bg-primary text-text-primary"
+              />
+            </div>
+          ) : (
+            <div className="p-3 rounded-lg border border-border bg-bg-primary">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs text-text-secondary">
+                  {activePrompt.isDefault ? "Default Prompt" : "Custom Prompt"}
+                </span>
+                {activePrompt.createdAt && (
+                  <span className="text-xs text-text-secondary">
+                    Last updated:{" "}
+                    {new Date(activePrompt.createdAt).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+              <pre className="text-xs font-mono text-text-primary whitespace-pre-wrap max-h-64 overflow-y-auto">
+                {activePrompt.content}
+              </pre>
+            </div>
+          )}
+
+          {/* Version history */}
+          {showHistory && promptVersions && promptVersions.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-text-primary">
+                Version History
+              </h4>
+              <div className="max-h-64 overflow-y-auto space-y-2">
+                {promptVersions.map((version) => (
+                  <div
+                    key={version._id}
+                    className={`p-2 rounded border ${
+                      version.isActive
+                        ? "border-green-300 bg-green-50"
+                        : "border-border bg-bg-primary"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-text-secondary">
+                          {new Date(version.createdAt).toLocaleString()}
+                        </span>
+                        {version.isDefault && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                            Default
+                          </span>
+                        )}
+                        {version.isActive && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      {!version.isActive && (
+                        <button
+                          onClick={() => handleActivateVersion(version._id)}
+                          className="text-xs text-button hover:underline"
+                        >
+                          Restore
+                        </button>
+                      )}
+                    </div>
+                    {version.notes && (
+                      <p className="text-xs text-text-secondary mt-1">
+                        {version.notes}
+                      </p>
+                    )}
+                    <p className="text-xs text-text-secondary mt-1 truncate">
+                      {version.content.substring(0, 100)}...
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Deletion Management Panel component
 function DeletionManagementPanel() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -5765,19 +6034,6 @@ function AdminDashboard({
                                 </a>
                               </Tooltip>
                             )}
-                            {/* Refresh NPM data button with status - always visible */}
-                            <RefreshNpmButton
-                              packageId={pkg._id}
-                              packageName={pkg.name}
-                              lastRefreshedAt={pkg.lastRefreshedAt}
-                              refreshError={pkg.refreshError}
-                            />
-                            {/* Generate slug button - shown when package has no slug */}
-                            <GenerateSlugButton
-                              packageId={pkg._id}
-                              packageName={pkg.name}
-                              currentSlug={pkg.slug}
-                            />
                           </div>
                         </div>
                       </div>
@@ -5797,6 +6053,11 @@ function AdminDashboard({
                         convexVerified={pkg.convexVerified}
                         seoGenerationStatus={pkg.seoGenerationStatus}
                         npmDescription={pkg.description}
+                        hideThumbnailInCategory={pkg.hideThumbnailInCategory}
+                        thumbnailUrl={pkg.thumbnailUrl}
+                        lastRefreshedAt={pkg.lastRefreshedAt}
+                        refreshError={pkg.refreshError}
+                        slug={pkg.slug}
                       />
                     </div>
                   )}
@@ -5865,8 +6126,11 @@ function AdminDashboard({
           {/* AI Provider Settings */}
           <AiProviderSettingsPanel />
 
-          {/* AI Prompt Settings */}
+          {/* AI Review Prompt Settings */}
           <AiPromptSettingsPanel />
+
+          {/* SEO + SKILL.md Prompt Settings */}
+          <SeoPromptSettingsPanel />
 
           {/* Deletion Management */}
           <DeletionManagementPanel />

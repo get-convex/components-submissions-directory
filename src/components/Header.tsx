@@ -29,10 +29,7 @@ export default function Header() {
   // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (
-        userMenuRef.current &&
-        !userMenuRef.current.contains(e.target as Node)
-      ) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setUserMenuOpen(false);
       }
     };
@@ -46,7 +43,7 @@ export default function Header() {
         <div className="flex items-center h-[3.438rem] rounded-full bg-white/95 backdrop-blur-sm border border-border shadow-sm px-4">
           {/* Left: Logo + Nav links */}
           <div className="flex items-center gap-6">
-            <a href="/" className="flex items-center">
+            <a href="https://convex.dev/" className="flex items-center">
               <img
                 src="/components/convex-wordmark-black.svg"
                 alt="Convex"
@@ -58,14 +55,12 @@ export default function Header() {
             <nav className="hidden sm:flex items-center gap-5">
               <a
                 href={`${basePath}/`}
-                className="text-sm font-medium text-text-primary hover:text-text-secondary transition-colors"
-              >
+                className="text-sm font-medium text-text-primary hover:text-text-secondary transition-colors">
                 Directory
               </a>
               <a
                 href={`${basePath}/submissions`}
-                className="text-sm font-medium text-text-primary hover:text-text-secondary transition-colors"
-              >
+                className="text-sm font-medium text-text-primary hover:text-text-secondary transition-colors">
                 Submissions
               </a>
             </nav>
@@ -80,8 +75,7 @@ export default function Header() {
             <nav className="hidden sm:flex items-center gap-3">
               <a
                 href={`${basePath}/submit`}
-                className="text-sm font-medium text-text-primary hover:text-text-secondary transition-colors"
-              >
+                className="text-sm font-medium text-text-primary hover:text-text-secondary transition-colors">
                 Submit
               </a>
               <div className="w-px h-4 bg-border mx-1" />
@@ -90,8 +84,7 @@ export default function Header() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-1.5 rounded-full text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
-                title="Convex Home"
-              >
+                title="Convex Home">
                 <House size={16} />
               </a>
               <a
@@ -99,8 +92,7 @@ export default function Header() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-1.5 rounded-full text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
-                title="Documentation"
-              >
+                title="Documentation">
                 <FileTextIcon className="w-4 h-4" />
               </a>
               <a
@@ -108,8 +100,7 @@ export default function Header() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-1.5 rounded-full text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
-                title="GitHub"
-              >
+                title="GitHub">
                 <GithubLogo size={16} />
               </a>
               <a
@@ -117,8 +108,7 @@ export default function Header() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-1.5 rounded-full text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
-                title="Discord"
-              >
+                title="Discord">
                 <DiscordLogo size={16} />
               </a>
             </nav>
@@ -126,28 +116,21 @@ export default function Header() {
             {/* Mobile menu button */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="sm:hidden p-2 rounded-full text-text-primary hover:bg-bg-hover transition-colors"
-            >
+              className="sm:hidden p-2 rounded-full text-text-primary hover:bg-bg-hover transition-colors">
               <List size={20} />
             </button>
 
             {/* Auth loading */}
-            {authLoading && (
-              <div className="w-8 h-8 rounded-full bg-bg-hover animate-pulse" />
-            )}
+            {authLoading && <div className="w-8 h-8 rounded-full bg-bg-hover animate-pulse" />}
 
             {/* Not authenticated */}
             {!authLoading && !isAuthenticated && (
               <button
                 onClick={() => {
-                  localStorage.setItem(
-                    "authReturnPath",
-                    window.location.pathname
-                  );
+                  localStorage.setItem("authReturnPath", window.location.pathname);
                   signIn();
                 }}
-                className="px-4 py-1.5 rounded-full text-sm font-normal bg-button-dark text-white hover:bg-button-dark-hover transition-colors"
-              >
+                className="px-4 py-1.5 rounded-full text-sm font-normal bg-button-dark text-white hover:bg-button-dark-hover transition-colors">
                 Log in
               </button>
             )}
@@ -157,8 +140,7 @@ export default function Header() {
               <div ref={userMenuRef} className="relative">
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-1 p-1 rounded-full hover:bg-bg-hover transition-colors"
-                >
+                  className="flex items-center gap-1 p-1 rounded-full hover:bg-bg-hover transition-colors">
                   <div className="w-7 h-7 rounded-full bg-button text-white flex items-center justify-center text-xs font-medium">
                     {user.email?.[0]?.toUpperCase() || "U"}
                   </div>
@@ -173,8 +155,7 @@ export default function Header() {
                     <a
                       href={`${basePath}/profile`}
                       onClick={() => setUserMenuOpen(false)}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
-                    >
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
                       <User size={16} />
                       My Submissions
                     </a>
@@ -183,8 +164,7 @@ export default function Header() {
                         setUserMenuOpen(false);
                         signOut();
                       }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
-                    >
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
                       <SignOut size={16} />
                       Sign Out
                     </button>
@@ -202,20 +182,17 @@ export default function Header() {
           <nav className="bg-white/95 backdrop-blur-sm border border-border rounded-2xl shadow-sm p-4 flex flex-col gap-2">
             <a
               href={`${basePath}/`}
-              className="px-3 py-2 text-sm font-medium text-text-primary hover:bg-bg-hover rounded-lg transition-colors"
-            >
+              className="px-3 py-2 text-sm font-medium text-text-primary hover:bg-bg-hover rounded-lg transition-colors">
               Directory
             </a>
             <a
               href={`${basePath}/submissions`}
-              className="px-3 py-2 text-sm font-medium text-text-primary hover:bg-bg-hover rounded-lg transition-colors"
-            >
+              className="px-3 py-2 text-sm font-medium text-text-primary hover:bg-bg-hover rounded-lg transition-colors">
               Submissions
             </a>
             <a
               href={`${basePath}/submit`}
-              className="px-3 py-2 text-sm font-medium text-text-primary hover:bg-bg-hover rounded-lg transition-colors"
-            >
+              className="px-3 py-2 text-sm font-medium text-text-primary hover:bg-bg-hover rounded-lg transition-colors">
               Submit
             </a>
             <div className="flex items-center gap-3 px-3 pt-3 border-t border-border mt-2">
@@ -223,32 +200,28 @@ export default function Header() {
                 href="https://convex.dev/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 rounded-full text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
-              >
+                className="p-2 rounded-full text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors">
                 <House size={16} />
               </a>
               <a
                 href="https://docs.convex.dev/components"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 rounded-full text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
-              >
+                className="p-2 rounded-full text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors">
                 <FileTextIcon className="w-4 h-4" />
               </a>
               <a
                 href="https://github.com/get-convex"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 rounded-full text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
-              >
+                className="p-2 rounded-full text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors">
                 <GithubLogo size={16} />
               </a>
               <a
                 href="https://discord.gg/convex"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 rounded-full text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
-              >
+                className="p-2 rounded-full text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors">
                 <DiscordLogo size={16} />
               </a>
             </div>

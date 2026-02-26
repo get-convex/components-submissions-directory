@@ -385,6 +385,18 @@ const applicationTables = {
   })
     .index("by_active", ["isActive"])
     .index("by_created_at", ["createdAt"]),
+
+  // SEO/SKILL.md prompt versions (append-only for history)
+  seoPromptVersions: defineTable({
+    content: v.string(),
+    isActive: v.boolean(),
+    isDefault: v.boolean(),
+    createdAt: v.number(),
+    createdBy: v.optional(v.string()),
+    notes: v.optional(v.string()),
+  })
+    .index("by_active", ["isActive"])
+    .index("by_created_at", ["createdAt"]),
 };
 
 export default defineSchema({

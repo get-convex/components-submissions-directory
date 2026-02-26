@@ -9,13 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- SEO Prompt Settings panel in Admin Settings (2026-02-25)
+  - View and customize the AI SEO/SKILL.md generation prompt
+  - Edit prompt with save as new version (includes change notes)
+  - Version history with timestamps and restore functionality
+  - Reset to default prompt option
+  - Custom prompts stored in database with version tracking
+  - Uses placeholders like `{{displayName}}`, `{{packageName}}` for dynamic content
+  - New `seoPromptVersions` table in schema for version tracking
+
+- Multi-provider AI support in seoContent.ts (2026-02-25)
+  - Support for Anthropic Claude, OpenAI GPT, and Google Gemini
+  - Provider selection prioritizes admin settings, then environment variables
+  - Custom SEO prompt support with fallback to default template
+  - New `callAiProvider` helper function for unified provider calls
+
+- Moved Refresh and Generate Slug buttons to InlineActions component (2026-02-25)
+  - Refresh npm data button now in Actions row of expanded package view
+  - Generate Slug button in Actions row (only shows when package has no slug)
+  - Removed standalone button components from package card row
+  - Shows last refresh time and any refresh errors
+
 - Admin Actions row in expanded package view (2026-02-25)
   - New "Actions" row above Status and Visibility rows in InlineActions panel
   - Convex Verified toggle button with teal styling (fill icon when verified)
   - Regenerate SEO + Skill button with loading spinner and completion indicator
   - Combined Auto-fill button that fills both author from GitHub and description from npm
+  - Hide Thumbnail toggle (orange, only shows when thumbnail exists) for hiding in category but showing in Featured
   - Auto-fill runs both operations in parallel and reports what was filled in toast
   - All buttons use Phosphor icons and match existing Admin theme styling
+  - Added useEffect hooks in ComponentDetailsEditor to sync author/avatar/verified fields from backend updates
 
 - Hide from Submissions page feature for admin control (2026-02-25)
   - New `hideFromSubmissions` field on packages schema

@@ -32,13 +32,27 @@
 
 ## Recent updates
 
+- [x] SEO Prompt Versioning and Multi-Provider AI support (2026-02-25)
+  - Added `seoPromptVersions` table to schema for SEO prompt version history
+  - Added SEO prompt queries/mutations to `convex/aiSettings.ts`: `getSeoDefaultPrompt`, `getSeoActivePrompt`, `getSeoPromptVersions`, `saveSeoPromptVersion`, `activateSeoPromptVersion`, `resetSeoToDefaultPrompt`
+  - Added `DEFAULT_SEO_PROMPT` constant with placeholder substitution (e.g., `{{displayName}}`, `{{packageName}}`)
+  - Updated `convex/seoContent.ts` to use custom prompt from database and support multi-provider (Anthropic, OpenAI, Gemini)
+  - Added `callAiProvider` helper function for unified API calls across providers
+  - Added `SeoPromptSettingsPanel` component to Admin Settings view
+  - Panel includes: edit mode, version history, notes, restore, reset to default
+  - Moved Refresh npm data and Generate Slug buttons from package card row to InlineActions Actions row
+  - Removed standalone `RefreshNpmButton` and `GenerateSlugButton` components
+  - Auto-refresh settings verified to update all package metadata fields (File Count, Weekly Downloads, etc.)
+
 - [x] Added Actions row to Admin InlineActions panel (2026-02-25)
   - New "Actions" row above Status and Visibility rows in expanded package view
   - Convex Verified toggle button (teal, shows fill when verified)
   - Regenerate SEO + Skill button (shows spinner during generation, green when completed)
   - Combined Auto-fill button (fills author from GitHub and description from npm in parallel)
+  - Hide Thumbnail toggle (orange, only shows when thumbnail exists, hides in category but shows in Featured)
   - Auto-fill shows what was filled in success toast
   - All buttons match existing Admin theme with Phosphor icons
+  - Added useEffect hooks for author/avatar/verified field sync in ComponentDetailsEditor
   - PRD: `prds/admin-actions-row.md`
 
 - [x] Added hide from submissions page feature for admin control (2026-02-25)

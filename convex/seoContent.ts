@@ -1,13 +1,76 @@
 "use node";
 
 // AI-generated SEO/AEO/GEO content for component detail pages.
-// Uses Anthropic Claude to generate structured content from submitted component data.
+// Uses configurable AI providers (Anthropic, OpenAI, Gemini) to generate structured content.
 // Mutations live in seoContentDb.ts (mutations cannot be in "use node" files).
 
 import { v } from "convex/values";
 import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
+
+// Helper to call AI provider with unified interface
+async function callAiProvider(
+  provider: "anthropic" | "openai" | "gemini",
+  apiKey: string,
+  model: string,
+  prompt: string,
+): Promise<string> {
+  if (provider === "anthropic") {
+    const client = new Anthropic({ apiKey });
+    const response = await client.messages.create({
+      model,
+      max_tokens: 2000,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const textBlock = response.content.find((b) => b.type === "text");
+    if (!textBlock || textBlock.type !== "text") {
+      throw new Error("No text content in Anthropic response");
+    }
+    return textBlock.text;
+  }
+
+  if (provider === "openai") {
+    const client = new OpenAI({ apiKey });
+    const response = await client.chat.completions.create({
+      model,
+      max_tokens: 2000,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error("No content in OpenAI response");
+    }
+    return content;
+  }
+
+  if (provider === "gemini") {
+    // Google Gemini API
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 2000 },
+        }),
+      },
+    );
+    if (!response.ok) {
+      throw new Error(`Gemini API error: ${response.statusText}`);
+    }
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      throw new Error("No text content in Gemini response");
+    }
+    return text;
+  }
+
+  throw new Error(`Unknown provider: ${provider}`);
+}
 
 // ============ SEO CONTENT GENERATION ============
 
@@ -116,7 +179,7 @@ function buildSkillMd(pkg: any, seoContent: SeoContentResponse): string {
   return lines.join("\n");
 }
 
-// Internal action: Generate SEO content for a package using Claude
+// Internal action: Generate SEO content for a package using configured AI provider
 export const generateSeoContent = internalAction({
   args: { packageId: v.id("packages") },
   returns: v.null(),
@@ -137,30 +200,67 @@ export const generateSeoContent = internalAction({
         throw new Error("Package not found");
       }
 
-      const anthropic = new Anthropic();
+      // Get custom prompt from database (empty string means use default)
+      const customPromptTemplate = await ctx.runQuery(
+        internal.aiSettings._getSeoActivePromptContent,
+      );
 
-      // Build the prompt with all available component data
-      const prompt = buildSeoPrompt(pkg);
+      // Build the prompt with package data (using custom template or default)
+      const prompt = buildSeoPrompt(pkg, customPromptTemplate);
 
-      const message = await anthropic.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 2000,
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
-      });
+      // Get custom provider settings from database
+      const customProvider = await ctx.runQuery(
+        internal.aiSettings._getActiveProviderSettings,
+      );
 
-      // Extract text content from response
-      const textBlock = message.content.find((b) => b.type === "text");
-      if (!textBlock || textBlock.type !== "text") {
-        throw new Error("No text content in AI response");
+      let aiResponseText: string;
+
+      if (customProvider) {
+        // Use custom provider from admin settings
+        aiResponseText = await callAiProvider(
+          customProvider.provider,
+          customProvider.apiKey,
+          customProvider.model,
+          prompt,
+        );
+      } else {
+        // Fall back to environment variables
+        const anthropicKey = process.env.ANTHROPIC_API_KEY;
+        const openaiKey = process.env.CONVEX_OPENAI_API_KEY;
+
+        if (anthropicKey) {
+          const anthropic = new Anthropic({ apiKey: anthropicKey });
+          const message = await anthropic.messages.create({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 2000,
+            messages: [{ role: "user", content: prompt }],
+          });
+          const textBlock = message.content.find((b) => b.type === "text");
+          if (!textBlock || textBlock.type !== "text") {
+            throw new Error("No text content in AI response");
+          }
+          aiResponseText = textBlock.text;
+        } else if (openaiKey) {
+          const openai = new OpenAI({ apiKey: openaiKey });
+          const response = await openai.chat.completions.create({
+            model: "gpt-4o",
+            max_tokens: 2000,
+            messages: [{ role: "user", content: prompt }],
+          });
+          const content = response.choices[0]?.message?.content;
+          if (!content) {
+            throw new Error("No content in OpenAI response");
+          }
+          aiResponseText = content;
+        } else {
+          throw new Error(
+            "No AI provider configured. Set ANTHROPIC_API_KEY or CONVEX_OPENAI_API_KEY, or configure a provider in admin settings.",
+          );
+        }
       }
 
       // Parse JSON from response (strip markdown fences if present)
-      let jsonStr = textBlock.text.trim();
+      let jsonStr = aiResponseText.trim();
       if (jsonStr.startsWith("```")) {
         jsonStr = jsonStr
           .replace(/^```(?:json)?\n?/, "")
@@ -232,30 +332,20 @@ export const regenerateSeoContent = action({
 
 // ============ PROMPT BUILDER ============
 
-function buildSeoPrompt(pkg: any): string {
-  const displayName = pkg.componentName || pkg.name || "Unknown Component";
-  const category = pkg.category || "general";
-  const tags = pkg.tags?.join(", ") || "";
-  const shortDesc = pkg.shortDescription || pkg.description || "";
-  const longDesc = pkg.longDescription || "";
-  const repoUrl = pkg.repositoryUrl || "";
-  const installCmd = pkg.installCommand || `npm install ${pkg.name}`;
-  const npmUrl = pkg.npmUrl || "";
-  const demoUrl = pkg.demoUrl || "";
-
-  return `You are writing structured content for a Convex developer component page. This content will be used for SEO (Google), AEO (answer engine optimization for AI search), and GEO (generative engine optimization for LLMs).
+// Default SEO prompt template (used when no custom prompt is set)
+const DEFAULT_SEO_PROMPT_TEMPLATE = `You are writing structured content for a Convex developer component page. This content will be used for SEO (Google), AEO (answer engine optimization for AI search), and GEO (generative engine optimization for LLMs).
 
 COMPONENT DATA:
-- Display name: ${displayName}
-- npm package: ${pkg.name}
-- Category: ${category}
-- Tags: ${tags}
-- Short description: ${shortDesc}
-- Full description: ${longDesc}
-- Repository: ${repoUrl}
-- Install command: ${installCmd}
-- npm URL: ${npmUrl}
-- Demo URL: ${demoUrl}
+- Display name: {{displayName}}
+- npm package: {{packageName}}
+- Category: {{category}}
+- Tags: {{tags}}
+- Short description: {{shortDesc}}
+- Full description: {{longDesc}}
+- Repository: {{repoUrl}}
+- Install command: {{installCmd}}
+- npm URL: {{npmUrl}}
+- Demo URL: {{demoUrl}}
 
 Generate the following as valid JSON (no markdown fences, just raw JSON):
 
@@ -282,6 +372,36 @@ Rules:
 - No em dashes
 - No emojis
 - Output valid JSON only`;
+
+// Build SEO prompt by replacing placeholders with package data
+function buildSeoPrompt(pkg: any, customTemplate?: string): string {
+  const displayName = pkg.componentName || pkg.name || "Unknown Component";
+  const category = pkg.category || "general";
+  const tags = pkg.tags?.join(", ") || "";
+  const shortDesc = pkg.shortDescription || pkg.description || "";
+  const longDesc = pkg.longDescription || "";
+  const repoUrl = pkg.repositoryUrl || "";
+  const installCmd = pkg.installCommand || `npm install ${pkg.name}`;
+  const npmUrl = pkg.npmUrl || "";
+  const demoUrl = pkg.demoUrl || "";
+
+  // Use custom template if provided and not empty, otherwise use default
+  const template = customTemplate && customTemplate.trim() 
+    ? customTemplate 
+    : DEFAULT_SEO_PROMPT_TEMPLATE;
+
+  // Replace placeholders with actual values
+  return template
+    .replace(/\{\{displayName\}\}/g, displayName)
+    .replace(/\{\{packageName\}\}/g, pkg.name || "")
+    .replace(/\{\{category\}\}/g, category)
+    .replace(/\{\{tags\}\}/g, tags)
+    .replace(/\{\{shortDesc\}\}/g, shortDesc)
+    .replace(/\{\{longDesc\}\}/g, longDesc)
+    .replace(/\{\{repoUrl\}\}/g, repoUrl)
+    .replace(/\{\{installCmd\}\}/g, installCmd)
+    .replace(/\{\{npmUrl\}\}/g, npmUrl)
+    .replace(/\{\{demoUrl\}\}/g, demoUrl);
 }
 
 // Build consistent resource links from package data
