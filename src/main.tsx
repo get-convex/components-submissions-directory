@@ -4,6 +4,7 @@ import { ConvexReactClient } from "convex/react";
 import { ConvexAuthProvider, useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
 import "./index.css";
+// Build hash refresh: 2026-02-27
 import Directory from "./pages/Directory";
 import Submit from "./pages/Submit";
 import SubmitForm from "./pages/SubmitForm";
