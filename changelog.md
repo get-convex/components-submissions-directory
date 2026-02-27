@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Tremendous Rewards Integration PRD (2026-02-27)
+  - Full product requirements document at `prds/tremendous-rewards-integration.md`
+  - Defines Tremendous API integration for sending rewards to component submitters
+  - Send Reward button spec for Admin Actions row (same row as Convex Verified, Regenerate SEO)
+  - New `payments` table schema with order tracking and status
+  - Package reward fields: `rewardStatus`, `rewardTotalAmount`
+  - PaymentBadge in collapsed row header showing Paid/Failed status
+  - RewardSettingsPanel with auto-send toggle and default amount config
+  - Auto-send on approved + visible (optional admin setting)
+  - Links to Tremendous API docs, Node SDK, and sandbox testing
+
 ### Changed
 
 - Applied Convex return validator best practices to internal functions (2026-02-26)

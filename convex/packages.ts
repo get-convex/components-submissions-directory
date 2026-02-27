@@ -648,7 +648,7 @@ export const submitPackage = action({
     let authorAvatar: string | undefined;
     if (parsedRepo) {
       authorUsername = parsedRepo.owner;
-      authorAvatar = `https://github.com/${parsedRepo.owner}.png`;
+      authorAvatar = `https://avatars.githubusercontent.com/${parsedRepo.owner}`;
     }
 
     // Insert into database with submitter info and new directory fields
@@ -3898,7 +3898,7 @@ export const autoFillAuthorFromRepo = mutation({
 
     const owner = match[1];
     const authorUsername = owner;
-    const authorAvatar = `https://github.com/${owner}.png`;
+    const authorAvatar = `https://avatars.githubusercontent.com/${owner}`;
 
     // Always overwrite when admin clicks auto-fill
     await ctx.db.patch("packages", args.packageId, { authorUsername, authorAvatar });
@@ -4581,5 +4581,44 @@ export const generateMissingSlugs = mutation({
     }
 
     return { generated, skipped };
+  },
+});
+
+// ============ AVATAR URL MIGRATION ============
+
+// Admin mutation: Migrate old GitHub avatar URLs to the new format
+// Old: https://github.com/{username}.png
+// New: https://avatars.githubusercontent.com/{username}
+export const migrateAvatarUrls = mutation({
+  args: {},
+  returns: v.object({
+    updated: v.number(),
+    skipped: v.number(),
+  }),
+  handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
+
+    const packages = await ctx.db.query("packages").collect();
+
+    let updated = 0;
+    let skipped = 0;
+
+    for (const pkg of packages) {
+      const oldPattern = /^https:\/\/github\.com\/([^/]+)\.png$/;
+      
+      if (pkg.authorAvatar && oldPattern.test(pkg.authorAvatar)) {
+        const match = pkg.authorAvatar.match(oldPattern);
+        if (match) {
+          const username = match[1];
+          const newUrl = `https://avatars.githubusercontent.com/${username}`;
+          await ctx.db.patch(pkg._id, { authorAvatar: newUrl });
+          updated++;
+        }
+      } else {
+        skipped++;
+      }
+    }
+
+    return { updated, skipped };
   },
 });

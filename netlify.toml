@@ -12,8 +12,32 @@
   status = 301
   force = true
 
+# ============ SPA Reserved Routes ============
+# These MUST come FIRST to prevent markdown proxy rules from capturing them
+# Netlify's :param.md pattern is too greedy and matches paths without .md extension
+
+[[redirects]]
+  from = "/components/submissions/*"
+  to = "/components/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/components/submit"
+  to = "/components/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/components/profile"
+  to = "/components/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/components/callback"
+  to = "/components/index.html"
+  status = 200
+
 # ============ LLMs.txt and Markdown Proxies ============
-# These MUST come before the SPA fallback to intercept .md and /llms.txt requests
+# These intercept .md and /llms.txt requests for component documentation
 
 # Main directory llms.txt
 [[redirects]]
@@ -51,7 +75,7 @@
   to = "https://third-hedgehog-429.convex.site/api/markdown?slug=:scope/:name"
   status = 200
 
-# ============ SPA Routes ============
+# ============ SPA Fallback ============
 
 # Serve index.html for /components (force prevents Netlify directory trailing-slash loop)
 [[redirects]]

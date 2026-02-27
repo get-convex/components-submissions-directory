@@ -416,6 +416,7 @@ Product requirements documents:
 - `authfix-2026-02-23.md`: Production OAuth fix documentation including GitHub OAuth callback URL configuration, JWT key generation, and admin access control via `@convex.dev` email domain
 - `featured-sort-order.md`: Featured components sort order feature for admin-controlled ordering independent of directory dropdown sort
 - `admin-actions-row.md`: Admin Actions row feature moving Convex Verified, Regenerate SEO, and Auto-fill buttons to InlineActions panel above Status row
+- `tremendous-rewards-integration.md`: Tremendous API integration for sending rewards to component submitters, including SDK setup, environment variables, schema changes, and Admin UI specs
 
 ### `.cursor/rules/`
 

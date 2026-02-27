@@ -32,6 +32,15 @@
 
 ## Recent updates
 
+- [x] Created Tremendous Rewards Integration PRD (2026-02-27)
+  - Full PRD at `prds/tremendous-rewards-integration.md`
+  - Documents Tremendous API setup, SDK usage, and environment variables
+  - Defines new `payments` table schema and package reward fields
+  - Specifies Send Reward button placement in Admin Actions row
+  - Includes PaymentBadge, RewardSettingsPanel, and auto-send feature specs
+  - Links to official Tremendous docs: API reference, Node SDK, sandbox testing
+  - Ready for implementation
+
 - [x] Applied Convex return validator best practices to internal functions (2026-02-26)
   - Removed redundant `returns: v.null()` from 5 internal mutations (`_saveSeoContent`, `_updateSeoStatus`, `_setSeoError`, `_updateThumbnailJob`, `_saveGeneratedThumbnail`)
   - Removed `returns: v.union(v.null(), v.any())` from 2 internal queries (`_getPackage`, `_getPackageByName`)
