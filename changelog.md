@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- AI Review Results panel collapsed by default in Admin dashboard (2026-02-26)
+  - Entire panel now collapsed by default, showing only status icon, label, and date
+  - Single toggle expands/collapses all content (summary, error, and criteria)
+  - Reduces vertical space in package rows
+  - Copy button still accessible on collapsed header row
+
 - Removed user visibility controls from Profile page (2026-02-26)
   - Hide, Show, Delete, and Cancel Deletion buttons removed from user profile
   - Users must now contact admin via "Send Request" to manage component visibility

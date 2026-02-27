@@ -1621,10 +1621,13 @@ ${aiReviewError ? `\n### Error\n${aiReviewError}` : ""}
     );
 
   return (
-    <div className="mt-3 p-3 rounded-lg bg-bg-hover border border-border">
-      <div className="flex items-start justify-between gap-2 mb-2">
+    <div className="mt-3">
+      {/* Collapsed header row */}
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between gap-2 p-2 rounded-lg bg-bg-hover border border-border hover:bg-bg-primary transition-colors text-left"
+      >
         <div className="flex items-center gap-2">
-          {/* Pass/Fail icon at start */}
           {statusIcon}
           <span className="text-sm font-medium text-text-primary">
             AI Review Results
@@ -1636,73 +1639,76 @@ ${aiReviewError ? `\n### Error\n${aiReviewError}` : ""}
           )}
         </div>
         <div className="flex items-center gap-1">
-          {/* Copy button */}
           <Tooltip content={copied ? "Copied!" : "Copy results for Notion"}>
-            <button
-              onClick={handleCopyResults}
-              className="p-1 text-text-secondary hover:text-text-primary transition-colors rounded hover:bg-bg-primary"
+            <span
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCopyResults();
+              }}
+              className="p-1 text-text-secondary hover:text-text-primary transition-colors rounded hover:bg-bg-hover cursor-pointer"
             >
               <Copy size={16} weight={copied ? "fill" : "regular"} />
-            </button>
+            </span>
           </Tooltip>
-          {/* Expand/collapse button */}
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="text-text-secondary hover:text-text-primary transition-colors"
-          >
+          <span className="text-text-secondary">
             {isExpanded ? <CaretUp size={16} /> : <CaretDown size={16} />}
-          </button>
+          </span>
         </div>
-      </div>
+      </button>
 
-      {/* Summary */}
-      {aiReviewSummary && (
-        <div className="text-sm text-text-secondary mb-2 whitespace-pre-wrap">
-          {aiReviewSummary}
-        </div>
-      )}
-
-      {/* Error */}
-      {aiReviewError && (
-        <div className="p-2 rounded bg-red-50 border border-red-200 text-sm text-red-600 mb-2">
-          <strong>Error:</strong> {aiReviewError}
-        </div>
-      )}
-
-      {/* Expanded criteria */}
-      {isExpanded && aiReviewCriteria && aiReviewCriteria.length > 0 && (
-        <div className="mt-3 space-y-2">
-          <div className="text-xs font-medium text-text-secondary mb-2">
-            Criteria Checklist
-          </div>
-          {aiReviewCriteria.map((criterion, idx) => (
-            <div
-              key={idx}
-              className="flex items-start gap-2 p-2 rounded bg-bg-primary"
-            >
-              {criterion.passed ? (
-                <CheckCircle
-                  size={14}
-                  weight="bold"
-                  className="text-green-600 shrink-0 mt-0.5"
-                />
-              ) : (
-                <XCircle
-                  size={14}
-                  weight="bold"
-                  className="text-red-600 shrink-0 mt-0.5"
-                />
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium text-text-primary">
-                  {criterion.name}
-                </div>
-                <div className="text-xs text-text-secondary mt-0.5">
-                  {criterion.notes}
-                </div>
-              </div>
+      {/* Expanded content */}
+      {isExpanded && (
+        <div className="mt-2 p-3 rounded-lg bg-bg-hover border border-border">
+          {/* Summary */}
+          {aiReviewSummary && (
+            <div className="text-sm text-text-secondary mb-2 whitespace-pre-wrap">
+              {aiReviewSummary}
             </div>
-          ))}
+          )}
+
+          {/* Error */}
+          {aiReviewError && (
+            <div className="p-2 rounded bg-red-50 border border-red-200 text-sm text-red-600 mb-2">
+              <strong>Error:</strong> {aiReviewError}
+            </div>
+          )}
+
+          {/* Criteria checklist */}
+          {aiReviewCriteria && aiReviewCriteria.length > 0 && (
+            <div className="mt-3 space-y-2">
+              <div className="text-xs font-medium text-text-secondary mb-2">
+                Criteria Checklist
+              </div>
+              {aiReviewCriteria.map((criterion, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-start gap-2 p-2 rounded bg-bg-primary"
+                >
+                  {criterion.passed ? (
+                    <CheckCircle
+                      size={14}
+                      weight="bold"
+                      className="text-green-600 shrink-0 mt-0.5"
+                    />
+                  ) : (
+                    <XCircle
+                      size={14}
+                      weight="bold"
+                      className="text-red-600 shrink-0 mt-0.5"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-medium text-text-primary">
+                      {criterion.name}
+                    </div>
+                    <div className="text-xs text-text-secondary mt-0.5">
+                      {criterion.notes}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

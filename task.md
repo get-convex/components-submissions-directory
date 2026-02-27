@@ -32,6 +32,13 @@
 
 ## Recent updates
 
+- [x] AI Review Results panel collapsed by default in Admin dashboard (2026-02-26)
+  - Entire panel now collapsed by default, showing only status icon, label, and date
+  - Single toggle expands/collapses all content (summary, error, and criteria)
+  - Removed nested toggle (previously had outer panel + inner criteria toggle)
+  - Copy button accessible on collapsed header row via stopPropagation
+  - Reduces vertical space in admin package rows
+
 - [x] Removed user visibility controls from Profile page (2026-02-26)
   - Removed Hide, Show, Delete, and Cancel Deletion buttons from user profile
   - Users must contact admin via "Send Request" to manage component visibility
