@@ -32,20 +32,6 @@
 
 ## Recent updates
 
-- [x] Applied Convex return validator best practices to internal functions (2026-02-26)
-  - Removed redundant `returns: v.null()` from 5 internal mutations (`_saveSeoContent`, `_updateSeoStatus`, `_setSeoError`, `_updateThumbnailJob`, `_saveGeneratedThumbnail`)
-  - Removed `returns: v.union(v.null(), v.any())` from 2 internal queries (`_getPackage`, `_getPackageByName`)
-  - Fixed `ctx.db.patch` API bugs in `seoContentDb.ts` (was incorrectly passing table name as first argument)
-  - Fixed `ctx.db.get` API bug in `packages.ts` (was incorrectly passing table name before ID)
-  - Added `.cursor/skills/convex-return-validators/SKILL.md` for future reference
-  - No behavioral changes; TypeScript inference handles return types for internal functions
-
-- [x] Fixed Netlify proxy redirects for LLMs.txt and Markdown endpoints (2026-02-26)
-  - Added `force = true` to all 6 proxy redirect rules
-  - Changed Convex URL from dev (`third-hedgehog-429`) to production (`giant-grouse-674`)
-  - Fixes 404 errors on `/components/:slug.md` and `/components/:slug/llms.txt`
-  - SPA fallback was intercepting requests before proxy rules without `force = true`
-
 - [x] AI Review Results panel collapsed by default in Admin dashboard (2026-02-26)
   - Entire panel now collapsed by default, showing only status icon, label, and date
   - Single toggle expands/collapses all content (summary, error, and criteria)
