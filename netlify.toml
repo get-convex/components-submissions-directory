@@ -13,46 +13,39 @@
   force = true
 
 # ============ LLMs.txt and Markdown Proxies ============
-# These proxy to Convex HTTP endpoints for AI agent discovery
-# Note: No force=true on multi-segment patterns to allow static files to be served
+# These MUST come before the SPA fallback to intercept .md and /llms.txt requests
 
-# Main directory llms.txt (exact match)
+# Main directory llms.txt
 [[redirects]]
   from = "/components/llms.txt"
   to = "https://giant-grouse-674.convex.site/api/llms.txt"
   status = 200
-  force = true
 
-# Main directory markdown (exact match)
+# Main directory markdown
 [[redirects]]
   from = "/components.md"
   to = "https://giant-grouse-674.convex.site/api/markdown-index"
   status = 200
-  force = true
 
-# Per-component llms.txt (single segment like "agent")
+# Per-component llms.txt (single segment slug like "agent")
 [[redirects]]
   from = "/components/:slug/llms.txt"
   to = "https://giant-grouse-674.convex.site/api/component-llms?slug=:slug"
   status = 200
-  force = true
 
-# Per-component markdown (single segment like "agent.md")
+# Per-component markdown (single segment slug)
 [[redirects]]
   from = "/components/:slug.md"
   to = "https://giant-grouse-674.convex.site/api/markdown?slug=:slug"
   status = 200
-  force = true
 
-# Scoped packages llms.txt (two segments like "@scope/name/llms.txt")
-# No force=true - only triggers if no static file exists at this path
+# Scoped packages llms.txt (two segment slug like "gilhrpenner/name")
 [[redirects]]
   from = "/components/:scope/:name/llms.txt"
   to = "https://giant-grouse-674.convex.site/api/component-llms?slug=:scope/:name"
   status = 200
 
-# Scoped packages markdown (two segments like "@scope/name.md")
-# No force=true - only triggers if no static file exists at this path
+# Scoped packages markdown
 [[redirects]]
   from = "/components/:scope/:name.md"
   to = "https://giant-grouse-674.convex.site/api/markdown?slug=:scope/:name"
@@ -67,8 +60,7 @@
   status = 200
   force = true
 
-# SPA fallback - only for paths that don't match real files
-# Without force=true, real files (assets, fonts) are served directly
+# SPA fallback for client-side routes (real files like assets/fonts are served directly)
 [[redirects]]
   from = "/components/*"
   to = "/components/index.html"
