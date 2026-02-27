@@ -12,7 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Netlify SPA routing broken by greedy markdown proxy rules (2026-02-27)
   - Routes like `/components/submissions/admin` and `/components/browser-use-convex-component` were returning 404 with markdown content
   - Root cause: Netlify redirect patterns `:slug.md` and `:scope/:name.md` matched paths without `.md` extension
-  - Removed per-component markdown and llms.txt proxy rules that were capturing SPA routes
+  - Replaced named-parameter markdown/llms redirects with explicit splat suffix rules:
+    - `/components/*.md` -> `/api/markdown?slug=:splat`
+    - `/components/*/llms.txt` -> `/api/component-llms?slug=:splat`
   - Main `/components/llms.txt` and `/components.md` routes still work
   - All SPA client-side routes now correctly serve index.html
 

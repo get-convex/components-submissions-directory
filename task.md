@@ -34,7 +34,9 @@
 
 - [x] Fixed Netlify SPA routing and GitHub avatar URLs (2026-02-27)
   - Fixed routes like `/components/submissions/admin` returning 404 markdown
-  - Removed per-component `.md` and `llms.txt` proxy rules that captured SPA routes
+  - Replaced greedy named-parameter redirect rules with explicit splat suffix rules:
+    - `/components/*.md` for markdown
+    - `/components/*/llms.txt` for per-component llms
   - Changed avatar URL format to `https://avatars.githubusercontent.com/{username}` (more reliable CDN)
   - Added `migrateAvatarUrls` admin mutation to fix existing database records
   - Main `/components/llms.txt` and `/components.md` still work

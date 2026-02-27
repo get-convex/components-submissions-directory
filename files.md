@@ -48,9 +48,9 @@ Netlify deployment configuration. Sets build command (`npm run build`), publish 
 - Main LLMs.txt and Markdown proxies to Convex HTTP endpoints:
   - `/components/llms.txt` -> `/api/llms.txt`
   - `/components.md` -> `/api/markdown-index`
+  - `/components/*.md` -> `/api/markdown?slug=:splat` (single and scoped slugs)
+  - `/components/*/llms.txt` -> `/api/component-llms?slug=:splat` (single and scoped slugs)
 - `/components` and `/components/*` fall back to `/index.html` for SPA routing (200)
-
-Note: Per-component `.md` and `llms.txt` routes removed because Netlify's `:slug.md` pattern incorrectly captured SPA routes without `.md` extension. Access per-component docs directly via Convex API: `https://third-hedgehog-429.convex.site/api/markdown?slug=<slug>`
 
 Environment variables must be set in Netlify Dashboard:
 - `VITE_CONVEX_URL`: Convex deployment URL

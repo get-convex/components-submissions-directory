@@ -12,8 +12,9 @@
   status = 301
   force = true
 
-# ============ LLMs.txt Proxies ============
-# These must use explicit file extensions to avoid capturing SPA routes
+# ============ LLMs.txt + Markdown Proxies ============
+# Use splat patterns with explicit suffixes so only true .md/llms.txt
+# paths are proxied and SPA routes stay untouched.
 
 # Main directory llms.txt
 [[redirects]]
@@ -25,6 +26,18 @@
 [[redirects]]
   from = "/components.md"
   to = "https://third-hedgehog-429.convex.site/api/markdown-index"
+  status = 200
+
+# Per-component llms.txt (supports single and scoped slugs)
+[[redirects]]
+  from = "/components/*/llms.txt"
+  to = "https://third-hedgehog-429.convex.site/api/component-llms?slug=:splat"
+  status = 200
+
+# Per-component markdown (supports single and scoped slugs)
+[[redirects]]
+  from = "/components/*.md"
+  to = "https://third-hedgehog-429.convex.site/api/markdown?slug=:splat"
   status = 200
 
 # ============ SPA Routes ============
