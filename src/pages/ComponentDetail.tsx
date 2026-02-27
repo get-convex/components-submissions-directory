@@ -24,6 +24,7 @@ import {
   ClipboardIcon,
   EyeOpenIcon,
 } from "@radix-ui/react-icons";
+import { FileArrowDown } from "@phosphor-icons/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -377,6 +378,19 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
     } catch {}
   };
 
+  const handleDownloadSkill = () => {
+    if (!component?.skillMd) return;
+    const blob = new Blob([component.skillMd], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "SKILL.md";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const authorGitHubUrl = component?.authorUsername
     ? `https://github.com/${component.authorUsername}`
     : null;
@@ -635,6 +649,19 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                   </div>
                 )}
               </div>
+
+              {/* Download Skill button - only shows if SKILL.md has been generated */}
+              {component.skillMd && (
+                <>
+                  <span className="text-text-secondary/40">|</span>
+                  <button
+                    onClick={handleDownloadSkill}
+                    className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors">
+                    <FileArrowDown className="w-3.5 h-3.5" weight="bold" />
+                    Download Skill
+                  </button>
+                </>
+              )}
 
               {/* GitHub issues badge - commented out
               {component.repositoryUrl && (
@@ -986,20 +1013,28 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                   Agent Skill (SKILL.md)
                 </h3>
                 <p className="text-xs text-text-secondary mb-2">
-                  Copy this SKILL.md file to teach Claude how to use this component.
+                  Copy or download this SKILL.md file to teach Claude how to use this component.
                 </p>
                 <div className="relative rounded-md bg-[#1a1a1a] text-gray-300">
-                  <button
-                    onClick={handleCopySkill}
-                    className="absolute top-2 right-2 p-1.5 rounded hover:bg-white/10 transition-colors"
-                    title={skillCopied ? "Copied" : "Copy SKILL.md"}>
-                    {skillCopied ? (
-                      <CheckIcon className="w-4 h-4 text-green-400" />
-                    ) : (
-                      <CopyIcon className="w-4 h-4 text-gray-400" />
-                    )}
-                  </button>
-                  <pre className="p-3 pr-10 text-xs overflow-x-auto whitespace-pre-wrap font-mono max-h-48 overflow-y-auto">
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    <button
+                      onClick={handleDownloadSkill}
+                      className="p-1.5 rounded hover:bg-white/10 transition-colors"
+                      title="Download SKILL.md">
+                      <FileArrowDown className="w-4 h-4 text-gray-400" weight="bold" />
+                    </button>
+                    <button
+                      onClick={handleCopySkill}
+                      className="p-1.5 rounded hover:bg-white/10 transition-colors"
+                      title={skillCopied ? "Copied" : "Copy SKILL.md"}>
+                      {skillCopied ? (
+                        <CheckIcon className="w-4 h-4 text-green-400" />
+                      ) : (
+                        <CopyIcon className="w-4 h-4 text-gray-400" />
+                      )}
+                    </button>
+                  </div>
+                  <pre className="p-3 pr-16 text-xs overflow-x-auto whitespace-pre-wrap font-mono max-h-48 overflow-y-auto">
                     {component.skillMd}
                   </pre>
                 </div>

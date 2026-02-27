@@ -293,14 +293,12 @@ User profile page for managing submitted components. Accessible at `/profile`. F
 - "Send Request" button to send notes to admin team (request re-review, removal, or updates)
 - "View Notes" modal showing threaded admin replies with notification badge for unread replies
 - "Edit" button to update submission details (name, descriptions, category, tags, URLs)
-- "Hide/Show" toggle to control visibility in the directory with confirmation
-- "Delete" button to mark submission for deletion (soft delete, admin permanently deletes)
-- "Cancel Deletion" button to undo deletion request before admin processes it
 - Links to view approved components
 - Status guide explaining each review state with visibility guide (Visible, Hidden, Archived, Pending Deletion)
 - Account section with Delete Account button (requires all components deleted first)
 - Delete Account modal with warning if active submissions exist
 - Submit New button linking to submission form
+- Note: Visibility controls (Hide/Show/Delete) removed from user profile; users must contact admin via "Send Request" to manage visibility
 
 ### `src/pages/Admin.tsx`
 
@@ -312,7 +310,7 @@ Admin dashboard at `/submissions/admin` (requires @convex.dev email). Features s
 
 ### `src/pages/ComponentDetail.tsx`
 
-Component detail page at `/components/:slug`. Features shared Header component, narrow sidebar (left) with npm link, category, stats, verified badge, source link, rating stars, and Back link. Main area (right) with author row (package name, author info, Markdown dropdown), title, install command, AI-generated SEO content layer, rendered long description, video embed, SKILL.md copyable snippet, and keywords tags. Markdown dropdown in author row provides View as Markdown, Copy as Markdown, and Copy page URL options. GitHub issues feature and README badge snippet are currently commented out. Includes full SEO support: dual JSON-LD structured data (SoftwareSourceCode + FAQPage), Open Graph tags, Twitter Card tags, canonical URL, and meta description using AI-generated seoValueProp or shortDescription fallback.
+Component detail page at `/components/:slug`. Features shared Header component, narrow sidebar (left) with npm link, category, stats, verified badge, source link, rating stars, and Back link. Main area (right) with author row (package name, author info, Markdown dropdown, Download Skill button), title, install command, AI-generated SEO content layer, rendered long description, video embed, SKILL.md section with copy and download buttons, and keywords tags. Markdown dropdown in author row provides View as Markdown, Copy as Markdown, and Copy page URL options. Download Skill button appears next to Markdown dropdown when SKILL.md has been generated (uses Phosphor FileArrowDown icon). SKILL.md section includes both copy to clipboard and download as file options. GitHub issues feature and README badge snippet are currently commented out. Includes full SEO support: dual JSON-LD structured data (SoftwareSourceCode + FAQPage), Open Graph tags, Twitter Card tags, canonical URL, and meta description using AI-generated seoValueProp or shortDescription fallback.
 
 ### `src/components/ComponentCard.tsx`
 

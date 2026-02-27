@@ -32,6 +32,24 @@
 
 ## Recent updates
 
+- [x] Removed user visibility controls from Profile page (2026-02-26)
+  - Removed Hide, Show, Delete, and Cancel Deletion buttons from user profile
+  - Users must contact admin via "Send Request" to manage component visibility
+  - Removed `ConfirmModal` component (no longer needed)
+  - Removed `setVisibility`, `deleteSubmission`, `cancelDeleteSubmission` mutations from Profile
+  - Removed `onHide`, `onShow`, `onDelete`, `onCancelDelete` props from SubmissionCard
+  - Removed `ArrowCounterClockwise` icon import
+  - Updated deletion message to guide users to contact admin
+  - Admin retains full control via Admin dashboard
+  - Build verified passing
+
+- [x] Added Download Skill button for SKILL.md files (2026-02-25)
+  - Download button with Phosphor FileArrowDown icon next to Markdown dropdown in author row
+  - Button only appears when SKILL.md has been generated (after SEO content generation runs)
+  - SKILL.md section now has both copy and download buttons
+  - Downloads as `SKILL.md` file for easy saving to project
+  - Uses browser Blob API for client-side file generation
+
 - [x] Directory sidebar sticky position adjusted (2026-02-25)
   - Changed sticky top from `top-6` to `top-20` (80px from viewport top)
   - Submit button now remains visible below the header when scrolling

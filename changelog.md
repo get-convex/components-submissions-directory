@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Removed user visibility controls from Profile page (2026-02-26)
+  - Hide, Show, Delete, and Cancel Deletion buttons removed from user profile
+  - Users must now contact admin via "Send Request" to manage component visibility
+  - Reduces user confusion and prevents accidental visibility changes
+  - Admin retains full visibility control via Admin dashboard
+  - Code completely removed (not just hidden) so users cannot find controls in source
+
+### Added
+
+- Download Skill button for SKILL.md files on ComponentDetail page (2026-02-25)
+  - Download button with Phosphor FileArrowDown icon next to Markdown dropdown in author row
+  - Button only appears when SKILL.md has been generated (after SEO content generation)
+  - SKILL.md section also includes both copy and download buttons
+  - Downloads file as `SKILL.md` for easy saving to project
+
+### Changed
+
 - Directory sidebar sticky position adjusted (2026-02-25)
   - Changed sticky top from `top-6` to `top-20` (80px)
   - Submit button now remains visible below the header when scrolling

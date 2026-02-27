@@ -23,7 +23,6 @@ import {
   SignOut,
   UserMinus,
   Clock,
-  ArrowCounterClockwise,
 } from "@phosphor-icons/react";
 
 // Get base path for links (always /components)
@@ -316,59 +315,6 @@ function ViewNotesModal({
           <p className="text-xs text-text-secondary text-center">
             Use "Send Request" on your submission to send a new message.
           </p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Confirmation modal for hide/show/delete actions
-function ConfirmModal({
-  title,
-  message,
-  confirmLabel,
-  confirmStyle,
-  onConfirm,
-  onClose,
-  isLoading,
-}: {
-  title: string;
-  message: string;
-  confirmLabel: string;
-  confirmStyle: "danger" | "warning" | "default";
-  onConfirm: () => void;
-  onClose: () => void;
-  isLoading: boolean;
-}) {
-  const buttonStyles = {
-    danger: "bg-red-500 text-white hover:bg-red-600",
-    warning: "bg-yellow-500 text-white hover:bg-yellow-600",
-    default: "bg-button text-white hover:bg-button-hover",
-  };
-
-  return (
-    <div
-      className="fixed inset-0 flex items-start justify-center pt-12 p-4 overflow-y-auto"
-      style={{ zIndex: 2147483647 }}>
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-sm p-6 rounded-lg bg-white border border-border shadow-lg">
-        <h2 className="text-lg font-medium text-text-primary mb-2">{title}</h2>
-        <p className="text-sm text-text-secondary mb-6">{message}</p>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isLoading}
-            className="flex-1 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors disabled:opacity-50">
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={isLoading}
-            className={`flex-1 px-4 py-2 rounded-full text-sm font-normal transition-colors disabled:opacity-50 ${buttonStyles[confirmStyle]}`}>
-            {isLoading ? "Processing..." : confirmLabel}
-          </button>
         </div>
       </div>
     </div>
@@ -700,10 +646,6 @@ function SubmissionCard({
   onRequestRefresh,
   onViewNotes,
   onEdit,
-  onHide,
-  onShow,
-  onDelete,
-  onCancelDelete,
   basePath,
 }: {
   submission: {
@@ -724,10 +666,6 @@ function SubmissionCard({
   onRequestRefresh: (id: Id<"packages">, name: string) => void;
   onViewNotes: (id: Id<"packages">, name: string) => void;
   onEdit: (id: Id<"packages">) => void;
-  onHide: (id: Id<"packages">, name: string) => void;
-  onShow: (id: Id<"packages">, name: string) => void;
-  onDelete: (id: Id<"packages">, name: string) => void;
-  onCancelDelete: (id: Id<"packages">, name: string) => void;
   basePath: string;
 }) {
   const displayName = submission.componentName || submission.name;
@@ -797,19 +735,11 @@ function SubmissionCard({
           {/* Actions */}
           <div className="flex flex-wrap items-center gap-2 mt-3">
             {submission.markedForDeletion ? (
-              // Show only cancel delete when marked for deletion
-              <>
-                <div className="flex-1 text-xs text-red-600">
-                  This component is scheduled for permanent deletion. Admin will process the
-                  removal.
-                </div>
-                <button
-                  onClick={() => onCancelDelete(submission._id, displayName)}
-                  className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-colors">
-                  <ArrowCounterClockwise size={14} />
-                  Cancel Deletion
-                </button>
-              </>
+              // Component is scheduled for deletion by admin
+              <div className="flex-1 text-xs text-red-600">
+                This component is scheduled for permanent deletion. Contact the Convex team via
+                "Send Request" if you need to cancel this.
+              </div>
             ) : (
               // Normal action buttonss
               <>
@@ -848,29 +778,10 @@ function SubmissionCard({
                     View
                   </a>
                 )}
-                {/* Hide/Show toggle */}
-                {submission.visibility !== "hidden" ? (
-                  <button
-                    onClick={() => onHide(submission._id, displayName)}
-                    className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-yellow-50 hover:text-yellow-700 hover:border-yellow-200 transition-colors">
-                    <EyeSlash size={14} />
-                    Hide
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => onShow(submission._id, displayName)}
-                    className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 transition-colors">
-                    <Eye size={14} />
-                    Show
-                  </button>
-                )}
-                {/* Delete button */}
-                <button
-                  onClick={() => onDelete(submission._id, displayName)}
-                  className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors">
-                  <Trash size={14} />
-                  Delete
-                </button>
+                {/* 
+                  Visibility controls (Hide/Show/Delete) are admin-only features.
+                  Users should contact admin via "Send Request" to manage visibility.
+                */}
               </>
             )}
           </div>
@@ -886,10 +797,7 @@ export default function Profile() {
   const user = useQuery(api.auth.loggedInUser);
   const submissions = useQuery(api.packages.getMySubmissions, isAuthenticated ? {} : "skip");
 
-  // Mutations for user actions
-  const setVisibility = useMutation(api.packages.setMySubmissionVisibility);
-  const deleteSubmission = useMutation(api.packages.requestDeleteMySubmission);
-  const cancelDeleteSubmission = useMutation(api.packages.cancelDeleteMySubmission);
+  // Mutations for user actions (visibility controls removed - admin only)
   const deleteAccount = useMutation(api.packages.deleteMyAccount);
 
   // Count active (not marked for deletion) submissions
@@ -912,14 +820,6 @@ export default function Profile() {
   // Modal state for editing
   const [editModal, setEditModal] = useState<Id<"packages"> | null>(null);
 
-  // Confirmation modal state
-  const [confirmModal, setConfirmModal] = useState<{
-    type: "hide" | "show" | "delete" | "cancel-delete";
-    packageId: Id<"packages">;
-    packageName: string;
-  } | null>(null);
-  const [confirmLoading, setConfirmLoading] = useState(false);
-
   // Delete account modal state
   const [deleteAccountModal, setDeleteAccountModal] = useState(false);
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
@@ -939,33 +839,6 @@ export default function Profile() {
       console.error(err);
     } finally {
       setDeleteAccountLoading(false);
-    }
-  };
-
-  // Handle confirm action
-  const handleConfirm = async () => {
-    if (!confirmModal) return;
-    setConfirmLoading(true);
-    try {
-      if (confirmModal.type === "hide") {
-        await setVisibility({ packageId: confirmModal.packageId, visibility: "hidden" });
-        toast.success("Component hidden from directory");
-      } else if (confirmModal.type === "show") {
-        await setVisibility({ packageId: confirmModal.packageId, visibility: "visible" });
-        toast.success("Component visible in directory");
-      } else if (confirmModal.type === "delete") {
-        await deleteSubmission({ packageId: confirmModal.packageId });
-        toast.success("Component marked for deletion");
-      } else if (confirmModal.type === "cancel-delete") {
-        await cancelDeleteSubmission({ packageId: confirmModal.packageId });
-        toast.success("Deletion cancelled");
-      }
-      setConfirmModal(null);
-    } catch (err) {
-      toast.error("Action failed");
-      console.error(err);
-    } finally {
-      setConfirmLoading(false);
     }
   };
 
@@ -1083,18 +956,6 @@ export default function Profile() {
                   }
                   onViewNotes={(id, name) => setNotesModal({ packageId: id, packageName: name })}
                   onEdit={(id) => setEditModal(id)}
-                  onHide={(id, name) =>
-                    setConfirmModal({ type: "hide", packageId: id, packageName: name })
-                  }
-                  onShow={(id, name) =>
-                    setConfirmModal({ type: "show", packageId: id, packageName: name })
-                  }
-                  onDelete={(id, name) =>
-                    setConfirmModal({ type: "delete", packageId: id, packageName: name })
-                  }
-                  onCancelDelete={(id, name) =>
-                    setConfirmModal({ type: "cancel-delete", packageId: id, packageName: name })
-                  }
                 />
               ))}
             </div>
@@ -1200,55 +1061,6 @@ export default function Profile() {
 
       {/* Edit modal */}
       {editModal && <EditModal packageId={editModal} onClose={() => setEditModal(null)} />}
-
-      {/* Confirmation modals */}
-      {confirmModal?.type === "hide" && (
-        <ConfirmModal
-          title="Hide Component"
-          message={`Hide "${confirmModal.packageName}" from the directory? You can show it again anytime.`}
-          confirmLabel="Hide"
-          confirmStyle="warning"
-          onConfirm={handleConfirm}
-          onClose={() => setConfirmModal(null)}
-          isLoading={confirmLoading}
-        />
-      )}
-
-      {confirmModal?.type === "show" && (
-        <ConfirmModal
-          title="Show Component"
-          message={`Make "${confirmModal.packageName}" visible in the directory again?`}
-          confirmLabel="Show"
-          confirmStyle="default"
-          onConfirm={handleConfirm}
-          onClose={() => setConfirmModal(null)}
-          isLoading={confirmLoading}
-        />
-      )}
-
-      {confirmModal?.type === "delete" && (
-        <ConfirmModal
-          title="Mark for Deletion"
-          message={`Mark "${confirmModal.packageName}" for deletion? The component will be hidden from the directory and permanently deleted by our admin team.`}
-          confirmLabel="Mark for Deletion"
-          confirmStyle="danger"
-          onConfirm={handleConfirm}
-          onClose={() => setConfirmModal(null)}
-          isLoading={confirmLoading}
-        />
-      )}
-
-      {confirmModal?.type === "cancel-delete" && (
-        <ConfirmModal
-          title="Cancel Deletion"
-          message={`Cancel deletion request for "${confirmModal.packageName}"? The component will remain hidden but you can show it again.`}
-          confirmLabel="Cancel Deletion"
-          confirmStyle="default"
-          onConfirm={handleConfirm}
-          onClose={() => setConfirmModal(null)}
-          isLoading={confirmLoading}
-        />
-      )}
 
       {/* Delete account modal */}
       {deleteAccountModal && (
