@@ -14,42 +14,49 @@
 
 # ============ LLMs.txt and Markdown Proxies ============
 # These MUST come before the SPA fallback to intercept .md and /llms.txt requests
+# force = true required so these take precedence over the SPA fallback
 
 # Main directory llms.txt
 [[redirects]]
   from = "/components/llms.txt"
-  to = "https://third-hedgehog-429.convex.site/api/llms.txt"
+  to = "https://giant-grouse-674.convex.site/api/llms.txt"
   status = 200
+  force = true
 
 # Main directory markdown
 [[redirects]]
   from = "/components.md"
-  to = "https://third-hedgehog-429.convex.site/api/markdown-index"
+  to = "https://giant-grouse-674.convex.site/api/markdown-index"
   status = 200
+  force = true
 
 # Per-component llms.txt (single segment slug like "agent")
 [[redirects]]
   from = "/components/:slug/llms.txt"
-  to = "https://third-hedgehog-429.convex.site/api/component-llms?slug=:slug"
+  to = "https://giant-grouse-674.convex.site/api/component-llms?slug=:slug"
   status = 200
+  force = true
 
 # Per-component markdown (single segment slug)
 [[redirects]]
   from = "/components/:slug.md"
-  to = "https://third-hedgehog-429.convex.site/api/markdown?slug=:slug"
+  to = "https://giant-grouse-674.convex.site/api/markdown?slug=:slug"
   status = 200
+  force = true
 
 # Scoped packages llms.txt (two segment slug like "gilhrpenner/name")
 [[redirects]]
   from = "/components/:scope/:name/llms.txt"
-  to = "https://third-hedgehog-429.convex.site/api/component-llms?slug=:scope/:name"
+  to = "https://giant-grouse-674.convex.site/api/component-llms?slug=:scope/:name"
   status = 200
+  force = true
 
 # Scoped packages markdown
 [[redirects]]
   from = "/components/:scope/:name.md"
-  to = "https://third-hedgehog-429.convex.site/api/markdown?slug=:scope/:name"
+  to = "https://giant-grouse-674.convex.site/api/markdown?slug=:scope/:name"
   status = 200
+  force = true
 
 # ============ SPA Routes ============
 

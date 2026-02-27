@@ -45,12 +45,13 @@ Git ignore patterns for node_modules, dist, build artifacts, and editor files.
 
 Netlify deployment configuration. Sets build command (`npm run build`), publish directory (`dist`), Node version (20), and redirects:
 - Root `/` redirects to `/components` (301)
-- LLMs.txt and Markdown proxies to Convex HTTP endpoints (must be before SPA fallback):
-  - `/components/llms.txt` -> `/api/llms.txt`
-  - `/components.md` -> `/api/markdown-index`
-  - `/components/:slug/llms.txt` -> `/api/component-llms?slug=:slug`
-  - `/components/:slug.md` -> `/api/markdown?slug=:slug`
-  - Scoped package variants for two-segment slugs
+- LLMs.txt and Markdown proxies to **production** Convex HTTP endpoints (`giant-grouse-674.convex.site`):
+  - `/components/llms.txt` -> `/api/llms.txt` (force=true)
+  - `/components.md` -> `/api/markdown-index` (force=true)
+  - `/components/:slug/llms.txt` -> `/api/component-llms?slug=:slug` (force=true)
+  - `/components/:slug.md` -> `/api/markdown?slug=:slug` (force=true)
+  - Scoped package variants for two-segment slugs (force=true)
+- All proxy redirects require `force = true` to take precedence over SPA fallback
 - `/components` and `/components/*` fall back to `/index.html` for SPA routing (200)
 
 Environment variables must be set in Netlify Dashboard:

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Netlify proxy redirects for LLMs.txt and Markdown endpoints (2026-02-26)
+  - Added `force = true` to all 6 proxy redirect rules so they take precedence over SPA fallback
+  - Changed Convex URL from dev (`third-hedgehog-429`) to production (`giant-grouse-674`)
+  - Fixes 404 errors on `/components/:slug.md` and `/components/:slug/llms.txt` URLs
+  - Without `force = true`, SPA fallback was catching requests before proxy rules
+
 ### Changed
 
 - AI Review Results panel collapsed by default in Admin dashboard (2026-02-26)

@@ -32,6 +32,12 @@
 
 ## Recent updates
 
+- [x] Fixed Netlify proxy redirects for LLMs.txt and Markdown endpoints (2026-02-26)
+  - Added `force = true` to all 6 proxy redirect rules
+  - Changed Convex URL from dev (`third-hedgehog-429`) to production (`giant-grouse-674`)
+  - Fixes 404 errors on `/components/:slug.md` and `/components/:slug/llms.txt`
+  - SPA fallback was intercepting requests before proxy rules without `force = true`
+
 - [x] AI Review Results panel collapsed by default in Admin dashboard (2026-02-26)
   - Entire panel now collapsed by default, showing only status icon, label, and date
   - Single toggle expands/collapses all content (summary, error, and criteria)
