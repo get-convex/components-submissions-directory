@@ -280,7 +280,6 @@ export const _updateThumbnailJob = internalMutation({
     ),
     error: v.optional(v.string()),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
     const patch: Record<string, unknown> = { status: args.status };
     if (args.status === "processing") {
@@ -293,7 +292,6 @@ export const _updateThumbnailJob = internalMutation({
       patch.error = args.error;
     }
     await ctx.db.patch(args.jobId, patch);
-    return null;
   },
 });
 
@@ -444,7 +442,6 @@ export const _saveGeneratedThumbnail = internalMutation({
     templateId: v.optional(v.id("thumbnailTemplates")),
     generatedBy: v.string(),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
     const url = await ctx.storage.getUrl(args.storageId);
     await ctx.db.patch(args.packageId, {
@@ -457,7 +454,6 @@ export const _saveGeneratedThumbnail = internalMutation({
         ((await ctx.db.get(args.packageId))?.thumbnailGenerationVersion ?? 0) +
         1,
     });
-    return null;
   },
 });
 

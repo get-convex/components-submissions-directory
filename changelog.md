@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Applied Convex return validator best practices to internal functions (2026-02-26)
+  - Removed redundant `returns: v.null()` from internal mutations in `seoContentDb.ts` and `thumbnails.ts`
+  - Removed `returns: v.union(v.null(), v.any())` from internal queries `_getPackage` and `_getPackageByName` in `packages.ts`
+  - TypeScript inference now handles return types for internal functions (non-client-facing)
+  - Fixed `ctx.db.patch` API usage bugs (was passing table name as first argument)
+  - Fixed `ctx.db.get` API usage bugs (was passing table name before ID)
+  - No behavioral changes; improves code clarity and follows updated Convex guidance
+
 ### Fixed
 
 - Netlify proxy redirects for LLMs.txt and Markdown endpoints (2026-02-26)

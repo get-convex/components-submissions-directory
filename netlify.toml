@@ -16,7 +16,7 @@
 # These MUST come before the SPA fallback to intercept .md and /llms.txt requests
 # force = true required so these take precedence over the SPA fallback
 
-# Main directory llms.txt
+# Main directory llms.txtw
 [[redirects]]
   from = "/components/llms.txt"
   to = "https://giant-grouse-674.convex.site/api/llms.txt"

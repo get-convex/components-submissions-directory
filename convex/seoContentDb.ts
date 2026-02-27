@@ -1,5 +1,6 @@
 // Internal mutations for saving AI-generated SEO content.
 // Separated from seoContent.ts because mutations cannot live in "use node" files.
+// Note: Internal mutations omit return validators per Convex best practices (TypeScript inference suffices).
 
 import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
@@ -21,7 +22,6 @@ export const _saveSeoContent = internalMutation({
     ),
     skillMd: v.optional(v.string()),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.patch(args.packageId, {
       seoValueProp: args.valueProp,
@@ -34,7 +34,6 @@ export const _saveSeoContent = internalMutation({
       seoGenerationError: undefined,
       skillMd: args.skillMd,
     });
-    return null;
   },
 });
 
@@ -49,12 +48,10 @@ export const _updateSeoStatus = internalMutation({
       v.literal("error"),
     ),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch("packages", args.packageId, {
+    await ctx.db.patch(args.packageId, {
       seoGenerationStatus: args.status,
     });
-    return null;
   },
 });
 
@@ -64,13 +61,11 @@ export const _setSeoError = internalMutation({
     packageId: v.id("packages"),
     error: v.string(),
   },
-  returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.patch("packages", args.packageId, {
+    await ctx.db.patch(args.packageId, {
       seoGenerationStatus: "error",
       seoGenerationError: args.error,
       seoGeneratedAt: Date.now(),
     });
-    return null;
   },
 });

@@ -1052,9 +1052,8 @@ export const adminSearchPackages = query({
 // Returns full package data including sensitive fields
 export const _getPackage = internalQuery({
   args: { packageId: v.id("packages") },
-  returns: v.union(v.null(), v.any()),
   handler: async (ctx, args) => {
-    return await ctx.db.get("packages", args.packageId);
+    return await ctx.db.get(args.packageId);
   },
 });
 
@@ -1074,7 +1073,6 @@ export const getPackage = query({
 // Returns full package data including sensitive fields
 export const _getPackageByName = internalQuery({
   args: { name: v.string() },
-  returns: v.union(v.null(), v.any()),
   handler: async (ctx, args) => {
     return await ctx.db
       .query("packages")

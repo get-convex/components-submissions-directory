@@ -111,7 +111,7 @@ AI provider and prompt management. Contains:
 
 Main package business logic. Contains:
 
-**Internal Queries:** `_getPackage`, `_getPackageByName`, `_getPackageBySlug` (for badge/markdown endpoints)
+**Internal Queries:** `_getPackage`, `_getPackageByName`, `_getPackageBySlug` (for badge/markdown endpoints). Internal queries omit `returns:` validators per Convex best practices (TypeScript inference suffices for non-client-facing functions).
 
 **Public Queries:** `listPackages`, `searchPackages`, `getPackage`, `getPackageByName`, `listApprovedComponents`, `getComponentBySlug`, `getMySubmissions`, `listCategories`, `getFeaturedComponents`, `getPackagesMarkedForDeletion`, `getDeletionCleanupSettings`
 
@@ -153,7 +153,7 @@ Production: `npx convex run --prod seed:seedOfficialComponents '{"importAsPendin
 
 ### `convex/thumbnails.ts`
 
-Thumbnail template management and generation API. Contains admin CRUD mutations for background templates (create, update, delete, reorder, set default), internal queries/mutations for logo and template data, thumbnail job tracking, and a cleanup job for failed jobs. All queries and mutations run in the default Convex runtime.
+Thumbnail template management and generation API. Contains admin CRUD mutations for background templates (create, update, delete, reorder, set default), internal queries/mutations for logo and template data, thumbnail job tracking, and a cleanup job for failed jobs. Internal mutations omit `returns:` validators per Convex best practices (TypeScript inference suffices). All queries and mutations run in the default Convex runtime.
 
 ### `convex/thumbnailGenerator.ts`
 
@@ -165,7 +165,7 @@ AI-generated SEO/AEO/GEO content action supporting multiple AI providers. Contai
 
 ### `convex/seoContentDb.ts`
 
-Internal mutations for persisting AI-generated SEO content. Separated from `seoContent.ts` because Convex mutations cannot live in `"use node"` files. Contains `_saveSeoContent` (saves SEO fields and SKILL.md content), `_updateSeoStatus`, and `_setSeoError`.
+Internal mutations for persisting AI-generated SEO content. Separated from `seoContent.ts` because Convex mutations cannot live in `"use node"` files. Contains `_saveSeoContent` (saves SEO fields and SKILL.md content), `_updateSeoStatus`, and `_setSeoError`. Internal mutations omit `returns:` validators per Convex best practices (TypeScript inference suffices for non-client-facing functions).
 
 ### `convex/router.ts`
 
