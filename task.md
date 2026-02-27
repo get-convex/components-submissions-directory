@@ -32,6 +32,13 @@
 
 ## Recent updates
 
+- [x] Fixed Netlify SPA routing and GitHub avatar URLs (2026-02-27)
+  - Fixed routes like `/components/submissions/admin` returning 404 markdown
+  - Removed per-component `.md` and `llms.txt` proxy rules that captured SPA routes
+  - Changed avatar URL format to `https://avatars.githubusercontent.com/{username}` (more reliable CDN)
+  - Added `migrateAvatarUrls` admin mutation to fix existing database records
+  - Main `/components/llms.txt` and `/components.md` still work
+
 - [x] Created Tremendous Rewards Integration PRD (2026-02-27)
   - Full PRD at `prds/tremendous-rewards-integration.md`
   - Documents Tremendous API setup, SDK usage, and environment variables

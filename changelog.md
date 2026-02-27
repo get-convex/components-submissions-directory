@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Netlify SPA routing broken by greedy markdown proxy rules (2026-02-27)
+  - Routes like `/components/submissions/admin` and `/components/browser-use-convex-component` were returning 404 with markdown content
+  - Root cause: Netlify redirect patterns `:slug.md` and `:scope/:name.md` matched paths without `.md` extension
+  - Removed per-component markdown and llms.txt proxy rules that were capturing SPA routes
+  - Main `/components/llms.txt` and `/components.md` routes still work
+  - All SPA client-side routes now correctly serve index.html
+
+- GitHub avatar URLs updated to use reliable CDN (2026-02-27)
+  - Changed avatar URL format from `https://github.com/{username}.png` to `https://avatars.githubusercontent.com/{username}`
+  - Fixes `ERR_HTTP2_SERVER_REFUSED_STREAM` errors when loading author avatars
+  - Added `migrateAvatarUrls` admin mutation to fix existing records in database
+  - Run migration via: `npx convex run packages:migrateAvatarUrls`
+
 ### Added
 
 - Tremendous Rewards Integration PRD (2026-02-27)

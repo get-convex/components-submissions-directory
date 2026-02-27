@@ -45,13 +45,12 @@ Git ignore patterns for node_modules, dist, build artifacts, and editor files.
 
 Netlify deployment configuration. Sets build command (`npm run build`), publish directory (`dist`), Node version (20), and redirects:
 - Root `/` redirects to `/components` (301)
-- LLMs.txt and Markdown proxies to Convex HTTP endpoints (must be before SPA fallback):
+- Main LLMs.txt and Markdown proxies to Convex HTTP endpoints:
   - `/components/llms.txt` -> `/api/llms.txt`
   - `/components.md` -> `/api/markdown-index`
-  - `/components/:slug/llms.txt` -> `/api/component-llms?slug=:slug`
-  - `/components/:slug.md` -> `/api/markdown?slug=:slug`
-  - Scoped package variants for two-segment slugs
 - `/components` and `/components/*` fall back to `/index.html` for SPA routing (200)
+
+Note: Per-component `.md` and `llms.txt` routes removed because Netlify's `:slug.md` pattern incorrectly captured SPA routes without `.md` extension. Access per-component docs directly via Convex API: `https://third-hedgehog-429.convex.site/api/markdown?slug=<slug>`
 
 Environment variables must be set in Netlify Dashboard:
 - `VITE_CONVEX_URL`: Convex deployment URL

@@ -12,32 +12,8 @@
   status = 301
   force = true
 
-# ============ SPA Reserved Routes ============
-# These MUST come FIRST to prevent markdown proxy rules from capturing them
-# Netlify's :param.md pattern is too greedy and matches paths without .md extension
-
-[[redirects]]
-  from = "/components/submissions/*"
-  to = "/components/index.html"
-  status = 200
-
-[[redirects]]
-  from = "/components/submit"
-  to = "/components/index.html"
-  status = 200
-
-[[redirects]]
-  from = "/components/profile"
-  to = "/components/index.html"
-  status = 200
-
-[[redirects]]
-  from = "/components/callback"
-  to = "/components/index.html"
-  status = 200
-
-# ============ LLMs.txt and Markdown Proxies ============
-# These intercept .md and /llms.txt requests for component documentation
+# ============ LLMs.txt Proxies ============
+# These must use explicit file extensions to avoid capturing SPA routes
 
 # Main directory llms.txt
 [[redirects]]
@@ -45,46 +21,23 @@
   to = "https://third-hedgehog-429.convex.site/api/llms.txt"
   status = 200
 
-# Main directory markdown
+# Main directory markdown (explicit .md file)
 [[redirects]]
   from = "/components.md"
   to = "https://third-hedgehog-429.convex.site/api/markdown-index"
   status = 200
 
-# Per-component llms.txt (single segment slug like "agent")
-[[redirects]]
-  from = "/components/:slug/llms.txt"
-  to = "https://third-hedgehog-429.convex.site/api/component-llms?slug=:slug"
-  status = 200
+# ============ SPA Routes ============
 
-# Per-component markdown (single segment slug)
-[[redirects]]
-  from = "/components/:slug.md"
-  to = "https://third-hedgehog-429.convex.site/api/markdown?slug=:slug"
-  status = 200
-
-# Scoped packages llms.txt (two segment slug like "gilhrpenner/name")
-[[redirects]]
-  from = "/components/:scope/:name/llms.txt"
-  to = "https://third-hedgehog-429.convex.site/api/component-llms?slug=:scope/:name"
-  status = 200
-
-# Scoped packages markdown
-[[redirects]]
-  from = "/components/:scope/:name.md"
-  to = "https://third-hedgehog-429.convex.site/api/markdown?slug=:scope/:name"
-  status = 200
-
-# ============ SPA Fallback ============
-
-# Serve index.html for /components (force prevents Netlify directory trailing-slash loop)
+# Serve index.html for /components root
 [[redirects]]
   from = "/components"
   to = "/components/index.html"
   status = 200
   force = true
 
-# SPA fallback for client-side routes (real files like assets/fonts are served directly)
+# SPA fallback for ALL client-side routes
+# This catches everything under /components/* and serves the React app
 [[redirects]]
   from = "/components/*"
   to = "/components/index.html"
