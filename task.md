@@ -33,7 +33,8 @@
 ## Recent updates
 
 - [x] Kept markdown alias URL on Netlify domain (2026-02-27)
-  - Added server-side rewrite for `/components/:slug/:filename.md` to resolve markdown by slug
+  - Added Netlify Edge Function mapping for `/components/*/*.md`
+  - Added `netlify/edge-functions/component-markdown.ts` to resolve markdown by slug
   - Removed client-side redirect for markdown alias from router
   - Alias now serves markdown without switching browser URL to Convex domain
 

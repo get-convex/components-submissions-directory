@@ -34,18 +34,6 @@
   to = "https://third-hedgehog-429.convex.site/api/component-llms?slug=:splat"
   status = 200
 
-# Per-component markdown alias: /components/<slug>/<slug>.md
-[[redirects]]
-  from = "/components/:slug/:filename.md"
-  to = "https://third-hedgehog-429.convex.site/api/markdown?slug=:slug"
-  status = 200
-
-# Per-component markdown (supports single and scoped slugs)
-[[redirects]]
-  from = "/components/*.md"
-  to = "https://third-hedgehog-429.convex.site/api/markdown?slug=:splat"
-  status = 200
-
 # ============ SPA Routes ============
 
 # Serve index.html for /components root
@@ -61,3 +49,9 @@
   from = "/components/*"
   to = "/components/index.html"
   status = 200
+
+# ============ Edge Functions ============
+
+[[edge_functions]]
+  path = "/components/*/*.md"
+  function = "component-markdown"
