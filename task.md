@@ -32,6 +32,11 @@
 
 ## Recent updates
 
+- [x] Added markdown alias URL support for component slugs (2026-02-27)
+  - Added route handling for `/components/<slug>/<slug>.md`
+  - Client router now redirects alias URL to Convex markdown endpoint
+  - Keeps SPA/admin routes stable while providing markdown access path
+
 - [x] Fixed Netlify SPA routing and GitHub avatar URLs (2026-02-27)
   - Fixed routes like `/components/submissions/admin` returning 404 markdown
   - Replaced greedy named-parameter redirect rules with explicit splat suffix rules:

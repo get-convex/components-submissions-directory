@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Markdown alias route for component slugs in production (2026-02-27)
+  - Added client-side alias support for `/components/<slug>/<slug>.md`
+  - Route now redirects to Convex markdown endpoint: `/api/markdown?slug=<slug>`
+  - Preserves working SPA routes and avoids rewrite collisions with admin/submissions paths
+
 - Netlify SPA routing broken by greedy markdown proxy rules (2026-02-27)
   - Routes like `/components/submissions/admin` and `/components/browser-use-convex-component` were returning 404 with markdown content
   - Root cause: Netlify redirect patterns `:slug.md` and `:scope/:name.md` matched paths without `.md` extension

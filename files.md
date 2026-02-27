@@ -207,6 +207,7 @@ Application entry point. Sets up Convex React client with `@convex-dev/auth` (`C
 - `/components/profile` = Profile.tsx (user's submissions, auth required)
 - `/components/callback` = OAuth callback handler (reads `authReturnPath` from localStorage to redirect after auth)
 - `/components/:slug` = ComponentDetail (public)
+- `/components/:slug/:slug.md` = markdown alias redirect to Convex endpoint `/api/markdown?slug=:slug`
 
 ### `src/lib/auth.tsx`
 
