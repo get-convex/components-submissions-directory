@@ -18,11 +18,6 @@ const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string, 
   verbose: true,
 });
 
-function getConvexSiteBaseUrl(): string {
-  const rawUrl = (import.meta.env.VITE_CONVEX_URL as string) || "";
-  return rawUrl.replace(".convex.cloud", ".convex.site").replace(/\/$/, "");
-}
-
 // Route mapping for the components directory
 // Production: Netlify at components-directory.netlify.app/components/*
 // Local dev: localhost:5173/components/*
@@ -45,20 +40,6 @@ function Router() {
   const segments = normalizedPath
     .split("/")
     .filter((s) => s.length > 0);
-
-  // Support markdown URL alias: /components/<slug>/<slug>.md
-  // Redirect to Convex markdown endpoint so browsers receive raw markdown.
-  if (
-    segments.length === 2 &&
-    !isReservedRoute(segments[0]) &&
-    segments[1] === `${segments[0]}.md`
-  ) {
-    const markdownUrl = `${getConvexSiteBaseUrl()}/api/markdown?slug=${encodeURIComponent(
-      segments[0],
-    )}`;
-    window.location.replace(markdownUrl);
-    return null;
-  }
 
   // Handle OAuth callback route (kept for post-auth redirect handling)
   if (segments[0] === "callback") {

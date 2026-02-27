@@ -34,6 +34,12 @@
   to = "https://third-hedgehog-429.convex.site/api/component-llms?slug=:splat"
   status = 200
 
+# Per-component markdown alias: /components/<slug>/<slug>.md
+[[redirects]]
+  from = "/components/:slug/:filename.md"
+  to = "https://third-hedgehog-429.convex.site/api/markdown?slug=:slug"
+  status = 200
+
 # Per-component markdown (supports single and scoped slugs)
 [[redirects]]
   from = "/components/*.md"

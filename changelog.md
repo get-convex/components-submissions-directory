@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep markdown alias URL on Netlify domain (2026-02-27)
+  - Added Netlify rewrite for `/components/:slug/:filename.md` -> `/api/markdown?slug=:slug`
+  - Removed client-side markdown alias redirect in router that changed browser URL to Convex domain
+  - Markdown alias now stays on `components-directory.netlify.app` while serving raw markdown
+
 - Markdown alias route for component slugs in production (2026-02-27)
   - Added client-side alias support for `/components/<slug>/<slug>.md`
   - Route now redirects to Convex markdown endpoint: `/api/markdown?slug=<slug>`

@@ -32,6 +32,11 @@
 
 ## Recent updates
 
+- [x] Kept markdown alias URL on Netlify domain (2026-02-27)
+  - Added server-side rewrite for `/components/:slug/:filename.md` to resolve markdown by slug
+  - Removed client-side redirect for markdown alias from router
+  - Alias now serves markdown without switching browser URL to Convex domain
+
 - [x] Added markdown alias URL support for component slugs (2026-02-27)
   - Added route handling for `/components/<slug>/<slug>.md`
   - Client router now redirects alias URL to Convex markdown endpoint
