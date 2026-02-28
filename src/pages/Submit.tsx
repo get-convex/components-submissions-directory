@@ -1703,26 +1703,45 @@ function Content({
   sortBy: "newest" | "downloads" | "updated";
 }) {
   const [expandedCard, setExpandedCard] = useState<Id<"packages"> | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const submitPageSizeSetting = useQuery(api.packages.getSubmitPageSizeSetting);
+  const pageSize = submitPageSizeSetting?.defaultPageSize ?? 40;
+  const trimmedSearchTerm = searchTerm.trim();
 
-  // Use search query when there's a search term, otherwise use list
-  const searchResults = useQuery(api.packages.searchPackages, {
-    searchTerm: searchTerm.trim(),
+  // Reset to first page when search, sorting, or default page size changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [trimmedSearchTerm, sortBy, pageSize]);
+
+  // Use paginated search query when searching, otherwise paginated list query
+  const searchResults = useQuery(api.packages.searchSubmitPackagesPage, {
+    searchTerm: trimmedSearchTerm,
+    sortBy,
+    page: currentPage,
+    pageSize,
   });
-  const listResults = useQuery(api.packages.listPackages, { sortBy });
+  const listResults = useQuery(api.packages.getSubmitPackagesPage, {
+    sortBy,
+    page: currentPage,
+    pageSize,
+  });
 
-  // Use search results when searching, otherwise use sorted list
-  const packages = searchTerm.trim() ? searchResults : listResults;
+  const pageData = trimmedSearchTerm ? searchResults : listResults;
+  const packages = pageData?.items;
+  const totalPages = pageData?.totalPages ?? 1;
+  const totalPackages = pageData?.total ?? 0;
+  const rangeStart = totalPackages === 0 ? 0 : (pageData!.page - 1) * pageData!.pageSize + 1;
+  const rangeEnd =
+    totalPackages === 0
+      ? 0
+      : Math.min(pageData!.page * pageData!.pageSize, totalPackages);
 
-  // Sort search results if needed
-  const sortedPackages = packages
-    ? [...packages].sort((a, b) => {
-        if (sortBy === "newest") return b.submittedAt - a.submittedAt;
-        if (sortBy === "downloads") return b.weeklyDownloads - a.weeklyDownloads;
-        if (sortBy === "updated")
-          return new Date(b.lastPublish).getTime() - new Date(a.lastPublish).getTime();
-        return 0;
-      })
-    : undefined;
+  // Keep current page valid if data size shrinks
+  useEffect(() => {
+    if (pageData && currentPage !== pageData.page) {
+      setCurrentPage(pageData.page);
+    }
+  }, [pageData, currentPage]);
 
   return (
     <>
@@ -1739,19 +1758,19 @@ function Content({
         </div>
 
         {/* Package rows */}
-        {sortedPackages === undefined ? (
+        {packages === undefined ? (
           <LoadingSkeleton />
-        ) : sortedPackages.length === 0 ? (
+        ) : packages.length === 0 ? (
           <div className="text-center py-12 px-4">
             <Package size={48} className="mx-auto mb-3 text-text-secondary" />
             <h3 className="text-lg font-light mb-1 text-text-primary">No packages found</h3>
             <p className="text-sm text-text-secondary">
-              {searchTerm ? "Try a different search term" : "Be the first to submit a package!"}
+              {trimmedSearchTerm ? "Try a different search term" : "Be the first to submit a package!"}
             </p>
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {sortedPackages.map((pkg) => (
+            {packages.map((pkg) => (
               <PackageRow
                 key={pkg._id}
                 package={pkg}
@@ -1762,6 +1781,31 @@ function Content({
           </div>
         )}
       </div>
+
+      {packages && totalPages > 0 && (
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs text-text-secondary">
+            Showing {rangeStart}-{rangeEnd} of {totalPackages}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              Previous
+            </button>
+            <span className="text-xs text-text-secondary">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

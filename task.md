@@ -2,6 +2,20 @@
 
 ## to do
 
+### Submit page pagination and default page size (PRD: prds/submit-pagination-admin-page-size-setting.md)
+- [x] Add paginated submissions queries for list and search in `convex/packages.ts`
+- [x] Add admin and public settings queries for Submit page default page size (20, 40, 60)
+- [x] Update `src/pages/Submit.tsx` to use paging controls and default page size setting
+- [x] Add a settings panel in `src/pages/Admin.tsx` to change default Submit page size
+- [x] Verify pagination behavior and update docs (`task.md`, `changelog.md`, `files.md`)
+
+### Component URL centralization (PRD: prds/component-url-centralization.md)
+- [x] Add shared helper for component detail, markdown alias, and llms URLs
+- [x] Update `ComponentDetail.tsx` dropdown with open markdown and AI-link actions using helper
+- [x] Add llms link below Keywords in `ComponentDetail.tsx`
+- [x] Update `convex/http.ts` markdown and llms link emission to use helper
+- [x] Run build and Convex typecheck verification
+
 ### AI Provider Settings and Prompt Versioning (PRD: prds/ai-provider-settings-and-prompt-versioning.md)
 - [x] Add `aiProviderSettings` table to schema
 - [x] Add `aiPromptVersions` table to schema
@@ -31,6 +45,36 @@
 - [ ] - [ ] add payments api
 
 ## Recent updates
+
+- [x] Synced session docs for pagination and markdown link updates (2026-02-27)
+  - Updated `files.md` with Submit pagination APIs and admin setting query coverage
+  - Updated PRD index in `files.md` with session PRDs
+  - Updated `changelog.md` unreleased notes to reflect completed session documentation
+
+- [x] Updated Netlify markdown alias PRD with centralized helper and local fallback notes (2026-02-27)
+  - Documented why alias URLs are production-only and why localhost must use Convex API endpoints
+  - Added guidance for shared URL helper usage to prevent route drift across frontend and Convex HTTP output
+  - Captured verification matrix for local and production link behavior
+
+- [x] Fixed localhost markdown and llms dropdown links after URL centralization (2026-02-27)
+  - Added client-aware URL strategy in `shared/componentUrls.ts`
+  - Localhost now resolves markdown and llms links to Convex HTTP endpoints
+  - Netlify production remains on alias URLs backed by edge function and redirects
+  - Verified with `npx tsc -p . --noEmit`, `npx tsc -p convex/tsconfig.json --noEmit`, and `npm run build`
+
+- [x] Added Submit page pagination with admin default page size control (2026-02-27)
+  - Added paginated public queries in `convex/packages.ts` for Submit list and search views
+  - Added admin and public setting queries plus admin mutation for Submit default page size (`20`, `40`, `60`)
+  - Updated `src/pages/Submit.tsx` to load paged results with Previous and Next controls
+  - Updated `src/pages/Admin.tsx` with a new Settings panel to configure Submit default page size
+  - Verified with `npx tsc -p convex -noEmit --pretty false` and `npx tsc -p . -noEmit --pretty false`
+
+- [x] Centralized component markdown and llms URL generation (2026-02-27)
+  - Added shared helper at `shared/componentUrls.ts` for detail, markdown alias, and llms URL construction
+  - Updated `src/pages/ComponentDetail.tsx` dropdown with `Open markdown file`, `Open in ChatGPT`, `Open in Claude`, and `Open in Perplexity`
+  - Added `View llms.txt` link below Keywords on component detail page
+  - Updated `convex/http.ts` to use centralized URL generation in `/api/markdown-index` and `/api/component-llms`
+  - Verified with `npm run build`, `npx tsc -p convex/tsconfig.json --noEmit`, and `npx tsc -p . --noEmit`
 
 - [x] Kept markdown alias URL on Netlify domain (2026-02-27)
   - Added Netlify Edge Function mapping for `/components/*/*.md`

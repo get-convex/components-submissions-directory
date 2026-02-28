@@ -1,0 +1,58 @@
+{
+  "version": "5",
+  "remote": {
+    "https://edge.netlify.com/": "fd941d61d88673d5f28aab283fb86fcc50f08a3bc80ee5470498fcfa88c65cfb",
+    "https://edge.netlify.com/bootstrap/config.ts": "6a2ce0e544e15e8f8883a5c18da5948e37fd0f2619f68cb31f3af53c51817025",
+    "https://edge.netlify.com/bootstrap/context.ts": "e97240232121e2f369f6546ce961490f34d961ea1ea54be3ff09633e3f08373f",
+    "https://edge.netlify.com/bootstrap/cookie.ts": "8b0baae708989ca183c6f3b4ab3d029e6abcbc2e43f93edeb0ff447b3bbc3a05",
+    "https://edge.netlify.com/bootstrap/edge_function.ts": "b8253e86aa83c67341f5cfedeba5049d77fbf84dcab7eceff7566b7728ae9b39",
+    "https://edge.netlify.com/bootstrap/globals/types.ts": "eaa6148ded3121d8dee62dd91c86e7fe76601df0f3ca8d7962243a30f4c8935f"
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@anthropic-ai/sdk@0.71",
+        "npm:@auth/core@0.37.0",
+        "npm:@convex-dev/auth@^0.0.90",
+        "npm:@convex-dev/eslint-plugin@^1.1.1",
+        "npm:@eslint/js@^9.21.0",
+        "npm:@google/generative-ai@~0.24.1",
+        "npm:@phosphor-icons/react@^2.1.10",
+        "npm:@radix-ui/react-icons@^1.3.2",
+        "npm:@resvg/resvg-wasm@^2.6.2",
+        "npm:@types/node@^22.13.10",
+        "npm:@types/react-dom@^19.0.4",
+        "npm:@types/react@^19.0.10",
+        "npm:@vitejs/plugin-react@^4.3.4",
+        "npm:autoprefixer@10",
+        "npm:clsx@^2.1.1",
+        "npm:convex-helpers@~0.1.112",
+        "npm:convex@^1.32.0",
+        "npm:dotenv-cli@11",
+        "npm:dotenv@^16.4.7",
+        "npm:eslint-plugin-react-hooks@^5.1.0",
+        "npm:eslint-plugin-react-refresh@~0.4.19",
+        "npm:eslint@^9.21.0",
+        "npm:globals@^15.15.0",
+        "npm:jimp@^1.6.0",
+        "npm:jose@^6.1.3",
+        "npm:npm-run-all@^1.1.3",
+        "npm:openai@^6.23.0",
+        "npm:postcss@8",
+        "npm:prettier@^3.5.3",
+        "npm:react-dom@19",
+        "npm:react-markdown@^10.1.0",
+        "npm:react-router-dom@^7.9.6",
+        "npm:react@19",
+        "npm:remark-breaks@4",
+        "npm:remark-gfm@^4.0.1",
+        "npm:sonner@^2.0.3",
+        "npm:tailwind-merge@^3.1.0",
+        "npm:tailwindcss@3",
+        "npm:typescript-eslint@^8.24.1",
+        "npm:typescript@~5.7.2",
+        "npm:vite@^6.2.0"
+      ]
+    }
+  }
+}

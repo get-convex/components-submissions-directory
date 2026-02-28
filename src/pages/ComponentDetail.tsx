@@ -7,6 +7,7 @@ import { InstallCommand } from "../components/InstallCommand";
 import { VerifiedBadge } from "../components/VerifiedBadge";
 import Header from "../components/Header";
 import { useDirectoryCategories, getCategoryLabel } from "../lib/categories";
+import { buildComponentClientUrls } from "../../shared/componentUrls";
 import {
   setComponentSeoTags,
   injectJsonLd,
@@ -28,6 +29,8 @@ import { FileArrowDown } from "@phosphor-icons/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
+
+const AI_READ_PROMPT = "Read this URL and summarize it:";
 
 interface ComponentDetailProps {
   slug: string;
@@ -397,6 +400,13 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
 
   // Generate full markdown doc
   const markdownDoc = component ? buildMarkdownDoc(component) : "";
+  const componentLinks = component?.slug
+    ? buildComponentClientUrls(
+        component.slug,
+        window.location.origin,
+        import.meta.env.VITE_CONVEX_URL as string | undefined,
+      )
+    : null;
 
   const handleCopyMarkdown = async () => {
     try {
@@ -423,6 +433,26 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
       setCopyMenuOpen(false);
       setTimeout(() => setPageCopied(false), 2000);
     } catch {}
+  };
+
+  const openMarkdownFile = () => {
+    if (!componentLinks) return;
+    window.open(componentLinks.markdownUrl, "_blank", "noopener,noreferrer");
+    setCopyMenuOpen(false);
+  };
+
+  const openInAi = (provider: "chatgpt" | "claude" | "perplexity") => {
+    if (!componentLinks) return;
+    const prompt = encodeURIComponent(`${AI_READ_PROMPT} ${componentLinks.markdownUrl}`);
+    const url =
+      provider === "chatgpt"
+        ? `https://chatgpt.com/?q=${prompt}`
+        : provider === "claude"
+          ? `https://claude.ai/new?q=${prompt}`
+          : `https://www.perplexity.ai/?q=${prompt}`;
+
+    window.open(url, "_blank", "noopener,noreferrer");
+    setCopyMenuOpen(false);
   };
 
   // Loading state
@@ -624,7 +654,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 </button>
 
                 {copyMenuOpen && (
-                  <div className="absolute left-0 top-full mt-1 w-52 rounded-lg bg-white shadow-hover py-1 z-20">
+                  <div className="absolute left-0 top-full mt-1 w-56 rounded-lg bg-white shadow-hover py-1 z-20">
                     <button
                       onClick={() => {
                         setShowMarkdown(!showMarkdown);
@@ -632,7 +662,13 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                       }}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
                       <EyeOpenIcon className="w-3.5 h-3.5 text-text-secondary" />
-                      {showMarkdown ? "View rendered" : "View as Markdown"}
+                      {showMarkdown ? "View rendered" : "View markdown source"}
+                    </button>
+                    <button
+                      onClick={openMarkdownFile}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                      <ExternalLinkIcon className="w-3.5 h-3.5 text-text-secondary" />
+                      Open markdown file
                     </button>
                     <button
                       onClick={handleCopyMarkdown}
@@ -645,6 +681,24 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
                       <CopyIcon className="w-3.5 h-3.5 text-text-secondary" />
                       Copy page URL
+                    </button>
+                    <button
+                      onClick={() => openInAi("chatgpt")}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                      <ExternalLinkIcon className="w-3.5 h-3.5 text-text-secondary" />
+                      Open in ChatGPT
+                    </button>
+                    <button
+                      onClick={() => openInAi("claude")}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                      <ExternalLinkIcon className="w-3.5 h-3.5 text-text-secondary" />
+                      Open in Claude
+                    </button>
+                    <button
+                      onClick={() => openInAi("perplexity")}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                      <ExternalLinkIcon className="w-3.5 h-3.5 text-text-secondary" />
+                      Open in Perplexity
                     </button>
                   </div>
                 )}
@@ -1056,6 +1110,17 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                     </span>
                   ))}
                 </div>
+                {componentLinks && (
+                  <div className="mt-3">
+                    <a
+                      href={componentLinks.llmsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-text-secondary hover:text-text-primary transition-colors underline">
+                      View llms.txt
+                    </a>
+                  </div>
+                )}
               </div>
             )}
 

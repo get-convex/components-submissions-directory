@@ -2,8 +2,10 @@ import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { auth } from "./auth";
+import { buildComponentUrls } from "../shared/componentUrls";
 
 const http = httpRouter();
+const DIRECTORY_ORIGIN = "https://www.convex.dev";
 
 // Register auth HTTP routes (OAuth callbacks, sign-in/sign-out endpoints)
 auth.addHttpRoutes(http);
@@ -307,11 +309,14 @@ http.route({
         const name = pkg.componentName || pkg.name || "Unknown";
         const desc = pkg.shortDescription || pkg.description || "";
         const slug = pkg.slug || "";
+        const componentLinks = slug
+          ? buildComponentUrls(slug, DIRECTORY_ORIGIN)
+          : null;
         const detailUrl = slug
-          ? `https://www.convex.dev/components/${slug}`
+          ? componentLinks?.detailUrl || pkg.npmUrl
           : pkg.npmUrl;
         const mdUrl = slug
-          ? `https://www.convex.dev/components/${slug}.md`
+          ? componentLinks?.markdownUrl || ""
           : "";
 
         lines.push(`### [${name}](${detailUrl})\n`);
@@ -376,8 +381,10 @@ http.route({
     lines.push("");
 
     lines.push("## Links");
-    lines.push(`- Directory: https://www.convex.dev/components/${slug}`);
-    lines.push(`- Markdown: https://www.convex.dev/components/${slug}.md`);
+    const componentLinks = buildComponentUrls(slug, DIRECTORY_ORIGIN);
+    lines.push(`- Directory: ${componentLinks.detailUrl}`);
+    lines.push(`- Markdown: ${componentLinks.markdownUrl}`);
+    lines.push(`- llms.txt: ${componentLinks.llmsUrl}`);
     lines.push(`- npm: ${pkg.npmUrl || ""}`);
     if (pkg.repositoryUrl) lines.push(`- GitHub: ${pkg.repositoryUrl}`);
     if (pkg.demoUrl) lines.push(`- Demo: ${pkg.demoUrl}`);

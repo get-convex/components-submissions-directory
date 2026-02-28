@@ -259,6 +259,67 @@ const adminPackageValidator = v.object({
   markedForDeletionBy: v.optional(v.string()),
 });
 
+const submitPageSizeValidator = v.union(v.literal(20), v.literal(40), v.literal(60));
+
+const paginatedPublicPackagesValidator = v.object({
+  items: v.array(publicPackageValidator),
+  total: v.number(),
+  page: v.number(),
+  pageSize: submitPageSizeValidator,
+  totalPages: v.number(),
+});
+
+const SUBMIT_PAGE_SIZE_SETTING_KEY = "submitPageSizeDefault";
+
+function getSubmitPageSizeValue(value: number | undefined): 20 | 40 | 60 {
+  if (value === 20 || value === 40 || value === 60) return value;
+  return 40;
+}
+
+function sortPublicPackages(
+  packages: Array<Doc<"packages">>,
+  sortBy: "newest" | "downloads" | "updated",
+): Array<Doc<"packages">> {
+  if (sortBy === "downloads") {
+    return [...packages].sort((a, b) => b.weeklyDownloads - a.weeklyDownloads);
+  }
+  if (sortBy === "updated") {
+    return [...packages].sort(
+      (a, b) =>
+        new Date(b.lastPublish).getTime() - new Date(a.lastPublish).getTime(),
+    );
+  }
+  return [...packages].sort((a, b) => b.submittedAt - a.submittedAt);
+}
+
+function paginatePublicPackages(
+  packages: Array<Doc<"packages">>,
+  page: number,
+  pageSize: 20 | 40 | 60,
+) {
+  const total = packages.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+  const start = (safePage - 1) * pageSize;
+  const items = packages.slice(start, start + pageSize);
+
+  return {
+    items: items.map(toPublicPackage),
+    total,
+    page: safePage,
+    pageSize,
+    totalPages,
+  };
+}
+
+async function getVisibleSubmitPackages(ctx: QueryCtx) {
+  const allPackages = await ctx.db.query("packages").collect();
+  return allPackages.filter((pkg) => {
+    const isVisible = !pkg.visibility || pkg.visibility === "visible";
+    return isVisible && !pkg.markedForDeletion && !pkg.hideFromSubmissions;
+  });
+}
+
 // Helper function to strip sensitive fields from a package
 // SECURITY: Removes submitter info and AI review details
 function toPublicPackage(pkg: any) {
@@ -980,6 +1041,141 @@ export const searchPackages = query({
 
     // SECURITY: Strip sensitive fields before returning to client
     return combined.slice(0, 50).map(toPublicPackage);
+  },
+});
+
+// Public query: Paginated submissions listing for Submit.tsx
+export const getSubmitPackagesPage = query({
+  args: {
+    sortBy: v.optional(
+      v.union(
+        v.literal("newest"),
+        v.literal("downloads"),
+        v.literal("updated"),
+      ),
+    ),
+    page: v.optional(v.number()),
+    pageSize: v.optional(submitPageSizeValidator),
+  },
+  returns: paginatedPublicPackagesValidator,
+  handler: async (ctx, args) => {
+    const sortBy = args.sortBy || "newest";
+    const page = args.page ?? 1;
+    const pageSize = args.pageSize ?? 40;
+
+    const visiblePackages = await getVisibleSubmitPackages(ctx);
+    const sortedPackages = sortPublicPackages(visiblePackages, sortBy);
+    return paginatePublicPackages(sortedPackages, page, pageSize);
+  },
+});
+
+// Public query: Paginated submission search for Submit.tsx
+export const searchSubmitPackagesPage = query({
+  args: {
+    searchTerm: v.string(),
+    sortBy: v.optional(
+      v.union(
+        v.literal("newest"),
+        v.literal("downloads"),
+        v.literal("updated"),
+      ),
+    ),
+    page: v.optional(v.number()),
+    pageSize: v.optional(submitPageSizeValidator),
+  },
+  returns: paginatedPublicPackagesValidator,
+  handler: async (ctx, args) => {
+    const sortBy = args.sortBy || "newest";
+    const page = args.page ?? 1;
+    const pageSize = args.pageSize ?? 40;
+    const searchTerm = args.searchTerm.trim().toLowerCase();
+
+    const visiblePackages = await getVisibleSubmitPackages(ctx);
+    const searchedPackages = searchTerm
+      ? visiblePackages.filter((pkg) => {
+          const maintainerNames = pkg.maintainerNames?.toLowerCase() || "";
+          return (
+            pkg.name.toLowerCase().includes(searchTerm) ||
+            pkg.description.toLowerCase().includes(searchTerm) ||
+            maintainerNames.includes(searchTerm)
+          );
+        })
+      : visiblePackages;
+
+    const sortedPackages = sortPublicPackages(searchedPackages, sortBy);
+    return paginatePublicPackages(sortedPackages, page, pageSize);
+  },
+});
+
+// Public query: Read default page size for submissions listing.
+export const getSubmitPageSizeSetting = query({
+  args: {},
+  returns: v.object({
+    defaultPageSize: submitPageSizeValidator,
+  }),
+  handler: async (ctx) => {
+    const pageSizeSetting = await ctx.db
+      .query("adminSettingsNumeric")
+      .withIndex("by_key", (q) => q.eq("key", SUBMIT_PAGE_SIZE_SETTING_KEY))
+      .first();
+
+    const defaultPageSize: 20 | 40 | 60 = getSubmitPageSizeValue(
+      pageSizeSetting?.value,
+    );
+    return { defaultPageSize };
+  },
+});
+
+// Admin query: Read default page size setting for submissions listing.
+export const getSubmitPageSizeAdminSetting = query({
+  args: {},
+  returns: v.object({
+    defaultPageSize: submitPageSizeValidator,
+  }),
+  handler: async (ctx) => {
+    const adminIdentity = await getAdminIdentity(ctx);
+    if (!adminIdentity) {
+      return { defaultPageSize: getSubmitPageSizeValue(undefined) };
+    }
+
+    const pageSizeSetting = await ctx.db
+      .query("adminSettingsNumeric")
+      .withIndex("by_key", (q) => q.eq("key", SUBMIT_PAGE_SIZE_SETTING_KEY))
+      .first();
+
+    const defaultPageSize: 20 | 40 | 60 = getSubmitPageSizeValue(
+      pageSizeSetting?.value,
+    );
+    return { defaultPageSize };
+  },
+});
+
+// Admin mutation: Update default page size for submissions listing.
+export const updateSubmitPageSizeSetting = mutation({
+  args: {
+    value: submitPageSizeValidator,
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
+    const existing = await ctx.db
+      .query("adminSettingsNumeric")
+      .withIndex("by_key", (q) => q.eq("key", SUBMIT_PAGE_SIZE_SETTING_KEY))
+      .first();
+
+    if (existing) {
+      await ctx.db.patch("adminSettingsNumeric", existing._id, {
+        value: args.value,
+      });
+    } else {
+      await ctx.db.insert("adminSettingsNumeric", {
+        key: SUBMIT_PAGE_SIZE_SETTING_KEY,
+        value: args.value,
+      });
+    }
+
+    return null;
   },
 });
 

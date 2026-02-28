@@ -1,0 +1,105 @@
+redirectsOrigin = "config"
+plugins = []
+headers = []
+
+[build]
+edge_functions = "/Users/waynesutton/Documents/sites/npm_package_directory_app/netlify/edge-functions"
+publish = "/Users/waynesutton/Documents/sites/npm_package_directory_app/dist"
+publishOrigin = "config"
+commandOrigin = "config"
+command = "npm run build"
+
+[build.environment]
+NODE_VERSION = "20"
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
+
+[[edge_functions]]
+path = "/components/*/*.md"
+function = "component-markdown"
+
+[functions]
+
+[functions."*"]
+
+[[redirects]]
+from = "/"
+to = "/components"
+status = 301.0
+force = true
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/components/llms.txt"
+to = "https://third-hedgehog-429.convex.site/api/llms.txt"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/components.md"
+to = "https://third-hedgehog-429.convex.site/api/markdown-index"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/components/*/llms.txt"
+to = "https://third-hedgehog-429.convex.site/api/component-llms?slug=:splat"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/components"
+to = "/components/index.html"
+status = 200.0
+force = true
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/components/*"
+to = "/components/index.html"
+status = 200.0
+force = false
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]

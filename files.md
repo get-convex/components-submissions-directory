@@ -112,15 +112,15 @@ Main package business logic. Contains:
 
 **Internal Queries:** `_getPackage`, `_getPackageByName`, `_getPackageBySlug` (for badge/markdown endpoints). Internal queries omit `returns:` validators per Convex best practices (TypeScript inference suffices for non-client-facing functions).
 
-**Public Queries:** `listPackages`, `searchPackages`, `getPackage`, `getPackageByName`, `listApprovedComponents`, `getComponentBySlug`, `getMySubmissions`, `listCategories`, `getFeaturedComponents`, `getPackagesMarkedForDeletion`, `getDeletionCleanupSettings`
+**Public Queries:** `listPackages`, `searchPackages`, `getSubmitPackagesPage`, `searchSubmitPackagesPage`, `getSubmitPageSizeSetting`, `getPackage`, `getPackageByName`, `listApprovedComponents`, `getComponentBySlug`, `getMySubmissions`, `listCategories`, `getFeaturedComponents`, `getPackagesMarkedForDeletion`, `getDeletionCleanupSettings`
 
 **User Mutations:** `requestSubmissionRefresh` (sends note to admin team from profile page), `setMySubmissionVisibility` (hide/show own submissions), `requestDeleteMySubmission` (marks submission for deletion), `cancelDeleteMySubmission` (cancels deletion request), `updateMySubmission` (edit own submission fields), `deleteMyAccount` (requires no active submissions)
 
 **User Queries:** `getMyPackageNotes` (thread of user requests and admin replies), `getMySubmissionForEdit` (editable submission data), `getUnreadAdminReplyCount`, `getTotalUnreadAdminReplies`
 
-**Admin Queries:** `getAllPackages`, `adminSearchPackages`, `getPackagesByStatus`, `getBadgeStats`, `getUnreadUserNotesCount`, `getUnreadCommentsCount` (for read tracking badges), `getPackagesWithoutSlugs`
+**Admin Queries:** `getAllPackages`, `adminSearchPackages`, `getPackagesByStatus`, `getBadgeStats`, `getUnreadUserNotesCount`, `getUnreadCommentsCount` (for read tracking badges), `getPackagesWithoutSlugs`, `getSubmitPageSizeAdminSetting`
 
-**Admin Mutations:** `adminPermanentlyDeletePackage`, `updateDeletionCleanupSetting`, `generateSlugForPackage`, `generateMissingSlugs`
+**Admin Mutations:** `adminPermanentlyDeletePackage`, `updateDeletionCleanupSetting`, `updateSubmitPageSizeSetting`, `generateSlugForPackage`, `generateMissingSlugs`
 
 **Internal Mutations:** `_permanentlyDeletePackage`, `scheduledDeletionCleanup`
 
@@ -271,11 +271,13 @@ Dedicated component submission form page at `/submit`. Features:
 
 ### `src/pages/Submit.tsx`
 
-Public submissions directory at `/submissions`. Table-based UI showing all submitted components with expandable rows. Features:
+Public submissions directory at `/submissions`. Table-based UI showing submitted components with expandable rows. Features:
 - Shared Header component with auth state
 - Page layout matching Directory.tsx width (`max-w-7xl`)
 - Title "Components Submissions Directory" styled to match Directory page
 - Search and sort controls with white background search input
+- Pagination with default page size loaded from admin setting (20, 40, or 60)
+- Page navigation controls with range display and previous/next actions
 - Expandable package rows with install command, license, size, files, maintainers
 - npm/Repo/Website/Demo action buttons per package
 - Status badges (pending, in review, approved, changes requested, rejected)
@@ -302,7 +304,7 @@ User profile page for managing submitted components. Accessible at `/profile`. F
 
 ### `src/pages/Admin.tsx`
 
-Admin dashboard at `/submissions/admin` (requires @convex.dev email). Features shared Header component, admin-specific search bar, stats, package management, review status, visibility controls, AI review, component details editor, thumbnail preview in list, notes, comments, CSV export, and SubmitterEmailEditor for managing primary submitter email and additional emails. Pagination with configurable items per page (5, 10, 20, 40, 100) and page navigation controls; each filter tab maintains independent page state. Filter tabs include a "Deletion" tab (Clock icon) to show packages marked for deletion, with count badge. Package rows display badges in order: StatusBadge, VisibilityBadge, UnrepliedNotesIndicator (when collapsed), and ComponentDetailQuickLink (external link icon) as the last item before the downloads/date section. A red "Deletion" badge appears next to the visibility badge when marked for deletion. Featured toggle shows a sort order input when package is featured (lower numbers appear first in Featured section, independent of directory dropdown sort). Expanded package InlineActions includes Actions row (above Status row) with Convex Verified toggle, Regenerate SEO + Skill button, combined Auto-fill button, Refresh npm data button, and Generate Slug button (when no slug exists). AI Review Results panel is collapsed by default showing only status icon, label, and date; clicking expands to reveal summary, error, and criteria checklist. Settings tab includes Deletion Management panel for managing packages marked for deletion (auto-delete toggle, waiting period config, list of pending deletions with "Delete Now" option), Slug Migration panel for detecting packages without URL slugs and generating them in bulk or individually, AI Provider Settings panel for configuring Anthropic/OpenAI/Gemini providers, AI Prompt Settings panel for versioning AI review prompts, and SEO Prompt Settings panel for versioning SEO/SKILL.md generation prompts. Non-admin users are automatically redirected to their profile page. Unauthenticated users see a simple "Admin access only" sign-in prompt.
+Admin dashboard at `/submissions/admin` (requires @convex.dev email). Features shared Header component, admin-specific search bar, stats, package management, review status, visibility controls, AI review, component details editor, thumbnail preview in list, notes, comments, CSV export, and SubmitterEmailEditor for managing primary submitter email and additional emails. Pagination with configurable items per page (5, 10, 20, 40, 100) and page navigation controls; each filter tab maintains independent page state. Filter tabs include a "Deletion" tab (Clock icon) to show packages marked for deletion, with count badge. Package rows display badges in order: StatusBadge, VisibilityBadge, UnrepliedNotesIndicator (when collapsed), and ComponentDetailQuickLink (external link icon) as the last item before the downloads/date section. A red "Deletion" badge appears next to the visibility badge when marked for deletion. Featured toggle shows a sort order input when package is featured (lower numbers appear first in Featured section, independent of directory dropdown sort). Expanded package InlineActions includes Actions row (above Status row) with Convex Verified toggle, Regenerate SEO + Skill button, combined Auto-fill button, Refresh npm data button, and Generate Slug button (when no slug exists). AI Review Results panel is collapsed by default showing only status icon, label, and date; clicking expands to reveal summary, error, and criteria checklist. Settings tab includes Submit Listing Settings for controlling the default page size on `Submit.tsx` (20, 40, 60), Deletion Management panel for managing packages marked for deletion (auto-delete toggle, waiting period config, list of pending deletions with "Delete Now" option), Slug Migration panel for detecting packages without URL slugs and generating them in bulk or individually, AI Provider Settings panel for configuring Anthropic/OpenAI/Gemini providers, AI Prompt Settings panel for versioning AI review prompts, and SEO Prompt Settings panel for versioning SEO/SKILL.md generation prompts. Non-admin users are automatically redirected to their profile page. Unauthenticated users see a simple "Admin access only" sign-in prompt.
 
 ### `src/pages/NotFound.tsx`
 
@@ -310,7 +312,7 @@ Admin dashboard at `/submissions/admin` (requires @convex.dev email). Features s
 
 ### `src/pages/ComponentDetail.tsx`
 
-Component detail page at `/components/:slug`. Features shared Header component, narrow sidebar (left) with npm link, category, stats, verified badge, source link, rating stars, and Back link. Main area (right) with author row (package name, author info, Markdown dropdown, Download Skill button), title, install command, AI-generated SEO content layer, rendered long description, video embed, SKILL.md section with copy and download buttons, and keywords tags. Markdown dropdown in author row provides View as Markdown, Copy as Markdown, and Copy page URL options. Download Skill button appears next to Markdown dropdown when SKILL.md has been generated (uses Phosphor FileArrowDown icon). SKILL.md section includes both copy to clipboard and download as file options. GitHub issues feature and README badge snippet are currently commented out. Includes full SEO support: dual JSON-LD structured data (SoftwareSourceCode + FAQPage), Open Graph tags, Twitter Card tags, canonical URL, and meta description using AI-generated seoValueProp or shortDescription fallback.
+Component detail page at `/components/:slug`. Features shared Header component, narrow sidebar (left) with npm link, category, stats, verified badge, source link, rating stars, and Back link. Main area (right) with author row (package name, author info, Markdown dropdown, Download Skill button), title, install command, AI-generated SEO content layer, rendered long description, video embed, SKILL.md section with copy and download buttons, and keywords tags. Markdown dropdown in author row provides view markdown source toggle, open markdown file, copy as Markdown, copy page URL, and quick actions to open the markdown link in ChatGPT, Claude, and Perplexity. Keywords section includes a direct `llms.txt` link for agent discovery. Link generation now uses a shared client-aware URL helper so localhost opens Convex API endpoints while production uses Netlify alias URLs. Download Skill button appears next to Markdown dropdown when SKILL.md has been generated (uses Phosphor FileArrowDown icon). SKILL.md section includes both copy to clipboard and download as file options. GitHub issues feature and README badge snippet are currently commented out. Includes full SEO support: dual JSON-LD structured data (SoftwareSourceCode + FAQPage), Open Graph tags, Twitter Card tags, canonical URL, and meta description using AI-generated seoValueProp or shortDescription fallback.
 
 ### `src/components/ComponentCard.tsx`
 
@@ -364,6 +366,10 @@ Global CSS with Tailwind directives and design system variables.
 
 Utility functions including `cn` for Tailwind class merging.
 
+### `shared/componentUrls.ts`
+
+Shared URL builder used by frontend and Convex HTTP code to generate consistent component detail, markdown alias, and llms URLs. Handles scoped slug paths and derives the markdown filename leaf safely from the slug. Includes client-aware behavior for `ComponentDetail`: localhost uses Convex API endpoints (`/api/markdown` and `/api/component-llms`) while production keeps Netlify alias URLs (`/components/<slug>/<leaf>.md` and `/components/<slug>/llms.txt`). This prevents local 404s without changing production routing.
+
 ### `src/vite-env.d.ts`
 
 TypeScript declarations for Vite environment variables.
@@ -416,6 +422,9 @@ Product requirements documents:
 - `authfix-2026-02-23.md`: Production OAuth fix documentation including GitHub OAuth callback URL configuration, JWT key generation, and admin access control via `@convex.dev` email domain
 - `featured-sort-order.md`: Featured components sort order feature for admin-controlled ordering independent of directory dropdown sort
 - `admin-actions-row.md`: Admin Actions row feature moving Convex Verified, Regenerate SEO, and Auto-fill buttons to InlineActions panel above Status row
+- `component-url-centralization.md`: Shared URL helper plan for component detail, markdown alias, and llms links across frontend and Convex HTTP output
+- `netlify-markdown-alias-edge-function.md`: Netlify edge strategy for markdown alias paths and production/local behavior expectations
+- `submit-pagination-admin-page-size-setting.md`: Submit page pagination and admin-configurable default page size (`20`, `40`, `60`)
 - `tremendous-rewards-integration.md`: Tremendous API integration for sending rewards to component submitters, including SDK setup, environment variables, schema changes, and Admin UI specs
 
 ### `.cursor/rules/`

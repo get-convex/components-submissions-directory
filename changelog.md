@@ -7,7 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Submit page pagination and admin page size setting (2026-02-27)
+  - Added paginated public queries for submissions list and search in `convex/packages.ts`
+  - Added public and admin settings APIs for Submit default page size with allowed values `20`, `40`, and `60`
+  - Updated `src/pages/Submit.tsx` to render page controls with default 40 items per page
+  - Added a Submit Listing Settings panel in `src/pages/Admin.tsx` to manage the default page size
+  - Documented query and settings coverage updates in `files.md`
+
 ### Fixed
+
+- Restored local `.md` and `llms.txt` link behavior for component detail dropdown (2026-02-27)
+  - Added local development fallback in `shared/componentUrls.ts` via `buildComponentClientUrls`
+  - Localhost now uses Convex HTTP endpoints directly:
+    - `/api/markdown?slug=<slug>`
+    - `/api/component-llms?slug=<slug>`
+  - Production keeps Netlify alias URLs:
+    - `/components/<slug>/<leaf>.md`
+    - `/components/<slug>/llms.txt`
+  - Updated `src/pages/ComponentDetail.tsx` to use client-aware URL strategy
+  - Keeps production behavior documented in `prds/netlify-markdown-alias-edge-function.md` while avoiding local Vite route 404s
+
+- Centralized component markdown and llms URL construction to prevent route drift (2026-02-27)
+  - Added shared URL helper in `shared/componentUrls.ts` for detail, markdown alias (`/components/<slug>/<leaf>.md`), and llms paths
+  - Updated `src/pages/ComponentDetail.tsx` markdown dropdown with:
+    - Open markdown file
+    - Open in ChatGPT
+    - Open in Claude
+    - Open in Perplexity
+  - Added a `View llms.txt` link below Keywords in `ComponentDetail.tsx`
+  - Updated `convex/http.ts` link emission in `/api/markdown-index` and `/api/component-llms` to use shared URL builder
+  - Verified with frontend build and TypeScript checks for app and Convex
 
 - Keep markdown alias URL on Netlify domain (2026-02-27)
   - Replaced unreliable markdown rewrites with Netlify Edge Function routing for `/components/*/*.md`

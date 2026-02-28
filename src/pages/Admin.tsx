@@ -1830,7 +1830,7 @@ export default function Admin() {
         ) : (
           // Admin dashboard
           <AdminDashboard
-            userEmail={loggedInUser.email}
+            userEmail={loggedInUser?.email}
             packages={packages}
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
@@ -3370,6 +3370,70 @@ function AutoRefreshSettingsPanel() {
         cancelText="Cancel"
         type="warning"
       />
+    </div>
+  );
+}
+
+// Submit listing defaults panel for public submissions page pagination
+function SubmitListingSettingsPanel() {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const submitListingSettings = useQuery(api.packages.getSubmitPageSizeAdminSetting);
+  const updateSubmitListingSettings = useMutation(api.packages.updateSubmitPageSizeSetting);
+
+  const handlePageSizeChange = async (value: 20 | 40 | 60) => {
+    try {
+      await updateSubmitListingSettings({ value });
+      toast.success(`Default Submit page size set to ${value}`);
+    } catch {
+      toast.error("Failed to update Submit page size");
+    }
+  };
+
+  if (!submitListingSettings) return null;
+
+  return (
+    <div className="mb-4 rounded-lg border border-border bg-bg-card overflow-hidden">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors">
+        <div className="flex items-center gap-2">
+          <List size={16} weight="bold" className="text-text-secondary" />
+          <span className="text-sm font-medium text-text-primary">
+            Submit Listing Settings
+          </span>
+          <span className="px-1.5 py-0.5 text-[10px] font-medium bg-bg-hover text-text-secondary rounded">
+            {submitListingSettings.defaultPageSize} per page
+          </span>
+        </div>
+        {isExpanded ? (
+          <CaretUp size={16} className="text-text-secondary" />
+        ) : (
+          <CaretDown size={16} className="text-text-secondary" />
+        )}
+      </button>
+
+      {isExpanded && (
+        <div className="p-4 border-t border-border space-y-4">
+          <p className="text-xs text-text-secondary">
+            Controls the default number of submissions shown per page on{" "}
+            <code className="bg-bg-primary px-1 rounded">/components/submissions</code>.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {([20, 40, 60] as const).map((option) => (
+              <button
+                key={option}
+                onClick={() => handlePageSizeChange(option)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                  submitListingSettings.defaultPageSize === option
+                    ? "bg-button text-white border-button"
+                    : "border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                }`}>
+                {option} per page
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -6143,6 +6207,9 @@ function AdminDashboard({
 
           {/* Auto-Refresh Settings */}
           <AutoRefreshSettingsPanel />
+
+          {/* Submit listing defaults */}
+          <SubmitListingSettingsPanel />
 
           {/* AI Review Settings */}
           <AdminSettingsPanel />
