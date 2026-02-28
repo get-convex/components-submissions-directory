@@ -46,6 +46,11 @@
 
 ## Recent updates
 
+- [x] Fixed `View llms.txt` visibility when keywords are missing (2026-02-27)
+  - Moved llms link out of the Keywords conditional in `src/pages/ComponentDetail.tsx`
+  - Link now renders whenever component links are available, regardless of tags
+  - Verified with `npx tsc -p . --noEmit --pretty false`
+
 - [x] Synced session docs for pagination and markdown link updates (2026-02-27)
   - Updated `files.md` with Submit pagination APIs and admin setting query coverage
   - Updated PRD index in `files.md` with session PRDs

@@ -1110,17 +1110,19 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                     </span>
                   ))}
                 </div>
-                {componentLinks && (
-                  <div className="mt-3">
-                    <a
-                      href={componentLinks.llmsUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-text-secondary hover:text-text-primary transition-colors underline">
-                      View llms.txt
-                    </a>
-                  </div>
-                )}
+              </div>
+            )}
+
+            {/* llms.txt link */}
+            {componentLinks && (
+              <div className="mb-6">
+                <a
+                  href={componentLinks.llmsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-text-secondary hover:text-text-primary transition-colors underline">
+                  View llms.txt
+                </a>
               </div>
             )}
 

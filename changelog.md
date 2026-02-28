@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Made `View llms.txt` independent from Keywords on component detail page (2026-02-27)
+  - Moved llms link rendering outside the tags conditional in `src/pages/ComponentDetail.tsx`
+  - Link now appears even when a component has no keywords
+  - Verified with app typecheck and Netlify offline build flow
+
 - Restored local `.md` and `llms.txt` link behavior for component detail dropdown (2026-02-27)
   - Added local development fallback in `shared/componentUrls.ts` via `buildComponentClientUrls`
   - Localhost now uses Convex HTTP endpoints directly:
