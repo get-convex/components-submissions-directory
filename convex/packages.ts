@@ -4284,6 +4284,33 @@ export const _recordBadgeFetch = internalMutation({
   },
 });
 
+// Internal mutation: Record an MCP API request for monitoring
+export const _recordMcpApiRequest = internalMutation({
+  args: {
+    endpoint: v.string(),
+    slug: v.optional(v.string()),
+    query: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+    referer: v.optional(v.string()),
+    responseStatus: v.number(),
+    responseTimeMs: v.optional(v.number()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.insert("mcpApiLogs", {
+      endpoint: args.endpoint,
+      slug: args.slug,
+      query: args.query,
+      userAgent: args.userAgent,
+      referer: args.referer,
+      requestedAt: Date.now(),
+      responseStatus: args.responseStatus,
+      responseTimeMs: args.responseTimeMs,
+    });
+    return null;
+  },
+});
+
 // Admin query: Get badge fetch stats for a component
 export const getBadgeStats = query({
   args: { packageId: v.id("packages") },

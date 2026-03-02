@@ -397,6 +397,21 @@ const applicationTables = {
   })
     .index("by_active", ["isActive"])
     .index("by_created_at", ["createdAt"]),
+
+  // MCP API request logs (for monitoring and rate limiting)
+  mcpApiLogs: defineTable({
+    endpoint: v.string(), // e.g. "search", "component", "install-command", "docs"
+    slug: v.optional(v.string()), // component slug if applicable
+    query: v.optional(v.string()), // search query if applicable
+    userAgent: v.optional(v.string()),
+    referer: v.optional(v.string()),
+    requestedAt: v.number(),
+    responseStatus: v.number(), // HTTP status code
+    responseTimeMs: v.optional(v.number()),
+  })
+    .index("by_endpoint", ["endpoint"])
+    .index("by_endpoint_and_requested_at", ["endpoint", "requestedAt"])
+    .index("by_requested_at", ["requestedAt"]),
 };
 
 export default defineSchema({

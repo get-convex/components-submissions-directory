@@ -25,7 +25,8 @@ import {
   ClipboardIcon,
   EyeOpenIcon,
 } from "@radix-ui/react-icons";
-import { FileArrowDown } from "@phosphor-icons/react";
+import { AgentInstallSection } from "../components/AgentInstallSection";
+import { FileArrowDown, ClipboardText } from "@phosphor-icons/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -717,6 +718,15 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 </>
               )}
 
+              {/* Agent install anchor link */}
+              <span className="text-text-secondary/40">|</span>
+              <a
+                href="#agent-install"
+                className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors">
+                <ClipboardText className="w-3.5 h-3.5" weight="bold" />
+                Use with AI
+              </a>
+
               {/* GitHub issues badge - commented out
               {component.repositoryUrl && (
                 <>
@@ -1094,6 +1104,11 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 </div>
               </div>
             )}
+
+            {/* Use with agents and CLI section */}
+            <div id="agent-install" className="mb-6 scroll-mt-20">
+              <AgentInstallSection component={component} />
+            </div>
 
             {/* Keywords */}
             {component.tags && component.tags.length > 0 && (

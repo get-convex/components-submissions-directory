@@ -71,7 +71,7 @@ Main HTML entry point. Loads the React app and CSS. Includes Open Graph meta tag
 
 ### `convex/schema.ts`
 
-Database schema definition. Defines the `packages` table with all package fields including slug, category, tags, shortDescription, longDescription, videoUrl, thumbnailUrl, thumbnailStorageId, hideThumbnailInCategory (controls thumbnail visibility in category listings vs Featured section), hideFromSubmissions (hides from Submit.tsx page only, not Directory), logoStorageId, logoUrl, selectedTemplateId, thumbnailGenerationVersion, thumbnailGeneratedAt, thumbnailGeneratedBy, convexVerified, authorUsername, authorAvatar, relatedComponentIds, submitter information (submitterName, submitterEmail, submitterDiscord, additionalEmails for multi-account access), review status, visibility, featured flag, featuredSortOrder (admin-managed numeric order for Featured section display), demoUrl, AI review fields, cached GitHub issue counts, AI-generated SEO/AEO/GEO fields, skillMd (AI-generated SKILL.md content for Claude agent skills), and soft deletion fields (markedForDeletion, markedForDeletionAt, markedForDeletionBy). Also defines `packageNotes` (with isAdminReply and userHasRead for notification tracking), `packageComments`, `adminSettings`, `adminSettingsNumeric`, `badgeFetches`, `thumbnailTemplates`, `thumbnailJobs`, `aiProviderSettings` (API keys and models for Anthropic, OpenAI, Gemini), `aiPromptVersions` (versioned AI review prompts), and `seoPromptVersions` (versioned SEO/SKILL.md generation prompts) tables.
+Database schema definition. Defines the `packages` table with all package fields including slug, category, tags, shortDescription, longDescription, videoUrl, thumbnailUrl, thumbnailStorageId, hideThumbnailInCategory (controls thumbnail visibility in category listings vs Featured section), hideFromSubmissions (hides from Submit.tsx page only, not Directory), logoStorageId, logoUrl, selectedTemplateId, thumbnailGenerationVersion, thumbnailGeneratedAt, thumbnailGeneratedBy, convexVerified, authorUsername, authorAvatar, relatedComponentIds, submitter information (submitterName, submitterEmail, submitterDiscord, additionalEmails for multi-account access), review status, visibility, featured flag, featuredSortOrder (admin-managed numeric order for Featured section display), demoUrl, AI review fields, cached GitHub issue counts, AI-generated SEO/AEO/GEO fields, skillMd (AI-generated SKILL.md content for Claude agent skills), and soft deletion fields (markedForDeletion, markedForDeletionAt, markedForDeletionBy). Also defines `packageNotes` (with isAdminReply and userHasRead for notification tracking), `packageComments`, `adminSettings`, `adminSettingsNumeric`, `badgeFetches`, `thumbnailTemplates`, `thumbnailJobs`, `aiProviderSettings` (API keys and models for Anthropic, OpenAI, Gemini), `aiPromptVersions` (versioned AI review prompts), `seoPromptVersions` (versioned SEO/SKILL.md generation prompts), and `mcpApiLogs` (MCP API request logging for monitoring) tables.
 
 ### `convex/auth.ts`
 
@@ -183,6 +183,12 @@ Main HTTP router with all API endpoints. Defines:
 - `/api/markdown-index` endpoint serving markdown listing of all approved components
 - `/api/llms.txt` endpoint serving a plain-text index of all approved components
 - `/api/component-llms?slug=<slug>` endpoint serving llms.txt format for a single component
+- Read-only MCP API endpoints (JSON responses):
+  - `/api/mcp/search`: Search components with pagination (query, category, limit, offset)
+  - `/api/mcp/component`: Get full MCP component profile by slug
+  - `/api/mcp/install-command`: Get install command by slug
+  - `/api/mcp/docs`: Get documentation URLs by slug
+  - `/api/mcp/info`: Server info and tool definitions
 
 ### `convex/convex.config.ts`
 
@@ -338,6 +344,10 @@ Copy-to-clipboard install command component.
 
 Admin editor for directory-specific fields: slug, category, tags, descriptions, video URL, verified badge, featured status, thumbnail upload with preview, thumbnail clear option (applies after Save), "Hide thumbnail in category listings" checkbox (shows thumbnail only in Featured section when checked), logo upload with clear option, auto-fill author from GitHub, auto-fill long description from package metadata, and AI SEO + SKILL.md content generation trigger with status display. Shows "SKILL.md generated" indicator when content exists. All fields reactively sync with backend updates via `useEffect` hooks, so changes from external mutations (like slug generation) appear immediately without refresh. The "Auto-fill from Package" button copies the npm/repo description into the Long Description field for editing. The logo section includes upload, download, and clear buttons for managing component logos.
 
+### `src/components/AgentInstallSection.tsx`
+
+"Use with agents and CLI" section for ComponentDetail page. Always visible (no toggle) for SEO/AEO/GEO. Shows single copy prompt optimized for AI agents (Claude style), MCP ready badge in header, and agent-friendly summary with install command, setup steps, and verification checklist. Positioned above Keywords section with anchor link from header. Respects feature flags (VITE_AGENT_INSTALL_ENABLED, VITE_MCP_BADGES_ENABLED) for controlled rollout.
+
 ### `src/lib/categories.ts`
 
 Static category definitions and `getCategoryLabel` helper.
@@ -366,9 +376,29 @@ Global CSS with Tailwind directives and design system variables.
 
 Utility functions including `cn` for Tailwind class merging.
 
+### `src/lib/mcpProfile.ts`
+
+MCP profile builder utilities. Builds MCP-compatible component profiles from package data for agent consumption. Includes `buildMcpProfile` for full profiles, `buildMcpSearchResult` for search results, and `isMcpReady`/`hasAiInstallSupport` for badge checks.
+
+### `src/lib/promptComposer.ts`
+
+Universal prompt composer for AI agent installation. Generates Cursor, Claude, and manual safety prompts per-component using layered sources (SEO content, then fallback to basic fields). Returns metadata about source fields used and whether fallback was needed.
+
+### `src/lib/metadataScoring.ts`
+
+Metadata quality scoring v1. Calculates completeness scores for components based on field presence and weights. Returns grade (A-F), confidence notes, and recommendations for missing data. Used by trust signals in the agent install section.
+
+### `src/lib/featureFlags.ts`
+
+Feature flags for MCP and agent install features. Controls rollout via environment variables (VITE_MCP_ENABLED, VITE_AGENT_INSTALL_ENABLED, VITE_METADATA_SCORING_ENABLED, VITE_COPY_PROMPTS_ENABLED, VITE_MCP_BADGES_ENABLED). Includes rollback documentation.
+
 ### `shared/componentUrls.ts`
 
 Shared URL builder used by frontend and Convex HTTP code to generate consistent component detail, markdown alias, and llms URLs. Handles scoped slug paths and derives the markdown filename leaf safely from the slug. Includes client-aware behavior for `ComponentDetail`: localhost uses Convex API endpoints (`/api/markdown` and `/api/component-llms`) while production keeps Netlify alias URLs (`/components/<slug>/<leaf>.md` and `/components/<slug>/llms.txt`). This prevents local 404s without changing production routing.
+
+### `shared/mcpTypes.ts`
+
+TypeScript types for MCP (Machine-Coded Protocol) data structures. Defines `McpComponentProfile` (public profile for agent consumption), `McpSearchResult`, `McpToolDefinition`, `McpServerConfig`, and `McpUniversalPrompt`. Also includes `MCP_EXCLUDED_FIELDS` and `MCP_PUBLIC_SUBMIT_FIELDS` constants documenting the data contract.
 
 ### `src/vite-env.d.ts`
 

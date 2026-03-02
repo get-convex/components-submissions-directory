@@ -550,4 +550,454 @@ function svgHeaders(): Record<string, string> {
   };
 }
 
+// ============ MCP API ENDPOINTS ============
+// Read-only MCP tools for agent and CLI consumption
+
+function mcpJsonHeaders(): Record<string, string> {
+  return {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "public, max-age=60, s-maxage=60",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+}
+
+function buildMcpProfile(pkg: any): any {
+  const slug = pkg.slug || "";
+  const componentLinks = slug
+    ? buildComponentUrls(slug, DIRECTORY_ORIGIN)
+    : null;
+
+  return {
+    slug,
+    displayName: pkg.componentName || pkg.name,
+    packageName: pkg.name,
+    description: pkg.longDescription || pkg.description || "",
+    shortDescription: pkg.shortDescription,
+    category: pkg.category,
+    tags: pkg.tags || [],
+    install: {
+      command: pkg.installCommand || `npm install ${pkg.name}`,
+      packageManager: detectPackageManager(pkg.installCommand || ""),
+    },
+    docs: {
+      markdownUrl: componentLinks?.markdownUrl || "",
+      llmsUrl: componentLinks?.llmsUrl || "",
+      detailUrl: componentLinks?.detailUrl || "",
+    },
+    links: {
+      npm: pkg.npmUrl,
+      repository: pkg.repositoryUrl,
+      demo: pkg.demoUrl,
+      video: pkg.videoUrl,
+    },
+    metadata: {
+      version: pkg.version || "0.0.0",
+      weeklyDownloads: pkg.weeklyDownloads || 0,
+      lastPublish: pkg.lastPublish,
+      authorUsername: pkg.authorUsername,
+    },
+    trustSignals: {
+      convexVerified: pkg.convexVerified || false,
+      hasSkillMd: Boolean(pkg.skillMd),
+      hasSeoContent: pkg.seoGenerationStatus === "completed",
+      lastUpdated: pkg.lastPublish
+        ? new Date(pkg.lastPublish).getTime()
+        : undefined,
+    },
+  };
+}
+
+function detectPackageManager(command: string): "npm" | "yarn" | "pnpm" | "bun" {
+  if (command.startsWith("yarn ")) return "yarn";
+  if (command.startsWith("pnpm ")) return "pnpm";
+  if (command.startsWith("bun ")) return "bun";
+  return "npm";
+}
+
+// MCP: Search components
+http.route({
+  path: "/api/mcp/search",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    const startTime = Date.now();
+    const url = new URL(request.url);
+    const query = url.searchParams.get("q") || "";
+    const category = url.searchParams.get("category") || "";
+    const limit = Math.min(parseInt(url.searchParams.get("limit") || "20", 10), 50);
+    const offset = parseInt(url.searchParams.get("offset") || "0", 10);
+
+    const packages = await ctx.runQuery(
+      internal.packages._listApprovedPackages,
+    );
+
+    // Filter by search query
+    let filtered = packages;
+    if (query) {
+      const q = query.toLowerCase();
+      filtered = filtered.filter((pkg: any) => {
+        const name = (pkg.name || "").toLowerCase();
+        const componentName = (pkg.componentName || "").toLowerCase();
+        const desc = (pkg.shortDescription || pkg.description || "").toLowerCase();
+        const tags = (pkg.tags || []).join(" ").toLowerCase();
+        return (
+          name.includes(q) ||
+          componentName.includes(q) ||
+          desc.includes(q) ||
+          tags.includes(q)
+        );
+      });
+    }
+
+    // Filter by category
+    if (category) {
+      filtered = filtered.filter((pkg: any) => pkg.category === category);
+    }
+
+    // Sort by downloads (most popular first)
+    filtered.sort((a: any, b: any) => (b.weeklyDownloads || 0) - (a.weeklyDownloads || 0));
+
+    // Paginate
+    const total = filtered.length;
+    const paginated = filtered.slice(offset, offset + limit);
+
+    // Build search results (lighter than full profile)
+    const results = paginated.map((pkg: any) => ({
+      slug: pkg.slug || "",
+      displayName: pkg.componentName || pkg.name,
+      packageName: pkg.name,
+      shortDescription: pkg.shortDescription,
+      category: pkg.category,
+      weeklyDownloads: pkg.weeklyDownloads || 0,
+      convexVerified: pkg.convexVerified || false,
+    }));
+
+    // Log request asynchronously (don't wait)
+    ctx.runMutation(internal.packages._recordMcpApiRequest, {
+      endpoint: "search",
+      query: query || undefined,
+      userAgent: request.headers.get("user-agent") || undefined,
+      referer: request.headers.get("referer") || undefined,
+      responseStatus: 200,
+      responseTimeMs: Date.now() - startTime,
+    });
+
+    return new Response(
+      JSON.stringify({
+        results,
+        pagination: {
+          total,
+          limit,
+          offset,
+          hasMore: offset + limit < total,
+        },
+      }),
+      { status: 200, headers: mcpJsonHeaders() },
+    );
+  }),
+});
+
+// MCP: Get single component profile
+http.route({
+  path: "/api/mcp/component",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    const startTime = Date.now();
+    const url = new URL(request.url);
+    const slug = url.searchParams.get("slug") || "";
+
+    if (!slug) {
+      ctx.runMutation(internal.packages._recordMcpApiRequest, {
+        endpoint: "component",
+        userAgent: request.headers.get("user-agent") || undefined,
+        referer: request.headers.get("referer") || undefined,
+        responseStatus: 400,
+        responseTimeMs: Date.now() - startTime,
+      });
+      return new Response(
+        JSON.stringify({ error: "Missing slug parameter" }),
+        { status: 400, headers: mcpJsonHeaders() },
+      );
+    }
+
+    const pkg = await ctx.runQuery(internal.packages._getPackageBySlug, {
+      slug,
+    });
+
+    if (!pkg || pkg.visibility === "hidden" || pkg.visibility === "archived") {
+      ctx.runMutation(internal.packages._recordMcpApiRequest, {
+        endpoint: "component",
+        slug,
+        userAgent: request.headers.get("user-agent") || undefined,
+        referer: request.headers.get("referer") || undefined,
+        responseStatus: 404,
+        responseTimeMs: Date.now() - startTime,
+      });
+      return new Response(
+        JSON.stringify({ error: "Component not found" }),
+        { status: 404, headers: mcpJsonHeaders() },
+      );
+    }
+
+    ctx.runMutation(internal.packages._recordMcpApiRequest, {
+      endpoint: "component",
+      slug,
+      userAgent: request.headers.get("user-agent") || undefined,
+      referer: request.headers.get("referer") || undefined,
+      responseStatus: 200,
+      responseTimeMs: Date.now() - startTime,
+    });
+
+    return new Response(
+      JSON.stringify({ component: buildMcpProfile(pkg) }),
+      { status: 200, headers: mcpJsonHeaders() },
+    );
+  }),
+});
+
+// MCP: Get install command
+http.route({
+  path: "/api/mcp/install-command",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    const startTime = Date.now();
+    const url = new URL(request.url);
+    const slug = url.searchParams.get("slug") || "";
+
+    if (!slug) {
+      ctx.runMutation(internal.packages._recordMcpApiRequest, {
+        endpoint: "install-command",
+        userAgent: request.headers.get("user-agent") || undefined,
+        referer: request.headers.get("referer") || undefined,
+        responseStatus: 400,
+        responseTimeMs: Date.now() - startTime,
+      });
+      return new Response(
+        JSON.stringify({ error: "Missing slug parameter" }),
+        { status: 400, headers: mcpJsonHeaders() },
+      );
+    }
+
+    const pkg = await ctx.runQuery(internal.packages._getPackageBySlug, {
+      slug,
+    });
+
+    if (!pkg || pkg.visibility === "hidden" || pkg.visibility === "archived") {
+      ctx.runMutation(internal.packages._recordMcpApiRequest, {
+        endpoint: "install-command",
+        slug,
+        userAgent: request.headers.get("user-agent") || undefined,
+        referer: request.headers.get("referer") || undefined,
+        responseStatus: 404,
+        responseTimeMs: Date.now() - startTime,
+      });
+      return new Response(
+        JSON.stringify({ error: "Component not found" }),
+        { status: 404, headers: mcpJsonHeaders() },
+      );
+    }
+
+    const command = pkg.installCommand || `npm install ${pkg.name}`;
+
+    ctx.runMutation(internal.packages._recordMcpApiRequest, {
+      endpoint: "install-command",
+      slug,
+      userAgent: request.headers.get("user-agent") || undefined,
+      referer: request.headers.get("referer") || undefined,
+      responseStatus: 200,
+      responseTimeMs: Date.now() - startTime,
+    });
+
+    return new Response(
+      JSON.stringify({
+        slug,
+        packageName: pkg.name,
+        installCommand: command,
+        packageManager: detectPackageManager(command),
+      }),
+      { status: 200, headers: mcpJsonHeaders() },
+    );
+  }),
+});
+
+// MCP: Get component markdown documentation URL
+http.route({
+  path: "/api/mcp/docs",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    const startTime = Date.now();
+    const url = new URL(request.url);
+    const slug = url.searchParams.get("slug") || "";
+
+    if (!slug) {
+      ctx.runMutation(internal.packages._recordMcpApiRequest, {
+        endpoint: "docs",
+        userAgent: request.headers.get("user-agent") || undefined,
+        referer: request.headers.get("referer") || undefined,
+        responseStatus: 400,
+        responseTimeMs: Date.now() - startTime,
+      });
+      return new Response(
+        JSON.stringify({ error: "Missing slug parameter" }),
+        { status: 400, headers: mcpJsonHeaders() },
+      );
+    }
+
+    const pkg = await ctx.runQuery(internal.packages._getPackageBySlug, {
+      slug,
+    });
+
+    if (!pkg || pkg.visibility === "hidden" || pkg.visibility === "archived") {
+      ctx.runMutation(internal.packages._recordMcpApiRequest, {
+        endpoint: "docs",
+        slug,
+        userAgent: request.headers.get("user-agent") || undefined,
+        referer: request.headers.get("referer") || undefined,
+        responseStatus: 404,
+        responseTimeMs: Date.now() - startTime,
+      });
+      return new Response(
+        JSON.stringify({ error: "Component not found" }),
+        { status: 404, headers: mcpJsonHeaders() },
+      );
+    }
+
+    const componentLinks = buildComponentUrls(slug, DIRECTORY_ORIGIN);
+
+    ctx.runMutation(internal.packages._recordMcpApiRequest, {
+      endpoint: "docs",
+      slug,
+      userAgent: request.headers.get("user-agent") || undefined,
+      referer: request.headers.get("referer") || undefined,
+      responseStatus: 200,
+      responseTimeMs: Date.now() - startTime,
+    });
+
+    return new Response(
+      JSON.stringify({
+        slug,
+        displayName: pkg.componentName || pkg.name,
+        docs: {
+          markdownUrl: componentLinks.markdownUrl,
+          llmsUrl: componentLinks.llmsUrl,
+          detailUrl: componentLinks.detailUrl,
+        },
+        links: {
+          npm: pkg.npmUrl,
+          repository: pkg.repositoryUrl,
+          demo: pkg.demoUrl,
+        },
+      }),
+      { status: 200, headers: mcpJsonHeaders() },
+    );
+  }),
+});
+
+// MCP: Server info and tool definitions
+http.route({
+  path: "/api/mcp/info",
+  method: "GET",
+  handler: httpAction(async () => {
+    return new Response(
+      JSON.stringify({
+        name: "convex-components-directory",
+        version: "1.0.0",
+        description: "Read-only MCP server for Convex Components Directory. Provides component discovery, documentation, and install commands.",
+        baseUrl: DIRECTORY_ORIGIN,
+        tools: [
+          {
+            name: "search_components",
+            description: "Search for Convex components by name, description, or category",
+            inputSchema: {
+              type: "object",
+              properties: {
+                q: { type: "string", description: "Search query" },
+                category: { type: "string", description: "Filter by category" },
+                limit: { type: "number", description: "Max results (default 20, max 50)" },
+                offset: { type: "number", description: "Pagination offset" },
+              },
+            },
+          },
+          {
+            name: "get_component",
+            description: "Get full component profile including install command, docs, and trust signals",
+            inputSchema: {
+              type: "object",
+              properties: {
+                slug: { type: "string", description: "Component slug" },
+              },
+              required: ["slug"],
+            },
+          },
+          {
+            name: "get_install_command",
+            description: "Get the install command for a component",
+            inputSchema: {
+              type: "object",
+              properties: {
+                slug: { type: "string", description: "Component slug" },
+              },
+              required: ["slug"],
+            },
+          },
+          {
+            name: "get_docs",
+            description: "Get documentation URLs for a component",
+            inputSchema: {
+              type: "object",
+              properties: {
+                slug: { type: "string", description: "Component slug" },
+              },
+              required: ["slug"],
+            },
+          },
+        ],
+      }),
+      { status: 200, headers: mcpJsonHeaders() },
+    );
+  }),
+});
+
+// CORS preflight for MCP endpoints
+http.route({
+  path: "/api/mcp/search",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return new Response(null, { status: 204, headers: mcpJsonHeaders() });
+  }),
+});
+
+http.route({
+  path: "/api/mcp/component",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return new Response(null, { status: 204, headers: mcpJsonHeaders() });
+  }),
+});
+
+http.route({
+  path: "/api/mcp/install-command",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return new Response(null, { status: 204, headers: mcpJsonHeaders() });
+  }),
+});
+
+http.route({
+  path: "/api/mcp/docs",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return new Response(null, { status: 204, headers: mcpJsonHeaders() });
+  }),
+});
+
+http.route({
+  path: "/api/mcp/info",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    return new Response(null, { status: 204, headers: mcpJsonHeaders() });
+  }),
+});
+
 export default http;

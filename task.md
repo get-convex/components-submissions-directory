@@ -2,6 +2,31 @@
 
 ## to do
 
+### MCP and Agent Install UX (PRD: prds/mcp-agent-install-ux.md)
+- [x] Create PRD for read-only MCP, ComponentDetail UX, and rollback constraints (2026-02-28)
+- [x] Define exact SubmitForm to MCP public field mapping and strip non-public submitter fields (2026-02-28)
+- [x] Add per-component MCP profile generation (`src/lib/mcpProfile.ts`) (2026-02-28)
+- [x] Build universal prompt composer with deterministic fallback (`src/lib/promptComposer.ts`) (2026-02-28)
+- [x] Add MCP HTTP endpoints (`convex/http.ts`) (2026-02-28)
+- [x] Add Use with agents and CLI section in ComponentDetail with badges, prompts, and copy actions (2026-02-28)
+- [x] Add install snippets for CLI and agent apps (2026-02-28)
+- [x] Add IP-based rate limiting and request logging for MCP endpoints (2026-02-28)
+- [x] Ship behind feature flags with documented rollback steps (2026-02-28)
+- [x] Verify route safety: markdown alias, llms.txt, SPA routes all work (2026-02-28)
+- [x] Update task.md, changelog.md, and files.md (2026-02-28)
+- [x] Simplified AgentInstallSection UI: single copy prompt, MCP badge in header, removed toggle (2026-03-02)
+- [x] Moved Use with agents and CLI section above Keywords for SEO/AEO/GEO (2026-03-02)
+- [x] Added Use with AI anchor link with ClipboardText icon in header navigation (2026-03-02)
+
+Acceptance checks:
+- [x] Component detail route works
+- [x] Markdown alias resolves via Netlify Edge Function (unchanged)
+- [x] llms.txt routes work (per-component and directory-wide) (unchanged)
+- [x] Admin/profile/submission routes unchanged
+- [x] MCP endpoints return valid JSON responses
+- [x] Universal prompt generates with fallback when SEO enrichment missing
+- [x] Copy actions work on detail page
+
 ### Submit page pagination and default page size (PRD: prds/submit-pagination-admin-page-size-setting.md)
 - [x] Add paginated submissions queries for list and search in `convex/packages.ts`
 - [x] Add admin and public settings queries for Submit page default page size (20, 40, 60)

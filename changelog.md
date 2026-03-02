@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- MCP and Agent Install UX for AI-assisted component installation (2026-03-02)
+  - Added "Use with agents and CLI" section on ComponentDetail page (always visible, no toggle)
+  - Moved section above Keywords for better SEO/AEO/GEO visibility
+  - Added "Use with AI" anchor link with ClipboardText icon in header navigation
+  - Simplified UI: single copy prompt optimized for agents (Claude style)
+  - MCP ready badge shown in section header when component qualifies
+  - Agent friendly summary with install command, setup steps, and verification checklist
+  - Read-only MCP HTTP API endpoints:
+    - `/api/mcp/search`: Search components by query, category with pagination
+    - `/api/mcp/component`: Get full component profile
+    - `/api/mcp/install-command`: Get install command for a component
+    - `/api/mcp/docs`: Get documentation URLs
+    - `/api/mcp/info`: Server info and tool definitions
+  - Feature flags for controlled rollout (VITE_MCP_ENABLED, VITE_AGENT_INSTALL_ENABLED, etc.)
+  - MCP API request logging for monitoring
+  - PRD: `prds/mcp-agent-install-ux.md`
+  - New files:
+    - `shared/mcpTypes.ts`: MCP type definitions
+    - `src/lib/mcpProfile.ts`: MCP profile builder utilities
+    - `src/lib/promptComposer.ts`: Universal prompt generation
+    - `src/lib/metadataScoring.ts`: Metadata quality scoring
+    - `src/lib/featureFlags.ts`: Feature flag utilities
+    - `src/components/AgentInstallSection.tsx`: Agent install UI component
+  - Schema addition: `mcpApiLogs` table for request monitoring
+
 - Submit page pagination and admin page size setting (2026-02-27)
   - Added paginated public queries for submissions list and search in `convex/packages.ts`
   - Added public and admin settings APIs for Submit default page size with allowed values `20`, `40`, and `60`
