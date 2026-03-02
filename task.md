@@ -17,6 +17,7 @@
 - [x] Simplified AgentInstallSection UI: single copy prompt, MCP badge in header, removed toggle (2026-03-02)
 - [x] Moved Use with agents and CLI section above Keywords for SEO/AEO/GEO (2026-03-02)
 - [x] Added Use with AI anchor link with ClipboardText icon in header navigation (2026-03-02)
+- [x] Reordered sections: Use with agents and CLI, then Agent Skill (SKILL.md), then Keywords (2026-03-02)
 
 Acceptance checks:
 - [x] Component detail route works

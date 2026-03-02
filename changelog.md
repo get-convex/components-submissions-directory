@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - MCP and Agent Install UX for AI-assisted component installation (2026-03-02)
   - Added "Use with agents and CLI" section on ComponentDetail page (always visible, no toggle)
-  - Moved section above Keywords for better SEO/AEO/GEO visibility
+  - Reordered sections: Use with agents and CLI, then Agent Skill (SKILL.md), then Keywords
   - Added "Use with AI" anchor link with ClipboardText icon in header navigation
   - Simplified UI: single copy prompt optimized for agents (Claude style)
   - MCP ready badge shown in section header when component qualifies

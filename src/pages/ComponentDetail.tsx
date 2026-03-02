@@ -1070,6 +1070,11 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               </div>
             )}
 
+            {/* Use with agents and CLI section */}
+            <div id="agent-install" className="mb-6 scroll-mt-20">
+              <AgentInstallSection component={component} />
+            </div>
+
             {/* SKILL.md for Claude agents */}
             {component.skillMd && (
               <div className="mb-6">
@@ -1104,11 +1109,6 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 </div>
               </div>
             )}
-
-            {/* Use with agents and CLI section */}
-            <div id="agent-install" className="mb-6 scroll-mt-20">
-              <AgentInstallSection component={component} />
-            </div>
 
             {/* Keywords */}
             {component.tags && component.tags.length > 0 && (
