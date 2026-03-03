@@ -2,6 +2,13 @@
 
 ## to do
 
+### Private profile admin messages and admin notes separation (PRD: prds/private-profile-admin-messages-and-admin-notes.md)
+- [x] Route profile user messages to admin comments thread in `packageComments` and keep admin notes in `packageNotes` only (2026-03-03 06:24 UTC)
+- [x] Remove public comment rendering from `src/pages/Submit.tsx` so user admin messages stay private (2026-03-03 06:24 UTC)
+- [x] Add ownership based message actions (hide, archive, delete) for both profile and admin comment UIs (2026-03-03 06:24 UTC)
+- [x] Enforce backend authorization for message lifecycle actions (no client trusted author fields) (2026-03-03 06:24 UTC)
+- [x] Update docs: `task.md`, `changelog.md`, and `files.md` after verification (2026-03-03 06:24 UTC)
+
 ### WorkOS Connect migration for Convex app auth (PRD: prds/workos-connect-convex-migration.md)
 - [x] Implement Connect OAuth PKCE provider and callback handling (2026-03-03 00:22 UTC)
 - [x] Bridge Connect tokens into Convex auth client (2026-03-03 00:23 UTC)
@@ -101,6 +108,43 @@ Acceptance checks:
 - [ ] - [ ] add payments api
 
 ## Recent updates
+
+- [x] Fixed Convex return validator mismatch for private message thread payloads (2026-03-03 06:44 UTC)
+  - Updated `getPackageComments` return validator in `convex/packages.ts` to include optional `statusUpdatedAt`
+  - Resolved runtime `ReturnsValidationError` caused by archived or hidden message records
+  - Verified with local build and Convex function validation
+
+- [x] Updated Directory badge placement for community-only component cards (2026-03-03 06:32 UTC)
+  - Adjusted `src/components/ComponentCard.tsx` so Community-only listings render in the same right-side badge slot as Verified
+  - Preserved dual-badge order when both badges are present (Community then Verified)
+  - Verified with production build
+
+- [x] Added hidden or archived message toggle and restore controls in Profile and Admin message modals (2026-03-03 06:32 UTC)
+  - Added `Show hidden or archived` toggle in both modals
+  - Added `Restore` action for owned hidden and archived messages
+  - Updated backend message queries to support optional `includeInactive`
+  - Confirmed admin own notes deletion remains enforced in backend and UI
+
+- [x] Fixed private message routing and ownership controls between Profile and Admin (2026-03-03 06:24 UTC)
+  - Profile requests now write to private `packageComments` message thread
+  - Admin `Comments` panel now represents private submitter/admin messages, not public frontend comments
+  - `Submit.tsx` no longer renders package comments publicly
+  - Added message lifecycle controls for authored messages: hide, archive, delete
+  - Enforced backend authorization for note/comment ownership operations
+
+- [x] Published team handoff guide for WorkOS Connect with Convex and Netlify (2026-03-03 01:28 UTC)
+  - Updated `prds/workos-convex-environment-runbook.md` with final working configuration and explicit route policy
+  - Added `prds/workos-connect-convex-netlify-how-to.md` with development, staging, and production setup sections
+  - Included route matrix for public, authenticated, admin, and non app alias routes
+  - Excluded secrets and used placeholders for safe sharing in Notion
+
+- [x] Added Community badge toggle to Admin Actions row (2026-03-03)
+  - Added `communitySubmitted` prop to `InlineActions` component
+  - Added `handleToggleCommunity` handler calling `updateComponentDetails` mutation
+  - Added Community toggle button with `Users` icon and Community badge color scheme
+  - Button positioned next to Convex Verified toggle in Actions row
+  - Passed `communitySubmitted` prop through to `InlineActions` from package data
+  - Build verified passing
 
 - [x] Finalized Connect environment variable guidance after admin doc cross-check (2026-03-03 01:12 UTC)
   - Confirmed this app uses WorkOS Connect OAuth client credentials with AuthKit domain based OAuth endpoints

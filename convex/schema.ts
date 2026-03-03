@@ -226,7 +226,7 @@ const applicationTables = {
     .index("by_package_and_created", ["packageId", "createdAt"])
     .index("by_parent", ["parentNoteId"]),
 
-  // Public comments for packages - visible on frontend
+  // Private messages for package submitter/admin communication
   packageComments: defineTable({
     packageId: v.id("packages"),
     content: v.string(),
@@ -234,6 +234,11 @@ const applicationTables = {
     authorName: v.optional(v.string()),
     createdAt: v.number(),
     adminHasRead: v.optional(v.boolean()), // True if admin has seen comment
+    userHasRead: v.optional(v.boolean()), // True if submitter has seen admin message
+    status: v.optional(
+      v.union(v.literal("active"), v.literal("hidden"), v.literal("archived")),
+    ),
+    statusUpdatedAt: v.optional(v.number()),
   })
     .index("by_package", ["packageId"])
     .index("by_package_and_created", ["packageId", "createdAt"]),

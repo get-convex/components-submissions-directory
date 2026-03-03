@@ -1575,6 +1575,7 @@ export const getPackageNotes = query({
       parentNoteId: v.optional(v.id("packageNotes")),
       createdAt: v.number(),
       replyCount: v.number(),
+      adminHasRead: v.optional(v.boolean()),
     }),
   ),
   handler: async (ctx, args) => {
@@ -1665,32 +1666,31 @@ export const addPackageNote = mutation({
   args: {
     packageId: v.id("packages"),
     content: v.string(),
-    authorEmail: v.string(),
-    authorName: v.optional(v.string()),
     parentNoteId: v.optional(v.id("packageNotes")),
   },
   returns: v.id("packageNotes"),
   handler: async (ctx, args) => {
-    // Check if this is an admin replying to a user request
+    const admin = await requireAdminIdentity(ctx);
+    const adminEmail = admin.email;
+
+    // Check if this is an admin reply to a legacy user request note.
     let isAdminReply = false;
     if (args.parentNoteId) {
       const parentNote = await ctx.db.get(args.parentNoteId);
-      // If parent note starts with [User Request] and current author is admin (convex.dev email)
       if (
         parentNote &&
-        parentNote.content.startsWith("[User Request]") &&
-        args.authorEmail.endsWith("@convex.dev")
+        parentNote.content.startsWith("[User Request]")
       ) {
         isAdminReply = true;
       }
     }
 
-    // Insert the note with timestamp-based ordering
+    // Insert the internal admin note with timestamp-based ordering.
     return await ctx.db.insert("packageNotes", {
       packageId: args.packageId,
       content: args.content,
-      authorEmail: args.authorEmail,
-      authorName: args.authorName,
+      authorEmail: adminEmail,
+      authorName: admin.identity.name ?? undefined,
       parentNoteId: args.parentNoteId,
       createdAt: Date.now(),
       isAdminReply: isAdminReply || undefined,
@@ -1706,7 +1706,16 @@ export const deletePackageNote = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    // Delete the note directly
+    const admin = await requireAdminIdentity(ctx);
+    const note = await ctx.db.get(args.noteId);
+    if (!note) {
+      return null;
+    }
+
+    if (note.authorEmail !== admin.email) {
+      throw new Error("You can only delete your own notes");
+    }
+
     await ctx.db.delete("packageNotes", args.noteId);
     return null;
   },
@@ -1767,9 +1776,14 @@ export const markCommentsAsReadForAdmin = mutation({
       .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
       .collect();
 
-    // Mark all unread comments as read
+    // Mark unread user messages as read for admin
     const updates = comments
-      .filter((comment) => comment.adminHasRead !== true)
+      .filter(
+        (comment) =>
+          !comment.authorEmail.endsWith("@convex.dev") &&
+          (comment.status === undefined || comment.status === "active") &&
+          comment.adminHasRead !== true,
+      )
       .map((comment) => ctx.db.patch(comment._id, { adminHasRead: true }));
 
     await Promise.all(updates);
@@ -1787,7 +1801,12 @@ export const getUnreadCommentsCount = query({
       .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
       .collect();
 
-    return comments.filter((comment) => comment.adminHasRead !== true).length;
+    return comments.filter(
+      (comment) =>
+        !comment.authorEmail.endsWith("@convex.dev") &&
+        (comment.status === undefined || comment.status === "active") &&
+        comment.adminHasRead !== true,
+    ).length;
   },
 });
 
@@ -2007,11 +2026,14 @@ export const updateAdminSetting = mutation({
   },
 });
 
-// ============ PUBLIC PACKAGE COMMENTS (visible on frontend) ============
+// ============ PRIVATE USER/ADMIN MESSAGES ============
 
-// Query: Get public comments for a package
+// Query: Get private messages for a package
 export const getPackageComments = query({
-  args: { packageId: v.id("packages") },
+  args: {
+    packageId: v.id("packages"),
+    includeInactive: v.optional(v.boolean()),
+  },
   returns: v.array(
     v.object({
       _id: v.id("packageComments"),
@@ -2022,18 +2044,43 @@ export const getPackageComments = query({
       authorName: v.optional(v.string()),
       createdAt: v.number(),
       adminHasRead: v.optional(v.boolean()),
+      userHasRead: v.optional(v.boolean()),
+      status: v.optional(
+        v.union(v.literal("active"), v.literal("hidden"), v.literal("archived")),
+      ),
+      statusUpdatedAt: v.optional(v.number()),
     }),
   ),
   handler: async (ctx, args) => {
-    // Get all comments for this package, ordered by creation time
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
+      return [];
+    }
+
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) {
+      return [];
+    }
+
+    const adminIdentity = await getAdminIdentity(ctx);
+    const isAdmin = adminIdentity?.email.endsWith("@convex.dev") ?? false;
+    if (!isAdmin && !userOwnsPackage(pkg, userEmail)) {
+      return [];
+    }
+
     const comments = await ctx.db
       .query("packageComments")
       .withIndex("by_package_and_created", (q) =>
         q.eq("packageId", args.packageId),
       )
-      .order("desc")
+      .order("asc")
       .collect();
-    return comments;
+
+    if (args.includeInactive) {
+      return comments;
+    }
+
+    return comments.filter((comment) => comment.status !== "hidden" && comment.status !== "archived");
   },
 });
 
@@ -2042,31 +2089,67 @@ export const getPackageCommentCount = query({
   args: { packageId: v.id("packages") },
   returns: v.number(),
   handler: async (ctx, args) => {
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
+      return 0;
+    }
+
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) {
+      return 0;
+    }
+
+    const adminIdentity = await getAdminIdentity(ctx);
+    const isAdmin = adminIdentity?.email.endsWith("@convex.dev") ?? false;
+    if (!isAdmin && !userOwnsPackage(pkg, userEmail)) {
+      return 0;
+    }
+
     const comments = await ctx.db
       .query("packageComments")
       .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
       .collect();
-    return comments.length;
+    return comments.filter(
+      (comment) => comment.status === undefined || comment.status === "active",
+    ).length;
   },
 });
 
-// Mutation: Add a public comment to a package (admin only)
+// Mutation: Add a private message to a package (admin or submission owner)
 export const addPackageComment = mutation({
   args: {
     packageId: v.id("packages"),
     content: v.string(),
-    authorEmail: v.string(),
-    authorName: v.optional(v.string()),
   },
   returns: v.id("packageComments"),
   handler: async (ctx, args) => {
-    // Insert the comment with timestamp-based ordering
+    const identity = await ctx.auth.getUserIdentity();
+    const userEmail = identity?.email ?? null;
+    if (!userEmail) {
+      throw new Error("Authentication required");
+    }
+
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) {
+      throw new Error("Package not found");
+    }
+
+    const adminIdentity = await getAdminIdentity(ctx);
+    const isAdmin = adminIdentity?.email.endsWith("@convex.dev") ?? false;
+    if (!isAdmin && !userOwnsPackage(pkg, userEmail)) {
+      throw new Error("You can only message for your own submissions");
+    }
+
+    // Insert a private thread message with read state.
     return await ctx.db.insert("packageComments", {
       packageId: args.packageId,
       content: args.content,
-      authorEmail: args.authorEmail,
-      authorName: args.authorName,
+      authorEmail: userEmail,
+      authorName: identity?.name ?? undefined,
       createdAt: Date.now(),
+      adminHasRead: isAdmin,
+      userHasRead: !isAdmin,
+      status: "active",
     });
   },
 });
@@ -2078,8 +2161,73 @@ export const deletePackageComment = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    // Delete the comment directly
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
+      throw new Error("Authentication required");
+    }
+
+    const comment = await ctx.db.get(args.commentId);
+    if (!comment) {
+      return null;
+    }
+
+    const pkg = await ctx.db.get(comment.packageId);
+    if (!pkg) {
+      return null;
+    }
+
+    const adminIdentity = await getAdminIdentity(ctx);
+    const isAdmin = adminIdentity?.email.endsWith("@convex.dev") ?? false;
+    if (!isAdmin && !userOwnsPackage(pkg, userEmail)) {
+      throw new Error("You can only manage messages on your own submissions");
+    }
+
+    if (comment.authorEmail !== userEmail) {
+      throw new Error("You can only delete your own messages");
+    }
+
     await ctx.db.delete("packageComments", args.commentId);
+    return null;
+  },
+});
+
+// Mutation: Update private message status (hide, archive, or restore)
+export const updatePackageCommentStatus = mutation({
+  args: {
+    commentId: v.id("packageComments"),
+    status: v.union(v.literal("active"), v.literal("hidden"), v.literal("archived")),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
+      throw new Error("Authentication required");
+    }
+
+    const comment = await ctx.db.get(args.commentId);
+    if (!comment) {
+      return null;
+    }
+
+    const pkg = await ctx.db.get(comment.packageId);
+    if (!pkg) {
+      return null;
+    }
+
+    const adminIdentity = await getAdminIdentity(ctx);
+    const isAdmin = adminIdentity?.email.endsWith("@convex.dev") ?? false;
+    if (!isAdmin && !userOwnsPackage(pkg, userEmail)) {
+      throw new Error("You can only manage messages on your own submissions");
+    }
+
+    if (comment.authorEmail !== userEmail) {
+      throw new Error("You can only update your own messages");
+    }
+
+    await ctx.db.patch(comment._id, {
+      status: args.status,
+      statusUpdatedAt: Date.now(),
+    });
     return null;
   },
 });
@@ -3044,33 +3192,18 @@ export const getMySubmissions = query({
     // Calculate unread admin replies for each package
     const packagesWithUnread = await Promise.all(
       packages.map(async (pkg) => {
-        const notes = await ctx.db
-          .query("packageNotes")
+        const comments = await ctx.db
+          .query("packageComments")
           .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
           .collect();
 
-        // Find user request IDs (from this user)
-        const userRequestIds = new Set<string>();
-        for (const note of notes) {
-          if (
-            note.authorEmail === userEmail &&
-            note.content.startsWith("[User Request]")
-          ) {
-            userRequestIds.add(note._id);
-          }
-        }
-
-        // Count unread admin replies
-        let unreadCount = 0;
-        for (const note of notes) {
-          if (
-            note.parentNoteId &&
-            userRequestIds.has(note.parentNoteId) &&
-            note.userHasRead === false
-          ) {
-            unreadCount++;
-          }
-        }
+        // Count unread admin messages in active thread
+        const unreadCount = comments.filter(
+          (comment) =>
+            comment.authorEmail.endsWith("@convex.dev") &&
+            (comment.status === undefined || comment.status === "active") &&
+            comment.userHasRead === false,
+        ).length;
 
         return {
           _id: pkg._id,
@@ -3096,7 +3229,7 @@ export const getMySubmissions = query({
 });
 
 // Mutation: Request refresh/re-review from profile page
-// Creates a note for admin team
+// Creates a private message for admin team
 export const requestSubmissionRefresh = mutation({
   args: {
     packageId: v.id("packages"),
@@ -3119,32 +3252,40 @@ export const requestSubmissionRefresh = mutation({
       throw new Error("You can only request refresh for your own submissions");
     }
 
-    // Create a note for admin team
-    await ctx.db.insert("packageNotes", {
+    // Create a private user<->admin message
+    await ctx.db.insert("packageComments", {
       packageId: args.packageId,
-      content: `[User Request] ${args.note}`,
+      content: args.note,
       authorEmail: userEmail,
       authorName: identity?.name || undefined,
       createdAt: Date.now(),
+      adminHasRead: false,
+      userHasRead: true,
+      status: "active",
     });
 
     return null;
   },
 });
 
-// Query: Get user's notes thread for a package (their requests + admin replies)
-// Returns notes visible to the user (their own requests and any admin replies)
+// Query: Get private user<->admin messages for a package
 export const getMyPackageNotes = query({
-  args: { packageId: v.id("packages") },
+  args: {
+    packageId: v.id("packages"),
+    includeInactive: v.optional(v.boolean()),
+  },
   returns: v.array(
     v.object({
-      _id: v.id("packageNotes"),
+      _id: v.id("packageComments"),
       content: v.string(),
       authorName: v.optional(v.string()),
       isFromAdmin: v.boolean(),
       createdAt: v.number(),
-      parentNoteId: v.optional(v.id("packageNotes")),
+      isOwnMessage: v.boolean(),
       userHasRead: v.optional(v.boolean()),
+      status: v.optional(
+        v.union(v.literal("active"), v.literal("hidden"), v.literal("archived")),
+      ),
     }),
   ),
   handler: async (ctx, args) => {
@@ -3159,64 +3300,28 @@ export const getMyPackageNotes = query({
       return [];
     }
 
-    // Get all notes for this package
-    const notes = await ctx.db
-      .query("packageNotes")
+    const comments = await ctx.db
+      .query("packageComments")
       .withIndex("by_package_and_created", (q) =>
         q.eq("packageId", args.packageId),
       )
       .order("asc")
       .collect();
 
-    // Filter to only user requests and admin replies
-    const userRequestIds = new Set<string>();
-    const result: Array<{
-      _id: typeof notes[0]["_id"];
-      content: string;
-      authorName?: string;
-      isFromAdmin: boolean;
-      createdAt: number;
-      parentNoteId?: typeof notes[0]["_id"];
-      userHasRead?: boolean;
-    }> = [];
+    const visibleComments = args.includeInactive
+      ? comments
+      : comments.filter((comment) => comment.status !== "hidden" && comment.status !== "archived");
 
-    // First pass: find user requests
-    for (const note of notes) {
-      if (
-        note.authorEmail === userEmail &&
-        note.content.startsWith("[User Request]")
-      ) {
-        userRequestIds.add(note._id);
-        result.push({
-          _id: note._id,
-          content: note.content.replace("[User Request] ", ""),
-          authorName: note.authorName || "You",
-          isFromAdmin: false,
-          createdAt: note.createdAt,
-          parentNoteId: note.parentNoteId,
-        });
-      }
-    }
-
-    // Second pass: find admin replies to user requests
-    for (const note of notes) {
-      if (note.parentNoteId && userRequestIds.has(note.parentNoteId)) {
-        result.push({
-          _id: note._id,
-          content: note.content,
-          authorName: note.authorName || "Convex Team",
-          isFromAdmin: true,
-          createdAt: note.createdAt,
-          parentNoteId: note.parentNoteId,
-          userHasRead: note.userHasRead,
-        });
-      }
-    }
-
-    // Sort by creation time
-    result.sort((a, b) => a.createdAt - b.createdAt);
-
-    return result;
+    return visibleComments.map((comment) => ({
+      _id: comment._id,
+      content: comment.content,
+      authorName: comment.authorEmail === userEmail ? "You" : (comment.authorName ?? "Convex Team"),
+      isFromAdmin: comment.authorEmail.endsWith("@convex.dev"),
+      createdAt: comment.createdAt,
+      isOwnMessage: comment.authorEmail === userEmail,
+      userHasRead: comment.userHasRead,
+      status: comment.status,
+    }));
   },
 });
 
@@ -3236,36 +3341,17 @@ export const getUnreadAdminReplyCount = query({
       return 0;
     }
 
-    // Get all notes for this package
-    const notes = await ctx.db
-      .query("packageNotes")
+    const comments = await ctx.db
+      .query("packageComments")
       .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
       .collect();
 
-    // Find user request IDs
-    const userRequestIds = new Set<string>();
-    for (const note of notes) {
-      if (
-        note.authorEmail === userEmail &&
-        note.content.startsWith("[User Request]")
-      ) {
-        userRequestIds.add(note._id);
-      }
-    }
-
-    // Count unread admin replies
-    let unreadCount = 0;
-    for (const note of notes) {
-      if (
-        note.parentNoteId &&
-        userRequestIds.has(note.parentNoteId) &&
-        note.userHasRead === false
-      ) {
-        unreadCount++;
-      }
-    }
-
-    return unreadCount;
+    return comments.filter(
+      (comment) =>
+        comment.authorEmail.endsWith("@convex.dev") &&
+        (comment.status === undefined || comment.status === "active") &&
+        comment.userHasRead === false,
+    ).length;
   },
 });
 
@@ -3285,32 +3371,20 @@ export const markPackageNotesAsRead = mutation({
       throw new Error("You can only access notes for your own submissions");
     }
 
-    // Get all notes for this package
-    const notes = await ctx.db
-      .query("packageNotes")
+    const comments = await ctx.db
+      .query("packageComments")
       .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
       .collect();
 
-    // Find user request IDs
-    const userRequestIds = new Set<string>();
-    for (const note of notes) {
-      if (
-        note.authorEmail === userEmail &&
-        note.content.startsWith("[User Request]")
-      ) {
-        userRequestIds.add(note._id);
-      }
-    }
-
-    // Mark unread admin replies as read
-    const updates = notes
+    // Mark unread admin messages as read
+    const updates = comments
       .filter(
-        (note) =>
-          note.parentNoteId &&
-          userRequestIds.has(note.parentNoteId) &&
-          note.userHasRead === false,
+        (comment) =>
+          comment.authorEmail.endsWith("@convex.dev") &&
+          (comment.status === undefined || comment.status === "active") &&
+          comment.userHasRead === false,
       )
-      .map((note) => ctx.db.patch(note._id, { userHasRead: true }));
+      .map((comment) => ctx.db.patch(comment._id, { userHasRead: true }));
 
     await Promise.all(updates);
 
@@ -3852,35 +3926,19 @@ export const getTotalUnreadAdminReplies = query({
 
     if (packages.length === 0) return 0;
 
-    // Get all notes for user's packages
+    // Get unread admin messages for user's packages
     let totalUnread = 0;
     for (const pkg of packages) {
-      const notes = await ctx.db
-        .query("packageNotes")
+      const comments = await ctx.db
+        .query("packageComments")
         .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
         .collect();
-
-      // Find user request IDs for this package
-      const userRequestIds = new Set<string>();
-      for (const note of notes) {
-        if (
-          note.authorEmail === userEmail &&
-          note.content.startsWith("[User Request]")
-        ) {
-          userRequestIds.add(note._id);
-        }
-      }
-
-      // Count unread admin replies
-      for (const note of notes) {
-        if (
-          note.parentNoteId &&
-          userRequestIds.has(note.parentNoteId) &&
-          note.userHasRead === false
-        ) {
-          totalUnread++;
-        }
-      }
+      totalUnread += comments.filter(
+        (comment) =>
+          comment.authorEmail.endsWith("@convex.dev") &&
+          (comment.status === undefined || comment.status === "active") &&
+          comment.userHasRead === false,
+      ).length;
     }
 
     return totalUnread;

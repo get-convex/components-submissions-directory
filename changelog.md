@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Private message inactive state controls in admin and profile threads (2026-03-03 06:32 UTC)
+  - Added `includeInactive` option to private message queries so UIs can toggle active-only vs all messages
+  - Added restore flow for hidden and archived authored messages (`status: "active"`)
+  - Added Admin message thread toggle to show or hide inactive messages in `src/pages/Admin.tsx`
+  - Updated empty states and status labels for inactive private messages
+
+- Shareable WorkOS Connect setup guide for Convex team handoff (2026-03-03 01:28 UTC)
+  - Updated `prds/workos-convex-environment-runbook.md` with final working Connect configuration and explicit route policy
+  - Added `prds/workos-connect-convex-netlify-how-to.md` with development, staging, and production setup sections
+  - Added route sections for public, auth required, admin only, and Netlify alias routes
+  - Kept all examples secret free with placeholders only
+
+- Community badge toggle in Admin Actions row (2026-03-03)
+  - Added Community toggle button next to Convex Verified in Admin InlineActions
+  - Uses `Users` icon from Phosphor with Community badge color scheme (`#E9DDC2` background)
+  - Toggle calls `updateComponentDetails` mutation with `communitySubmitted` field
+  - Shows tooltip and success toast on toggle
+
 - Connect environment variable alignment with admin OAuth docs (2026-03-03 01:12 UTC)
   - Confirmed Connect client id flow is expected for this app and documented required domain based OAuth config
   - Finalized required local vars: `VITE_WORKOS_CLIENT_ID`, `VITE_WORKOS_REDIRECT_URI`, and `VITE_WORKOS_AUTHKIT_DOMAIN`
@@ -93,6 +111,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Documented query and settings coverage updates in `files.md`
 
 ### Fixed
+
+- Convex private message query return validator mismatch (2026-03-03 06:44 UTC)
+  - Added `statusUpdatedAt` to `getPackageComments` return validator in `convex/packages.ts`
+  - Fixed runtime `ReturnsValidationError` for archived or hidden messages returned to the client
+
+- Directory badge placement for community-only components (2026-03-03 06:32 UTC)
+  - Updated `ComponentCard` badge rendering so a community-only component uses the same right-side badge slot as verified
+  - Preserved existing dual-badge behavior so Community still appears before Verified when both are present
+
+- Private message and notes separation across Profile, Admin, and Submit pages (2026-03-03 06:24 UTC)
+  - Routed profile "Send Request" and message thread reads to private `packageComments` channel for submitter/admin communication
+  - Kept `packageNotes` as admin-only internal notes and removed user-unread note coupling from admin notes UI
+  - Updated `Submit.tsx` to stop rendering package comments publicly
+  - Added authored message lifecycle controls (hide, archive, delete) in profile and admin message UIs
+  - Enforced backend ownership and auth checks for adding, deleting, and updating message status
+  - Added modal-level filter to show hidden or archived messages with restore action for authored messages (2026-03-03 06:32 UTC)
+  - Added optional `includeInactive` query support for private message retrieval (2026-03-03 06:32 UTC)
 
 - Made `View llms.txt` independent from Keywords on component detail page (2026-02-27 12:00 UTC)
   - Moved llms link rendering outside the tags conditional in `src/pages/ComponentDetail.tsx`

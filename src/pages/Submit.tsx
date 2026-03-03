@@ -25,7 +25,6 @@ import {
   SortAscending,
   User,
   Prohibit,
-  ChatCircleText,
   Star,
   Info,
   Browser,
@@ -2073,9 +2072,6 @@ function PackageRow({
             </div>
           )}
 
-          {/* Comments section */}
-          <PackageComments packageId={pkg._id} />
-
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2">
             <Tooltip content="View package on npm" position="right">
@@ -2139,44 +2135,3 @@ function PackageRow({
   );
 }
 
-// Package comments display component for frontend
-function PackageComments({ packageId }: { packageId: Id<"packages"> }) {
-  const comments = useQuery(api.packages.getPackageComments, { packageId });
-
-  // Format date for display
-  const formatCommentDate = (timestamp: number) => {
-    const date = new Date(timestamp);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
-
-  // Don't render if no comments
-  if (!comments || comments.length === 0) return null;
-
-  return (
-    <div className="mb-4">
-      <div className="flex items-center gap-2 mb-2">
-        <ChatCircleText size={14} className="text-text-secondary" />
-        <p className="text-xs font-medium text-text-secondary">Comments ({comments.length})</p>
-      </div>
-      <div className="space-y-2">
-        {comments.map((comment) => (
-          <div
-            key={comment._id}
-            className="p-3 rounded-lg border border-border"
-            style={{ backgroundColor: "#FAF5EA" }}>
-            <div className="flex items-center gap-2 text-xs text-text-secondary mb-1">
-              <User size={12} />
-              <span className="font-medium">{comment.authorName || "Admin"}</span>
-              <span>{formatCommentDate(comment.createdAt)}</span>
-            </div>
-            <p className="text-sm text-text-primary whitespace-pre-wrap">{comment.content}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}

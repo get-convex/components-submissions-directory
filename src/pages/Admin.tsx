@@ -56,6 +56,7 @@ import {
   ArrowsDownUp,
   Clock,
   LinkSimple,
+  Users,
 } from "@phosphor-icons/react";
 import {
   ExternalLinkIcon as RadixExternalLinkIcon,
@@ -778,15 +779,6 @@ function NotesPanel({
   const notes = useQuery(api.packages.getPackageNotes, { packageId });
   const addNote = useMutation(api.packages.addPackageNote);
   const deleteNote = useMutation(api.packages.deletePackageNote);
-  const markAsRead = useMutation(api.packages.markNotesAsReadForAdmin);
-  const unreadCount = useQuery(api.packages.getUnreadUserNotesCount, { packageId });
-
-  // Auto-mark as read when panel opens and there are unread notes
-  useEffect(() => {
-    if (isOpen && unreadCount && unreadCount > 0) {
-      markAsRead({ packageId });
-    }
-  }, [isOpen, unreadCount, packageId, markAsRead]);
 
   // Handle ESC key to close panel
   useEffect(() => {
@@ -814,8 +806,6 @@ function NotesPanel({
       await addNote({
         packageId,
         content: newNote.trim(),
-        authorEmail: userEmail,
-        authorName: userName,
       });
       setNewNote("");
       toast.success("Note added");
@@ -833,8 +823,6 @@ function NotesPanel({
       await addNote({
         packageId,
         content: replyContent.trim(),
-        authorEmail: userEmail,
-        authorName: userName,
         parentNoteId,
       });
       setReplyContent("");
@@ -878,11 +866,6 @@ function NotesPanel({
           <div>
             <h3 className="text-lg font-normal text-text-primary">
               Admin Notes
-              {unreadCount !== undefined && unreadCount > 0 && (
-                <span className="ml-2 px-1.5 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-600">
-                  {unreadCount} unread
-                </span>
-              )}
             </h3>
             <p className="text-xs text-text-secondary truncate max-w-xs">
               {packageName}
@@ -892,14 +875,6 @@ function NotesPanel({
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {unreadCount !== undefined && unreadCount > 0 && (
-              <button
-                onClick={() => markAsRead({ packageId })}
-                className="text-xs text-text-secondary hover:text-text-primary transition-colors"
-              >
-                Mark all read
-              </button>
-            )}
             <button
               onClick={onClose}
               className="p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
@@ -1073,35 +1048,17 @@ function NotesButton({
 }) {
   const [showNotes, setShowNotes] = useState(false);
   const noteCount = useQuery(api.packages.getPackageNoteCount, { packageId });
-  const unrepliedCount = useQuery(api.packages.getUnrepliedUserRequestCount, { packageId });
-  const unreadCount = useQuery(api.packages.getUnreadUserNotesCount, { packageId });
-
-  // Show red badge if there are unreplied user requests or unread notes, otherwise orange for total notes
-  const hasUnreplied = unrepliedCount !== undefined && unrepliedCount > 0;
-  const hasUnread = unreadCount !== undefined && unreadCount > 0;
-  const badgeCount = hasUnreplied ? unrepliedCount : hasUnread ? unreadCount : noteCount;
-  const badgeColor = hasUnreplied ? "bg-red-500" : hasUnread ? "bg-blue-500" : "bg-orange-500";
+  const badgeCount = noteCount;
+  const badgeColor = "bg-orange-500";
 
   return (
     <>
       <Tooltip
-        content={
-          hasUnreplied
-            ? `${unrepliedCount} unreplied user request${unrepliedCount > 1 ? "s" : ""}`
-            : hasUnread
-              ? `${unreadCount} unread user note${unreadCount > 1 ? "s" : ""}`
-              : `Admin notes (internal)${noteCount ? ` (${noteCount})` : ""}`
-        }
+        content={`Admin notes (internal)${noteCount ? ` (${noteCount})` : ""}`}
       >
         <button
           onClick={() => setShowNotes(true)}
-          className={`relative flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
-            hasUnreplied
-              ? "border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-              : hasUnread
-                ? "border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
-                : "border-orange-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
-          }`}
+          className="relative flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all border-orange-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
         >
           <ChatText size={14} weight="bold" />
           <span className="hidden sm:inline">Notes</span>
@@ -1127,44 +1084,31 @@ function NotesButton({
   );
 }
 
-// Small indicator for unreplied user requests (shown in collapsed package row)
-function UnrepliedNotesIndicator({ packageId }: { packageId: Id<"packages"> }) {
-  const unrepliedCount = useQuery(api.packages.getUnrepliedUserRequestCount, { packageId });
-
-  if (!unrepliedCount || unrepliedCount === 0) return null;
-
-  return (
-    <Tooltip content={`${unrepliedCount} unreplied user request${unrepliedCount > 1 ? "s" : ""}`}>
-      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-600 border border-red-200 shrink-0">
-        <ChatText size={10} weight="bold" />
-        {unrepliedCount}
-      </span>
-    </Tooltip>
-  );
-}
-
-// Comments panel for package - public comments visible on frontend
+// Comments panel for package - private user/admin messages
 function CommentsPanel({
   packageId,
   packageName,
   userEmail,
-  userName,
   isOpen,
   onClose,
 }: {
   packageId: Id<"packages">;
   packageName: string;
   userEmail: string;
-  userName?: string;
   isOpen: boolean;
   onClose: () => void;
 }) {
   const [newComment, setNewComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
 
-  const comments = useQuery(api.packages.getPackageComments, { packageId });
+  const comments = useQuery(api.packages.getPackageComments, {
+    packageId,
+    includeInactive: showInactive,
+  });
   const addComment = useMutation(api.packages.addPackageComment);
   const deleteComment = useMutation(api.packages.deletePackageComment);
+  const updateCommentStatus = useMutation(api.packages.updatePackageCommentStatus);
   const markAsRead = useMutation(api.packages.markCommentsAsReadForAdmin);
   const unreadCount = useQuery(api.packages.getUnreadCommentsCount, { packageId });
 
@@ -1196,11 +1140,9 @@ function CommentsPanel({
       await addComment({
         packageId,
         content: newComment.trim(),
-        authorEmail: userEmail,
-        authorName: userName,
       });
       setNewComment("");
-      toast.success("Comment added");
+      toast.success("Message added");
     } catch (error) {
       toast.error("Failed to add comment");
     } finally {
@@ -1214,6 +1156,22 @@ function CommentsPanel({
       toast.success("Comment deleted");
     } catch (error) {
       toast.error("Failed to delete comment");
+    }
+  };
+
+  const handleSetCommentStatus = async (
+    commentId: Id<"packageComments">,
+    status: "hidden" | "archived" | "active",
+  ) => {
+    try {
+      await updateCommentStatus({ commentId, status });
+      if (status === "active") {
+        toast.success("Message restored");
+      } else {
+        toast.success(status === "hidden" ? "Message hidden" : "Message archived");
+      }
+    } catch (error) {
+      toast.error("Failed to update message");
     }
   };
 
@@ -1238,7 +1196,7 @@ function CommentsPanel({
         <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
           <div>
             <h3 className="text-lg font-normal text-text-primary">
-              Public Comments
+              User Messages
               {unreadCount !== undefined && unreadCount > 0 && (
                 <span className="ml-2 px-1.5 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-600">
                   {unreadCount} unread
@@ -1248,11 +1206,17 @@ function CommentsPanel({
             <p className="text-xs text-text-secondary truncate max-w-xs">
               {packageName}
             </p>
-            <p className="text-xs text-green-600 mt-1">
-              Visible to users on the frontend.
+            <p className="text-xs text-blue-600 mt-1">
+              Private thread between submitter and admins.
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowInactive((prev) => !prev)}
+              className="text-xs text-text-secondary hover:text-text-primary transition-colors"
+            >
+              {showInactive ? "Hide hidden or archived" : "Show hidden or archived"}
+            </button>
             {unreadCount !== undefined && unreadCount > 0 && (
               <button
                 onClick={() => markAsRead({ packageId })}
@@ -1278,7 +1242,7 @@ function CommentsPanel({
             </div>
           ) : comments.length === 0 ? (
             <p className="text-sm text-text-secondary text-center py-8">
-              No comments yet. Add the first comment below.
+              {showInactive ? "No messages yet." : "No active messages yet. Add the first message below."}
             </p>
           ) : (
             comments.map((comment) => (
@@ -1295,17 +1259,51 @@ function CommentsPanel({
                     <span>{formatCommentDate(comment.createdAt)}</span>
                   </div>
                   {comment.authorEmail === userEmail && (
-                    <button
-                      onClick={() => handleDeleteComment(comment._id)}
-                      className="text-text-secondary hover:text-red-600 transition-colors"
-                    >
-                      <X size={14} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      {(!comment.status || comment.status === "active") ? (
+                        <>
+                          <button
+                            onClick={() => handleSetCommentStatus(comment._id, "hidden")}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                          >
+                            <EyeSlash size={10} />
+                            Hide
+                          </button>
+                          <button
+                            onClick={() => handleSetCommentStatus(comment._id, "archived")}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                          >
+                            <Archive size={10} />
+                            Archive
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => handleSetCommentStatus(comment._id, "active")}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                        >
+                          <Eye size={10} />
+                          Restore
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDeleteComment(comment._id)}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <X size={10} />
+                        Delete
+                      </button>
+                    </div>
                   )}
                 </div>
                 <p className="text-sm text-text-primary whitespace-pre-wrap">
                   {comment.content}
                 </p>
+                {comment.status && comment.status !== "active" && (
+                  <p className="mt-2 text-xs text-text-secondary">
+                    Status: {comment.status === "hidden" ? "Hidden" : "Archived"}
+                  </p>
+                )}
               </div>
             ))
           )}
@@ -1320,7 +1318,7 @@ function CommentsPanel({
             <textarea
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Add a public comment..."
+              placeholder="Add a private message..."
               rows={2}
               className="flex-1 px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-button transition-colors resize-none"
               onKeyDown={(e) => {
@@ -1344,17 +1342,15 @@ function CommentsPanel({
   );
 }
 
-// Comments button with count badge and unread indicator
+// User messages button with count badge and unread indicator
 function CommentsButton({
   packageId,
   packageName,
   userEmail,
-  userName,
 }: {
   packageId: Id<"packages">;
   packageName: string;
   userEmail: string;
-  userName?: string;
 }) {
   const [showComments, setShowComments] = useState(false);
   const commentCount = useQuery(api.packages.getPackageCommentCount, {
@@ -1373,8 +1369,8 @@ function CommentsButton({
       <Tooltip
         content={
           hasUnread
-            ? `${unreadCount} unread comment${unreadCount > 1 ? "s" : ""}`
-            : `Public comments${commentCount ? ` (${commentCount})` : ""}`
+            ? `${unreadCount} unread message${unreadCount > 1 ? "s" : ""}`
+            : `User messages${commentCount ? ` (${commentCount})` : ""}`
         }
       >
         <button
@@ -1386,7 +1382,7 @@ function CommentsButton({
           }`}
         >
           <ChatCircleText size={14} weight="bold" />
-          <span className="hidden sm:inline">Comments</span>
+          <span className="hidden sm:inline">Messages</span>
           {badgeCount !== undefined && badgeCount > 0 && (
             <span className={`absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full ${badgeColor} text-white`}>
               {badgeCount > 9 ? "9+" : badgeCount}
@@ -1399,7 +1395,6 @@ function CommentsButton({
         packageId={packageId}
         packageName={packageName}
         userEmail={userEmail}
-        userName={userName}
         isOpen={showComments}
         onClose={() => setShowComments(false)}
       />
@@ -1962,6 +1957,7 @@ function InlineActions({
   repositoryUrl,
   isArchivedView,
   convexVerified,
+  communitySubmitted,
   seoGenerationStatus,
   npmDescription,
   hideThumbnailInCategory,
@@ -1981,6 +1977,7 @@ function InlineActions({
   repositoryUrl?: string;
   isArchivedView?: boolean;
   convexVerified?: boolean;
+  communitySubmitted?: boolean;
   seoGenerationStatus?: string;
   npmDescription?: string;
   hideThumbnailInCategory?: boolean;
@@ -2141,6 +2138,23 @@ function InlineActions({
       toast.success(convexVerified ? "Convex Verified removed" : "Marked as Convex Verified");
     } catch (error) {
       toast.error("Failed to update verified status");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Toggle Community Submitted status
+  const handleToggleCommunity = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
+    try {
+      await updateComponentDetails({
+        packageId,
+        communitySubmitted: !communitySubmitted,
+      });
+      toast.success(communitySubmitted ? "Community badge removed" : "Marked as Community");
+    } catch (error) {
+      toast.error("Failed to update community status");
     } finally {
       setIsLoading(false);
     }
@@ -2374,6 +2388,23 @@ function InlineActions({
               >
                 <CheckCircle size={14} weight={convexVerified ? "fill" : "bold"} />
                 <span className="hidden sm:inline">Convex Verified</span>
+              </button>
+            </Tooltip>
+
+            {/* Community Toggle */}
+            <Tooltip content={communitySubmitted ? "Remove Community badge" : "Mark as Community"}>
+              <button
+                onClick={handleToggleCommunity}
+                disabled={isLoading}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all disabled:opacity-50 ${
+                  communitySubmitted
+                    ? "text-white border-[#C4B48A]"
+                    : "border-[#E9DDC2] text-[#574A30] hover:bg-[#F5F0E3]"
+                }`}
+                style={communitySubmitted ? { backgroundColor: "#C4B48A", borderColor: "#C4B48A" } : {}}
+              >
+                <Users size={14} weight={communitySubmitted ? "fill" : "bold"} />
+                <span className="hidden sm:inline">Community</span>
               </button>
             </Tooltip>
 
@@ -2628,7 +2659,7 @@ function InlineActions({
               packageName={packageName}
               userEmail={userEmail}
             />
-            {/* Comments Button - public, visible on frontend */}
+            {/* Comments Button - private user/admin messages */}
             <CommentsButton
               packageId={packageId}
               packageName={packageName}
@@ -5900,10 +5931,6 @@ function AdminDashboard({
                       </span>
                       <StatusBadge status={pkg.reviewStatus} />
                       <VisibilityBadge visibility={pkg.visibility} markedForDeletion={pkg.markedForDeletion} />
-                      {/* Show unreplied notes indicator when collapsed */}
-                      {!isExpanded && (
-                        <UnrepliedNotesIndicator packageId={pkg._id} />
-                      )}
                       <ComponentDetailQuickLink slug={pkg.slug} />
                     </div>
                     <div className="flex items-center gap-3 shrink-0 text-xs text-text-secondary">
@@ -6143,6 +6170,7 @@ function AdminDashboard({
                         repositoryUrl={pkg.repositoryUrl}
                         isArchivedView={activeFilter === "archived"}
                         convexVerified={pkg.convexVerified}
+                        communitySubmitted={pkg.communitySubmitted}
                         seoGenerationStatus={pkg.seoGenerationStatus}
                         npmDescription={pkg.description}
                         hideThumbnailInCategory={pkg.hideThumbnailInCategory}

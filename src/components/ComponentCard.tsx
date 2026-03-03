@@ -114,7 +114,19 @@ export function ComponentCard({
                 <span>{formatDownloads(weeklyDownloads)}/wk</span>
               </div>
               <div className="flex items-center gap-1">
-                {communitySubmitted && (
+                {communitySubmitted && !convexVerified && (
+                  <span
+                    className="inline-flex items-center gap-0.5 text-[11px] font-medium px-1.5 py-0.5 rounded-full"
+                    style={{
+                      backgroundColor: "#E9DDC2",
+                      color: "rgb(87, 74, 48)",
+                    }}
+                    title="Community submitted">
+                    <PersonIcon className="w-3 h-3" />
+                    Community
+                  </span>
+                )}
+                {communitySubmitted && convexVerified && (
                   <span
                     className="inline-flex items-center gap-0.5 text-[11px] font-medium px-1.5 py-0.5 rounded-full"
                     style={{

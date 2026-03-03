@@ -213,21 +213,66 @@ function ViewNotesModal({
   packageName: string;
   onClose: () => void;
 }) {
-  const notes = useQuery(api.packages.getMyPackageNotes, { packageId });
+  const [showInactive, setShowInactive] = useState(false);
+  const notes = useQuery(api.packages.getMyPackageNotes, {
+    packageId,
+    includeInactive: showInactive,
+  });
   const markAsRead = useMutation(api.packages.markPackageNotesAsRead);
+  const deleteMessage = useMutation(api.packages.deletePackageComment);
+  const updateMessageStatus = useMutation(api.packages.updatePackageCommentStatus);
 
-  // Calculate unread count
-  const unreadCount = notes?.filter((n) => n.isFromAdmin && n.userHasRead === false).length ?? 0;
+  // Calculate unread count in active thread
+  const unreadCount =
+    notes?.filter(
+      (n) =>
+        n.isFromAdmin &&
+        n.userHasRead === false &&
+        (!n.status || n.status === "active"),
+    ).length ?? 0;
 
   // Auto-mark notes as read when modal opens
   useEffect(() => {
-    if (notes && notes.some((n) => n.isFromAdmin && n.userHasRead === false)) {
+    if (
+      notes &&
+      notes.some(
+        (n) =>
+          n.isFromAdmin &&
+          n.userHasRead === false &&
+          (!n.status || n.status === "active"),
+      )
+    ) {
       markAsRead({ packageId });
     }
   }, [notes, packageId, markAsRead]);
 
   const handleMarkAllAsRead = () => {
     markAsRead({ packageId });
+  };
+
+  const handleDelete = async (messageId: Id<"packageComments">) => {
+    try {
+      await deleteMessage({ commentId: messageId });
+      toast.success("Message deleted");
+    } catch {
+      toast.error("Failed to delete message");
+    }
+  };
+
+  const handleSetStatus = async (
+    messageId: Id<"packageComments">,
+    status: "hidden" | "archived" | "active",
+  ) => {
+    try {
+      await updateMessageStatus({ commentId: messageId, status });
+      if (status === "active") {
+        toast.success("Message restored");
+      } else {
+        toast.success(status === "hidden" ? "Message hidden" : "Message archived");
+      }
+    } catch {
+      toast.error("Failed to update message");
+    }
   };
 
   const formatNoteDate = (timestamp: number) => {
@@ -260,6 +305,11 @@ function ViewNotesModal({
             <p className="text-xs text-text-secondary truncate max-w-xs">{packageName}</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowInactive((prev) => !prev)}
+              className="text-xs text-text-secondary hover:text-text-primary transition-colors">
+              {showInactive ? "Hide hidden or archived" : "Show hidden or archived"}
+            </button>
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllAsRead}
@@ -283,7 +333,9 @@ function ViewNotesModal({
             </div>
           ) : notes.length === 0 ? (
             <p className="text-sm text-text-secondary text-center py-8">
-              No messages yet. Use "Send Request" to contact the Convex team.
+              {showInactive
+                ? "No messages yet."
+                : 'No active messages yet. Use "Send Request" to contact the Convex team.'}
             </p>
           ) : (
             notes.map((note) => (
@@ -305,6 +357,44 @@ function ViewNotesModal({
                   )}
                 </div>
                 <p className="text-sm text-text-primary whitespace-pre-wrap">{note.content}</p>
+                {note.status && note.status !== "active" && (
+                  <p className="mt-2 text-xs text-text-secondary">
+                    Status: {note.status === "hidden" ? "Hidden" : "Archived"}
+                  </p>
+                )}
+                {note.isOwnMessage && (
+                  <div className="mt-2 flex items-center gap-2">
+                    {(!note.status || note.status === "active") ? (
+                      <>
+                        <button
+                          onClick={() => handleSetStatus(note._id, "hidden")}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+                          <EyeSlash size={12} />
+                          Hide
+                        </button>
+                        <button
+                          onClick={() => handleSetStatus(note._id, "archived")}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+                          <Archive size={12} />
+                          Archive
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => handleSetStatus(note._id, "active")}
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+                        <Eye size={12} />
+                        Restore
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(note._id)}
+                      className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors">
+                      <Trash size={12} />
+                      Delete
+                    </button>
+                  </div>
+                )}
               </div>
             ))
           )}
