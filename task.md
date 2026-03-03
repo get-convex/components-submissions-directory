@@ -109,6 +109,13 @@ Acceptance checks:
 
 ## Recent updates
 
+- [x] Added Component Authoring Challenge banner to Directory page (2026-03-03 07:15 UTC)
+  - Created `src/components/ChallengeBanner.tsx` with dark background, grid texture, and pink bordered CTA button
+  - Uses inline SVG data URL based on `public/banner-grid.svg` with boosted stroke visibility for dark backgrounds
+  - Placed above FAQSection in `src/pages/Directory.tsx`
+  - Updated `files.md`, `changelog.md`, and `task.md`
+  - Build verified passing
+
 - [x] Fixed Convex return validator mismatch for private message thread payloads (2026-03-03 06:44 UTC)
   - Updated `getPackageComments` return validator in `convex/packages.ts` to include optional `statusUpdatedAt`
   - Resolved runtime `ReturnsValidationError` caused by archived or hidden message records

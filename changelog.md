@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Component Authoring Challenge banner on Directory page (2026-03-03 07:15 UTC)
+  - New `ChallengeBanner` component at `src/components/ChallengeBanner.tsx`
+  - Dark background with repeating grid texture from `public/banner-grid.svg` (inline SVG data URL with boosted stroke visibility)
+  - Left side: bold white title and two line gray subtitle, right side: "Learn more" pill button with solid dark fill and bright pink/magenta border
+  - Placed above FAQSection on the Directory page
+  - Responsive layout: stacks vertically on mobile, horizontal on desktop
+
 - Private message inactive state controls in admin and profile threads (2026-03-03 06:32 UTC)
   - Added `includeInactive` option to private message queries so UIs can toggle active-only vs all messages
   - Added restore flow for hidden and archived authored messages (`status: "active"`)

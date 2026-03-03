@@ -258,7 +258,7 @@ Main package submission interface. Compact toolbar, package submission form, sea
 
 ### `src/pages/Directory.tsx`
 
-Component directory listing page at `/components/`. Features shared Header component, search, sort, category sidebar, featured section, component cards grid, submit link, and FAQSection at the bottom. No auth required to view. Sidebar uses `sticky top-20` positioning so Submit button remains visible below the header when scrolling.
+Component directory listing page at `/components/`. Features shared Header component, search, sort, category sidebar, featured section, component cards grid, submit link, ChallengeBanner (above FAQ), and FAQSection at the bottom. No auth required to view. Sidebar uses `sticky top-20` positioning so Submit button remains visible below the header when scrolling.
 
 
 ### `src/pages/SubmitForm.tsx`
@@ -341,6 +341,10 @@ Reusable search input with clear button.
 ### `src/components/VerifiedBadge.tsx`
 
 Reusable "Convex Verified" badge component with green background styling.
+
+### `src/components/ChallengeBanner.tsx`
+
+Promotional banner for the Component Authoring Challenge. Dark background with grid pattern (uses `/banner-grid.svg`), white title, gray description, and "Learn more" button with pink/magenta glow border. Responsive layout with column stacking on mobile. Placed at the bottom of the Directory page above the footer.
 
 ### `src/components/CommunityBadge.tsx`
 

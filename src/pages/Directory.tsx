@@ -7,6 +7,7 @@ import { CategorySidebar } from "../components/CategorySidebar";
 import { SearchBar } from "../components/SearchBar";
 import Header from "../components/Header";
 import { FAQSection } from "../components/FAQSection";
+import { ChallengeBanner } from "../components/ChallengeBanner";
 import { setPageTitle, setPageDescription } from "../lib/seo";
 import { CaretSortIcon, ChevronDownIcon } from "@radix-ui/react-icons";
 
@@ -559,6 +560,9 @@ export default function Directory() {
                 )}
               </>
             ) : null}
+
+            {/* Challenge Banner */}
+            <ChallengeBanner className="mt-12 mb-10" />
 
             {/* FAQ Section */}
             <FAQSection />
