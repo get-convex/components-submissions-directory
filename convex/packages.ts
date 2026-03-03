@@ -1949,6 +1949,7 @@ export const getAdminSettings = query({
     autoGenerateSeoOnPendingOrInReview: v.boolean(),
     autoGenerateThumbnailOnSubmit: v.boolean(),
     rotateThumbnailTemplatesOnSubmit: v.boolean(),
+    showRelatedOnDetailPage: v.boolean(),
   }),
   handler: async (ctx) => {
     const autoApprove = await ctx.db
@@ -1978,6 +1979,12 @@ export const getAdminSettings = query({
         q.eq("key", "rotateThumbnailTemplatesOnSubmit"),
       )
       .first();
+    const showRelated = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q) =>
+        q.eq("key", "showRelatedOnDetailPage"),
+      )
+      .first();
 
     return {
       autoApproveOnPass: autoApprove?.value || false,
@@ -1985,6 +1992,7 @@ export const getAdminSettings = query({
       autoGenerateSeoOnPendingOrInReview: autoGenerateSeoOnReview?.value || false,
       autoGenerateThumbnailOnSubmit: autoGenerateThumb?.value || false,
       rotateThumbnailTemplatesOnSubmit: rotateTemplates?.value || false,
+      showRelatedOnDetailPage: showRelated?.value ?? true,
     };
   },
 });
@@ -1998,6 +2006,7 @@ export const updateAdminSetting = mutation({
       v.literal("autoGenerateSeoOnPendingOrInReview"),
       v.literal("autoGenerateThumbnailOnSubmit"),
       v.literal("rotateThumbnailTemplatesOnSubmit"),
+      v.literal("showRelatedOnDetailPage"),
     ),
     value: v.boolean(),
   },
@@ -3117,6 +3126,98 @@ export const getComponentBySlug = query({
     }
 
     return toPublicPackage(pkg);
+  },
+});
+
+// Lightweight validator for related component cards (no thumbnail, minimal fields)
+const relatedCardValidator = v.object({
+  _id: v.id("packages"),
+  name: v.string(),
+  componentName: v.optional(v.string()),
+  slug: v.optional(v.string()),
+  shortDescription: v.optional(v.string()),
+  description: v.string(),
+  category: v.optional(v.string()),
+  authorUsername: v.optional(v.string()),
+  authorAvatar: v.optional(v.string()),
+  weeklyDownloads: v.number(),
+  convexVerified: v.optional(v.boolean()),
+  communitySubmitted: v.optional(v.boolean()),
+  npmUrl: v.string(),
+  repositoryUrl: v.optional(v.string()),
+});
+
+// Public query: Get up to 3 related components for a detail page
+// Matching strategy: same category > shared tags > highest downloads
+export const getRelatedComponents = query({
+  args: { packageId: v.id("packages") },
+  returns: v.array(relatedCardValidator),
+  handler: async (ctx, args) => {
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) return [];
+
+    // Check admin setting
+    const showRelated = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q) => q.eq("key", "showRelatedOnDetailPage"))
+      .first();
+    // Default to true when setting doesn't exist
+    if (showRelated && !showRelated.value) return [];
+
+    // Get all approved+visible packages, excluding self
+    const approved = await ctx.db
+      .query("packages")
+      .withIndex("by_review_status", (q) => q.eq("reviewStatus", "approved"))
+      .collect();
+
+    const candidates = approved.filter(
+      (c) =>
+        c._id !== pkg._id &&
+        (!c.visibility || c.visibility === "visible") &&
+        !c.markedForDeletion,
+    );
+
+    if (candidates.length === 0) return [];
+
+    const pkgTags = new Set((pkg.tags ?? []).map((t) => t.toLowerCase()));
+
+    // Score each candidate for relatedness
+    const scored = candidates.map((c) => {
+      let score = 0;
+      // Same category is the strongest signal
+      if (pkg.category && c.category === pkg.category) score += 10;
+      // Shared tags
+      const cTags = (c.tags ?? []).map((t) => t.toLowerCase());
+      for (const t of cTags) {
+        if (pkgTags.has(t)) score += 3;
+      }
+      // Small boost for higher downloads (normalized)
+      score += Math.min(c.weeklyDownloads / 10000, 2);
+      return { pkg: c, score };
+    });
+
+    // Sort by score desc, then downloads desc as tiebreaker
+    scored.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return b.pkg.weeklyDownloads - a.pkg.weeklyDownloads;
+    });
+
+    return scored.slice(0, 3).map((s) => ({
+      _id: s.pkg._id,
+      name: s.pkg.name || "",
+      componentName: s.pkg.componentName,
+      slug: s.pkg.slug,
+      shortDescription: s.pkg.shortDescription,
+      description: s.pkg.description || "",
+      category: s.pkg.category,
+      authorUsername: s.pkg.authorUsername,
+      authorAvatar: s.pkg.authorAvatar,
+      weeklyDownloads: s.pkg.weeklyDownloads ?? 0,
+      convexVerified: s.pkg.convexVerified,
+      communitySubmitted: s.pkg.communitySubmitted,
+      npmUrl: s.pkg.npmUrl || `https://www.npmjs.com/package/${s.pkg.name || ""}`,
+      repositoryUrl: s.pkg.repositoryUrl,
+    }));
   },
 });
 

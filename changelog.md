@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Related Components section on component detail pages (2026-03-03 07:29 UTC)
+  - Shows up to 3 related components below the View llms.txt link on detail pages
+  - Compact no-thumbnail card grid matching Directory card style
+  - Relatedness scored by shared category (+10), overlapping tags (+3 each), and download count as tiebreaker
+  - New `getRelatedComponents` public query in `convex/packages.ts`
+  - New `showRelatedOnDetailPage` admin setting (on by default) in AI Review Settings panel
+  - Admin toggle in `src/pages/Admin.tsx` to enable or disable the section globally
+  - Query returns empty array when admin setting is off, so no frontend conditional needed
+
 - Component Authoring Challenge banner on Directory page (2026-03-03 07:15 UTC)
   - New `ChallengeBanner` component at `src/components/ChallengeBanner.tsx`
   - Dark background with repeating grid texture from `public/banner-grid.svg` (inline SVG data URL with boosted stroke visibility)

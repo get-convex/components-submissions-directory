@@ -3484,7 +3484,8 @@ function AdminSettingsPanel() {
       | "autoRejectOnFail"
       | "autoGenerateSeoOnPendingOrInReview"
       | "autoGenerateThumbnailOnSubmit"
-      | "rotateThumbnailTemplatesOnSubmit",
+      | "rotateThumbnailTemplatesOnSubmit"
+      | "showRelatedOnDetailPage",
     currentValue: boolean,
   ) => {
     try {
@@ -3846,6 +3847,40 @@ function AdminSettingsPanel() {
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                   settings.rotateThumbnailTemplatesOnSubmit
+                    ? "translate-x-6"
+                    : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Show related components on detail page */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-text-primary">
+                Show related components on detail page
+              </label>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Display up to 3 related components below the llms.txt link on
+                component detail pages
+              </p>
+            </div>
+            <button
+              onClick={() =>
+                handleToggle(
+                  "showRelatedOnDetailPage",
+                  settings.showRelatedOnDetailPage,
+                )
+              }
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                settings.showRelatedOnDetailPage
+                  ? "bg-green-600"
+                  : "bg-gray-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  settings.showRelatedOnDetailPage
                     ? "translate-x-6"
                     : "translate-x-1"
                 }`}

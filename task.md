@@ -109,6 +109,14 @@ Acceptance checks:
 
 ## Recent updates
 
+- [x] Added Related Components section to component detail pages (2026-03-03 07:29 UTC)
+  - New `getRelatedComponents` query scoring by category, tags, and downloads
+  - Compact no-thumbnail cards (max 3) below View llms.txt with border divider
+  - New `showRelatedOnDetailPage` admin setting with toggle in AI Review Settings panel (on by default)
+  - Updated `getAdminSettings` and `updateAdminSetting` to support new key
+  - Updated `files.md`, `changelog.md`, and `task.md`
+  - Build verified passing
+
 - [x] Added Component Authoring Challenge banner to Directory page (2026-03-03 07:15 UTC)
   - Created `src/components/ChallengeBanner.tsx` with dark background, grid texture, and pink bordered CTA button
   - Uses inline SVG data URL based on `public/banner-grid.svg` with boosted stroke visibility for dark backgrounds
