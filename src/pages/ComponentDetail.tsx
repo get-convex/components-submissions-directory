@@ -9,11 +9,7 @@ import { CommunityBadge } from "../components/CommunityBadge";
 import Header from "../components/Header";
 import { useDirectoryCategories, getCategoryLabel } from "../lib/categories";
 import { buildComponentClientUrls } from "../../shared/componentUrls";
-import {
-  setComponentSeoTags,
-  injectJsonLd,
-  buildComponentJsonLd,
-} from "../lib/seo";
+import { setComponentSeoTags, injectJsonLd, buildComponentJsonLd } from "../lib/seo";
 import {
   ArrowLeftIcon,
   GitHubLogoIcon,
@@ -151,11 +147,7 @@ function getSessionId(): string {
 }
 
 // Star rating component
-function StarRating({
-  packageId,
-}: {
-  packageId: string;
-}) {
+function StarRating({ packageId }: { packageId: string }) {
   const rating = useQuery(api.packages.getComponentRating, {
     packageId: packageId as any,
   });
@@ -189,15 +181,19 @@ function StarRating({
               onMouseLeave={() => setHovered(0)}
               onClick={() => handleRate(star)}
               className="p-0 border-0 bg-transparent cursor-pointer transition-transform hover:scale-110"
-              title={`Rate ${star} star${star !== 1 ? "s" : ""}`}
-            >
+              title={`Rate ${star} star${star !== 1 ? "s" : ""}`}>
               <svg
                 viewBox="0 0 20 20"
                 className="w-4 h-4"
-                fill={star <= (hovered || Math.round(rating.average)) ? "rgb(243, 176, 28)" : "none"}
-                stroke={star <= (hovered || Math.round(rating.average)) ? "rgb(243, 176, 28)" : "currentColor"}
-                strokeWidth="1.5"
-              >
+                fill={
+                  star <= (hovered || Math.round(rating.average)) ? "rgb(243, 176, 28)" : "none"
+                }
+                stroke={
+                  star <= (hovered || Math.round(rating.average))
+                    ? "rgb(243, 176, 28)"
+                    : "currentColor"
+                }
+                strokeWidth="1.5">
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
               </svg>
             </button>
@@ -206,11 +202,7 @@ function StarRating({
         <span className="text-sm font-medium text-text-primary">
           {rating.average > 0 ? rating.average.toFixed(1) : ""}
         </span>
-        {rating.count > 0 && (
-          <span className="text-xs text-text-secondary">
-            ({rating.count})
-          </span>
-        )}
+        {rating.count > 0 && <span className="text-xs text-text-secondary">({rating.count})</span>}
       </div>
     </div>
   );
@@ -232,7 +224,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
   const component = useQuery(api.packages.getComponentBySlug, { slug });
   const relatedComponents = useQuery(
     api.packages.getRelatedComponents,
-    component ? { packageId: component._id } : "skip",
+    component ? { packageId: component._id } : "skip"
   );
   const dynamicCategories = useDirectoryCategories();
   const getDynamicCategoryLabel = (id: string) =>
@@ -274,10 +266,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
       const canonicalUrl = `https://www.convex.dev/components/${component.slug || ""}`;
       // Prefer AI-generated value prop for meta description
       const metaDesc =
-        component.seoValueProp ||
-        component.shortDescription ||
-        component.description ||
-        "";
+        component.seoValueProp || component.shortDescription || component.description || "";
 
       // Set all SEO tags: title, description, OG, Twitter cards, canonical URL
       setComponentSeoTags({
@@ -310,8 +299,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
     // Refresh if never fetched or older than 1 hour
     const oneHour = 60 * 60 * 1000;
     const isStale =
-      !component.githubIssuesFetchedAt ||
-      Date.now() - component.githubIssuesFetchedAt > oneHour;
+      !component.githubIssuesFetchedAt || Date.now() - component.githubIssuesFetchedAt > oneHour;
     if (isStale) {
       issueCountRefreshed.current = true;
       refreshIssueCounts({ packageId: component._id }).catch(() => {
@@ -340,7 +328,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
         setIssuesLoading(false);
       }
     },
-    [component?.repositoryUrl, fetchGitHubIssues],
+    [component?.repositoryUrl, fetchGitHubIssues]
   );
 
   // Load issues when tab opens or filter changes
@@ -410,7 +398,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
     ? buildComponentClientUrls(
         component.slug,
         window.location.origin,
-        import.meta.env.VITE_CONVEX_URL as string | undefined,
+        import.meta.env.VITE_CONVEX_URL as string | undefined
       )
     : null;
 
@@ -526,9 +514,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 {component.name}
               </a>
             ) : (
-              <span className="block text-base font-bold text-text-primary">
-                {component.name}
-              </span>
+              <span className="block text-base font-bold text-text-primary">{component.name}</span>
             )}
 
             {/* Verified */}
@@ -1003,7 +989,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                                   {uc.answer}
                                 </p>
                               </div>
-                            ),
+                            )
                           )}
                         </div>
                       </section>
@@ -1026,37 +1012,36 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                                   {faq.answer}
                                 </p>
                               </div>
-                            ),
+                            )
                           )}
                         </div>
                       </section>
                     )}
 
                     {/* Resource links as bullet list */}
-                    {component.seoResourceLinks &&
-                      component.seoResourceLinks.length > 0 && (
-                        <section>
-                          <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-2">
-                            Resources
-                          </h2>
-                          <ul className="space-y-1.5">
-                            {component.seoResourceLinks.map(
-                              (link: { label: string; url: string }, i: number) => (
-                                <li key={i} className="flex items-start gap-2 text-sm">
-                                  <span className="mt-1.5 w-1 h-1 rounded-full bg-text-secondary shrink-0" />
-                                  <a
-                                    href={link.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-text-secondary hover:text-text-primary transition-colors">
-                                    {link.label}
-                                  </a>
-                                </li>
-                              ),
-                            )}
-                          </ul>
-                        </section>
-                      )}
+                    {component.seoResourceLinks && component.seoResourceLinks.length > 0 && (
+                      <section>
+                        <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-2">
+                          Resources
+                        </h2>
+                        <ul className="space-y-1.5">
+                          {component.seoResourceLinks.map(
+                            (link: { label: string; url: string }, i: number) => (
+                              <li key={i} className="flex items-start gap-2 text-sm">
+                                <span className="mt-1.5 w-1 h-1 rounded-full bg-text-secondary shrink-0" />
+                                <a
+                                  href={link.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-text-secondary hover:text-text-primary transition-colors">
+                                  {link.label}
+                                </a>
+                              </li>
+                            )
+                          )}
+                        </ul>
+                      </section>
+                    )}
                   </div>
                 )}
               </>
@@ -1152,16 +1137,19 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
             {/* Related components (no-thumbnail compact cards, max 3) */}
             {relatedComponents && relatedComponents.length > 0 && (
               <div className="mt-8 pt-6 border-t border-border">
-                <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-4">
+                <h2 className="text-sm font-semibold text-text-primary capitalize tracking-wider mb-4">
                   Related Components
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {relatedComponents.map((rel) => {
-                    const relBasePath = window.location.pathname.startsWith("/components") ? "/components" : "";
+                    const relBasePath = window.location.pathname.startsWith("/components")
+                      ? "/components"
+                      : "";
                     const relHref = rel.slug ? `${relBasePath}/${rel.slug}` : rel.npmUrl;
                     const relDisplayName = rel.componentName || rel.name;
                     const relDesc = rel.shortDescription || rel.description;
-                    const relDescTruncated = relDesc.length > 100 ? `${relDesc.slice(0, 100).trimEnd()}...` : relDesc;
+                    const relDescTruncated =
+                      relDesc.length > 100 ? `${relDesc.slice(0, 100).trimEnd()}...` : relDesc;
                     const formatDownloads = (count: number): string => {
                       if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
                       if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
@@ -1183,9 +1171,16 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                             {rel.authorUsername && (
                               <div className="flex items-center gap-2 mb-1">
                                 {rel.authorAvatar && (
-                                  <img src={rel.authorAvatar} alt={rel.authorUsername} className="w-5 h-5 rounded-full" loading="lazy" />
+                                  <img
+                                    src={rel.authorAvatar}
+                                    alt={rel.authorUsername}
+                                    className="w-5 h-5 rounded-full"
+                                    loading="lazy"
+                                  />
                                 )}
-                                <span className="truncate text-sm font-medium">{rel.authorUsername}</span>
+                                <span className="truncate text-sm font-medium">
+                                  {rel.authorUsername}
+                                </span>
                               </div>
                             )}
                             <div className="flex items-center justify-between gap-2">
@@ -1195,12 +1190,22 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                               </div>
                               <div className="flex items-center gap-1">
                                 {rel.communitySubmitted && (
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "#E9DDC2", color: "rgb(87, 74, 48)" }}>
+                                  <span
+                                    className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                                    style={{
+                                      backgroundColor: "#E9DDC2",
+                                      color: "rgb(87, 74, 48)",
+                                    }}>
                                     Community
                                   </span>
                                 )}
                                 {rel.convexVerified && (
-                                  <span className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "rgb(203, 237, 182)", color: "rgb(34, 137, 9)" }}>
+                                  <span
+                                    className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                                    style={{
+                                      backgroundColor: "rgb(203, 237, 182)",
+                                      color: "rgb(34, 137, 9)",
+                                    }}>
                                     Verified
                                   </span>
                                 )}

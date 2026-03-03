@@ -8,10 +8,7 @@ import { useState, useMemo } from "react";
 import { CheckIcon, CopyIcon } from "@radix-ui/react-icons";
 import { generateClaudePrompt } from "../lib/promptComposer";
 import { isMcpReady } from "../lib/mcpProfile";
-import {
-  AGENT_INSTALL_SECTION_ENABLED,
-  MCP_BADGES_ENABLED,
-} from "../lib/featureFlags";
+import { AGENT_INSTALL_SECTION_ENABLED, MCP_BADGES_ENABLED } from "../lib/featureFlags";
 
 interface ComponentData {
   _id: string;
@@ -57,7 +54,7 @@ export function AgentInstallSection({ component }: AgentInstallSectionProps) {
   // Generate single agent prompt (Claude style is best for agents)
   const agentPrompt = useMemo(
     () => generateClaudePrompt(component, origin, convexUrl),
-    [component, origin, convexUrl],
+    [component, origin, convexUrl]
   );
 
   // Copy helper
@@ -81,9 +78,7 @@ export function AgentInstallSection({ component }: AgentInstallSectionProps) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-text-primary">
-            Use with agents and CLI
-          </span>
+          <span className="text-sm font-medium text-text-primary">Use with agents and CLI</span>
           {MCP_BADGES_ENABLED && mcpReady && (
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
               MCP ready
@@ -97,7 +92,7 @@ export function AgentInstallSection({ component }: AgentInstallSectionProps) {
         {/* Copy prompt section */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+            <span className="text-xs font-medium text-text-secondary capitalize tracking-wider">
               Copy prompt
             </span>
             <button
@@ -133,9 +128,7 @@ export function AgentInstallSection({ component }: AgentInstallSectionProps) {
             </p>
             <p>
               <strong>Install:</strong>{" "}
-              <code className="px-1 py-0.5 bg-bg-primary rounded">
-                {component.installCommand}
-              </code>
+              <code className="px-1 py-0.5 bg-bg-primary rounded">{component.installCommand}</code>
             </p>
             {component.category && (
               <p>
@@ -158,9 +151,7 @@ export function AgentInstallSection({ component }: AgentInstallSectionProps) {
                 <li>TypeScript types resolve correctly</li>
                 <li>
                   No errors in{" "}
-                  <code className="px-1 py-0.5 bg-bg-primary rounded">
-                    npx convex dev
-                  </code>
+                  <code className="px-1 py-0.5 bg-bg-primary rounded">npx convex dev</code>
                 </li>
               </ul>
             </div>

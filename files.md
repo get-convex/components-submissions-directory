@@ -297,7 +297,7 @@ Public submissions directory at `/submissions`. Table-based UI showing submitted
 - npm/Repo/Website/Demo action buttons per package
 - Status badges (pending, in review, approved, changes requested, rejected)
 - Submit button links to `/submit` (auth-gated form page)
-- About modal with status legend
+- About modal with status legend and Badges section (Convex Verified, Community)
 
 ### `src/pages/Profile.tsx`
 
@@ -305,14 +305,15 @@ User profile page for managing submitted components. Accessible at `/profile`. F
 - Shared Header component with auth state
 - Sign-in gate for unauthenticated users with Sign In button calling `signIn()` directly
 - Lists all components submitted by the authenticated user (via submitterEmail or additionalEmails)
-- Shows review status (pending, in_review, approved, changes_requested, rejected) and visibility badges
-- "Pending Deletion" badge shown next to status and visibility badges when component is marked for deletion
+- Shows review status (pending, in_review, approved, changes_requested, rejected) and visibility badges using consistent styling synced with Submit.tsx and Admin.tsx
 - "Send Request" button to send notes to admin team (request re-review, removal, or updates)
 - "View Notes" modal showing private user/admin messages with notification badge for unread admin replies
 - Message lifecycle controls on user-authored messages: hide, archive, and delete
 - "Edit" button to update submission details (name, descriptions, category, tags, URLs)
 - Links to view approved components
-- Status guide explaining each review state with visibility guide (Visible, Hidden, Archived, Pending Deletion)
+- Status Guide with all 6 statuses (Pending, In Review, Approved, Changes Requested, Rejected, Featured) synced with Submit.tsx and Admin.tsx
+- Visibility Guide (Visible, Hidden) with removed Archived and Pending Deletion states
+- Badges section showing Convex Verified and Community badge explanations
 - Account section with Delete Account button (requires all components deleted first)
 - Delete Account modal with warning if active submissions exist
 - Submit New button linking to submission form

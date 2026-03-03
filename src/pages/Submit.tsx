@@ -1644,6 +1644,29 @@ function AboutModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
+        {/* Badges */}
+        <div className="mt-4">
+          <h3 className="text-sm font-medium text-text-primary mb-3">Badges</h3>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 p-2 rounded-lg bg-bg-primary/50">
+              <span
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+                style={{ backgroundColor: "rgb(203, 237, 182)", color: "rgb(34, 137, 9)" }}>
+                Convex Verified
+              </span>
+              <span className="text-xs text-text-secondary">Reviewed and verified by the Convex team</span>
+            </div>
+            <div className="flex items-center gap-3 p-2 rounded-lg bg-bg-primary/50">
+              <span
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+                style={{ backgroundColor: "#E9DDC2", color: "rgb(87, 74, 48)" }}>
+                Community
+              </span>
+              <span className="text-xs text-text-secondary">Submitted by a community member</span>
+            </div>
+          </div>
+        </div>
+
         {/* Footer */}
         <div className="mt-6 pt-4 border-t border-border"></div>
       </div>

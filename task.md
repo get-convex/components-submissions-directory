@@ -116,6 +116,14 @@ Acceptance checks:
 
 ## Recent updates
 
+- [x] Synced Status Legend, Visibility Guide, and Badges across Profile.tsx, Submit.tsx, and Admin.tsx (2026-03-03 09:15 UTC)
+  - Profile.tsx: removed Archived and Pending Deletion from Visibility Guide
+  - Profile.tsx: added Featured status, updated rejected icon to Prohibit for consistency
+  - Profile.tsx: removed DeletionBadge component and markedForDeletion SubmissionCard props
+  - Profile.tsx and Submit.tsx: added Badges section (Convex Verified, Community)
+  - Verified all three pages share identical status definitions and styling
+  - Build verified passing (tsc and npm run build)
+
 - [x] Rebuilt Footer.tsx to match official Convex.dev footer design (2026-03-03 08:25 UTC)
   - Dark background (`#141414`) with Convex design system tokens
   - White Convex wordmark logo, 4 link columns (Product, Developers, Company, Social)

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Synced Status Legend, Visibility Guide, and Badges section across Profile.tsx, Submit.tsx, and Admin.tsx (2026-03-03 09:15 UTC)
+  - Profile.tsx: removed Archived and Pending Deletion from Visibility Guide (features removed)
+  - Profile.tsx: added Featured status to Status Guide, updated rejected icon to Prohibit for consistency
+  - Profile.tsx: removed DeletionBadge component and markedForDeletion references from SubmissionCard
+  - Profile.tsx and Submit.tsx: added Badges section with Convex Verified and Community badge explanations
+  - All three pages now share identical status definitions and badge styling
+
 - Full Convex.dev-style footer matching official site design (2026-03-03 08:25 UTC)
   - Dark background (`#141414`) using Convex design system tokens
   - White Convex wordmark logo linking to convex.dev

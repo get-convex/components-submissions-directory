@@ -22,7 +22,8 @@ import {
   Trash,
   SignOut,
   UserMinus,
-  Clock,
+  Star,
+  Prohibit,
 } from "@phosphor-icons/react";
 
 // Get base path for links (always /components)
@@ -30,33 +31,33 @@ function useBasePath() {
   return "/components";
 }
 
-// Status badge component
+// Status badge component (synced with Submit.tsx and Admin.tsx)
 function StatusBadge({ status }: { status?: string }) {
-  const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+  const statusConfig: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
     pending: {
       label: "Pending",
-      color: "bg-yellow-100 text-yellow-800",
+      className: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
       icon: <Hourglass size={14} />,
     },
     in_review: {
       label: "In Review",
-      color: "bg-blue-100 text-blue-800",
+      className: "bg-blue-500/10 text-blue-600 border-blue-500/20",
       icon: <Eye size={14} />,
     },
     approved: {
       label: "Approved",
-      color: "bg-green-100 text-green-800",
+      className: "bg-green-500/10 text-green-600 border-green-500/20",
       icon: <CheckCircle size={14} />,
     },
     changes_requested: {
       label: "Changes Requested",
-      color: "bg-orange-100 text-orange-800",
+      className: "bg-orange-500/10 text-orange-600 border-orange-500/20",
       icon: <Warning size={14} />,
     },
     rejected: {
       label: "Rejected",
-      color: "bg-red-100 text-red-800",
-      icon: <X size={14} />,
+      className: "bg-red-500/10 text-red-600 border-red-500/20",
+      icon: <Prohibit size={14} />,
     },
   };
 
@@ -64,7 +65,7 @@ function StatusBadge({ status }: { status?: string }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${config.className}`}>
       {config.icon}
       {config.label}
     </span>
@@ -75,17 +76,12 @@ function StatusBadge({ status }: { status?: string }) {
 function VisibilityBadge({ visibility }: { visibility?: string }) {
   if (!visibility || visibility === "visible") return null;
 
-  const visibilityConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> =
+  const visibilityConfig: Record<string, { label: string; className: string; icon: React.ReactNode }> =
     {
       hidden: {
         label: "Hidden",
-        color: "bg-gray-100 text-gray-600",
+        className: "bg-gray-500/10 text-gray-600 border-gray-500/20",
         icon: <EyeSlash size={14} />,
-      },
-      archived: {
-        label: "Archived",
-        color: "bg-gray-200 text-gray-700",
-        icon: <Archive size={14} />,
       },
     };
 
@@ -94,26 +90,9 @@ function VisibilityBadge({ visibility }: { visibility?: string }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${config.className}`}>
       {config.icon}
       {config.label}
-    </span>
-  );
-}
-
-// Marked for deletion badge component
-function DeletionBadge({ markedForDeletionAt }: { markedForDeletionAt?: number }) {
-  if (!markedForDeletionAt) return null;
-
-  const deletionDate = new Date(markedForDeletionAt).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-
-  return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-      <Clock size={14} />
-      Pending Deletion ({deletionDate})
     </span>
   );
 }
@@ -750,8 +729,6 @@ function SubmissionCard({
     shortDescription?: string;
     category?: string;
     unreadAdminReplies: number;
-    markedForDeletion?: boolean;
-    markedForDeletionAt?: number;
   };
   onRequestRefresh: (id: Id<"packages">, name: string) => void;
   onViewNotes: (id: Id<"packages">, name: string) => void;
@@ -809,9 +786,6 @@ function SubmissionCard({
             <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
               <StatusBadge status={submission.reviewStatus} />
               <VisibilityBadge visibility={submission.visibility} />
-              {submission.markedForDeletion && (
-                <DeletionBadge markedForDeletionAt={submission.markedForDeletionAt} />
-              )}
             </div>
           </div>
 
@@ -824,55 +798,36 @@ function SubmissionCard({
 
           {/* Actions */}
           <div className="flex flex-wrap items-center gap-2 mt-3">
-            {submission.markedForDeletion ? (
-              // Component is scheduled for deletion by admin
-              <div className="flex-1 text-xs text-red-600">
-                This component is scheduled for permanent deletion. Contact the Convex team via
-                "Send Request" if you need to cancel this.
-              </div>
-            ) : (
-              // Normal action buttonss
-              <>
-                {/* Edit button */}
-                <button
-                  onClick={() => onEdit(submission._id)}
-                  className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
-                  <PencilSimple size={14} />
-                  Edit
-                </button>
-                {/* Send Request button */}
-                <button
-                  onClick={() => onRequestRefresh(submission._id, displayName)}
-                  className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
-                  <ChatCircleText size={14} />
-                  Send Request
-                </button>
-                {/* View Messages button with notification badge */}
-                <button
-                  onClick={() => onViewNotes(submission._id, displayName)}
-                  className="relative inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
-                  <Bell size={14} />
-                  Messages
-                  {submission.unreadAdminReplies > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-green-500 text-white">
-                      {submission.unreadAdminReplies > 9 ? "9+" : submission.unreadAdminReplies}
-                    </span>
-                  )}
-                </button>
-                {/* View component link - only when approved AND visible */}
-                {canViewDetail && (
-                  <a
-                    href={`${basePath}/${submission.slug}`}
-                    className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
-                    <Eye size={14} />
-                    View
-                  </a>
-                )}
-                {/* 
-                  Visibility controls (Hide/Show/Delete) are admin-only features.
-                  Users should contact admin via "Send Request" to manage visibility.
-                */}
-              </>
+            <button
+              onClick={() => onEdit(submission._id)}
+              className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+              <PencilSimple size={14} />
+              Edit
+            </button>
+            <button
+              onClick={() => onRequestRefresh(submission._id, displayName)}
+              className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+              <ChatCircleText size={14} />
+              Send Request
+            </button>
+            <button
+              onClick={() => onViewNotes(submission._id, displayName)}
+              className="relative inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+              <Bell size={14} />
+              Messages
+              {submission.unreadAdminReplies > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-green-500 text-white">
+                  {submission.unreadAdminReplies > 9 ? "9+" : submission.unreadAdminReplies}
+                </span>
+              )}
+            </button>
+            {canViewDetail && (
+              <a
+                href={`${basePath}/${submission.slug}`}
+                className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+                <Eye size={14} />
+                View
+              </a>
             )}
           </div>
         </div>
@@ -890,9 +845,8 @@ export default function Profile() {
   // Mutations for user actions (visibility controls removed - admin only)
   const deleteAccount = useMutation(api.packages.deleteMyAccount);
 
-  // Count active (not marked for deletion) submissions
   const activeSubmissions = useMemo(() => {
-    return submissions?.filter((s) => !s.markedForDeletion) ?? [];
+    return submissions ?? [];
   }, [submissions]);
 
   // Modal state for request
@@ -1058,30 +1012,37 @@ export default function Profile() {
           <ul className="space-y-2 text-xs mb-6">
             <li className="flex items-center gap-2">
               <StatusBadge status="pending" />
-              <span className="text-text-secondary">Awaiting review</span>
+              <span className="text-text-secondary">Awaiting initial review</span>
             </li>
             <li className="flex items-center gap-2">
               <StatusBadge status="in_review" />
-              <span className="text-text-secondary">Being reviewed</span>
+              <span className="text-text-secondary">Currently being evaluated</span>
             </li>
             <li className="flex items-center gap-2">
               <StatusBadge status="approved" />
-              <span className="text-text-secondary">Published</span>
+              <span className="text-text-secondary">Ready to be featured</span>
             </li>
             <li className="flex items-center gap-2">
               <StatusBadge status="changes_requested" />
-              <span className="text-text-secondary">Needs updates</span>
+              <span className="text-text-secondary">Needs updates before approval</span>
             </li>
             <li className="flex items-center gap-2">
               <StatusBadge status="rejected" />
-              <span className="text-text-secondary">Not accepted</span>
+              <span className="text-text-secondary">Does not meet requirements</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-amber-500/10 text-amber-600 border-amber-500/20">
+                <Star size={14} weight="fill" />
+                Featured
+              </span>
+              <span className="text-text-secondary">Highlighted on convex.dev/components</span>
             </li>
           </ul>
 
           <h3 className="text-sm font-medium text-text-primary mb-3">Visibility Guide</h3>
           <ul className="space-y-2 text-xs">
             <li className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-green-500/10 text-green-600 border-green-500/20">
                 <Eye size={14} />
                 Visible
               </span>
@@ -1091,13 +1052,25 @@ export default function Profile() {
               <VisibilityBadge visibility="hidden" />
               <span className="text-text-secondary">Temporarily hidden from directory</span>
             </li>
+          </ul>
+
+          <h3 className="text-sm font-medium text-text-primary mb-3 mt-6">Badges</h3>
+          <ul className="space-y-2 text-xs">
             <li className="flex items-center gap-2">
-              <VisibilityBadge visibility="archived" />
-              <span className="text-text-secondary">Archived by admin</span>
+              <span
+                className="inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded-full"
+                style={{ backgroundColor: "rgb(203, 237, 182)", color: "rgb(34, 137, 9)" }}>
+                Convex Verified
+              </span>
+              <span className="text-text-secondary">Reviewed and verified by the Convex team</span>
             </li>
             <li className="flex items-center gap-2">
-              <DeletionBadge markedForDeletionAt={Date.now()} />
-              <span className="text-text-secondary">Scheduled for permanent deletion by admin</span>
+              <span
+                className="inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded-full"
+                style={{ backgroundColor: "#E9DDC2", color: "rgb(87, 74, 48)" }}>
+                Community
+              </span>
+              <span className="text-text-secondary">Submitted by a community member</span>
             </li>
           </ul>
         </div>
