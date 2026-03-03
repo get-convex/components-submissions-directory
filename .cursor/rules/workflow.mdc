@@ -11,6 +11,11 @@ alwaysApply: true
 1. Stop. Write a PRD to `prds/<feature-name>.md` before touching code.
    - PRD files end in `.md`, not `.prd`
    - Include: problem, proposed solution, files to change, edge cases
+   - Add PRD metadata at the top with timestamps:
+     - `Created: YYYY-MM-DD HH:mm UTC`
+     - `Last Updated: YYYY-MM-DD HH:mm UTC`
+     - `Status: Draft | In Progress | Done`
+   - Add a `## Task completion log` section with checkbox entries that include completion timestamps
    - For bug fixes: problem, root cause, fix, verification steps
 2. Add tasks to `TASK.md` under `## To Do` as checkable items
 3. If anything is unclear, ask before implementing
@@ -18,6 +23,7 @@ alwaysApply: true
 ## During implementation
 
 - Work task by task. Mark `[x]` as you go in `TASK.md`
+- When marking a task complete, include timestamp format `YYYY-MM-DD HH:mm UTC`
 - Never mark a task complete without verifying it works
 - Use subagents for research, exploration, and parallel analysis
 - One task per subagent for focused execution
@@ -30,7 +36,7 @@ alwaysApply: true
 Always update both project docs. No exceptions:
 
 1. `TASK.md` - Move completed items to `## Completed` with bullet details and date
-2. `changelog.md` - Add keepachangelog.com format entry. Run `git log --date=short -n 10` for real dates. No placeholders, no future months.
+2. `changelog.md` - Add keepachangelog.com format entry. Run `git log --date=short -n 10` for real dates. No placeholders, no future months. Include timestamp details inside bullets when useful (`YYYY-MM-DD HH:mm UTC`).
 3. `files.md` - Update if new files were added or descriptions changed
 
 ## Self-improvement

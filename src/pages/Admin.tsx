@@ -103,6 +103,7 @@ function PackageComponentDetailsEditor({
   thumbnailUrl,
   hideThumbnailInCategory,
   convexVerified,
+  communitySubmitted,
   authorUsername,
   authorAvatar,
   logoUrl,
@@ -128,6 +129,7 @@ function PackageComponentDetailsEditor({
   thumbnailUrl?: string;
   hideThumbnailInCategory?: boolean;
   convexVerified?: boolean;
+  communitySubmitted?: boolean;
   authorUsername?: string;
   authorAvatar?: string;
   logoUrl?: string;
@@ -177,6 +179,7 @@ function PackageComponentDetailsEditor({
           thumbnailUrl={thumbnailUrl}
           hideThumbnailInCategory={hideThumbnailInCategory}
           convexVerified={convexVerified}
+          communitySubmitted={communitySubmitted}
           authorUsername={authorUsername}
           authorAvatar={authorAvatar}
           logoUrl={logoUrl}
@@ -6013,6 +6016,7 @@ function AdminDashboard({
                             thumbnailUrl={pkg.thumbnailUrl}
                             hideThumbnailInCategory={pkg.hideThumbnailInCategory}
                             convexVerified={pkg.convexVerified}
+                            communitySubmitted={pkg.communitySubmitted}
                             authorUsername={pkg.authorUsername}
                             authorAvatar={pkg.authorAvatar}
                             logoUrl={pkg.logoUrl}

@@ -18,6 +18,10 @@ Copy and fill in this template:
 ```markdown
 # [Feature or problem name]
 
+Created: YYYY-MM-DD HH:mm UTC
+Last Updated: YYYY-MM-DD HH:mm UTC
+Status: Draft | In Progress | Done
+
 ## Summary
 
 1-2 sentence description of what this is and why it matters.
@@ -50,6 +54,10 @@ How to confirm the fix or feature works:
 - [ ] Step 1
 - [ ] Step 2
 
+## Task completion log
+
+- [ ] Task name completed (YYYY-MM-DD HH:mm UTC)
+
 ## Related
 
 Links to related PRDs, issues, or external docs if any.
@@ -73,4 +81,5 @@ Links to related PRDs, issues, or external docs if any.
 
 1. Add the feature tasks to `TASK.md` under `## To Do` as checkable items
 2. Reference the PRD path in the TASK.md entry if useful
-3. Begin implementation only after the plan is clear
+3. Keep `Last Updated` current as tasks move forward
+4. Begin implementation only after the plan is clear

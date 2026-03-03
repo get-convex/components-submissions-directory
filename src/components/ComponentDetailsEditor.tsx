@@ -25,6 +25,7 @@ interface ComponentDetailsEditorProps {
   thumbnailUrl?: string;
   hideThumbnailInCategory?: boolean;
   convexVerified?: boolean;
+  communitySubmitted?: boolean;
   authorUsername?: string;
   authorAvatar?: string;
   // Logo and thumbnail generation fields
@@ -57,6 +58,7 @@ export function ComponentDetailsEditor({
   thumbnailUrl: initialThumbUrl,
   hideThumbnailInCategory: initialHideThumbnailInCategory,
   convexVerified: initialVerified,
+  communitySubmitted: initialCommunitySubmitted,
   authorUsername: initialAuthorUser,
   authorAvatar: initialAuthorAvatar,
   logoUrl: initialLogoUrl,
@@ -94,6 +96,9 @@ export function ComponentDetailsEditor({
   const [logoUrl, setLogoUrl] = useState(initialLogoUrl || "");
   const [convexVerified, setConvexVerified] = useState(
     initialVerified || false,
+  );
+  const [communitySubmitted, setCommunitySubmitted] = useState(
+    initialCommunitySubmitted || false,
   );
   const [authorUsername, setAuthorUsername] = useState(
     initialAuthorUser || "",
@@ -163,6 +168,10 @@ export function ComponentDetailsEditor({
     setConvexVerified(initialVerified || false);
   }, [initialVerified]);
 
+  useEffect(() => {
+    setCommunitySubmitted(initialCommunitySubmitted || false);
+  }, [initialCommunitySubmitted]);
+
   const updateDetails = useMutation(api.packages.updateComponentDetails);
   const generateUploadUrl = useMutation(api.packages.generateUploadUrl);
   const saveThumbnail = useMutation(api.packages.saveThumbnail);
@@ -196,6 +205,7 @@ export function ComponentDetailsEditor({
         hideThumbnailInCategory?: boolean;
         slug?: string;
         convexVerified?: boolean;
+        communitySubmitted?: boolean;
         authorUsername?: string;
         authorAvatar?: string;
       } = {
@@ -215,6 +225,7 @@ export function ComponentDetailsEditor({
       if (!isSubmissionMode) {
         payload.slug = slug || undefined;
         payload.convexVerified = convexVerified;
+        payload.communitySubmitted = communitySubmitted;
         payload.hideThumbnailInCategory = hideThumbnailInCategory;
         payload.authorUsername = authorUsername || undefined;
         payload.authorAvatar = authorAvatar || undefined;
@@ -772,20 +783,37 @@ export function ComponentDetailsEditor({
       </div>
 
       {!isSubmissionMode && (
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id={`verified-${packageId}`}
-            checked={convexVerified}
-            onChange={(e) => setConvexVerified(e.target.checked)}
-            className="rounded"
-          />
-          <label
-            htmlFor={`verified-${packageId}`}
-            className="text-xs text-text-primary"
-          >
-            Convex Verified
-          </label>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id={`verified-${packageId}`}
+              checked={convexVerified}
+              onChange={(e) => setConvexVerified(e.target.checked)}
+              className="rounded"
+            />
+            <label
+              htmlFor={`verified-${packageId}`}
+              className="text-xs text-text-primary"
+            >
+              Convex Verified
+            </label>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id={`community-${packageId}`}
+              checked={communitySubmitted}
+              onChange={(e) => setCommunitySubmitted(e.target.checked)}
+              className="rounded"
+            />
+            <label
+              htmlFor={`community-${packageId}`}
+              className="text-xs text-text-primary"
+            >
+              Community
+            </label>
+          </div>
         </div>
       )}
 

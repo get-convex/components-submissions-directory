@@ -1,5 +1,5 @@
 // Card component for the directory grid listing
-import { DownloadIcon, CheckCircledIcon } from "@radix-ui/react-icons";
+import { DownloadIcon, CheckCircledIcon, PersonIcon } from "@radix-ui/react-icons";
 interface ComponentCardProps {
   name: string;
   componentName?: string;
@@ -14,6 +14,7 @@ interface ComponentCardProps {
   authorAvatar?: string;
   weeklyDownloads: number;
   convexVerified?: boolean;
+  communitySubmitted?: boolean;
   featured?: boolean;
   npmUrl: string;
   repositoryUrl?: string;
@@ -32,6 +33,7 @@ export function ComponentCard({
   authorAvatar,
   weeklyDownloads,
   convexVerified,
+  communitySubmitted,
   featured,
   npmUrl,
   className,
@@ -111,18 +113,32 @@ export function ComponentCard({
                 <DownloadIcon className="w-3.5 h-3.5" />
                 <span>{formatDownloads(weeklyDownloads)}/wk</span>
               </div>
-              {convexVerified && (
-                <span
-                  className="inline-flex items-center gap-0.5 text-[11px] font-medium px-1.5 py-0.5 rounded-full"
-                  style={{
-                    backgroundColor: "rgb(203, 237, 182)",
-                    color: "rgb(34, 137, 9)",
-                  }}
-                  title="Verified by Convex team">
-                  <CheckCircledIcon className="w-3 h-3" />
-                  Verified
-                </span>
-              )}
+              <div className="flex items-center gap-1">
+                {communitySubmitted && (
+                  <span
+                    className="inline-flex items-center gap-0.5 text-[11px] font-medium px-1.5 py-0.5 rounded-full"
+                    style={{
+                      backgroundColor: "#E9DDC2",
+                      color: "rgb(87, 74, 48)",
+                    }}
+                    title="Community submitted">
+                    <PersonIcon className="w-3 h-3" />
+                    Community
+                  </span>
+                )}
+                {convexVerified && (
+                  <span
+                    className="inline-flex items-center gap-0.5 text-[11px] font-medium px-1.5 py-0.5 rounded-full"
+                    style={{
+                      backgroundColor: "rgb(203, 237, 182)",
+                      color: "rgb(34, 137, 9)",
+                    }}
+                    title="Verified by Convex team">
+                    <CheckCircledIcon className="w-3 h-3" />
+                    Verified
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>

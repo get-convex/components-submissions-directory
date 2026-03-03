@@ -1,8 +1,8 @@
 import { createRoot } from "react-dom/client";
 import { useEffect, useMemo, useState } from "react";
 import { ConvexReactClient } from "convex/react";
-import { ConvexAuthProvider, useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
+import { ConvexProviderWithAuthKit } from "@convex-dev/workos";
 import "./index.css";
 import Directory from "./pages/Directory";
 import Submit from "./pages/Submit";
@@ -13,6 +13,7 @@ import ComponentDetail from "./pages/ComponentDetail";
 import NotFound from "./pages/NotFound";
 import Footer from "./components/Footer";
 import { isReservedRoute, parseSlugFromPath } from "./lib/slugs";
+import { ConnectAuthProvider, useConnectAuth } from "./lib/connectAuth";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string, {
   verbose: true,
@@ -90,7 +91,7 @@ function Router() {
 // Callback component handles post-OAuth redirect
 function AuthCallback() {
   const { isLoading, isAuthenticated } = useConvexAuth();
-  const { signIn } = useAuthActions();
+  const { isLoading: connectLoading, signIn } = useConnectAuth();
   const [authFailed, setAuthFailed] = useState(false);
   const hasAuthCode = useMemo(
     () => new URLSearchParams(window.location.search).has("code"),
@@ -113,7 +114,7 @@ function AuthCallback() {
 
   useEffect(() => {
     // Wait for auth to finish loading
-    if (isLoading) {
+    if (isLoading || connectLoading) {
       return;
     }
 
@@ -131,7 +132,7 @@ function AuthCallback() {
 
     // Callback route without code: send user back to the return path
     window.location.replace(returnPath);
-  }, [hasAuthCode, isLoading, returnPath, isAuthenticated]);
+  }, [connectLoading, hasAuthCode, isLoading, returnPath, isAuthenticated]);
 
   return (
     <div className="min-h-screen bg-bg-primary flex items-center justify-center">
@@ -141,7 +142,7 @@ function AuthCallback() {
         </div>
         {authFailed && (
           <button
-            onClick={() => void signIn("github")}
+            onClick={() => void signIn()}
             className="px-4 py-2 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors">
             Try Again
           </button>
@@ -152,14 +153,16 @@ function AuthCallback() {
 }
 
 createRoot(document.getElementById("root")!).render(
-  <ConvexAuthProvider client={convex}>
-    <div className="antialiased min-h-screen flex flex-col">
-      <div className="flex-1">
-        <Router />
+  <ConnectAuthProvider>
+    <ConvexProviderWithAuthKit client={convex} useAuth={useConnectAuth}>
+      <div className="antialiased min-h-screen flex flex-col">
+        <div className="flex-1">
+          <Router />
+        </div>
+        <div className="pt-[50px]">
+          <Footer />
+        </div>
       </div>
-      <div className="pt-[50px]">
-        <Footer />
-      </div>
-    </div>
-  </ConvexAuthProvider>
+    </ConvexProviderWithAuthKit>
+  </ConnectAuthProvider>
 );

@@ -1,14 +1,10 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
-import { auth } from "./auth";
 import { buildComponentUrls } from "../shared/componentUrls";
 
 const http = httpRouter();
 const DIRECTORY_ORIGIN = "https://www.convex.dev";
-
-// Register auth HTTP routes (OAuth callbacks, sign-in/sign-out endpoints)
-auth.addHttpRoutes(http);
 
 http.route({
   path: "/api/export-csv",

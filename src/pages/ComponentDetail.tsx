@@ -5,6 +5,7 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { InstallCommand } from "../components/InstallCommand";
 import { VerifiedBadge } from "../components/VerifiedBadge";
+import { CommunityBadge } from "../components/CommunityBadge";
 import Header from "../components/Header";
 import { useDirectoryCategories, getCategoryLabel } from "../lib/categories";
 import { buildComponentClientUrls } from "../../shared/componentUrls";
@@ -528,6 +529,9 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
 
             {/* Verified */}
             {component.convexVerified && <VerifiedBadge size="md" />}
+
+            {/* Community */}
+            {component.communitySubmitted && <CommunityBadge size="md" />}
 
             {/* Stats */}
             <div className="space-y-1.5 text-sm text-text-secondary">

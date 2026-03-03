@@ -54,6 +54,7 @@ Guidelines for creating and managing task lists in markdown files to track proje
 1. Update the task list as you progress:
 
    - Mark tasks as completed by changing `[ ]` to `[x]`
+   - Append completion timestamps in `YYYY-MM-DD HH:mm UTC` format
    - Add new tasks as they are identified
    - Move tasks between sections as appropriate
 
@@ -75,11 +76,12 @@ When working with task lists, the AI should:
 
 1. Regularly update the task list file after implementing significant components
 2. Mark completed tasks with [x] when finished
-3. Add new tasks discovered during implementation
-4. Maintain the "Relevant Files" section with accurate file paths and descriptions
-5. Document implementation details, especially for complex features
-6. When implementing tasks one by one, first check which task to implement next
-7. After implementing a task, update the file to reflect progress
+3. Add completion timestamps to finished items in `YYYY-MM-DD HH:mm UTC` format
+4. Add new tasks discovered during implementation
+5. Maintain the "Relevant Files" section with accurate file paths and descriptions
+6. Document implementation details, especially for complex features
+7. When implementing tasks one by one, first check which task to implement next
+8. After implementing a task, update the file to reflect progress
 
 ## Example Task Update
 
@@ -93,8 +95,8 @@ When updating a task from "In Progress" to "Completed":
 
 ## Completed Tasks
 
-- [x] Set up project structure
-- [x] Configure environment variables
+- [x] Set up project structure (2026-03-02 22:18 UTC)
+- [x] Configure environment variables (2026-03-02 22:19 UTC)
 ```
 
 Should become:
@@ -106,9 +108,9 @@ Should become:
 
 ## Completed Tasks
 
-- [x] Set up project structure
-- [x] Configure environment variables
-- [x] Implement database schema
+- [x] Set up project structure (2026-03-02 22:18 UTC)
+- [x] Configure environment variables (2026-03-02 22:19 UTC)
+- [x] Implement database schema (2026-03-02 22:20 UTC)
 ```
 
 **!IMPORTANT**: **DO NOT** externalize or document your work, usage guidelines, or benchmarks (e.g. `README.md`, `CONTRIBUTING.md`, `SUMMARY.md`, `USAGE_GUIDELINES.md` after completing the task, do not use emoji, unless explicitly instructed to do so. You may include a brief summary of your work, but do not create separate documentation files for it.

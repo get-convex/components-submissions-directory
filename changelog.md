@@ -9,7 +9,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- MCP and Agent Install UX for AI-assisted component installation (2026-03-02)
+- Connect environment variable alignment with admin OAuth docs (2026-03-03 01:12 UTC)
+  - Confirmed Connect client id flow is expected for this app and documented required domain based OAuth config
+  - Finalized required local vars: `VITE_WORKOS_CLIENT_ID`, `VITE_WORKOS_REDIRECT_URI`, and `VITE_WORKOS_AUTHKIT_DOMAIN`
+  - Finalized required Convex vars for both deployments: `WORKOS_CLIENT_ID` and `WORKOS_AUTHKIT_DOMAIN`
+  - Recorded guidance that domain host and full `https://` domain forms are accepted by normalization logic
+
+- WorkOS Connect OAuth PKCE flow for app authentication and Convex integration (2026-03-03 00:26 UTC)
+  - Added `src/lib/connectAuth.tsx` with Connect authorize redirect, callback token exchange, PKCE/state validation, and local session storage
+  - Updated `src/main.tsx` to use `ConnectAuthProvider` and connect-driven token bridge into `ConvexProviderWithAuthKit`
+  - Updated `src/lib/auth.tsx` to use connect `signIn` and `signOut` while preserving `useConvexAuth` for backend auth state
+  - Updated `convex/auth.config.ts` to validate JWTs using `WORKOS_AUTHKIT_DOMAIN` issuer and `/oauth2/jwks`
+  - Added `WORKOS_AUTHKIT_DOMAIN` and `VITE_WORKOS_AUTHKIT_DOMAIN` requirements to `prds/workos-convex-environment-runbook.md`
+  - Removed direct frontend dependency on `@workos-inc/authkit-react`
+  - Verified with TypeScript checks for Convex and app plus frontend production build
+
+- WorkOS AuthKit migration replacing legacy Convex auth wiring (2026-03-02 23:42 UTC)
+  - Replaced frontend auth provider wiring in `src/main.tsx` with `AuthKitProvider` and `ConvexProviderWithAuthKit`
+  - Updated shared auth hook in `src/lib/auth.tsx` to use WorkOS `signIn()` and `signOut()`
+  - Replaced backend auth helpers in `convex/auth.ts` to use `ctx.auth.getUserIdentity()` claims for user and admin checks
+  - Updated `convex/auth.config.ts` to WorkOS dual JWT provider configuration using `WORKOS_CLIENT_ID`
+  - Removed legacy auth coupling in `convex/http.ts` (`auth.addHttpRoutes`) and `convex/schema.ts` (`authTables`)
+  - Updated package dependencies to remove legacy auth packages and add `@convex-dev/workos` and `@workos-inc/authkit-react`
+  - Verified with `npm run lint` (Convex typecheck, app typecheck, `convex dev --once`, and production build)
+
+- WorkOS and Convex staging and production environment runbook PRD (2026-03-02 22:30 UTC)
+  - Added `prds/workos-convex-environment-runbook.md` with exact setup for WorkOS staging and production environments
+  - Added Convex deployment environment variable matrix for staging (`third-hedgehog-429`) and production (`giant-grouse-674`)
+  - Added frontend environment variable matrix for local and Netlify production callback routing under `/components/callback`
+  - Added verification checklist for public routes, auth-gated routes, and `@convex.dev` admin-only route access
+  - Included official Convex and WorkOS reference docs for setup and troubleshooting
+
+- Documentation workflow timestamp tracking for PRDs and project docs (2026-03-02 22:18 UTC)
+  - Added PRD timestamp requirements in `.cursor/rules/workflow.mdc` and `.cursor/skills/create-prd/SKILL.md`
+  - Added task completion timestamp guidance in `.cursor/rules/task.mdc`
+  - Added changelog timestamp guidance in `.cursor/skills/update-project-docs/SKILL.md` and `.cursor/rules/dev2.mdc`
+  - Added implementation PRD: `prds/prd-doc-timestamp-tracking.md`
+  - Backfilled timestamp metadata across existing `prds/*.md` files (2026-03-02 22:24 UTC)
+  - Backfilled legacy date-only completed entries in `task.md` to timestamp format using `12:00 UTC` as neutral historical time (2026-03-02 22:25 UTC)
+  - Normalized legacy date-only bullets in `changelog.md` to timestamp format using `12:00 UTC` as neutral historical time (2026-03-02 22:26 UTC)
+
+- Community badge for community-submitted components (2026-03-02 12:00 UTC)
+  - New `communitySubmitted` field on packages schema
+  - New `CommunityBadge` component with `#E9DDC2` background color and PersonIcon
+  - Badge appears between downloads and Verified badge on Directory cards
+  - Badge appears below Verified badge and above downloads in ComponentDetail sidebar
+  - Admin checkbox in ComponentDetailsEditor for toggling Community status
+  - Updated `directoryCardValidator`, `publicPackageValidator`, `adminPackageValidator`
+  - Updated `toPublicPackage()` and `toAdminPackage()` helper functions
+  - Updated `listApprovedComponents` and `getFeaturedComponents` queries to return `communitySubmitted`
+  - Added to `updateComponentDetails` mutation args
+
+- MCP and Agent Install UX for AI-assisted component installation (2026-03-02 12:00 UTC)
   - Added "Use with agents and CLI" section on ComponentDetail page (always visible, no toggle)
   - Reordered sections: Use with agents and CLI, then Agent Skill (SKILL.md), then Keywords
   - Added "Use with AI" anchor link with ClipboardText icon in header navigation
@@ -34,7 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `src/components/AgentInstallSection.tsx`: Agent install UI component
   - Schema addition: `mcpApiLogs` table for request monitoring
 
-- Submit page pagination and admin page size setting (2026-02-27)
+- Submit page pagination and admin page size setting (2026-02-27 12:00 UTC)
   - Added paginated public queries for submissions list and search in `convex/packages.ts`
   - Added public and admin settings APIs for Submit default page size with allowed values `20`, `40`, and `60`
   - Updated `src/pages/Submit.tsx` to render page controls with default 40 items per page
@@ -43,12 +94,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Made `View llms.txt` independent from Keywords on component detail page (2026-02-27)
+- Made `View llms.txt` independent from Keywords on component detail page (2026-02-27 12:00 UTC)
   - Moved llms link rendering outside the tags conditional in `src/pages/ComponentDetail.tsx`
   - Link now appears even when a component has no keywords
   - Verified with app typecheck and Netlify offline build flow
 
-- Restored local `.md` and `llms.txt` link behavior for component detail dropdown (2026-02-27)
+- Restored local `.md` and `llms.txt` link behavior for component detail dropdown (2026-02-27 12:00 UTC)
   - Added local development fallback in `shared/componentUrls.ts` via `buildComponentClientUrls`
   - Localhost now uses Convex HTTP endpoints directly:
     - `/api/markdown?slug=<slug>`
@@ -59,7 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `src/pages/ComponentDetail.tsx` to use client-aware URL strategy
   - Keeps production behavior documented in `prds/netlify-markdown-alias-edge-function.md` while avoiding local Vite route 404s
 
-- Centralized component markdown and llms URL construction to prevent route drift (2026-02-27)
+- Centralized component markdown and llms URL construction to prevent route drift (2026-02-27 12:00 UTC)
   - Added shared URL helper in `shared/componentUrls.ts` for detail, markdown alias (`/components/<slug>/<leaf>.md`), and llms paths
   - Updated `src/pages/ComponentDetail.tsx` markdown dropdown with:
     - Open markdown file
@@ -70,18 +121,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `convex/http.ts` link emission in `/api/markdown-index` and `/api/component-llms` to use shared URL builder
   - Verified with frontend build and TypeScript checks for app and Convex
 
-- Keep markdown alias URL on Netlify domain (2026-02-27)
+- Keep markdown alias URL on Netlify domain (2026-02-27 12:00 UTC)
   - Replaced unreliable markdown rewrites with Netlify Edge Function routing for `/components/*/*.md`
   - Added `netlify/edge-functions/component-markdown.ts` to proxy alias paths to Convex markdown endpoint by slug
   - Removed client-side markdown alias redirect in router
   - Markdown alias now stays on `components-directory.netlify.app` while serving raw markdown
 
-- Markdown alias route for component slugs in production (2026-02-27)
+- Markdown alias route for component slugs in production (2026-02-27 12:00 UTC)
   - Added client-side alias support for `/components/<slug>/<slug>.md`
   - Route now redirects to Convex markdown endpoint: `/api/markdown?slug=<slug>`
   - Preserves working SPA routes and avoids rewrite collisions with admin/submissions paths
 
-- Netlify SPA routing broken by greedy markdown proxy rules (2026-02-27)
+- Netlify SPA routing broken by greedy markdown proxy rules (2026-02-27 12:00 UTC)
   - Routes like `/components/submissions/admin` and `/components/browser-use-convex-component` were returning 404 with markdown content
   - Root cause: Netlify redirect patterns `:slug.md` and `:scope/:name.md` matched paths without `.md` extension
   - Replaced named-parameter markdown/llms redirects with explicit splat suffix rules:
@@ -90,7 +141,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Main `/components/llms.txt` and `/components.md` routes still work
   - All SPA client-side routes now correctly serve index.html
 
-- GitHub avatar URLs updated to use reliable CDN (2026-02-27)
+- GitHub avatar URLs updated to use reliable CDN (2026-02-27 12:00 UTC)
   - Changed avatar URL format from `https://github.com/{username}.png` to `https://avatars.githubusercontent.com/{username}`
   - Fixes `ERR_HTTP2_SERVER_REFUSED_STREAM` errors when loading author avatars
   - Added `migrateAvatarUrls` admin mutation to fix existing records in database
@@ -98,7 +149,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Tremendous Rewards Integration PRD (2026-02-27)
+- Tremendous Rewards Integration PRD (2026-02-27 12:00 UTC)
   - Full product requirements document at `prds/tremendous-rewards-integration.md`
   - Defines Tremendous API integration for sending rewards to component submitters
   - Send Reward button spec for Admin Actions row (same row as Convex Verified, Regenerate SEO)
@@ -111,7 +162,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Applied Convex return validator best practices to internal functions (2026-02-26)
+- Applied Convex return validator best practices to internal functions (2026-02-26 12:00 UTC)
   - Removed redundant `returns: v.null()` from internal mutations in `seoContentDb.ts` and `thumbnails.ts`
   - Removed `returns: v.union(v.null(), v.any())` from internal queries `_getPackage` and `_getPackageByName` in `packages.ts`
   - TypeScript inference now handles return types for internal functions (non-client-facing)
@@ -119,13 +170,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Fixed `ctx.db.get` API usage bugs (was passing table name before ID)
   - No behavioral changes; improves code clarity and follows updated Convex guidance
 
-- AI Review Results panel collapsed by default in Admin dashboard (2026-02-26)
+- AI Review Results panel collapsed by default in Admin dashboard (2026-02-26 12:00 UTC)
   - Entire panel now collapsed by default, showing only status icon, label, and date
   - Single toggle expands/collapses all content (summary, error, and criteria)
   - Reduces vertical space in package rows
   - Copy button still accessible on collapsed header row
 
-- Removed user visibility controls from Profile page (2026-02-26)
+- Removed user visibility controls from Profile page (2026-02-26 12:00 UTC)
   - Hide, Show, Delete, and Cancel Deletion buttons removed from user profile
   - Users must now contact admin via "Send Request" to manage component visibility
   - Reduces user confusion and prevents accidental visibility changes
@@ -134,7 +185,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Download Skill button for SKILL.md files on ComponentDetail page (2026-02-25)
+- Download Skill button for SKILL.md files on ComponentDetail page (2026-02-25 12:00 UTC)
   - Download button with Phosphor FileArrowDown icon next to Markdown dropdown in author row
   - Button only appears when SKILL.md has been generated (after SEO content generation)
   - SKILL.md section also includes both copy and download buttons
@@ -142,14 +193,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Directory sidebar sticky position adjusted (2026-02-25)
+- Directory sidebar sticky position adjusted (2026-02-25 12:00 UTC)
   - Changed sticky top from `top-6` to `top-20` (80px)
   - Submit button now remains visible below the header when scrolling
   - Entire sidebar (Submit, Search, Sort, Categories) stays sticky together
 
 ### Added
 
-- SEO Prompt Settings panel in Admin Settings (2026-02-25)
+- SEO Prompt Settings panel in Admin Settings (2026-02-25 12:00 UTC)
   - View and customize the AI SEO/SKILL.md generation prompt
   - Edit prompt with save as new version (includes change notes)
   - Version history with timestamps and restore functionality
@@ -158,25 +209,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Uses placeholders like `{{displayName}}`, `{{packageName}}` for dynamic content
   - New `seoPromptVersions` table in schema for version tracking
 
-- Multi-provider AI support across all AI features (2026-02-25)
+- Multi-provider AI support across all AI features (2026-02-25 12:00 UTC)
   - Support for Anthropic Claude, OpenAI GPT, and Google Gemini in both AI Review and SEO Content generation
   - Provider selection prioritizes admin settings (AI Provider Settings panel), then falls back to environment variables (ANTHROPIC_API_KEY, CONVEX_OPENAI_API_KEY)
   - Both `convex/aiReview.ts` and `convex/seoContent.ts` use the same provider configuration
   - New `callAiProvider` helper function in both files for unified provider calls
 
-- Confirmation modal for clearing AI provider settings (2026-02-25)
+- Confirmation modal for clearing AI provider settings (2026-02-25 12:00 UTC)
   - Clear (use env) buttons now show red styling to indicate destructive action
   - Clicking Clear shows confirmation modal warning that API keys will be deleted
   - Modal explains fallback to environment variables and that all AI features are affected
   - Prevents accidental deletion of API key configuration
 
-- Moved Refresh and Generate Slug buttons to InlineActions component (2026-02-25)
+- Moved Refresh and Generate Slug buttons to InlineActions component (2026-02-25 12:00 UTC)
   - Refresh npm data button now in Actions row of expanded package view
   - Generate Slug button in Actions row (only shows when package has no slug)
   - Removed standalone button components from package card row
   - Shows last refresh time and any refresh errors
 
-- Admin Actions row in expanded package view (2026-02-25)
+- Admin Actions row in expanded package view (2026-02-25 12:00 UTC)
   - New "Actions" row above Status and Visibility rows in InlineActions panel
   - Convex Verified toggle button with teal styling (fill icon when verified)
   - Regenerate SEO + Skill button with loading spinner and completion indicator
@@ -186,21 +237,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All buttons use Phosphor icons and match existing Admin theme styling
   - Added useEffect hooks in ComponentDetailsEditor to sync author/avatar/verified fields from backend updates
 
-- Hide from Submissions page feature for admin control (2026-02-25)
+- Hide from Submissions page feature for admin control (2026-02-25 12:00 UTC)
   - New `hideFromSubmissions` field on packages schema
   - Admin toggle button labeled "Sub Hide" / "Sub Hidden" in package row to differentiate from directory Hide
   - `listPackages` and `searchPackages` queries filter out hidden packages
   - Hidden packages still appear in Directory if approved (uses separate `listApprovedComponents`)
   - All admin features remain fully functional for hidden packages
 
-- Featured components sort order for admin control (2026-02-25)
+- Featured components sort order for admin control (2026-02-25 12:00 UTC)
   - New `featuredSortOrder` field on packages schema for admin-managed ordering
   - Featured section in Directory respects admin sort order (lower numbers first)
   - Sort order input appears next to Featured toggle in Admin when package is featured
   - Dropdown sort (downloads, newest, etc.) only affects category sections, not Featured
   - Packages without sort order default to the end, sorted by newest first
 
-- Hide thumbnail in category option for components (2026-02-25)
+- Hide thumbnail in category option for components (2026-02-25 12:00 UTC)
   - New `hideThumbnailInCategory` field on packages schema
   - Checkbox in Admin Component Details editor (appears when thumbnail exists)
   - Thumbnails always display in Featured section regardless of setting
@@ -209,7 +260,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ComponentCard` accepts `showThumbnail` prop for conditional rendering
   - Allows components to have thumbnails for Featured without cluttering category views
 
-- Official Convex Components import system (2026-02-24)
+- Official Convex Components import system (2026-02-24 12:00 UTC)
   - `seedOfficialComponents` internal action for importing 41 components from convex.dev/components
   - `importAsPending` flag to import new components as "pending" for admin review
   - `dryRun` flag to preview imports without making changes
@@ -218,7 +269,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Run: `npx convex run seed:seedOfficialComponents '{"importAsPending": true}'`
   - Production: `npx convex run --prod seed:seedOfficialComponents '{"importAsPending": true}'`
 
-- Admin panel pagination with configurable items per page (2026-02-24)
+- Admin panel pagination with configurable items per page (2026-02-24 12:00 UTC)
   - Package list shows 20 items per page by default
   - Pagination controls with Previous/Next buttons and numbered page buttons
   - Items per page dropdown selector (5, 10, 20, 40, 100 options)
@@ -228,14 +279,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Reordered icons in Admin package rows (2026-02-24)
+- Reordered icons in Admin package rows (2026-02-24 12:00 UTC)
   - Moved ComponentDetailQuickLink (external link icon) to be last in the badge group
   - Order is now: StatusBadge, VisibilityBadge, UnrepliedNotesIndicator, ComponentDetailQuickLink
   - Keeps the external link icon before the downloads/date section on the far right
 
 ### Added
 
-- LLMs.txt and Markdown clean URL support (2026-02-24)
+- LLMs.txt and Markdown clean URL support (2026-02-24 12:00 UTC)
   - `/components/llms.txt` serves main directory index for AI agents
   - `/components.md` serves markdown listing of all approved components
   - `/components/<slug>/llms.txt` serves per-component llms.txt
@@ -247,23 +298,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Moved Keywords section below Agent Skill (SKILL.md) section on ComponentDetail.tsx (2026-02-24)
+- Moved Keywords section below Agent Skill (SKILL.md) section on ComponentDetail.tsx (2026-02-24 12:00 UTC)
   - Keywords tags now appear after the SKILL.md copyable snippet
   - Improves page hierarchy: SEO content > SKILL.md > Keywords
 
-- Moved Markdown dropdown from sidebar to author row on ComponentDetail.tsx (2026-02-24)
+- Moved Markdown dropdown from sidebar to author row on ComponentDetail.tsx (2026-02-24 12:00 UTC)
   - Dropdown now appears in the same row as package name and author info
   - Separator added before dropdown for visual consistency
   - Same functionality: View as Markdown, Copy as Markdown, Copy page URL
 
-- Commented out GitHub Issues feature on ComponentDetail.tsx (2026-02-24)
+- Commented out GitHub Issues feature on ComponentDetail.tsx (2026-02-24 12:00 UTC)
   - Issues badge button in author row commented out
   - Issues panel (open/closed tabs, issue list, load more) commented out
   - Feature preserved in code for future re-enabling
 
 ### Added
 
-- Clear logo button in Component Details editor (2026-02-24)
+- Clear logo button in Component Details editor (2026-02-24 12:00 UTC)
   - Clear button appears next to download button when logo exists
   - Calls new `clearLogo` mutation to remove logo URL and storage reference
   - Matches existing clear thumbnail functionality
@@ -271,12 +322,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed SubmitForm.tsx success modal button layout (2026-02-23)
+- Fixed SubmitForm.tsx success modal button layout (2026-02-23 12:00 UTC)
   - Buttons now display horizontally side by side instead of stacked vertically
   - Added `flex-row` and `inline-flex` for proper alignment
   - Improved button spacing and font weight for better visual hierarchy
 
-- Fixed SubmitForm.tsx sending tags as array instead of string (2026-02-23)
+- Fixed SubmitForm.tsx sending tags as array instead of string (2026-02-23 12:00 UTC)
   - Backend `submitPackage` action expects `tags: v.optional(v.string())` (comma-separated)
   - SubmitForm.tsx was sending `.split(",").map(...).filter(...)` (array)
   - Changed to `tags.trim() || undefined` to match validator
@@ -284,7 +335,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Enhanced SEO support for ComponentDetail pages (2026-02-24)
+- Enhanced SEO support for ComponentDetail pages (2026-02-24 12:00 UTC)
   - Twitter Card meta tags (summary_large_image with thumbnail)
   - Canonical URL tag for duplicate content prevention
   - og:site_name and og:image:alt tags for better sharing
@@ -293,21 +344,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Updated index.html fallback meta tags (2026-02-24)
+- Updated index.html fallback meta tags (2026-02-24 12:00 UTC)
   - Fixed Twitter meta tags to use `name` attribute (was `property`)
   - Updated URLs to production domain (www.convex.dev/components)
   - Added twitter:image:alt for accessibility
 
 ### Added
 
-- AI Provider Settings panel in Admin Settings (2026-02-23)
+- AI Provider Settings panel in Admin Settings (2026-02-23 12:00 UTC)
   - Configure Anthropic, OpenAI, or Google Gemini as AI provider
   - Override environment variables with custom API keys and models
   - Links to model documentation for each provider
   - Clear settings to revert to environment variable defaults
   - Active provider indicator badge
 
-- AI Prompt Settings panel in Admin Settings (2026-02-23)
+- AI Prompt Settings panel in Admin Settings (2026-02-23 12:00 UTC)
   - View and customize the AI review prompt
   - Edit prompt with save as new version
   - Version history with timestamps and change notes
@@ -315,25 +366,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Reset to default prompt option
   - Custom prompts stored in database with version tracking
 
-- New database tables for AI configuration (2026-02-23)
+- New database tables for AI configuration (2026-02-23 12:00 UTC)
   - `aiProviderSettings`: stores API keys and models for each provider
   - `aiPromptVersions`: stores prompt versions with history
 
-- Multi-provider AI support in aiReview.ts (2026-02-23)
+- Multi-provider AI support in aiReview.ts (2026-02-23 12:00 UTC)
   - Support for Anthropic Claude, OpenAI GPT, and Google Gemini
   - Provider selection prioritizes custom settings, then env vars
   - Custom prompt support with fallback to default
 
 ### Changed
 
-- Commented out "Add badge to your README" section on ComponentDetail.tsx (2026-02-23)
+- Commented out "Add badge to your README" section on ComponentDetail.tsx (2026-02-23 12:00 UTC)
   - Badge snippet UI hidden until badge endpoint is working
   - Badge markdown line in buildMarkdownDoc also commented out
   - Can be re-enabled later when badge feature is ready
 
 ### Added
 
-- Auto-fill description button in Component Details editor (2026-02-23)
+- Auto-fill description button in Component Details editor (2026-02-23 12:00 UTC)
   - "Auto-fill from Package" button next to Long Description field
   - Copies description from Package Metadata to Long Description for editing
   - Only shown in admin mode when package has a description
@@ -341,23 +392,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed production GitHub OAuth authentication failing with "Missing sign-in verifier" error (2026-02-23)
-  - Updated `@convex-dev/auth` from v0.0.80 to v0.0.90
+- Fixed production legacy GitHub OAuth authentication failing with "Missing sign-in verifier" error (2026-02-23 12:00 UTC)
+  - Updated the legacy auth package to resolve verifier handling
   - Configured GitHub OAuth callback URL to point to Convex backend (`https://giant-grouse-674.convex.site/api/auth/callback/github`)
-  - Generated and set `JWT_PRIVATE_KEY` and `JWKS` for production deployment via `npx @convex-dev/auth --prod`
+  - Generated and set JWT signing keys for production deployment via the legacy auth CLI
   - Set `SITE_URL` to `https://components-directory.netlify.app/components` for correct post-auth redirect
   - Documented fix in `prds/authfix-2026-02-23.md`
 
 ### Changed
 
-- Router now redirects any path without `/components` prefix to the prefixed version (2026-02-23)
+- Router now redirects any path without `/components` prefix to the prefixed version (2026-02-23 12:00 UTC)
   - `/dodo` redirects to `/components/dodo`
   - `/submit` redirects to `/components/submit`
   - Ensures consistent URL structure for both local development and production
 
 ### Added
 
-- Site footer with Convex links (2026-02-23)
+- Site footer with Convex links (2026-02-23 12:00 UTC)
   - Footer component at `src/components/Footer.tsx`
   - Convex wordmark logo (40px height) on the left side linking to convex.dev
   - GitHub repo (get-convex/convex-backend) and Discord links on the right side
@@ -367,12 +418,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Moved FAQSection from Submit.tsx to Directory.tsx (2026-02-23)
+- Moved FAQSection from Submit.tsx to Directory.tsx (2026-02-23 12:00 UTC)
   - FAQ section now displays below component cards on the main directory page
   - Removed FAQSection import and usage from submissions page
   - Updated FAQ heading font to `font-semibold` to match "Components" section heading
 
-- Expanded FAQSection to 8 questions (2026-02-23)
+- Expanded FAQSection to 8 questions (2026-02-23 12:00 UTC)
   - Added: How are components sandboxed? (Convex runtime data isolation)
   - Added: What projects should use Components? (check component docs)
   - Added: Do components cost money to use? (open source, usage-based)
@@ -382,10 +433,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fixed user email not appearing in profile/submissions after GitHub OAuth login (2026-02-23)
-  - `@convex-dev/auth` stores user data in database, not JWT claims unlike WorkOS
-  - Added `getAuthUserId` import from `@convex-dev/auth/server` in `convex/auth.ts`
-  - Updated `loggedInUser` query to fetch user from database using `getAuthUserId`
+- Fixed user email not appearing in profile/submissions after legacy GitHub OAuth login (2026-02-23 12:00 UTC)
+  - Legacy auth stored user data in database, not JWT claims
+  - Added user id lookup helper import in `convex/auth.ts`
+  - Updated `loggedInUser` query to fetch user from database with the legacy helper
   - Updated `isAdmin` query to use database lookup for email check
   - Updated `requireAdminIdentity` and `getAdminIdentity` helpers to use database lookup
   - Added `getCurrentUserEmail` helper function in `convex/packages.ts`
@@ -396,27 +447,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Migrated authentication to official `@convex-dev/auth` library with GitHub OAuth (2026-02-23)
-  - Replaced `@robelest/convex-auth` with `@convex-dev/auth` (v0.0.90) and `@auth/core` (v0.37.0)
-  - Removed `arctic` dependency (now using `@auth/core` providers)
-  - Updated `convex/auth.ts` to use `convexAuth()` from `@convex-dev/auth/server` with GitHub provider
+- Migrated authentication to a prior legacy GitHub OAuth stack (2026-02-23 12:00 UTC)
+  - Replaced the previous auth integration with a GitHub OAuth based stack
+  - Removed unused legacy dependency from the old provider
+  - Updated `convex/auth.ts` to use provider based OAuth wiring
   - Created `convex/auth.config.ts` for JWT provider configuration (domain and applicationID)
-  - Deleted `convex/convex.config.ts` (not needed for `@convex-dev/auth`)
-  - Deleted `convex/auth/session.ts` (was for `@robelest/convex-auth` client compatibility)
+  - Deleted `convex/convex.config.ts` (not needed for that legacy auth stack)
+  - Deleted `convex/auth/session.ts` (legacy compatibility cleanup)
   - Updated `convex/http.ts` to use `auth.addHttpRoutes(http)`
-  - Updated `convex/schema.ts` to use `authTables` from `@convex-dev/auth/server`
-  - Updated `src/main.tsx` with `ConvexAuthProvider` from `@convex-dev/auth/react`
-  - Updated `src/lib/auth.tsx` with `useAuthActions` from `@convex-dev/auth/react` and `useConvexAuth`
+  - Updated `convex/schema.ts` to include legacy auth tables
+  - Updated `src/main.tsx` with legacy auth provider wiring
+  - Updated `src/lib/auth.tsx` with legacy auth action hooks and `useConvexAuth`
   - Added redirect logic in Router for paths not starting with `/components`
   - Admin access pattern preserved: `@convex.dev` email check via `isAdmin` query and `requireAdminIdentity` helper
-  - Environment variables set in Convex Dashboard: `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `JWT_PRIVATE_KEY`, `JWKS`, `SITE_URL`
+  - Environment variables set in Convex Dashboard for legacy GitHub OAuth and JWT signing
   - OAuth callback URL: `https://<deployment>.convex.site/api/auth/callback/github`
   - Added `jose` dev dependency for JWT key generation
   - Restored `as any` type casts in `convex/crons.ts` and `convex/http.ts` to work around deep type instantiation errors
 
 ### Added
 
-- SKILL.md generation for AI agent integration (2026-02-23)
+- SKILL.md generation for AI agent integration (2026-02-23 12:00 UTC)
   - AI SEO content generation now also generates SKILL.md content for Claude agent skills
   - SKILL.md follows the Agent Skills specification with YAML frontmatter and Markdown body
   - Content includes component description, installation, usage patterns, key features, and API reference
@@ -429,14 +480,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Migrated from Convex self-hosting to Netlify hosting (2026-02-23)
+- Migrated from Convex self-hosting to Netlify hosting (2026-02-23 12:00 UTC)
   - Removed `@convex-dev/self-hosting` dependency from `package.json`
   - Simplified `convex/convex.config.ts` to basic app definition
   - Removed `registerStaticRoutes()` from `convex/http.ts`
   - Deleted `.env.production` (use Netlify Dashboard environment variables instead)
   - App now deployed at `https://components-directory.netlify.app`
 
-- Updated Vite and Netlify configuration for SPA routing (2026-02-23)
+- Updated Vite and Netlify configuration for SPA routing (2026-02-23 12:00 UTC)
   - Changed `vite.config.ts` to use `base: "/"` (assets served from root)
   - Updated `netlify.toml` with redirect from `/` to `/components` (301)
   - Added SPA fallback redirects for `/components` and `/components/*` to `/index.html` (200)
@@ -444,13 +495,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `.env.local` redirect URI to `http://localhost:5173/components/callback`
   - Production routes: `/components`, `/components/submit`, `/components/profile`, `/components/submissions`, `/components/submissions/admin`, `/components/:slug`
 
-- WorkOS callback URLs updated (2026-02-23)
+- WorkOS callback URLs updated (2026-02-23 12:00 UTC)
   - Development: `http://localhost:5173/components/callback`
   - Production: `https://components-directory.netlify.app/components/callback`
 
 ### Added
 
-- Slug Migration Tool for admin dashboard (2026-02-23)
+- Slug Migration Tool for admin dashboard (2026-02-23 12:00 UTC)
   - New SlugMigrationPanel in Admin Settings tab to identify and fix packages without URL slugs
   - Displays count and list of packages missing slugs
   - "Generate All Slugs" button to bulk generate slugs for all packages missing them
@@ -463,18 +514,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Admin "Marked for Deletion" filter tab (2026-02-23)
+- Admin "Marked for Deletion" filter tab (2026-02-23 12:00 UTC)
   - New "Deletion" tab in Admin filter bar to show all packages pending deletion
   - Tab displays count of packages marked for deletion
   - Package rows in admin show red "Deletion" badge next to visibility badge when marked
 
 ### Fixed
 
-- ComponentDetailsEditor now reactively syncs slug field with backend updates (2026-02-23)
+- ComponentDetailsEditor now reactively syncs slug field with backend updates (2026-02-23 12:00 UTC)
   - Added `useEffect` hook to sync local slug state when `initialSlug` prop changes
   - Slug now appears immediately after clicking "Generate Slug" button without needing refresh
   - Matches existing reactive behavior for thumbnail, logo, and template fields
-- Soft deletion workflow for components (2026-02-23)
+- Soft deletion workflow for components (2026-02-23 12:00 UTC)
   - Users mark components for deletion instead of immediate deletion
   - Components marked for deletion are hidden from directory immediately
   - Admin can permanently delete marked components from Settings panel
@@ -482,16 +533,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Configurable auto-delete toggle and waiting period (1, 3, 7, 14, or 30 days)
   - Users can cancel deletion request before admin processes it
   - "Pending Deletion" badge shown on marked components in profile (next to visibility badge)
-- Account deletion requires deleting all components first (2026-02-23)
+- Account deletion requires deleting all components first (2026-02-23 12:00 UTC)
   - Delete Account modal shows warning if user has active submissions
   - User must delete all components before deleting their account
   - Clear guidance in Account section and modal
-- Admin Deletion Management panel in Settings (2026-02-23)
+- Admin Deletion Management panel in Settings (2026-02-23 12:00 UTC)
   - Toggle for auto-delete marked packages
   - Configurable waiting period (days)
   - List of packages pending deletion with "Delete Now" option
   - Info about the scheduled cleanup cron job
-- Header redesign with floating pill style (2026-02-23)
+- Header redesign with floating pill style (2026-02-23 12:00 UTC)
   - Floating pill design with `rounded-full`, white/95 background, backdrop blur, and shadow
   - Convex wordmark black SVG logo (70px height)
   - Added GitHub, Discord, and Docs icons to header navigation
@@ -499,27 +550,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removed user email from profile dropdown
   - Header height set to 3.438rem
   - Mobile menu redesigned as separate dropdown card below header pill (rounded-2xl)
-- SubmitForm.tsx layout improvements (2026-02-23)
+- SubmitForm.tsx layout improvements (2026-02-23 12:00 UTC)
   - Removed "Back to Directory" breadcrumb link
   - Moved "Submit a Component" title above the form box to match Profile.tsx style
   - Description text remains inside the form box
-- FAQSection reusable component (2026-02-22)
+- FAQSection reusable component (2026-02-22 12:00 UTC)
   - Extracted from SubmitForm.tsx into `src/components/FAQSection.tsx`
   - Added to bottom of Submit.tsx (submissions directory) page
   - Expanded FAQ content: sandboxing, review process, requirements, building components, pricing, docs links
-- Page layout alignment improvements (2026-02-22)
+- Page layout alignment improvements (2026-02-22 12:00 UTC)
   - Submit.tsx page width now matches Directory.tsx (`max-w-7xl`)
   - SubmitForm.tsx page width now matches Profile.tsx (`max-w-3xl`)
   - Submit.tsx title styling aligned with Directory.tsx
   - Search input background changed to white on Submit.tsx
-- Convex self-hosting integration for deploying the React app at `giant-grouse-674.convex.site` (2026-02-22)
+- Convex self-hosting integration for deploying the React app at `giant-grouse-674.convex.site` (2026-02-22 12:00 UTC)
   - Installed `@convex-dev/self-hosting` component for static file serving
   - Added `convex/convex.config.ts` to register the self-hosting component
   - Added `convex/staticHosting.ts` to expose upload APIs for the CLI
   - Updated `convex/http.ts` with `registerStaticRoutes()` for SPA fallback (preserves all existing API routes)
   - Updated `vite.config.ts` with environment-aware base path (`SELF_HOST=true` uses `/`)
   - Added `deploy` and `deploy:static` npm scripts for one-shot deployment
-- Auto sign-in redirect for `/submit` page (2026-02-22)
+- Auto sign-in redirect for `/submit` page (2026-02-22 12:00 UTC)
   - Unauthenticated users visiting `/submit` are now automatically redirected to WorkOS sign-in
   - After authentication, users are returned to `/submit` to complete their submission
   - No longer requires clicking "Sign in to Submit" button first
@@ -553,10 +604,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Header.tsx redesigned with white background, Convex wordmark logo, and social icons (2026-02-22)
-- Submit.tsx page layout aligned with Directory.tsx width and styling (2026-02-22)
-- SubmitForm.tsx page width aligned with Profile.tsx (2026-02-22)
-- FAQSection expanded with additional questions about sandboxing, pricing, and building components (2026-02-22)
+- Header.tsx redesigned with white background, Convex wordmark logo, and social icons (2026-02-22 12:00 UTC)
+- Submit.tsx page layout aligned with Directory.tsx width and styling (2026-02-22 12:00 UTC)
+- SubmitForm.tsx page width aligned with Profile.tsx (2026-02-22 12:00 UTC)
+- FAQSection expanded with additional questions about sandboxing, pricing, and building components (2026-02-22 12:00 UTC)
 
 - `SubmitForm.tsx` now auto-triggers sign-in flow when accessed by unauthenticated users
   - Replaced sign-in gate UI with "Redirecting to sign in..." loading state
@@ -576,7 +627,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Consistent auth flow across all pages using shared Header component
 - `SubmitForm.tsx` dedicated submission page (replaced `Submit.tsx` modal approach)
 - Sign-in gate for unauthenticated users on Submit page
-- WorkOS AuthKit authentication replacing `@convex-dev/auth` for convex.dev unified login experience
+- WorkOS AuthKit authentication replacing the legacy auth stack for convex.dev unified login experience
 - User profile page at `/profile` for managing submitted components
 - Submissions link in header navigation pointing to `/submissions`
 - `getMySubmissions` query to fetch packages by authenticated user's email
@@ -600,9 +651,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SubmitForm.tsx: checkboxes now inside form above submit button, button disabled until all checked
 - Admin page (`/submit/admin`) requires @convex.dev email, has shared Header with admin search bar
 - 404 page now includes shared Header for consistent UX
-- Authentication migrated from `@convex-dev/auth` to WorkOS AuthKit (`@workos-inc/authkit-react` and `@convex-dev/workos`)
+- Authentication migrated from the legacy auth stack to WorkOS AuthKit (`@workos-inc/authkit-react` and `@convex-dev/workos`)
 - `convex/auth.config.ts` now configures WorkOS custom JWT providers for token validation
-- Admin authorization now uses `ctx.auth.getUserIdentity()` instead of `getAuthUserId()` with `authAccounts` table lookup
+- Admin authorization now uses `ctx.auth.getUserIdentity()` instead of legacy user id table lookup
 - `vite.config.ts` base path now dynamic: `/` for local dev, `/components/` for production
 - Removed `SignInForm.tsx` and `Submit.tsx` (modal approach replaced with dedicated page)
 - `SignOutButton.tsx` updated to use WorkOS `signOut()`
@@ -620,8 +671,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Legacy auth tables (`authSessions`, `authAccounts`, `authRefreshTokens`, etc.) preserved in schema during migration
 - Admin identity helpers (`requireAdminIdentity`, `getAdminIdentity`) now use `auth.user.current()` and `auth.user.get()` to check `@convex.dev` email
-- `AUTH_GITHUB_ID` and `AUTH_GITHUB_SECRET` environment variables required in Convex dashboard for GitHub OAuth
-- `JWT_PRIVATE_KEY` and `JWKS` generated via `npx @robelest/convex-auth keys` CLI command
+- Legacy GitHub OAuth environment variables were required in Convex dashboard during earlier auth phases
+- Legacy JWT signing keys were generated via a prior auth CLI flow
 - `SITE_URL` environment variable required for OAuth redirect (production: `https://components-directory.netlify.app`)
 - GitHub OAuth App callback URL: `https://<deployment>.convex.site/api/auth/callback/github`
 - Admin thumbnail template management panel: upload, enable/disable, set default, delete background templates

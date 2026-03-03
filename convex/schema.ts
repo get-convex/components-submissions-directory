@@ -1,6 +1,5 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
-import { authTables } from "@convex-dev/auth/server";
 
 // Review status values: pending, in_review, approved, changes_requested, rejected
 // Visibility values: visible, hidden, archived
@@ -121,6 +120,8 @@ const applicationTables = {
     thumbnailGeneratedBy: v.optional(v.string()),
     // Convex team has tested and verified this component
     convexVerified: v.optional(v.boolean()),
+    // Component was submitted or built by the community
+    communitySubmitted: v.optional(v.boolean()),
     // GitHub username of primary author
     authorUsername: v.optional(v.string()),
     // GitHub avatar URL
@@ -415,6 +416,5 @@ const applicationTables = {
 };
 
 export default defineSchema({
-  ...authTables,
   ...applicationTables,
 });

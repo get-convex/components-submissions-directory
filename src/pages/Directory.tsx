@@ -326,6 +326,7 @@ export default function Directory() {
                       authorAvatar={comp.authorAvatar}
                       weeklyDownloads={comp.weeklyDownloads}
                       convexVerified={comp.convexVerified}
+                      communitySubmitted={comp.communitySubmitted}
                       featured={comp.featured}
                       npmUrl={comp.npmUrl}
                       repositoryUrl={comp.repositoryUrl}
@@ -353,6 +354,7 @@ export default function Directory() {
                           authorAvatar={comp.authorAvatar}
                           weeklyDownloads={comp.weeklyDownloads}
                           convexVerified={comp.convexVerified}
+                          communitySubmitted={comp.communitySubmitted}
                           featured={comp.featured}
                           npmUrl={comp.npmUrl}
                           repositoryUrl={comp.repositoryUrl}
@@ -442,6 +444,7 @@ export default function Directory() {
                             authorAvatar={comp.authorAvatar}
                             weeklyDownloads={comp.weeklyDownloads}
                             convexVerified={comp.convexVerified}
+                            communitySubmitted={comp.communitySubmitted}
                             featured={comp.featured}
                             npmUrl={comp.npmUrl}
                             repositoryUrl={comp.repositoryUrl}
@@ -495,6 +498,7 @@ export default function Directory() {
                             authorAvatar={comp.authorAvatar}
                             weeklyDownloads={comp.weeklyDownloads}
                             convexVerified={comp.convexVerified}
+                            communitySubmitted={comp.communitySubmitted}
                             featured={comp.featured}
                             npmUrl={comp.npmUrl}
                             repositoryUrl={comp.repositoryUrl}
@@ -536,6 +540,7 @@ export default function Directory() {
                         authorAvatar={comp.authorAvatar}
                         weeklyDownloads={comp.weeklyDownloads}
                         convexVerified={comp.convexVerified}
+                        communitySubmitted={comp.communitySubmitted}
                         featured={comp.featured}
                         npmUrl={comp.npmUrl}
                         repositoryUrl={comp.repositoryUrl}

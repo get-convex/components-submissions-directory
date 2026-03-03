@@ -64,6 +64,8 @@ alwaysApply: true
 - PRD files live in `prds/` folder
 - `changelog.md`, `files.md`, `README.md`, and `TASK.md` stay in the root folder
 - If `prds/` does not exist, create it
+- Include date and time metadata in PRDs and completed task entries using `YYYY-MM-DD HH:mm UTC`
+- When updating `changelog.md`, use real git dates and add timestamp detail in bullet notes when needed
 
 ## Documentation policy
 

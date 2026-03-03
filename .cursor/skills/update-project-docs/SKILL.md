@@ -16,10 +16,10 @@ Use actual commit dates. Never use placeholder dates or future months.
 
 ## Step 2: Update TASK.md
 
-Move completed items into `## Completed` with the date:
+Move completed items into `## Completed` with date and time:
 
 ```markdown
-- [x] Feature name (YYYY-MM-DD)
+- [x] Feature name (YYYY-MM-DD HH:mm UTC)
   - [x] Sub-task detail
   - [x] Sub-task detail
 ```
@@ -27,7 +27,7 @@ Move completed items into `## Completed` with the date:
 Add a session update note at the top of `## Current Status`:
 
 ```markdown
-Session updates complete on YYYY-MM-DD.
+Session updates complete on YYYY-MM-DD HH:mm UTC.
 ```
 
 If new work is queued, add it under `## To Do`.
@@ -40,13 +40,13 @@ Follow https://keepachangelog.com/en/1.0.0/ format. Add the new entry at the top
 ## [vX.Y.Z] - YYYY-MM-DD
 
 ### Added
-- Feature name with key details
+- Feature name with key details (YYYY-MM-DD HH:mm UTC)
 
 ### Fixed
-- Bug description and resolution
+- Bug description and resolution (YYYY-MM-DD HH:mm UTC)
 
 ### Changed
-- What changed and why
+- What changed and why (YYYY-MM-DD HH:mm UTC)
 ```
 
 Version increment guide (check existing version in changelog.md first):
@@ -66,7 +66,7 @@ Only update if new files were added or if existing file descriptions are outdate
 Before calling this done, confirm:
 
 - [ ] `git log --date=short` run to get real dates
-- [ ] `TASK.md` completed section updated with date and sub-items
+- [ ] `TASK.md` completed section updated with date and time plus sub-items
 - [ ] `changelog.md` new entry added with real version and date
 - [ ] `files.md` updated if new files exist
 

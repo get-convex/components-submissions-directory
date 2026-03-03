@@ -9,18 +9,14 @@ import {
   QueryCtx,
   MutationCtx,
 } from "./_generated/server";
-import { getAdminIdentity, requireAdminIdentity, getAuthUserId } from "./auth";
+import { getAdminIdentity, requireAdminIdentity } from "./auth";
 import { api, internal } from "./_generated/api";
 import { Id, Doc } from "./_generated/dataModel";
 
-// ============ HELPER: Get current user's email from database ============
-// @convex-dev/auth stores user data in the users table, not in JWT claims
+// ============ HELPER: Get current user's email from identity claims ============
 async function getCurrentUserEmail(ctx: QueryCtx | MutationCtx): Promise<string | null> {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) return null;
-  
-  const user = await ctx.db.get(userId);
-  return user?.email ?? null;
+  const identity = await ctx.auth.getUserIdentity();
+  return identity?.email ?? null;
 }
 
 // ============ HELPER: Check if user owns a package ============
@@ -96,6 +92,7 @@ const publicPackageValidator = v.object({
   videoUrl: v.optional(v.string()),
   thumbnailUrl: v.optional(v.string()),
   convexVerified: v.optional(v.boolean()),
+  communitySubmitted: v.optional(v.boolean()),
   authorUsername: v.optional(v.string()),
   authorAvatar: v.optional(v.string()),
   componentName: v.optional(v.string()),
@@ -221,6 +218,7 @@ const adminPackageValidator = v.object({
   selectedTemplateId: v.optional(v.id("thumbnailTemplates")),
   thumbnailGeneratedAt: v.optional(v.number()),
   convexVerified: v.optional(v.boolean()),
+  communitySubmitted: v.optional(v.boolean()),
   authorUsername: v.optional(v.string()),
   authorAvatar: v.optional(v.string()),
   componentName: v.optional(v.string()),
@@ -357,6 +355,7 @@ function toPublicPackage(pkg: any) {
     videoUrl: pkg.videoUrl,
     thumbnailUrl: pkg.thumbnailUrl,
     convexVerified: pkg.convexVerified,
+    communitySubmitted: pkg.communitySubmitted,
     authorUsername: pkg.authorUsername,
     authorAvatar: pkg.authorAvatar,
     componentName: pkg.componentName,
@@ -436,6 +435,7 @@ function toAdminPackage(pkg: any) {
     selectedTemplateId: pkg.selectedTemplateId,
     thumbnailGeneratedAt: pkg.thumbnailGeneratedAt,
     convexVerified: pkg.convexVerified,
+    communitySubmitted: pkg.communitySubmitted,
     authorUsername: pkg.authorUsername,
     authorAvatar: pkg.authorAvatar,
     componentName: pkg.componentName,
@@ -2819,6 +2819,7 @@ const directoryCardValidator = v.object({
   thumbnailUrl: v.optional(v.string()),
   hideThumbnailInCategory: v.optional(v.boolean()),
   convexVerified: v.optional(v.boolean()),
+  communitySubmitted: v.optional(v.boolean()),
   authorUsername: v.optional(v.string()),
   authorAvatar: v.optional(v.string()),
   weeklyDownloads: v.number(),
@@ -2930,6 +2931,7 @@ export const listApprovedComponents = query({
       thumbnailUrl: pkg.thumbnailUrl,
       hideThumbnailInCategory: pkg.hideThumbnailInCategory,
       convexVerified: pkg.convexVerified,
+      communitySubmitted: pkg.communitySubmitted,
       authorUsername: pkg.authorUsername,
       authorAvatar: pkg.authorAvatar,
       weeklyDownloads: pkg.weeklyDownloads ?? 0,
@@ -3102,15 +3104,11 @@ export const requestSubmissionRefresh = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    // Verify user is authenticated
-    const userEmail = await getCurrentUserEmail(ctx);
+    const identity = await ctx.auth.getUserIdentity();
+    const userEmail = identity?.email ?? null;
     if (!userEmail) {
       throw new Error("Authentication required");
     }
-
-    // Get user info for the note
-    const userId = await getAuthUserId(ctx);
-    const user = userId ? await ctx.db.get(userId) : null;
 
     // Verify the package belongs to this user
     const pkg = await ctx.db.get(args.packageId);
@@ -3126,7 +3124,7 @@ export const requestSubmissionRefresh = mutation({
       packageId: args.packageId,
       content: `[User Request] ${args.note}`,
       authorEmail: userEmail,
-      authorName: user?.name || undefined,
+      authorName: identity?.name || undefined,
       createdAt: Date.now(),
     });
 
@@ -3975,6 +3973,7 @@ export const getFeaturedComponents = query({
       thumbnailUrl: pkg.thumbnailUrl,
       hideThumbnailInCategory: pkg.hideThumbnailInCategory,
       convexVerified: pkg.convexVerified,
+      communitySubmitted: pkg.communitySubmitted,
       authorUsername: pkg.authorUsername,
       authorAvatar: pkg.authorAvatar,
       weeklyDownloads: pkg.weeklyDownloads ?? 0,
@@ -4121,6 +4120,7 @@ export const updateComponentDetails = mutation({
     clearThumbnail: v.optional(v.boolean()),
     hideThumbnailInCategory: v.optional(v.boolean()),
     convexVerified: v.optional(v.boolean()),
+    communitySubmitted: v.optional(v.boolean()),
     authorUsername: v.optional(v.string()),
     authorAvatar: v.optional(v.string()),
     relatedComponentIds: v.optional(v.array(v.id("packages"))),
