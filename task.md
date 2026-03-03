@@ -116,6 +116,15 @@ Acceptance checks:
 
 ## Recent updates
 
+- [x] Rebuilt Footer.tsx to match official Convex.dev footer design (2026-03-03 08:25 UTC)
+  - Dark background (`#141414`) with Convex design system tokens
+  - White Convex wordmark logo, 4 link columns (Product, Developers, Company, Social)
+  - Social icons from `/public/*.svg`, external links with `ExternalLinkIcon`
+  - "A Trusted Solution" section with green checkmark badges (SOC 2, HIPAA, GDPR)
+  - Responsive grid layout, dynamic copyright year
+  - Fixed asset paths for Vite base URL (`/components/` prefix)
+  - Original footer saved as `FooterBackup.tsx`
+
 - [x] Updated Directory sort label text from "Verified first" to "Verified" and revalidated production build (2026-03-03 07:52 UTC)
   - Updated desktop and mobile sort display labels in `src/pages/Directory.tsx`
   - Confirmed `npm run build` passes for Netlify style output

@@ -250,7 +250,11 @@ Reusable FAQ section component displayed on the Directory page (below components
 
 ### `src/components/Footer.tsx`
 
-Site footer component with Convex links. Layout has Convex wordmark logo (40px height, links to convex.dev) on the left and GitHub repo and Discord links on the right. Includes 50px top padding via wrapper in main.tsx. Responsive design stacks links on mobile.
+Full Convex.dev-style site footer matching the official convex.dev design. Dark background (`#141414`), white Convex wordmark logo linking to convex.dev, four link columns (Product, Developers, Company, Social with icons), "A Trusted Solution" section with green checkmark badges (SOC 2 Type II Compliant, HIPAA Compliant, GDPR Verified), and copyright. Uses Convex design system tokens for colors. External links show `ExternalLinkIcon` from `@radix-ui/react-icons`. Social icons loaded from `/public/*.svg`. Responsive grid layout (6 cols xl, 5 lg, 4 md, 2 mobile).
+
+### `src/components/FooterBackup.tsx`
+
+Backup of the original simple footer component (not used). Kept for reference.
 
 ### `src/App.tsx`
 

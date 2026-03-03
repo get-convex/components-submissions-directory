@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Full Convex.dev-style footer matching official site design (2026-03-03 08:25 UTC)
+  - Dark background (`#141414`) using Convex design system tokens
+  - White Convex wordmark logo linking to convex.dev
+  - Four link columns: Product (9 links), Developers (11 links), Company (9 links), Social (6 links with icons)
+  - External links display `ExternalLinkIcon` from `@radix-ui/react-icons`
+  - Social links use SVG icons from `/public/` (Twitter, Discord, YouTube, Luma, LinkedIn, GitHub)
+  - "A Trusted Solution" section with green checkmark badges (SOC 2 Type II, HIPAA, GDPR)
+  - Dynamic copyright year
+  - Responsive grid layout (6 cols xl, 5 lg, 4 md, 2 mobile)
+  - Original footer saved as `FooterBackup.tsx` for reference
+
 - Directory `Verified` sort and category verified counts (2026-03-03 07:47 UTC)
   - Added `verified` sort option to `src/pages/Directory.tsx` for both desktop and mobile sort dropdowns
   - Extended `listApprovedComponents` sort validator and backend sort logic in `convex/packages.ts` to prioritize `convexVerified` packages
