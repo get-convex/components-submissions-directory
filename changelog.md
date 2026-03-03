@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Directory `Verified` sort and category verified counts (2026-03-03 07:47 UTC)
+  - Added `verified` sort option to `src/pages/Directory.tsx` for both desktop and mobile sort dropdowns
+  - Extended `listApprovedComponents` sort validator and backend sort logic in `convex/packages.ts` to prioritize `convexVerified` packages
+  - Extended shared `sortPublicPackages` helper with `verified` mode for consistent package sorting behavior
+  - Added `verifiedCount` to `listCategories` response in `convex/packages.ts` using the same visible approved package set as total counts
+  - Updated Admin Category Management in `src/pages/Admin.tsx` to display both total and verified component counts per category
+  - Updated directory dropdown display label from `Verified first` to `Verified` in desktop and mobile sort controls (2026-03-03 07:52 UTC)
+
 - Related Components section on component detail pages (2026-03-03 07:29 UTC)
   - Shows up to 3 related components below the View llms.txt link on detail pages
   - Compact no-thumbnail card grid matching Directory card style

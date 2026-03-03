@@ -11,7 +11,7 @@ import { ChallengeBanner } from "../components/ChallengeBanner";
 import { setPageTitle, setPageDescription } from "../lib/seo";
 import { CaretSortIcon, ChevronDownIcon } from "@radix-ui/react-icons";
 
-type SortBy = "newest" | "downloads" | "updated" | "rating";
+type SortBy = "newest" | "downloads" | "updated" | "rating" | "verified";
 
 const getGridColumnCount = (): number => {
   if (typeof window === "undefined") return 4;
@@ -174,6 +174,8 @@ export default function Directory() {
                           ? "Most downloads"
                           : sortBy === "newest"
                             ? "Newest"
+                            : sortBy === "verified"
+                              ? "Verified"
                             : sortBy === "rating"
                               ? "Highest rated"
                               : "Recently updated"}
@@ -188,6 +190,7 @@ export default function Directory() {
                       {[
                         { value: "downloads" as const, label: "Most downloads" },
                         { value: "newest" as const, label: "Newest" },
+                        { value: "verified" as const, label: "Verified" },
                         { value: "updated" as const, label: "Recently updated" },
                         { value: "rating" as const, label: "Highest rated" },
                       ].map((opt) => (
@@ -244,6 +247,8 @@ export default function Directory() {
                       ? "Most downloads"
                       : sortBy === "newest"
                         ? "Newest"
+                        : sortBy === "verified"
+                          ? "Verified"
                         : sortBy === "rating"
                           ? "Highest rated"
                           : "Recently updated"}
@@ -257,6 +262,7 @@ export default function Directory() {
                     {[
                       { value: "downloads" as const, label: "Most downloads" },
                       { value: "newest" as const, label: "Newest" },
+                      { value: "verified" as const, label: "Verified" },
                       { value: "updated" as const, label: "Recently updated" },
                       { value: "rating" as const, label: "Highest rated" },
                     ].map((opt) => (

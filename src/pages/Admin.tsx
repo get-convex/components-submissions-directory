@@ -2841,11 +2841,13 @@ function CategoryManagementPanel() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Build a count map from the listCategories query (matches Directory sidebar)
+  // Build count maps from the listCategories query (matches Directory sidebar)
   const countMap: Record<string, number> = {};
+  const verifiedCountMap: Record<string, number> = {};
   if (categoryCounts) {
     for (const c of categoryCounts) {
       countMap[c.category] = c.count;
+      verifiedCountMap[c.category] = c.verifiedCount;
     }
   }
 
@@ -2986,6 +2988,7 @@ function CategoryManagementPanel() {
         {allCategories.map((cat) => {
           const isEditing = editingId === cat._id;
           const componentCount = countMap[cat.slug] ?? 0;
+          const verifiedCount = verifiedCountMap[cat.slug] ?? 0;
 
           // Show inline edit form for this row
           if (isEditing) {
@@ -3030,6 +3033,9 @@ function CategoryManagementPanel() {
                   </span>
                   <span className="text-[10px] font-medium text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded">
                     {componentCount} {componentCount === 1 ? "component" : "components"}
+                  </span>
+                  <span className="text-[10px] font-medium text-green-700 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
+                    {verifiedCount} {verifiedCount === 1 ? "verified component" : "verified components"}
                   </span>
                   {!cat.enabled && (
                     <span className="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">

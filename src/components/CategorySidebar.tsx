@@ -7,6 +7,7 @@ interface CategorySidebarProps {
     label: string;
     description: string;
     count: number;
+    verifiedCount: number;
   }>;
   selectedCategory: string | null;
   onSelectCategory: (category: string | null) => void;

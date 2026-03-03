@@ -2,6 +2,13 @@
 
 ## to do
 
+### Directory sort by verified and category verified counts (PRD: prds/directory-sort-verified-and-category-verified-count.md)
+- [x] Add `verified` sort mode in directory backend query and UI dropdowns (2026-03-03 07:47 UTC)
+- [x] Add `verifiedCount` to category aggregation used by Category Management (2026-03-03 07:47 UTC)
+- [x] Update admin category row display to include verified counts (2026-03-03 07:47 UTC)
+- [x] Verify existing sort modes and verified toggles still work (2026-03-03 07:47 UTC)
+- [x] Update docs: `task.md`, `changelog.md`, and `files.md` after verification (2026-03-03 07:47 UTC)
+
 ### Private profile admin messages and admin notes separation (PRD: prds/private-profile-admin-messages-and-admin-notes.md)
 - [x] Route profile user messages to admin comments thread in `packageComments` and keep admin notes in `packageNotes` only (2026-03-03 06:24 UTC)
 - [x] Remove public comment rendering from `src/pages/Submit.tsx` so user admin messages stay private (2026-03-03 06:24 UTC)
@@ -108,6 +115,10 @@ Acceptance checks:
 - [ ] - [ ] add payments api
 
 ## Recent updates
+
+- [x] Updated Directory sort label text from "Verified first" to "Verified" and revalidated production build (2026-03-03 07:52 UTC)
+  - Updated desktop and mobile sort display labels in `src/pages/Directory.tsx`
+  - Confirmed `npm run build` passes for Netlify style output
 
 - [x] Added Related Components section to component detail pages (2026-03-03 07:29 UTC)
   - New `getRelatedComponents` query scoring by category, tags, and downloads

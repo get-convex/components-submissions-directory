@@ -276,7 +276,7 @@ function getSubmitPageSizeValue(value: number | undefined): 20 | 40 | 60 {
 
 function sortPublicPackages(
   packages: Array<Doc<"packages">>,
-  sortBy: "newest" | "downloads" | "updated",
+  sortBy: "newest" | "downloads" | "updated" | "verified",
 ): Array<Doc<"packages">> {
   if (sortBy === "downloads") {
     return [...packages].sort((a, b) => b.weeklyDownloads - a.weeklyDownloads);
@@ -286,6 +286,14 @@ function sortPublicPackages(
       (a, b) =>
         new Date(b.lastPublish).getTime() - new Date(a.lastPublish).getTime(),
     );
+  }
+  if (sortBy === "verified") {
+    return [...packages].sort((a, b) => {
+      const verifiedDelta =
+        Number(Boolean(b.convexVerified)) - Number(Boolean(a.convexVerified));
+      if (verifiedDelta !== 0) return verifiedDelta;
+      return b.submittedAt - a.submittedAt;
+    });
   }
   return [...packages].sort((a, b) => b.submittedAt - a.submittedAt);
 }
@@ -2998,6 +3006,7 @@ export const listApprovedComponents = query({
         v.literal("downloads"),
         v.literal("updated"),
         v.literal("rating"),
+        v.literal("verified"),
       ),
     ),
   },
@@ -3072,6 +3081,16 @@ export const listApprovedComponents = query({
           return (bData?.count || 0) - (aData?.count || 0);
         }
         return bAvg - aAvg;
+      });
+    } else if (sortBy === "verified") {
+      packages.sort((a, b) => {
+        const verifiedDelta =
+          Number(Boolean(b.convexVerified)) - Number(Boolean(a.convexVerified));
+        if (verifiedDelta !== 0) return verifiedDelta;
+        return (
+          (b.approvedAt ?? b.submittedAt ?? b._creationTime) -
+          (a.approvedAt ?? a.submittedAt ?? a._creationTime)
+        );
       });
     }
 
@@ -4056,6 +4075,7 @@ export const listCategories = query({
       label: v.string(),
       description: v.string(),
       count: v.number(),
+      verifiedCount: v.number(),
     }),
   ),
   handler: async (ctx) => {
@@ -4079,9 +4099,14 @@ export const listCategories = query({
 
     // Count packages per category
     const categoryCountMap: Record<string, number> = {};
+    const categoryVerifiedCountMap: Record<string, number> = {};
     for (const pkg of visible) {
       if (!pkg.category) continue;
       categoryCountMap[pkg.category] = (categoryCountMap[pkg.category] || 0) + 1;
+      if (pkg.convexVerified) {
+        categoryVerifiedCountMap[pkg.category] =
+          (categoryVerifiedCountMap[pkg.category] || 0) + 1;
+      }
     }
 
     // Return admin categories with their counts (preserves admin sortOrder)
@@ -4090,6 +4115,7 @@ export const listCategories = query({
       label: cat.label,
       description: cat.description,
       count: categoryCountMap[cat.slug] || 0,
+      verifiedCount: categoryVerifiedCountMap[cat.slug] || 0,
     }));
   },
 });
