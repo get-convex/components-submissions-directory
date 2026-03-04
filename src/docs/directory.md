@@ -50,7 +50,7 @@ Click a category in the sidebar to filter. Categories include:
 - Third-Party Sync
 - Miscellaneous
 
-The count next to each category shows how many approved components exist.
+The count next to each category shows how many approved components exist. A separate verified count shows how many in that category carry the Convex Verified badge.
 
 ## Featured section
 

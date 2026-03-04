@@ -94,6 +94,19 @@ Customize the SEO generation prompt.
 | Activate | Restore previous version |
 | Reset to default | Restore original |
 
+#### SEO prompt placeholders
+
+The SEO prompt supports these template variables:
+
+| Placeholder | Replaced with |
+|-------------|--------------|
+| `{{displayName}}` | Component display name |
+| `{{packageName}}` | npm package name |
+| `{{description}}` | Short description |
+| `{{category}}` | Component category |
+
+Use these placeholders in custom prompts so the AI generates content specific to each component.
+
 ### Category Management
 
 View and manage categories.

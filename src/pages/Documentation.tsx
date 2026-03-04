@@ -30,12 +30,15 @@ import adminSeoDoc from "../docs/admin-seo.md?raw";
 import adminThumbnailsDoc from "../docs/admin-thumbnails.md?raw";
 import adminSettingsDoc from "../docs/admin-settings.md?raw";
 import adminNotesDoc from "../docs/admin-notes.md?raw";
+import mcpDoc from "../docs/mcp.md?raw";
+import apiEndpointsDoc from "../docs/api-endpoints.md?raw";
+import badgesDoc from "../docs/badges.md?raw";
 
 type DocSection = {
   id: string;
   title: string;
   content: string;
-  group: "getting-started" | "user-guide" | "admin-guide";
+  group: "getting-started" | "user-guide" | "admin-guide" | "integrations";
 };
 
 const docs: DocSection[] = [
@@ -52,6 +55,9 @@ const docs: DocSection[] = [
   { id: "admin-thumbnails", title: "Thumbnails", content: adminThumbnailsDoc, group: "admin-guide" },
   { id: "admin-settings", title: "Settings", content: adminSettingsDoc, group: "admin-guide" },
   { id: "admin-notes", title: "Notes and Comments", content: adminNotesDoc, group: "admin-guide" },
+  { id: "mcp", title: "MCP (Model Context Protocol)", content: mcpDoc, group: "integrations" },
+  { id: "api-endpoints", title: "Public API Endpoints", content: apiEndpointsDoc, group: "integrations" },
+  { id: "badges", title: "README Badges", content: badgesDoc, group: "integrations" },
 ];
 
 function extractHeadings(markdown: string): { id: string; text: string; level: number }[] {
@@ -82,18 +88,69 @@ interface DocumentationProps {
   section?: string;
 }
 
+function getSectionPath(basePath: string, sectionId: string) {
+  return sectionId === "index"
+    ? `${basePath}/documentation`
+    : `${basePath}/documentation/${sectionId}`;
+}
+
+function parseSectionFromPath(pathname: string, basePath: string): string {
+  const docsPrefix = `${basePath}/documentation`;
+  if (!pathname.startsWith(docsPrefix)) {
+    return "index";
+  }
+
+  const remainder = pathname.slice(docsPrefix.length);
+  if (!remainder || remainder === "/") {
+    return "index";
+  }
+
+  return remainder.replace(/^\//, "");
+}
+
 export default function Documentation({ section }: DocumentationProps) {
   const basePath = useBasePath();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const isAdmin = useQuery(api.auth.isAdmin);
   const [copied, setCopied] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [currentSection, setCurrentSection] = useState(section ?? "index");
+
+  // Keep local section in sync if router-level prop changes.
+  useEffect(() => {
+    setCurrentSection(section ?? "index");
+  }, [section]);
+
+  // Keep docs section in sync with browser back/forward navigation.
+  useEffect(() => {
+    const handlePopState = () => {
+      const nextSection = parseSectionFromPath(window.location.pathname, basePath);
+      setCurrentSection(nextSection);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [basePath]);
+
+  const handleSectionChange = (sectionId: string) => {
+    if (sectionId === currentSection) {
+      return;
+    }
+
+    setCurrentSection(sectionId);
+    setCopied(false);
+
+    const nextPath = getSectionPath(basePath, sectionId);
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState({}, "", nextPath);
+    }
+  };
 
   // Determine current doc
   const currentDoc = useMemo(() => {
-    if (!section) return docs[0];
-    return docs.find((d) => d.id === section) || docs[0];
-  }, [section]);
+    if (!currentSection) return docs[0];
+    return docs.find((d) => d.id === currentSection) || docs[0];
+  }, [currentSection]);
 
   // Extract headings for "On this page"
   const headings = useMemo(() => extractHeadings(currentDoc.content), [currentDoc]);
@@ -201,6 +258,7 @@ export default function Documentation({ section }: DocumentationProps) {
   const gettingStarted = docs.filter((d) => d.group === "getting-started");
   const userGuide = docs.filter((d) => d.group === "user-guide");
   const adminGuide = docs.filter((d) => d.group === "admin-guide");
+  const integrations = docs.filter((d) => d.group === "integrations");
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -226,21 +284,28 @@ export default function Documentation({ section }: DocumentationProps) {
               title="Getting Started"
               items={gettingStarted}
               currentId={currentDoc.id}
-              basePath={basePath}
+              onSelectSection={handleSectionChange}
               onNavigate={() => setMobileNavOpen(false)}
             />
             <NavSection
               title="User Guide"
               items={userGuide}
               currentId={currentDoc.id}
-              basePath={basePath}
+              onSelectSection={handleSectionChange}
               onNavigate={() => setMobileNavOpen(false)}
             />
             <NavSection
               title="Admin Guide"
               items={adminGuide}
               currentId={currentDoc.id}
-              basePath={basePath}
+              onSelectSection={handleSectionChange}
+              onNavigate={() => setMobileNavOpen(false)}
+            />
+            <NavSection
+              title="Integrations"
+              items={integrations}
+              currentId={currentDoc.id}
+              onSelectSection={handleSectionChange}
               onNavigate={() => setMobileNavOpen(false)}
             />
           </nav>
@@ -260,19 +325,25 @@ export default function Documentation({ section }: DocumentationProps) {
                   title="Getting Started"
                   items={gettingStarted}
                   currentId={currentDoc.id}
-                  basePath={basePath}
+                  onSelectSection={handleSectionChange}
                 />
                 <NavSection
                   title="User Guide"
                   items={userGuide}
                   currentId={currentDoc.id}
-                  basePath={basePath}
+                  onSelectSection={handleSectionChange}
                 />
                 <NavSection
                   title="Admin Guide"
                   items={adminGuide}
                   currentId={currentDoc.id}
-                  basePath={basePath}
+                  onSelectSection={handleSectionChange}
+                />
+                <NavSection
+                  title="Integrations"
+                  items={integrations}
+                  currentId={currentDoc.id}
+                  onSelectSection={handleSectionChange}
                 />
               </nav>
             </div>
@@ -316,7 +387,7 @@ export default function Documentation({ section }: DocumentationProps) {
             </div>
 
             {/* Markdown content */}
-            <article className="prose prose-slate max-w-none prose-headings:font-semibold prose-headings:text-text-primary prose-p:text-text-secondary prose-li:text-text-secondary prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-code:text-text-primary prose-code:bg-bg-hover prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-normal prose-code:before:content-none prose-code:after:content-none prose-pre:bg-[rgb(30,28,26)] prose-pre:text-white prose-table:text-sm prose-th:text-text-primary prose-th:font-medium prose-th:bg-bg-hover prose-td:border-border prose-th:border-border prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2">
+            <article className="prose prose-slate max-w-none prose-headings:font-semibold prose-headings:text-text-primary prose-headings:tracking-tight prose-p:text-text-secondary prose-p:leading-7 prose-strong:text-text-primary prose-em:text-text-primary prose-li:text-text-secondary prose-li:leading-7 prose-ul:my-5 prose-ol:my-5 prose-blockquote:my-6 prose-blockquote:rounded-r-lg prose-blockquote:border-l-4 prose-blockquote:border-l-button prose-blockquote:bg-bg-hover prose-blockquote:px-4 prose-blockquote:py-2 prose-blockquote:text-text-secondary prose-hr:my-8 prose-hr:border-border prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-code:text-text-primary prose-code:bg-bg-hover prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-normal prose-code:before:content-none prose-code:after:content-none prose-pre:bg-[rgb(30,28,26)] prose-pre:text-white prose-pre:border prose-pre:border-[rgb(55,52,49)] prose-pre:rounded-lg prose-pre:shadow-sm prose-img:rounded-lg prose-img:border prose-img:border-border prose-img:shadow-sm prose-table:my-6 prose-table:text-sm prose-th:text-text-primary prose-th:font-medium prose-th:bg-bg-hover prose-td:border-border prose-th:border-border prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
@@ -361,6 +432,43 @@ export default function Documentation({ section }: DocumentationProps) {
                         {children}
                       </table>
                     </div>
+                  ),
+                  ul: ({ children }) => (
+                    <ul className="list-disc pl-6 marker:text-text-tertiary space-y-1">{children}</ul>
+                  ),
+                  ol: ({ children }) => (
+                    <ol className="list-decimal pl-6 marker:text-text-tertiary space-y-1">{children}</ol>
+                  ),
+                  li: ({ children }) => <li className="leading-7">{children}</li>,
+                  blockquote: ({ children }) => <blockquote>{children}</blockquote>,
+                  hr: () => <hr className="border-border" />,
+                  pre: ({ children }) => (
+                    <pre className="overflow-x-auto rounded-lg border border-[rgb(55,52,49)] bg-[rgb(30,28,26)] p-4 text-[13px] leading-6 text-white">
+                      {children}
+                    </pre>
+                  ),
+                  code: ({ className, children, ...props }) => {
+                    const isBlock = Boolean(className && className.includes("language-"));
+                    if (isBlock) {
+                      return (
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                      );
+                    }
+                    return (
+                      <code className="rounded bg-bg-hover px-1.5 py-0.5 text-sm text-text-primary" {...props}>
+                        {children}
+                      </code>
+                    );
+                  },
+                  img: ({ src, alt }) => (
+                    <img
+                      src={src}
+                      alt={alt ?? ""}
+                      className="my-6 rounded-lg border border-border shadow-sm"
+                      loading="lazy"
+                    />
                   ),
                   a: ({ href, children }) => (
                     <a
@@ -415,13 +523,13 @@ function NavSection({
   title,
   items,
   currentId,
-  basePath,
+  onSelectSection,
   onNavigate,
 }: {
   title: string;
   items: DocSection[];
   currentId: string;
-  basePath: string;
+  onSelectSection: (sectionId: string) => void;
   onNavigate?: () => void;
 }) {
   return (
@@ -432,21 +540,20 @@ function NavSection({
       <ul className="space-y-1">
         {items.map((item) => (
           <li key={item.id}>
-            <a
-              href={
-                item.id === "index"
-                  ? `${basePath}/documentation`
-                  : `${basePath}/documentation/${item.id}`
-              }
-              onClick={onNavigate}
-              className={`block px-2 py-1.5 rounded-md text-sm transition-colors ${
+            <button
+              type="button"
+              onClick={() => {
+                onSelectSection(item.id);
+                onNavigate?.();
+              }}
+              className={`block w-full text-left px-2 py-1.5 rounded-md text-sm transition-colors ${
                 currentId === item.id
                   ? "bg-button/10 text-button font-medium"
                   : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
               }`}
             >
               {item.title}
-            </a>
+            </button>
           </li>
         ))}
       </ul>

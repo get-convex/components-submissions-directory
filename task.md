@@ -1,6 +1,29 @@
 # Task List
 
 ## to do
+- check all routes for mcp and md and llm.
+
+### Multi-platform MCP install section (PRD: prds/multi-platform-mcp-install.md)
+- [x] Add platform toggle tabs (Cursor, Claude, ChatGPT) to AgentInstallSection (2026-03-04 20:10 UTC)
+- [x] Add Claude Desktop config generator and manual setup instructions (2026-03-04 20:08 UTC)
+- [x] Add ChatGPT custom connector setup instructions (2026-03-04 20:08 UTC)
+- [x] Test all three platform MCP install flows (2026-03-04 20:15 UTC)
+- [x] Fix MCP endpoint URLs to use Convex site URL directly (2026-03-04 21:00 UTC)
+- [x] Update files.md, changelog.md, task.md (2026-03-04 21:05 UTC)
+
+### Documentation full feature coverage update
+- [x] Audited all docs against files.md and changelog.md for missing features (2026-03-04 22:30 UTC)
+- [x] Created mcp.md covering MCP protocol, REST API, Cursor install, agent prompts (2026-03-04 22:30 UTC)
+- [x] Created api-endpoints.md covering llms.txt, markdown, badge SVG, Netlify aliases (2026-03-04 22:30 UTC)
+- [x] Created badges.md covering README badge endpoint, usage, and analytics (2026-03-04 22:30 UTC)
+- [x] Updated 9 existing docs with missing feature details (2026-03-04 22:30 UTC)
+- [x] Added "Integrations" nav group in Documentation.tsx (2026-03-04 22:30 UTC)
+- [x] Verified build passes and updated files.md, changelog.md, task.md (2026-03-04 22:30 UTC)
+
+### Documentation markdown rendering improvements (PRD: prds/docs-markdown-rendering-improvements.md)
+- [x] Improve Documentation.tsx markdown rendering for tables, code blocks, lists, blockquotes, and related rich markdown formats (2026-03-04 21:24 UTC)
+- [x] Verify `npm run build` passes after markdown rendering updates (2026-03-04 21:24 UTC)
+- [x] Update `files.md`, `changelog.md`, and `task.md` with session changes (2026-03-04 21:24 UTC)
 
 ### Admin filter bar UX fix
 - [x] Changed filter tabs from horizontal scroll to flex wrap (2026-03-04 19:00 UTC)
@@ -14,6 +37,7 @@
 - [x] Add "documentation" to reserved routes in `src/lib/slugs.ts` (2026-03-04 12:25 UTC)
 - [x] Add TypeScript declarations for `*.md?raw` imports (2026-03-04 12:25 UTC)
 - [x] Add "Docs" link to Header.tsx nav bar for admins (2026-03-04 12:35 UTC)
+- [x] Use client-side section navigation in Documentation.tsx to avoid full reload and spinner between doc pages (2026-03-04 19:20 UTC)
 - [x] Update `files.md`, `changelog.md`, and `task.md` (2026-03-04 12:35 UTC)
 
 ### AI provider runtime failover (PRD: prds/ai-provider-runtime-failover.md)

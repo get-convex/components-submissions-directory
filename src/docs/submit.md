@@ -67,6 +67,18 @@ After submitting, you can:
 3. Click "Edit" to update fields
 4. Submit changes for re-review if needed
 
+## Submissions page pagination
+
+The public submissions page at `/components/submissions` supports pagination:
+
+| Setting | Options |
+|---------|---------|
+| Page size | 20, 40, or 60 items per page |
+| Default | Configured by admins in Settings tab |
+| Navigation | Previous/Next buttons at the bottom |
+
+The default page size is controlled in the admin Settings panel under "Submit Listing Settings."
+
 ## Common rejection reasons
 
 - Missing or invalid npm package

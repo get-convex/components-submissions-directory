@@ -77,12 +77,26 @@ Users can rate components 1-5 stars. Ratings are:
 
 ## Agent install section
 
-The "Use with agents and CLI" section provides:
+The "Use with agents and CLI" section provides AI-friendly tools for installing components via coding assistants.
 
-- Copy-to-clipboard prompt for AI agents
-- Setup instructions
-- Verification checklist
-- MCP ready badge
+### Features
+
+- **Copy prompt** button generates a pre-formatted prompt with package name, install command, and documentation URLs ready to paste into Claude, ChatGPT, or any AI assistant
+- **Install in Cursor** button opens a deeplink that configures the MCP server in Cursor with one click
+- **Copy MCP config** copies the JSON config block for manual Cursor MCP setup
+- **MCP ready** badge appears on components that have a slug and install command
+
+### Feature flags
+
+These features are controlled by environment variables:
+
+| Flag | Env Variable | Effect |
+|------|-------------|--------|
+| Agent Install Section | `VITE_AGENT_INSTALL_ENABLED` | Shows or hides the entire section |
+| MCP Badges | `VITE_MCP_BADGES_ENABLED` | Shows "MCP ready" badge on eligible components |
+| MCP Install | `VITE_MCP_ENABLED` | Shows Cursor install and config copy buttons |
+
+When all flags are enabled and the component qualifies, the full agent install experience is available.
 
 ## Related components
 
@@ -97,6 +111,13 @@ This section can be toggled on/off in admin settings.
 ## llms.txt
 
 A link to view the component's llms.txt file appears below keywords. This provides machine-readable component information for AI systems.
+
+The llms.txt file is available at:
+
+- `/api/component-llms?slug=component-slug` (direct API)
+- `/components/component-slug/llms.txt` (clean URL via Netlify alias)
+
+It includes package name, description, install command, category, documentation links, and SKILL.md content formatted for LLM context windows.
 
 ## SEO features
 

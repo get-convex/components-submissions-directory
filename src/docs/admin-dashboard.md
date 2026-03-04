@@ -81,6 +81,7 @@ The Actions row provides:
 | Auto-fill | Fill author from GitHub |
 | Refresh npm | Refresh npm package data |
 | Generate Slug | Create URL slug (if missing) |
+| Sub Hide | Toggle visibility on the public Submissions page |
 
 ## Stats overview
 

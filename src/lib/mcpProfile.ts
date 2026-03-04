@@ -172,8 +172,10 @@ export function hasAiInstallSupport(component: ComponentData): boolean {
 
 /**
  * MCP directory origin for production.
+ * Uses the Convex site URL directly since MCP endpoints are Convex HTTP actions.
+ * The frontend UI is at convex.dev/components but API routes go to the Convex site.
  */
-const MCP_DIRECTORY_ORIGIN = "https://www.convex.dev";
+const MCP_CONVEX_SITE_URL = "https://third-hedgehog-429.convex.site";
 const MCP_SERVER_NAME = "convex-components-directory";
 
 /**
@@ -195,7 +197,7 @@ export function generateGlobalCursorInstallLink(): {
 } {
   const config = {
     command: "npx",
-    args: ["-y", "@anthropic-ai/mcp-server-fetch", `${MCP_DIRECTORY_ORIGIN}/api/mcp/protocol`],
+    args: ["-y", "@anthropic-ai/mcp-server-fetch", `${MCP_CONVEX_SITE_URL}/api/mcp/protocol`],
   };
 
   const configBase64 = base64UrlEncode(JSON.stringify(config));
@@ -223,7 +225,7 @@ export function generateComponentCursorInstallLink(component: ComponentData): {
   const serverName = `convex-component-${component.slug.replace(/\//g, "-")}`;
   const config = {
     command: "npx",
-    args: ["-y", "@anthropic-ai/mcp-server-fetch", `${MCP_DIRECTORY_ORIGIN}/api/mcp/protocol`],
+    args: ["-y", "@anthropic-ai/mcp-server-fetch", `${MCP_CONVEX_SITE_URL}/api/mcp/protocol`],
     env: {
       CONVEX_COMPONENT_SLUG: component.slug,
     },
@@ -243,7 +245,7 @@ export function generateComponentCursorInstallLink(component: ComponentData): {
  * Get the MCP protocol endpoint URL.
  */
 export function getMcpProtocolEndpoint(): string {
-  return `${MCP_DIRECTORY_ORIGIN}/api/mcp/protocol`;
+  return `${MCP_CONVEX_SITE_URL}/api/mcp/protocol`;
 }
 
 /**
@@ -251,7 +253,79 @@ export function getMcpProtocolEndpoint(): string {
  */
 export function getCursorInstallApiUrl(slug?: string): string {
   if (slug) {
-    return `${MCP_DIRECTORY_ORIGIN}/api/mcp/cursor-install-component?slug=${encodeURIComponent(slug)}`;
+    return `${MCP_CONVEX_SITE_URL}/api/mcp/cursor-install-component?slug=${encodeURIComponent(slug)}`;
   }
-  return `${MCP_DIRECTORY_ORIGIN}/api/mcp/cursor-install`;
+  return `${MCP_CONVEX_SITE_URL}/api/mcp/cursor-install`;
+}
+
+/**
+ * Claude Desktop config file paths
+ */
+export const CLAUDE_DESKTOP_CONFIG_PATHS = {
+  macos: "~/Library/Application Support/Claude/claude_desktop_config.json",
+  windows: "%AppData%\\Claude\\claude_desktop_config.json",
+};
+
+/**
+ * Generate Claude Desktop MCP config.
+ * Users must manually edit their claude_desktop_config.json file.
+ * Reference: https://modelcontextprotocol.io/quickstart/user
+ */
+export function generateClaudeDesktopConfig(component?: ComponentData): {
+  serverName: string;
+  config: object;
+  configPath: { macos: string; windows: string };
+  instructions: string;
+} {
+  const serverName = component?.slug
+    ? `convex-component-${component.slug.replace(/\//g, "-")}`
+    : MCP_SERVER_NAME;
+
+  const serverConfig: Record<string, unknown> = {
+    command: "npx",
+    args: ["-y", "@anthropic-ai/mcp-server-fetch", `${MCP_CONVEX_SITE_URL}/api/mcp/protocol`],
+  };
+
+  if (component?.slug) {
+    serverConfig.env = {
+      CONVEX_COMPONENT_SLUG: component.slug,
+    };
+  }
+
+  const config = {
+    mcpServers: {
+      [serverName]: serverConfig,
+    },
+  };
+
+  return {
+    serverName,
+    config,
+    configPath: CLAUDE_DESKTOP_CONFIG_PATHS,
+    instructions: `Add to your claude_desktop_config.json file, then restart Claude Desktop.`,
+  };
+}
+
+/**
+ * Generate ChatGPT custom connector setup info.
+ * Users add this via Settings > Apps & Connectors with Developer mode enabled.
+ * Reference: https://developers.openai.com/apps-sdk/deploy/connect-chatgpt
+ */
+export function generateChatGPTConnectorConfig(component?: ComponentData): {
+  url: string;
+  instructions: string;
+  requirements: string[];
+} {
+  const url = component?.slug
+    ? `${MCP_CONVEX_SITE_URL}/api/mcp/protocol?slug=${encodeURIComponent(component.slug)}`
+    : `${MCP_CONVEX_SITE_URL}/api/mcp/protocol`;
+
+  return {
+    url,
+    instructions: `Settings > Apps & Connectors > Create, paste the URL as the connector endpoint.`,
+    requirements: [
+      "ChatGPT Plus, Pro, or Team subscription",
+      "Developer mode enabled in Advanced settings",
+    ],
+  };
 }

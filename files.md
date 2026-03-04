@@ -345,9 +345,11 @@ Admin-only documentation viewer at `/components/documentation`. Features:
 - Non-admins see "Admin Access Required" message with link back to directory
 - Markdown content loaded from `src/docs/*.md` files via Vite raw imports
 - Three-column layout: left navigation sidebar, main content, right "On this page" outline
-- Left sidebar groups docs into Getting Started, User Guide, and Admin Guide sections
+- Left sidebar groups docs into Getting Started, User Guide, Admin Guide, and Integrations sections
 - Active navigation item highlighting
+- Client-side section routing for docs sidebar navigation to avoid full page reloads and repeated auth spinner on section clicks
 - Right sidebar shows H2/H3 headings from current doc with anchor links
+- Enhanced markdown rendering with polished formatting for GFM tables, code blocks, inline code, blockquotes, ordered and unordered lists, horizontal rules, and images
 - Copy as Markdown button copies raw markdown to clipboard
 - Download as Markdown button downloads .md file
 - Sets `<meta name="robots" content="noindex, nofollow">` to prevent indexing
@@ -370,6 +372,9 @@ Markdown documentation files for the admin documentation system:
 - `admin-thumbnails.md` - Thumbnail management
 - `admin-settings.md` - Admin settings panel
 - `admin-notes.md` - Notes and comments system
+- `mcp.md` - MCP (Model Context Protocol) endpoints, tools, Cursor integration, and agent install features
+- `api-endpoints.md` - Public API endpoints (llms.txt, markdown, badge SVG, Netlify aliases)
+- `badges.md` - README badge endpoint, usage, and analytics
 
 ### `src/pages/NotFound.tsx`
 
@@ -413,7 +418,7 @@ Admin editor for directory-specific fields: slug, category, tags, descriptions, 
 
 ### `src/components/AgentInstallSection.tsx`
 
-"Use with agents and CLI" section for ComponentDetail page. Always visible (no toggle) for SEO/AEO/GEO. Shows single copy prompt optimized for AI agents (Claude style), MCP ready badge in header, and agent-friendly summary with install command, setup steps, and verification checklist. Positioned above Keywords section with anchor link from header. Respects feature flags (VITE_AGENT_INSTALL_ENABLED, VITE_MCP_BADGES_ENABLED) for controlled rollout.
+"Use with agents and CLI" section for ComponentDetail page. Always visible (no toggle) for SEO/AEO/GEO. Shows single copy prompt optimized for AI agents (Claude style), MCP ready badge in header, and agent-friendly summary with install command, setup steps, and verification checklist. Includes multi-platform MCP install section with toggle tabs for Cursor (deeplink install), Claude Desktop (manual JSON config), and ChatGPT (custom connector URL). Platform-aware copy button adapts to selected tab. Respects feature flags (VITE_AGENT_INSTALL_ENABLED, VITE_MCP_BADGES_ENABLED, VITE_MCP_ENABLED) for controlled rollout.
 
 ### `src/lib/categories.ts`
 
@@ -445,13 +450,16 @@ Utility functions including `cn` for Tailwind class merging.
 
 ### `src/lib/mcpProfile.ts`
 
-MCP profile builder utilities. Builds MCP-compatible component profiles from package data for agent consumption. Includes:
+MCP profile builder utilities. Builds MCP-compatible component profiles from package data for agent consumption. Uses `MCP_CONVEX_SITE_URL` constant pointing to the Convex HTTP site for all MCP endpoints. Includes:
 - `buildMcpProfile`: Builds full MCP component profile for agent consumption
 - `buildMcpSearchResult`: Builds lightweight search result items
 - `isMcpReady`/`hasAiInstallSupport`: Badge readiness checks
 - `generateGlobalCursorInstallLink`: Generates Cursor MCP install deeplink for directory server
 - `generateComponentCursorInstallLink`: Generates Cursor MCP install deeplink for specific component
-- `getMcpProtocolEndpoint`/`getCursorInstallApiUrl`: URL helpers for MCP endpoints
+- `generateClaudeDesktopConfig`: Generates Claude Desktop JSON config for manual file editing (mcpServers wrapper)
+- `generateChatGPTConnectorConfig`: Generates ChatGPT custom connector URL with Developer mode setup steps
+- `CLAUDE_DESKTOP_CONFIG_PATHS`: macOS and Windows config file paths
+- `getMcpProtocolEndpoint`/`getCursorInstallApiUrl`: URL helpers for MCP endpoints (use Convex site URL)
 
 ### `src/lib/promptComposer.ts`
 

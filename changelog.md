@@ -7,12 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Multi-platform MCP install section with toggle tabs (2026-03-04 20:15 UTC)
+  - Replaced single "Install in Cursor" with tabbed interface: Cursor | Claude | ChatGPT
+  - Cursor tab: deeplink install button + config copy (existing functionality)
+  - Claude Desktop tab: manual JSON config with file path instructions for macOS/Windows
+  - ChatGPT tab: custom connector URL with Developer mode setup steps
+  - Added `generateClaudeDesktopConfig()` and `generateChatGPTConnectorConfig()` to `src/lib/mcpProfile.ts`
+  - Platform-aware copy button copies appropriate config/URL for selected tab
+  - PRD: `prds/multi-platform-mcp-install.md`
+
+### Fixed
+
+- MCP endpoint URLs now use Convex site URL directly (2026-03-04 21:00 UTC)
+  - Changed from `https://www.convex.dev/api/mcp/protocol` to `https://third-hedgehog-429.convex.site/api/mcp/protocol`
+  - Fixes 404 issue since there's no Netlify proxy for `/api/mcp/*` routes
+  - Matches existing pattern used by `llms.txt` and markdown routes in `netlify.toml`
+  - Updated all MCP config generators in `src/lib/mcpProfile.ts` to use `MCP_CONVEX_SITE_URL`
+
+- Comprehensive documentation coverage for all app features (2026-03-04 22:30 UTC)
+  - Added 3 new docs: MCP (Model Context Protocol), Public API Endpoints, README Badges
+  - New "Integrations" nav group in Documentation.tsx for MCP, API, and badge docs
+  - Updated 9 existing docs with missing feature details: agent install feature flags, llms.txt URLs, submissions pagination, Sub Hide toggle, AI provider failover, SEO prompt placeholders, user deletion request flow, category verified counts, soft deletion from user side
+
 ### Fixed
 
 - Admin filter tabs bar no longer scrolls horizontally, tabs wrap instead (2026-03-04 19:00 UTC)
 - Admin filter tab tooltips now appear above the bar instead of below (2026-03-04 19:00 UTC)
+- Documentation section links now use client-side route updates to prevent full page reload and repeated auth spinner between docs pages (2026-03-04 19:20 UTC)
 
 ### Added
+
+- Documentation page markdown presentation refresh for improved readability (2026-03-04 21:24 UTC)
+  - Expanded markdown rendering styles in `src/pages/Documentation.tsx` for tables, code blocks, inline code, lists, blockquotes, horizontal rules, and images
+  - Kept `remarkGfm` support and improved table/code wrappers for cleaner spacing and better visual hierarchy
 
 - Admin-only documentation system at `/components/documentation` (2026-03-04 12:30 UTC)
   - 13 markdown documentation files covering user guide and admin guide topics

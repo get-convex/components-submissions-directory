@@ -103,6 +103,17 @@ Click "Delete Now" to immediately delete a package bypassing the waiting period.
 2. Click "Cancel Deletion"
 3. Package returns to previous state
 
+## Hide from Submissions
+
+The "Sub Hide" toggle hides a package from the public Submissions page (`/components/submissions`) only. The component remains visible in the main directory if approved.
+
+| Toggle | Effect |
+|--------|--------|
+| Sub Hide ON | Hidden from the submissions listing page |
+| Sub Hide OFF | Visible on the submissions listing page (default) |
+
+This is useful for keeping approved components in the directory while removing them from the submissions view. The toggle appears in the Actions row of the expanded package view.
+
 ## Data export
 
 Click "Export CSV" at the top of the dashboard to download all package data as a CSV file. Includes:

@@ -718,7 +718,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 href="#agent-install"
                 className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors">
                 <ClipboardText className="w-3.5 h-3.5" weight="bold" />
-                Use with AI
+                For Agents
               </a>
 
               {/* GitHub issues badge - commented out

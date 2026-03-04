@@ -78,9 +78,13 @@ In the Settings tab, AI Provider Settings panel:
 3. **Select model** - Choose model version
 4. **Save** - Apply settings
 
+### Provider failover
+
+The system includes automatic failover logic (`aiProviderFallback.ts`). If the active provider fails (API error, rate limit, timeout), the system automatically tries the next configured provider in priority order. This happens transparently during AI review and SEO generation.
+
 ### Clearing provider settings
 
-Click "Clear" to remove custom settings and revert to environment variables.
+Click "Clear" to remove custom settings and revert to environment variables. A confirmation modal appears before clearing to prevent accidental resets.
 
 ## Custom prompts
 

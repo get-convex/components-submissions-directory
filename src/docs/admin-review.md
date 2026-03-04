@@ -107,6 +107,22 @@ Before approving, verify:
 - [ ] Category is appropriate
 - [ ] Description is accurate
 
+## Soft deletion from user side
+
+Users can request deletion of their own submissions through the profile page:
+
+1. User clicks "Send Request" and submits a deletion request
+2. Admin receives notification in the Notes panel
+3. Admin marks the component for deletion (or the user's request triggers it directly via `requestDeleteMySubmission`)
+4. Component enters a configurable waiting period
+5. After the waiting period, the component is permanently deleted
+
+### Canceling user-requested deletion
+
+During the waiting period, either the user (via `cancelDeleteMySubmission`) or an admin can cancel the deletion. The component returns to its previous review status and visibility.
+
+Pending deletions appear in the admin Deletion tab with the time remaining and who requested the deletion.
+
 ## Notes for reviewers
 
 Use the Notes panel to add internal reviewer notes:

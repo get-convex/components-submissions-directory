@@ -81,6 +81,26 @@ Click "View Notes" to see the conversation thread between you and admins. Featur
 | Visible | Appears in directory |
 | Hidden | Temporarily hidden from directory |
 
+## Requesting deletion
+
+You can request deletion of your own submissions:
+
+1. Click "Send Request" on the submission you want removed
+2. Type a deletion request message
+3. The admin team is notified
+4. The component enters a waiting period before permanent deletion
+
+### Canceling a deletion request
+
+If you change your mind before the waiting period expires:
+
+1. Go to your profile
+2. Find the submission with a deletion badge
+3. Click "Cancel Deletion Request"
+4. The component returns to its previous state
+
+The waiting period duration is configured by admins in the Deletion Management settings.
+
 ## Account management
 
 At the bottom of the profile page:
