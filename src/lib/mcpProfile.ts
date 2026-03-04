@@ -169,3 +169,89 @@ export function isMcpReady(component: ComponentData): boolean {
 export function hasAiInstallSupport(component: ComponentData): boolean {
   return Boolean(component.skillMd || component.seoGenerationStatus === "completed");
 }
+
+/**
+ * MCP directory origin for production.
+ */
+const MCP_DIRECTORY_ORIGIN = "https://www.convex.dev";
+const MCP_SERVER_NAME = "convex-components-directory";
+
+/**
+ * Generate Cursor MCP install deeplink.
+ * Reference: https://cursor.com/docs/context/mcp/install-links
+ */
+function base64UrlEncode(str: string): string {
+  const base64 = btoa(str);
+  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/**
+ * Generate Cursor install link for the global directory MCP server.
+ */
+export function generateGlobalCursorInstallLink(): {
+  serverName: string;
+  installLink: string;
+  config: object;
+} {
+  const config = {
+    command: "npx",
+    args: ["-y", "@anthropic-ai/mcp-server-fetch", `${MCP_DIRECTORY_ORIGIN}/api/mcp/protocol`],
+  };
+
+  const configBase64 = base64UrlEncode(JSON.stringify(config));
+  const installLink = `cursor://anysphere.cursor-deeplink/mcp/install?name=${encodeURIComponent(MCP_SERVER_NAME)}&config=${configBase64}`;
+
+  return {
+    serverName: MCP_SERVER_NAME,
+    installLink,
+    config,
+  };
+}
+
+/**
+ * Generate Cursor install link for a specific component MCP context.
+ */
+export function generateComponentCursorInstallLink(component: ComponentData): {
+  serverName: string;
+  installLink: string;
+  config: object;
+} | null {
+  if (!component.slug) {
+    return null;
+  }
+
+  const serverName = `convex-component-${component.slug.replace(/\//g, "-")}`;
+  const config = {
+    command: "npx",
+    args: ["-y", "@anthropic-ai/mcp-server-fetch", `${MCP_DIRECTORY_ORIGIN}/api/mcp/protocol`],
+    env: {
+      CONVEX_COMPONENT_SLUG: component.slug,
+    },
+  };
+
+  const configBase64 = base64UrlEncode(JSON.stringify(config));
+  const installLink = `cursor://anysphere.cursor-deeplink/mcp/install?name=${encodeURIComponent(serverName)}&config=${configBase64}`;
+
+  return {
+    serverName,
+    installLink,
+    config,
+  };
+}
+
+/**
+ * Get the MCP protocol endpoint URL.
+ */
+export function getMcpProtocolEndpoint(): string {
+  return `${MCP_DIRECTORY_ORIGIN}/api/mcp/protocol`;
+}
+
+/**
+ * Get API endpoint for fetching Cursor install link data.
+ */
+export function getCursorInstallApiUrl(slug?: string): string {
+  if (slug) {
+    return `${MCP_DIRECTORY_ORIGIN}/api/mcp/cursor-install-component?slug=${encodeURIComponent(slug)}`;
+  }
+  return `${MCP_DIRECTORY_ORIGIN}/api/mcp/cursor-install`;
+}

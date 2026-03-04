@@ -37,7 +37,7 @@ export function parseSlugFromPath(segments: string[]): string {
 }
 
 // Check if a path segment is a reserved route (not a slug)
-const RESERVED_ROUTES = new Set(["submit", "badge"]);
+const RESERVED_ROUTES = new Set(["submit", "badge", "documentation"]);
 
 export function isReservedRoute(segment: string): boolean {
   return RESERVED_ROUTES.has(segment);

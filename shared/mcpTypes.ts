@@ -128,3 +128,30 @@ export const MCP_PUBLIC_SUBMIT_FIELDS = [
   "tags",
   "videoUrl",
 ] as const;
+
+/**
+ * Cursor MCP install link response.
+ * Used by the frontend to display install links.
+ */
+export interface CursorInstallLink {
+  serverName: string;
+  installLink: string;
+  config: {
+    command: string;
+    args: string[];
+    env?: Record<string, string>;
+  };
+  instructions: string;
+}
+
+/**
+ * MCP server info for directory-level discovery.
+ */
+export interface McpDirectoryInfo {
+  name: string;
+  version: string;
+  description: string;
+  protocolEndpoint: string;
+  cursorInstallLink: string;
+  tools: McpToolDefinition[];
+}

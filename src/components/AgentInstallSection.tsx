@@ -2,13 +2,18 @@
  * AgentInstallSection.tsx
  * "Use with agents and CLI" block for ComponentDetail page.
  * Provides a single copy prompt optimized for AI agents.
+ * Includes Cursor MCP install link for direct IDE integration.
  */
 
 import { useState, useMemo } from "react";
-import { CheckIcon, CopyIcon } from "@radix-ui/react-icons";
+import { CheckIcon, CopyIcon, ExternalLinkIcon } from "@radix-ui/react-icons";
 import { generateClaudePrompt } from "../lib/promptComposer";
-import { isMcpReady } from "../lib/mcpProfile";
-import { AGENT_INSTALL_SECTION_ENABLED, MCP_BADGES_ENABLED } from "../lib/featureFlags";
+import {
+  isMcpReady,
+  generateGlobalCursorInstallLink,
+  generateComponentCursorInstallLink,
+} from "../lib/mcpProfile";
+import { AGENT_INSTALL_SECTION_ENABLED, MCP_BADGES_ENABLED, MCP_ENABLED } from "../lib/featureFlags";
 
 interface ComponentData {
   _id: string;
@@ -44,6 +49,7 @@ interface AgentInstallSectionProps {
 
 export function AgentInstallSection({ component }: AgentInstallSectionProps) {
   const [copied, setCopied] = useState(false);
+  const [cursorCopied, setCursorCopied] = useState(false);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined;
@@ -57,12 +63,31 @@ export function AgentInstallSection({ component }: AgentInstallSectionProps) {
     [component, origin, convexUrl]
   );
 
+  // Generate Cursor install links
+  const globalCursorLink = useMemo(() => generateGlobalCursorInstallLink(), []);
+  const componentCursorLink = useMemo(
+    () => generateComponentCursorInstallLink(component as Parameters<typeof generateComponentCursorInstallLink>[0]),
+    [component]
+  );
+
   // Copy helper
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(agentPrompt);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Silent fail
+    }
+  };
+
+  // Copy Cursor config helper
+  const handleCopyCursorConfig = async () => {
+    try {
+      const config = componentCursorLink?.config || globalCursorLink.config;
+      await navigator.clipboard.writeText(JSON.stringify(config, null, 2));
+      setCursorCopied(true);
+      setTimeout(() => setCursorCopied(false), 2000);
     } catch {
       // Silent fail
     }
@@ -116,6 +141,50 @@ export function AgentInstallSection({ component }: AgentInstallSectionProps) {
             {agentPrompt}
           </pre>
         </div>
+
+        {/* Cursor MCP Install Section */}
+        {MCP_ENABLED && mcpReady && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-text-secondary capitalize tracking-wider">
+                Install in Cursor
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCopyCursorConfig}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded text-xs hover:bg-bg-hover transition-colors"
+                  title={cursorCopied ? "Copied" : "Copy config"}>
+                  {cursorCopied ? (
+                    <>
+                      <CheckIcon className="w-3.5 h-3.5 text-green-600" />
+                      <span className="text-green-600">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <CopyIcon className="w-3.5 h-3.5 text-text-secondary" />
+                      <span className="text-text-secondary">Config</span>
+                    </>
+                  )}
+                </button>
+                <a
+                  href={componentCursorLink?.installLink || globalCursorLink.installLink}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded text-xs bg-[#1a1a1a] text-white hover:bg-[#2a2a2a] transition-colors"
+                  title="Open in Cursor">
+                  <ExternalLinkIcon className="w-3.5 h-3.5" />
+                  <span>Install</span>
+                </a>
+              </div>
+            </div>
+            <div className="rounded-lg bg-bg-secondary border border-border p-3">
+              <p className="text-xs text-text-secondary mb-2">
+                Click "Install" to add the Convex Components MCP server to Cursor, or copy the config below.
+              </p>
+              <pre className="px-2 py-1.5 text-[10px] font-mono whitespace-pre-wrap rounded border border-border bg-[#1a1a1a] text-gray-200 max-h-20 overflow-y-auto">
+                {JSON.stringify(componentCursorLink?.config || globalCursorLink.config, null, 2)}
+              </pre>
+            </div>
+          </div>
+        )}
 
         {/* Agent friendly summary */}
         <div className="rounded-lg bg-bg-secondary border border-border p-3">

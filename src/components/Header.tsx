@@ -11,6 +11,7 @@ import {
   DiscordLogo,
   House,
   GearSix,
+  BookOpen,
 } from "@phosphor-icons/react";
 import { FileTextIcon } from "@radix-ui/react-icons";
 
@@ -66,12 +67,20 @@ export default function Header() {
                 Submissions
               </a>
               {isAdmin && (
-                <a
-                  href={`${basePath}/submissions/admin`}
-                  className="flex items-center gap-1 text-sm font-medium text-text-primary hover:text-text-secondary transition-colors">
-                  <GearSix size={14} />
-                  Admin
-                </a>
+                <>
+                  <a
+                    href={`${basePath}/submissions/admin`}
+                    className="flex items-center gap-1 text-sm font-medium text-text-primary hover:text-text-secondary transition-colors">
+                    <GearSix size={14} />
+                    Admin
+                  </a>
+                  <a
+                    href={`${basePath}/documentation`}
+                    className="flex items-center gap-1 text-sm font-medium text-text-primary hover:text-text-secondary transition-colors">
+                    <BookOpen size={14} />
+                    Docs
+                  </a>
+                </>
               )}
             </nav>
           </div>
@@ -201,12 +210,20 @@ export default function Header() {
               Submissions
             </a>
             {isAdmin && (
-              <a
-                href={`${basePath}/submissions/admin`}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-primary hover:bg-bg-hover rounded-lg transition-colors">
-                <GearSix size={14} />
-                Admin
-              </a>
+              <>
+                <a
+                  href={`${basePath}/submissions/admin`}
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-primary hover:bg-bg-hover rounded-lg transition-colors">
+                  <GearSix size={14} />
+                  Admin
+                </a>
+                <a
+                  href={`${basePath}/documentation`}
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-primary hover:bg-bg-hover rounded-lg transition-colors">
+                  <BookOpen size={14} />
+                  Docs
+                </a>
+              </>
             )}
             <a
               href={`${basePath}/submit`}

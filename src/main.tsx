@@ -10,6 +10,7 @@ import SubmitForm from "./pages/SubmitForm";
 import Admin from "./pages/Admin";
 import Profile from "./pages/Profile";
 import ComponentDetail from "./pages/ComponentDetail";
+import Documentation from "./pages/Documentation";
 import NotFound from "./pages/NotFound";
 import Footer from "./components/Footer";
 import { isReservedRoute, parseSlugFromPath } from "./lib/slugs";
@@ -70,6 +71,12 @@ function Router() {
   // Profile page for managing user submissions
   if (segments[0] === "profile") {
     return <Profile />;
+  }
+
+  // Documentation routes (admin only, handled in component)
+  if (segments[0] === "documentation") {
+    const section = segments.length >= 2 ? segments[1] : undefined;
+    return <Documentation section={section} />;
   }
 
   // Badge routes are handled server-side (Convex HTTP), never reach here

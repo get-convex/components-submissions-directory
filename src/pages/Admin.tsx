@@ -5585,9 +5585,9 @@ function FilterTabs({
   ];
 
   return (
-    <div className="flex gap-1 p-1 rounded-lg bg-bg-card border border-border overflow-x-auto">
+    <div className="flex gap-1 p-1 rounded-lg bg-bg-card border border-border overflow-visible flex-wrap">
       {tabs.map((tab) => (
-        <Tooltip key={tab.value} content={tab.tooltip}>
+        <Tooltip key={tab.value} content={tab.tooltip} position="top">
           <button
             onClick={() => onFilterChange(tab.value)}
             className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${

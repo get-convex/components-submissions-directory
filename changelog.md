@@ -7,7 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Admin filter tabs bar no longer scrolls horizontally, tabs wrap instead (2026-03-04 19:00 UTC)
+- Admin filter tab tooltips now appear above the bar instead of below (2026-03-04 19:00 UTC)
+
 ### Added
+
+- Admin-only documentation system at `/components/documentation` (2026-03-04 12:30 UTC)
+  - 13 markdown documentation files covering user guide and admin guide topics
+  - Documentation page with admin gating via `api.auth.isAdmin` query
+  - Three-column layout: left navigation sidebar, main content, right "On this page" outline
+  - Navigation grouped into Getting Started, User Guide, and Admin Guide sections
+  - Copy as Markdown and Download as Markdown buttons per page
+  - `<meta name="robots" content="noindex, nofollow">` prevents search indexing
+  - Mobile responsive with collapsible navigation
+  - Styled with Convex design system (warm cream background, GT America typography)
+  - Added "documentation" to reserved routes in `src/lib/slugs.ts`
+  - TypeScript declarations for `*.md?raw` imports in `vite-env.d.ts`
+  - Added "Docs" link to Header.tsx nav bar (admin-only, next to Admin link)
+  - PRD: `prds/admin-documentation-system.md`
+
+- MCP Additive Rollout Phase 1 (2026-03-03 18:00 UTC)
+  - Added standards-based MCP protocol endpoint at `/api/mcp/protocol` implementing JSON-RPC 2.0 interface
+  - Protocol supports `initialize` (server capabilities), `tools/list` (available tools), and `tools/call` (tool invocation)
+  - Five tools available: `search_components`, `get_component`, `get_install_command`, `get_docs`, `list_categories`
+  - Added Cursor MCP install link endpoints: `/api/mcp/cursor-install` (global directory server) and `/api/mcp/cursor-install-component?slug=X` (per-component)
+  - Updated `AgentInstallSection.tsx` with Cursor install button and MCP config copy functionality
+  - Added Cursor install link generators to `src/lib/mcpProfile.ts`: `generateGlobalCursorInstallLink()`, `generateComponentCursorInstallLink()`
+  - Extended MCP types in `shared/mcpTypes.ts` with `CursorInstallLink` and `McpDirectoryInfo` interfaces
+  - Added MCP capability sections to `/api/llms.txt` and `/api/markdown-index` listing protocol endpoint, tools, and Cursor install link
+  - All new MCP endpoints log to `mcpApiLogs` table with endpoint, tool, slug, query, status, and timing
+  - Existing REST MCP endpoints (`/api/mcp/search`, `/api/mcp/component`, etc.) and markdown/llms aliases preserved unchanged
+  - PRD: `prds/mcp-additive-rollout-phase1.md` documents Phase 2 MCP Apps UI and Phase 3 Ecosystem Growth as roadmap only
 
 - Fixed TypeScript errors in AgentInstallSection.tsx (2026-03-03 09:30 UTC)
   - Removed reference to non-exported `PromptComponentData` type from `promptComposer.ts`

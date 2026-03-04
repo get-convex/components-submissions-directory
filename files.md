@@ -186,15 +186,22 @@ Main HTTP router with all API endpoints. Defines:
 - `/api/export-csv` endpoint for CSV export of all packages
 - `/api/badge` endpoint for dynamic SVG badge generation with analytics tracking
 - `/api/markdown?slug=<slug>` endpoint serving raw markdown for a single component
-- `/api/markdown-index` endpoint serving markdown listing of all approved components
-- `/api/llms.txt` endpoint serving a plain-text index of all approved components
+- `/api/markdown-index` endpoint serving markdown listing of all approved components (includes MCP capability section)
+- `/api/llms.txt` endpoint serving a plain-text index of all approved components (includes MCP capability section)
 - `/api/component-llms?slug=<slug>` endpoint serving llms.txt format for a single component
-- Read-only MCP API endpoints (JSON responses):
+- Read-only REST MCP API endpoints (JSON responses):
   - `/api/mcp/search`: Search components with pagination (query, category, limit, offset)
   - `/api/mcp/component`: Get full MCP component profile by slug
   - `/api/mcp/install-command`: Get install command by slug
   - `/api/mcp/docs`: Get documentation URLs by slug
   - `/api/mcp/info`: Server info and tool definitions
+- MCP Protocol endpoint (JSON-RPC 2.0):
+  - `/api/mcp/protocol`: Standards-based MCP server implementing `initialize`, `tools/list`, and `tools/call` methods
+  - Tools: `search_components`, `get_component`, `get_install_command`, `get_docs`, `list_categories`
+- Cursor MCP install link endpoints:
+  - `/api/mcp/cursor-install`: Generate Cursor deeplink for global directory server
+  - `/api/mcp/cursor-install-component?slug=<slug>`: Generate Cursor deeplink for per-component context
+- All MCP endpoints log to `mcpApiLogs` table with endpoint, tool, slug, query, status, and timing
 
 ### `convex/convex.config.ts`
 
@@ -218,6 +225,8 @@ Application entry point. Sets up Convex React client with a custom Connect OAuth
 - `/components/submissions/admin` = Admin.tsx (requires @convex.dev email)
 - `/components/submit` = SubmitForm.tsx (auto sign-in redirect for unauthenticated users)
 - `/components/profile` = Profile.tsx (user's submissions, auth required)
+- `/components/documentation` = Documentation.tsx (admin-only docs, not indexed)
+- `/components/documentation/:section` = Individual doc sections
 - `/components/callback` = OAuth callback handler (reads `authReturnPath` from localStorage to redirect after auth)
 - `/components/:slug` = ComponentDetail (public)
 
@@ -235,6 +244,7 @@ Shared header component with auth state management. Uses `useAuth()` from `src/l
 - Floating pill design with `rounded-full`, white/95 background, backdrop blur, and shadow
 - Convex wordmark logo (black SVG, 70px height)
 - Navigation links (Directory, Submissions, Submit) with medium font weight
+- Admin-only navigation links (Admin, Docs) visible only to @convex.dev users
 - Social icons (GitHub, Discord) and Docs icon linking to external resources
 - User menu with avatar, My Submissions link, and Sign Out button
 - Sticky positioning with top padding for floating effect
@@ -326,7 +336,40 @@ User profile page for managing submitted components. Accessible at `/profile`. F
 
 ### `src/pages/Admin.tsx`
 
-Admin dashboard at `/submissions/admin` (requires @convex.dev email). Features shared Header component, admin-specific search bar, stats, package management, review status, visibility controls, AI review, component details editor, thumbnail preview in list, admin-only notes, private submitter/admin messages, CSV export, and SubmitterEmailEditor for managing primary submitter email and additional emails. Pagination with configurable items per page (5, 10, 20, 40, 100) and page navigation controls; each filter tab maintains independent page state. Filter tabs include a "Deletion" tab (Clock icon) to show packages marked for deletion, with count badge. Package rows display badges in order: StatusBadge, VisibilityBadge, and ComponentDetailQuickLink (external link icon) as the last item before the downloads/date section. A red "Deletion" badge appears next to the visibility badge when marked for deletion. Featured toggle shows a sort order input when package is featured (lower numbers appear first in Featured section, independent of directory dropdown sort). Expanded package InlineActions includes Actions row (above Status row) with Convex Verified toggle, Community toggle, Regenerate SEO + Skill button, combined Auto-fill button, Refresh npm data button, and Generate Slug button (when no slug exists). Category Management now shows both total component counts and verified component counts per category. AI Review Results panel is collapsed by default showing only status icon, label, and date; clicking expands to reveal summary, error, and criteria checklist. Settings tab includes Submit Listing Settings for controlling the default page size on `Submit.tsx` (20, 40, 60), Deletion Management panel for managing packages marked for deletion (auto-delete toggle, waiting period config, list of pending deletions with "Delete Now" option), Slug Migration panel for detecting packages without URL slugs and generating them in bulk or individually, AI Provider Settings panel for configuring Anthropic/OpenAI/Gemini providers, AI Prompt Settings panel for versioning AI review prompts, SEO Prompt Settings panel for versioning SEO/SKILL.md generation prompts, and a `showRelatedOnDetailPage` toggle (on by default) that controls visibility of the Related Components section on detail pages. Private message panels support authored message lifecycle actions (hide, archive, restore, delete) plus a toggle to include hidden and archived messages in the thread view. Non-admin users are automatically redirected to their profile page. Unauthenticated users see a simple "Admin access only" sign-in prompt.
+Admin dashboard at `/submissions/admin` (requires @convex.dev email). Features shared Header component, admin-specific search bar, stats, package management, review status, visibility controls, AI review, component details editor, thumbnail preview in list, admin-only notes, private submitter/admin messages, CSV export, and SubmitterEmailEditor for managing primary submitter email and additional emails. Pagination with configurable items per page (5, 10, 20, 40, 100) and page navigation controls; each filter tab maintains independent page state. Filter tabs wrap instead of horizontally scrolling, and tooltips appear above the bar for better visibility. Filter tabs include a "Deletion" tab (Clock icon) to show packages marked for deletion, with count badge. Package rows display badges in order: StatusBadge, VisibilityBadge, and ComponentDetailQuickLink (external link icon) as the last item before the downloads/date section. A red "Deletion" badge appears next to the visibility badge when marked for deletion. Featured toggle shows a sort order input when package is featured (lower numbers appear first in Featured section, independent of directory dropdown sort). Expanded package InlineActions includes Actions row (above Status row) with Convex Verified toggle, Community toggle, Regenerate SEO + Skill button, combined Auto-fill button, Refresh npm data button, and Generate Slug button (when no slug exists). Category Management now shows both total component counts and verified component counts per category. AI Review Results panel is collapsed by default showing only status icon, label, and date; clicking expands to reveal summary, error, and criteria checklist. Settings tab includes Submit Listing Settings for controlling the default page size on `Submit.tsx` (20, 40, 60), Deletion Management panel for managing packages marked for deletion (auto-delete toggle, waiting period config, list of pending deletions with "Delete Now" option), Slug Migration panel for detecting packages without URL slugs and generating them in bulk or individually, AI Provider Settings panel for configuring Anthropic/OpenAI/Gemini providers, AI Prompt Settings panel for versioning AI review prompts, SEO Prompt Settings panel for versioning SEO/SKILL.md generation prompts, and a `showRelatedOnDetailPage` toggle (on by default) that controls visibility of the Related Components section on detail pages. Private message panels support authored message lifecycle actions (hide, archive, restore, delete) plus a toggle to include hidden and archived messages in the thread view. Non-admin users are automatically redirected to their profile page. Unauthenticated users see a simple "Admin access only" sign-in prompt.
+
+### `src/pages/Documentation.tsx`
+
+Admin-only documentation viewer at `/components/documentation`. Features:
+- Admin gating via `api.auth.isAdmin` query
+- Non-admins see "Admin Access Required" message with link back to directory
+- Markdown content loaded from `src/docs/*.md` files via Vite raw imports
+- Three-column layout: left navigation sidebar, main content, right "On this page" outline
+- Left sidebar groups docs into Getting Started, User Guide, and Admin Guide sections
+- Active navigation item highlighting
+- Right sidebar shows H2/H3 headings from current doc with anchor links
+- Copy as Markdown button copies raw markdown to clipboard
+- Download as Markdown button downloads .md file
+- Sets `<meta name="robots" content="noindex, nofollow">` to prevent indexing
+- Mobile responsive with collapsible navigation
+- Styled with Convex design system (warm cream background, GT America font)
+
+### `src/docs/`
+
+Markdown documentation files for the admin documentation system:
+- `index.md` - Overview and quick links
+- `directory.md` - Using the public directory (search, filter, categories)
+- `submit.md` - How to submit components
+- `profile.md` - Managing user profile and submissions
+- `component-detail.md` - Component detail page features
+- `admin-dashboard.md` - Admin dashboard overview
+- `admin-packages.md` - Package management
+- `admin-review.md` - Review workflow and statuses
+- `admin-ai-review.md` - AI review system configuration
+- `admin-seo.md` - SEO content generation
+- `admin-thumbnails.md` - Thumbnail management
+- `admin-settings.md` - Admin settings panel
+- `admin-notes.md` - Notes and comments system
 
 ### `src/pages/NotFound.tsx`
 
@@ -402,7 +445,13 @@ Utility functions including `cn` for Tailwind class merging.
 
 ### `src/lib/mcpProfile.ts`
 
-MCP profile builder utilities. Builds MCP-compatible component profiles from package data for agent consumption. Includes `buildMcpProfile` for full profiles, `buildMcpSearchResult` for search results, and `isMcpReady`/`hasAiInstallSupport` for badge checks.
+MCP profile builder utilities. Builds MCP-compatible component profiles from package data for agent consumption. Includes:
+- `buildMcpProfile`: Builds full MCP component profile for agent consumption
+- `buildMcpSearchResult`: Builds lightweight search result items
+- `isMcpReady`/`hasAiInstallSupport`: Badge readiness checks
+- `generateGlobalCursorInstallLink`: Generates Cursor MCP install deeplink for directory server
+- `generateComponentCursorInstallLink`: Generates Cursor MCP install deeplink for specific component
+- `getMcpProtocolEndpoint`/`getCursorInstallApiUrl`: URL helpers for MCP endpoints
 
 ### `src/lib/promptComposer.ts`
 
@@ -422,7 +471,7 @@ Shared URL builder used by frontend and Convex HTTP code to generate consistent 
 
 ### `shared/mcpTypes.ts`
 
-TypeScript types for MCP (Machine-Coded Protocol) data structures. Defines `McpComponentProfile` (public profile for agent consumption), `McpSearchResult`, `McpToolDefinition`, `McpServerConfig`, and `McpUniversalPrompt`. Also includes `MCP_EXCLUDED_FIELDS` and `MCP_PUBLIC_SUBMIT_FIELDS` constants documenting the data contract.
+TypeScript types for MCP (Model Context Protocol) data structures. Defines `McpComponentProfile` (public profile for agent consumption), `McpSearchResult`, `McpToolDefinition`, `McpServerConfig`, `McpUniversalPrompt`, `CursorInstallLink` (Cursor deeplink config and instructions), and `McpDirectoryInfo` (directory-level MCP server metadata). Also includes `MCP_EXCLUDED_FIELDS` and `MCP_PUBLIC_SUBMIT_FIELDS` constants documenting the data contract.
 
 ### `src/vite-env.d.ts`
 

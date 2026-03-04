@@ -2,6 +2,20 @@
 
 ## to do
 
+### Admin filter bar UX fix
+- [x] Changed filter tabs from horizontal scroll to flex wrap (2026-03-04 19:00 UTC)
+- [x] Changed filter tab tooltips to position above instead of below (2026-03-04 19:00 UTC)
+
+### Admin documentation system (PRD: prds/admin-documentation-system.md)
+- [x] Create PRD with UI design and file structure plan (2026-03-04 12:00 UTC)
+- [x] Create 13 markdown documentation files in `src/docs/` covering user guide and admin guide topics (2026-03-04 12:15 UTC)
+- [x] Create `Documentation.tsx` component with admin gating and markdown rendering (2026-03-04 12:20 UTC)
+- [x] Add documentation route to `main.tsx` router at `/components/documentation/:section?` (2026-03-04 12:25 UTC)
+- [x] Add "documentation" to reserved routes in `src/lib/slugs.ts` (2026-03-04 12:25 UTC)
+- [x] Add TypeScript declarations for `*.md?raw` imports (2026-03-04 12:25 UTC)
+- [x] Add "Docs" link to Header.tsx nav bar for admins (2026-03-04 12:35 UTC)
+- [x] Update `files.md`, `changelog.md`, and `task.md` (2026-03-04 12:35 UTC)
+
 ### AI provider runtime failover (PRD: prds/ai-provider-runtime-failover.md)
 - [x] Add internal provider settings query for failover candidate selection in `convex/aiSettings.ts` (2026-03-04 02:29 UTC)
 - [x] Add shared failover helper to build candidate chain and execute fallback in `convex/aiProviderFallback.ts` (2026-03-04 02:29 UTC)
@@ -122,6 +136,17 @@ Acceptance checks:
 - [ ] - [ ] add payments api
 
 ## Recent updates
+
+- [x] Implemented MCP Additive Rollout Phase 1 (2026-03-03 18:00 UTC)
+  - Added MCP protocol endpoint at `/api/mcp/protocol` with JSON-RPC 2.0 interface
+  - Implemented `initialize`, `tools/list`, and `tools/call` methods
+  - Added 5 tools: `search_components`, `get_component`, `get_install_command`, `get_docs`, `list_categories`
+  - Added Cursor install link endpoints: `/api/mcp/cursor-install` (global) and `/api/mcp/cursor-install-component` (per-component)
+  - Updated `AgentInstallSection` with Cursor install button and config copy
+  - Added MCP capability sections to `/api/llms.txt` and `/api/markdown-index`
+  - All endpoints log to `mcpApiLogs` table with tool, slug, query, and timing data
+  - Preserved all existing routes and UI unchanged
+  - PRD: `prds/mcp-additive-rollout-phase1.md`
 
 - [x] Added runtime AI provider failover across admin settings and environment vars (2026-03-04 02:29 UTC)
   - Added `convex/aiProviderFallback.ts` for candidate chain building and sequential fallback execution
