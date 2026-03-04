@@ -14,16 +14,16 @@ interface ComponentData {
   _id: string;
   name: string;
   componentName?: string;
-  description?: string;
+  description: string;
   shortDescription?: string;
   longDescription?: string;
   installCommand: string;
   repositoryUrl?: string;
-  npmUrl?: string;
+  npmUrl: string;
   demoUrl?: string;
   videoUrl?: string;
-  version?: string;
-  weeklyDownloads?: number;
+  version: string;
+  weeklyDownloads: number;
   lastPublish?: string;
   category?: string;
   tags?: string[];
@@ -49,7 +49,7 @@ export function AgentInstallSection({ component }: AgentInstallSectionProps) {
   const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined;
 
   // Check MCP readiness
-  const mcpReady = useMemo(() => isMcpReady(component), [component]);
+  const mcpReady = useMemo(() => isMcpReady(component as Parameters<typeof isMcpReady>[0]), [component]);
 
   // Generate single agent prompt (Claude style is best for agents)
   const agentPrompt = useMemo(

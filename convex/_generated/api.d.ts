@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as aiProviderFallback from "../aiProviderFallback.js";
 import type * as aiReview from "../aiReview.js";
 import type * as aiSettings from "../aiSettings.js";
 import type * as auth from "../auth.js";
@@ -28,6 +29,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  aiProviderFallback: typeof aiProviderFallback;
   aiReview: typeof aiReview;
   aiSettings: typeof aiSettings;
   auth: typeof auth;

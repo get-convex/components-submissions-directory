@@ -9,6 +9,10 @@ import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
+import {
+  buildProviderCandidates,
+  executeWithProviderFallback,
+} from "./aiProviderFallback";
 
 // Helper to call AI provider with unified interface
 async function callAiProvider(
@@ -208,56 +212,41 @@ export const generateSeoContent = internalAction({
       // Build the prompt with package data (using custom template or default)
       const prompt = buildSeoPrompt(pkg, customPromptTemplate);
 
-      // Get custom provider settings from database
-      const customProvider = await ctx.runQuery(
-        internal.aiSettings._getActiveProviderSettings,
+      // Get provider settings from database
+      const providerSettings = await ctx.runQuery(
+        internal.aiSettings._getProviderSettingsForFallback,
       );
 
-      let aiResponseText: string;
+      // Run with automatic provider failover:
+      // active admin -> backup admin providers -> environment variables
+      const candidates = buildProviderCandidates({
+        adminProviders: providerSettings,
+        envKeys: {
+          anthropic: process.env.ANTHROPIC_API_KEY,
+          openai: process.env.CONVEX_OPENAI_API_KEY,
+          gemini: process.env.GEMINI_API_KEY ?? process.env.CONVEX_GEMINI_API_KEY,
+        },
+        defaultEnvModels: {
+          anthropic: "claude-sonnet-4-20250514",
+          openai: "gpt-4o",
+          gemini: "gemini-1.5-pro",
+        },
+      });
 
-      if (customProvider) {
-        // Use custom provider from admin settings
-        aiResponseText = await callAiProvider(
-          customProvider.provider,
-          customProvider.apiKey,
-          customProvider.model,
-          prompt,
-        );
-      } else {
-        // Fall back to environment variables
-        const anthropicKey = process.env.ANTHROPIC_API_KEY;
-        const openaiKey = process.env.CONVEX_OPENAI_API_KEY;
-
-        if (anthropicKey) {
-          const anthropic = new Anthropic({ apiKey: anthropicKey });
-          const message = await anthropic.messages.create({
-            model: "claude-sonnet-4-20250514",
-            max_tokens: 2000,
-            messages: [{ role: "user", content: prompt }],
-          });
-          const textBlock = message.content.find((b) => b.type === "text");
-          if (!textBlock || textBlock.type !== "text") {
-            throw new Error("No text content in AI response");
-          }
-          aiResponseText = textBlock.text;
-        } else if (openaiKey) {
-          const openai = new OpenAI({ apiKey: openaiKey });
-          const response = await openai.chat.completions.create({
-            model: "gpt-4o",
-            max_tokens: 2000,
-            messages: [{ role: "user", content: prompt }],
-          });
-          const content = response.choices[0]?.message?.content;
-          if (!content) {
-            throw new Error("No content in OpenAI response");
-          }
-          aiResponseText = content;
-        } else {
-          throw new Error(
-            "No AI provider configured. Set ANTHROPIC_API_KEY or CONVEX_OPENAI_API_KEY, or configure a provider in admin settings.",
-          );
-        }
-      }
+      const { result: aiResponseText, usedProvider, usedModel, usedSource } =
+        await executeWithProviderFallback({
+          candidates,
+          run: async (candidate) =>
+            callAiProvider(
+              candidate.provider,
+              candidate.apiKey,
+              candidate.model,
+              prompt,
+            ),
+        });
+      console.log(
+        `SEO provider selected: ${usedProvider} (${usedSource}) model=${usedModel}`,
+      );
 
       // Parse JSON from response (strip markdown fences if present)
       let jsonStr = aiResponseText.trim();

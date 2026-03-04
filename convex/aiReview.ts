@@ -6,6 +6,10 @@ import { api, internal } from "./_generated/api";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import {
+  buildProviderCandidates,
+  executeWithProviderFallback,
+} from "./aiProviderFallback";
 
 // Helper function to call different AI providers
 async function callAiProvider(
@@ -382,9 +386,9 @@ export const runAiReview = action({
         return null;
       }
 
-      // Get custom provider settings and prompt from aiSettings
-      const customProvider = await ctx.runQuery(
-        internal.aiSettings._getActiveProviderSettings,
+      // Get provider settings and prompt from aiSettings
+      const providerSettings = await ctx.runQuery(
+        internal.aiSettings._getProviderSettingsForFallback,
       );
       const customPromptContent = await ctx.runQuery(
         internal.aiSettings._getActivePromptContent,
@@ -478,42 +482,36 @@ ${criteriaList}
 SOURCE CODE (convex.config.ts + component files):
 ${filesContext}`;
 
-      // Call AI provider (custom settings or env var fallback)
-      let aiResponseText: string;
+      // Run with automatic provider failover:
+      // active admin -> backup admin providers -> environment variables
+      const candidates = buildProviderCandidates({
+        adminProviders: providerSettings,
+        envKeys: {
+          anthropic: process.env.ANTHROPIC_API_KEY,
+          openai: process.env.CONVEX_OPENAI_API_KEY,
+          gemini: process.env.GEMINI_API_KEY ?? process.env.CONVEX_GEMINI_API_KEY,
+        },
+        defaultEnvModels: {
+          anthropic: "claude-opus-4-5-20251101",
+          openai: "gpt-4o",
+          gemini: "gemini-1.5-pro",
+        },
+      });
 
-      if (customProvider) {
-        // Use custom provider settings
-        aiResponseText = await callAiProvider(
-          customProvider.provider,
-          customProvider.apiKey,
-          customProvider.model,
-          prompt,
-        );
-      } else {
-        // Fall back to environment variables (default: Anthropic)
-        const anthropicKey = process.env.ANTHROPIC_API_KEY;
-        const openaiKey = process.env.CONVEX_OPENAI_API_KEY;
-
-        if (anthropicKey) {
-          aiResponseText = await callAiProvider(
-            "anthropic",
-            anthropicKey,
-            "claude-opus-4-5-20251101",
-            prompt,
-          );
-        } else if (openaiKey) {
-          aiResponseText = await callAiProvider(
-            "openai",
-            openaiKey,
-            "gpt-4o",
-            prompt,
-          );
-        } else {
-          throw new Error(
-            "No AI provider configured. Set ANTHROPIC_API_KEY or CONVEX_OPENAI_API_KEY environment variable, or configure a provider in Admin Settings.",
-          );
-        }
-      }
+      const { result: aiResponseText, usedProvider, usedModel, usedSource } =
+        await executeWithProviderFallback({
+          candidates,
+          run: async (candidate) =>
+            callAiProvider(
+              candidate.provider,
+              candidate.apiKey,
+              candidate.model,
+              prompt,
+            ),
+        });
+      console.log(
+        `AI review provider selected: ${usedProvider} (${usedSource}) model=${usedModel}`,
+      );
 
       // Extract JSON from response (it might be wrapped in markdown code blocks)
       let jsonText = aiResponseText.trim();

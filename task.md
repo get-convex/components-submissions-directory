@@ -2,6 +2,13 @@
 
 ## to do
 
+### AI provider runtime failover (PRD: prds/ai-provider-runtime-failover.md)
+- [x] Add internal provider settings query for failover candidate selection in `convex/aiSettings.ts` (2026-03-04 02:29 UTC)
+- [x] Add shared failover helper to build candidate chain and execute fallback in `convex/aiProviderFallback.ts` (2026-03-04 02:29 UTC)
+- [x] Wire failover chain into `convex/aiReview.ts` so runtime provider errors fall through to next candidate (2026-03-04 02:29 UTC)
+- [x] Wire failover chain into `convex/seoContent.ts` so generation can continue on provider failure (2026-03-04 02:29 UTC)
+- [x] Verify with `npx convex codegen`, `npx tsc -p convex/tsconfig.json --noEmit --pretty false`, and `npx tsc -p . --noEmit --pretty false` (2026-03-04 02:29 UTC)
+
 ### Directory sort by verified and category verified counts (PRD: prds/directory-sort-verified-and-category-verified-count.md)
 - [x] Add `verified` sort mode in directory backend query and UI dropdowns (2026-03-03 07:47 UTC)
 - [x] Add `verifiedCount` to category aggregation used by Category Management (2026-03-03 07:47 UTC)
@@ -115,6 +122,18 @@ Acceptance checks:
 - [ ] - [ ] add payments api
 
 ## Recent updates
+
+- [x] Added runtime AI provider failover across admin settings and environment vars (2026-03-04 02:29 UTC)
+  - Added `convex/aiProviderFallback.ts` for candidate chain building and sequential fallback execution
+  - Added `_getProviderSettingsForFallback` internal query in `convex/aiSettings.ts`
+  - Updated `convex/aiReview.ts` and `convex/seoContent.ts` to try active admin, backup admin, then env providers on runtime failures
+  - Regenerated Convex bindings (`convex/_generated/api.d.ts`) via `npx convex codegen`
+  - Verified via Convex codegen and TypeScript checks
+
+- [x] Fixed TypeScript errors in AgentInstallSection.tsx (2026-03-03 09:30 UTC)
+  - Removed undefined `PromptComponentData` type reference
+  - Made `npmUrl`, `version`, `description`, `weeklyDownloads` required in local interface
+  - Build verified passing (tsc and npm run build)
 
 - [x] Synced Status Legend, Visibility Guide, and Badges across Profile.tsx, Submit.tsx, and Admin.tsx (2026-03-03 09:15 UTC)
   - Profile.tsx: removed Archived and Pending Deletion from Visibility Guide

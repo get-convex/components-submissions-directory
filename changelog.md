@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Fixed TypeScript errors in AgentInstallSection.tsx (2026-03-03 09:30 UTC)
+  - Removed reference to non-exported `PromptComponentData` type from `promptComposer.ts`
+  - Made `npmUrl`, `version`, `description`, and `weeklyDownloads` required in local `ComponentData` interface to match actual data contract from `getComponentBySlug`
+  - Used `Parameters<typeof isMcpReady>[0]` cast for `isMcpReady` call to bridge local and module type definitions
+
 - Synced Status Legend, Visibility Guide, and Badges section across Profile.tsx, Submit.tsx, and Admin.tsx (2026-03-03 09:15 UTC)
   - Profile.tsx: removed Archived and Pending Deletion from Visibility Guide (features removed)
   - Profile.tsx: added Featured status to Status Guide, updated rejected icon to Prohibit for consistency
@@ -153,6 +158,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Documented query and settings coverage updates in `files.md`
 
 ### Fixed
+
+- Runtime AI provider failover for AI Review and SEO generation (2026-03-04 02:29 UTC)
+  - Added shared fallback orchestration in `convex/aiProviderFallback.ts`
+  - Added internal provider settings query `_getProviderSettingsForFallback` in `convex/aiSettings.ts`
+  - Updated `convex/aiReview.ts` and `convex/seoContent.ts` to fail over on runtime provider errors, not only missing keys
+  - New fallback order: active admin provider, backup admin providers, then environment providers
+  - Regenerated Convex API bindings in `convex/_generated/api.d.ts`
 
 - Convex private message query return validator mismatch (2026-03-03 06:44 UTC)
   - Added `statusUpdatedAt` to `getPackageComments` return validator in `convex/packages.ts`

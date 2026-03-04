@@ -84,7 +84,7 @@ JWT provider configuration for WorkOS Connect token validation. Uses `WORKOS_CLI
 
 ### `convex/aiReview.ts`
 
-AI-powered package review system. Contains review criteria, GitHub repo fetcher with monorepo support, and `runAiReview` action. Supports multiple AI providers (Anthropic Claude, OpenAI GPT, Google Gemini) via the `callAiProvider` helper function. Provider selection prioritizes admin settings from `aiProviderSettings` table, then falls back to environment variables (ANTHROPIC_API_KEY, CONVEX_OPENAI_API_KEY). Uses custom prompts from `aiPromptVersions` table when configured. Shares the same provider configuration as `seoContent.ts` for consistent AI behavior across all features.
+AI-powered package review system. Contains review criteria, GitHub repo fetcher with monorepo support, and `runAiReview` action. Supports multiple AI providers (Anthropic Claude, OpenAI GPT, Google Gemini) via the `callAiProvider` helper function. Provider selection uses runtime failover: active admin provider first, then backup admin providers, then environment providers (ANTHROPIC_API_KEY, CONVEX_OPENAI_API_KEY, optional Gemini env key). Uses custom prompts from `aiPromptVersions` table when configured. Shares the same failover and provider configuration as `seoContent.ts` for consistent AI behavior across all features.
 
 ### `convex/aiSettings.ts`
 
@@ -105,7 +105,12 @@ AI provider and prompt management. Contains:
 - `activateSeoPromptVersion`: Mutation to restore a previous SEO prompt version
 - `resetSeoToDefaultPrompt`: Mutation to revert to default SEO prompt
 - Internal queries for aiReview action: `_getActiveProviderSettings`, `_getActivePromptContent`
+- Internal query for runtime provider failover: `_getProviderSettingsForFallback`
 - Internal queries for seoContent action: `_getSeoActivePromptContent`
+
+### `convex/aiProviderFallback.ts`
+
+Shared provider failover utilities for AI actions. Builds an ordered provider candidate chain from admin settings and environment variables, de-duplicates candidates, and executes sequential fallback attempts until one provider succeeds or all fail with an aggregated error. Used by both `convex/aiReview.ts` and `convex/seoContent.ts`.
 
 ### `convex/packages.ts`
 
@@ -161,7 +166,7 @@ Node.js action module for composing 16:9 thumbnails. Uses Jimp for raster image 
 
 ### `convex/seoContent.ts`
 
-AI-generated SEO/AEO/GEO content action supporting multiple AI providers. Contains `generateSeoContent` internal action and `regenerateSeoContent` public action. Supports custom prompts from database with fallback to hardcoded default. Supports Anthropic Claude, OpenAI GPT, and Google Gemini via admin provider settings or environment variables (ANTHROPIC_API_KEY, CONVEX_OPENAI_API_KEY). Builds structured prompts from component data using placeholder substitution and parses AI responses into value props, benefits, use cases, FAQ, and resource links. Also generates SKILL.md content for AI agent integration using the `buildSkillMd()` helper function. Runs in Node.js runtime.
+AI-generated SEO/AEO/GEO content action supporting multiple AI providers. Contains `generateSeoContent` internal action and `regenerateSeoContent` public action. Supports custom prompts from database with fallback to hardcoded default. Supports Anthropic Claude, OpenAI GPT, and Google Gemini with runtime failover across admin settings and environment variables (ANTHROPIC_API_KEY, CONVEX_OPENAI_API_KEY, optional Gemini env key). Builds structured prompts from component data using placeholder substitution and parses AI responses into value props, benefits, use cases, FAQ, and resource links. Also generates SKILL.md content for AI agent integration using the `buildSkillMd()` helper function. Runs in Node.js runtime.
 
 ### `convex/seoContentDb.ts`
 
@@ -201,7 +206,7 @@ TypeScript config for Convex functions.
 
 ### `convex/_generated/`
 
-Auto-generated files by Convex: `api.d.ts`, `api.js`, `dataModel.d.ts`, `server.d.ts`, `server.js`.
+Auto-generated files by Convex: `api.d.ts`, `api.js`, `dataModel.d.ts`, `server.d.ts`, `server.js`. Regenerated whenever Convex modules change (including shared AI failover helper imports used by actions).
 
 ## Frontend Source Files
 
@@ -480,6 +485,7 @@ Product requirements documents:
 - `workos-authkit-migration-components-routes.md`: WorkOS cutover implementation PRD for removing legacy Convex Auth wiring while preserving `/components` route behavior and admin gating
 - `workos-connect-convex-migration.md`: Connect specific migration PRD for OAuth PKCE frontend flow, Convex token bridge, and Connect issuer/JWKS validation
 - `workos-connect-convex-netlify-how-to.md`: Shareable how-to guide for setting up WorkOS Connect with Convex and Netlify across development, staging, and production, including route access policy and alias route behavior
+- `ai-provider-runtime-failover.md`: Runtime failover PRD for AI provider orchestration across admin and env configurations to keep AI Review and SEO generation available during provider outages or key failures
 
 All PRDs in this folder now include metadata headers (`Created`, `Last Updated`, `Status`) and a `Task completion log` section for agent session traceability.
 

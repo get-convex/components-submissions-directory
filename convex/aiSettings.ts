@@ -365,6 +365,49 @@ export const _getActiveProviderSettings = internalQuery({
   },
 });
 
+// Internal query to get all provider settings for runtime failover
+// Used by aiReview and seoContent actions
+export const _getProviderSettingsForFallback = internalQuery({
+  args: {},
+  returns: v.array(
+    v.object({
+      provider: v.union(
+        v.literal("anthropic"),
+        v.literal("openai"),
+        v.literal("gemini"),
+      ),
+      apiKey: v.optional(v.string()),
+      model: v.optional(v.string()),
+      isEnabled: v.boolean(),
+    }),
+  ),
+  handler: async (ctx) => {
+    const providers = ["anthropic", "openai", "gemini"] as const;
+    const settings: Array<{
+      provider: "anthropic" | "openai" | "gemini";
+      apiKey?: string;
+      model?: string;
+      isEnabled: boolean;
+    }> = [];
+
+    for (const provider of providers) {
+      const setting = await ctx.db
+        .query("aiProviderSettings")
+        .withIndex("by_provider", (q) => q.eq("provider", provider))
+        .first();
+
+      settings.push({
+        provider,
+        apiKey: setting?.apiKey,
+        model: setting?.model,
+        isEnabled: setting?.isEnabled ?? false,
+      });
+    }
+
+    return settings;
+  },
+});
+
 // Internal query to get active prompt content
 // Used by aiReview action
 export const _getActivePromptContent = internalQuery({
