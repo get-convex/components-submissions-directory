@@ -20,11 +20,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- MCP install URLs now use live Components public path (2026-03-05 00:10 UTC)
+  - Updated all MCP install generators to use `https://www.convex.dev/components/api/mcp/protocol`
+  - Applies to Cursor install config, Claude Desktop JSON config, and ChatGPT connector URL
+  - Aligns install output with live app routing under `/components`
+
 - MCP endpoint URLs now use Convex site URL directly (2026-03-04 21:00 UTC)
   - Changed from `https://www.convex.dev/api/mcp/protocol` to `https://third-hedgehog-429.convex.site/api/mcp/protocol`
   - Fixes 404 issue since there's no Netlify proxy for `/api/mcp/*` routes
   - Matches existing pattern used by `llms.txt` and markdown routes in `netlify.toml`
   - Updated all MCP config generators in `src/lib/mcpProfile.ts` to use `MCP_CONVEX_SITE_URL`
+  - Superseded by 2026-03-05 update to use public `/components/api` MCP URL
 
 - Comprehensive documentation coverage for all app features (2026-03-04 22:30 UTC)
   - Added 3 new docs: MCP (Model Context Protocol), Public API Endpoints, README Badges

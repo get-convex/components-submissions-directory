@@ -316,7 +316,7 @@ export default function Documentation({ section }: DocumentationProps) {
         <div className="flex gap-8">
           {/* Left sidebar - navigation */}
           <aside className="hidden lg:block w-56 shrink-0">
-            <div className="sticky top-20">
+            <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto pb-8">
               <h2 className="text-xs font-semibold text-text-secondary uppercase tracking-wider mb-4">
                 Documentation
               </h2>

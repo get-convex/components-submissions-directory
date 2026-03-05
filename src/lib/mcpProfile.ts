@@ -171,11 +171,10 @@ export function hasAiInstallSupport(component: ComponentData): boolean {
 }
 
 /**
- * MCP directory origin for production.
- * Uses the Convex site URL directly since MCP endpoints are Convex HTTP actions.
- * The frontend UI is at convex.dev/components but API routes go to the Convex site.
+ * Public MCP base URL for the live Components app.
+ * MCP installs should use the same public host/path users see in production.
  */
-const MCP_CONVEX_SITE_URL = "https://third-hedgehog-429.convex.site";
+const MCP_PUBLIC_COMPONENTS_BASE_URL = "https://www.convex.dev/components";
 const MCP_SERVER_NAME = "convex-components-directory";
 
 /**
@@ -197,7 +196,7 @@ export function generateGlobalCursorInstallLink(): {
 } {
   const config = {
     command: "npx",
-    args: ["-y", "@anthropic-ai/mcp-server-fetch", `${MCP_CONVEX_SITE_URL}/api/mcp/protocol`],
+    args: ["-y", "@anthropic-ai/mcp-server-fetch", `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol`],
   };
 
   const configBase64 = base64UrlEncode(JSON.stringify(config));
@@ -225,7 +224,7 @@ export function generateComponentCursorInstallLink(component: ComponentData): {
   const serverName = `convex-component-${component.slug.replace(/\//g, "-")}`;
   const config = {
     command: "npx",
-    args: ["-y", "@anthropic-ai/mcp-server-fetch", `${MCP_CONVEX_SITE_URL}/api/mcp/protocol`],
+    args: ["-y", "@anthropic-ai/mcp-server-fetch", `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol`],
     env: {
       CONVEX_COMPONENT_SLUG: component.slug,
     },
@@ -245,7 +244,7 @@ export function generateComponentCursorInstallLink(component: ComponentData): {
  * Get the MCP protocol endpoint URL.
  */
 export function getMcpProtocolEndpoint(): string {
-  return `${MCP_CONVEX_SITE_URL}/api/mcp/protocol`;
+  return `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol`;
 }
 
 /**
@@ -253,9 +252,9 @@ export function getMcpProtocolEndpoint(): string {
  */
 export function getCursorInstallApiUrl(slug?: string): string {
   if (slug) {
-    return `${MCP_CONVEX_SITE_URL}/api/mcp/cursor-install-component?slug=${encodeURIComponent(slug)}`;
+    return `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/cursor-install-component?slug=${encodeURIComponent(slug)}`;
   }
-  return `${MCP_CONVEX_SITE_URL}/api/mcp/cursor-install`;
+  return `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/cursor-install`;
 }
 
 /**
@@ -283,7 +282,7 @@ export function generateClaudeDesktopConfig(component?: ComponentData): {
 
   const serverConfig: Record<string, unknown> = {
     command: "npx",
-    args: ["-y", "@anthropic-ai/mcp-server-fetch", `${MCP_CONVEX_SITE_URL}/api/mcp/protocol`],
+    args: ["-y", "@anthropic-ai/mcp-server-fetch", `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol`],
   };
 
   if (component?.slug) {
@@ -317,8 +316,8 @@ export function generateChatGPTConnectorConfig(component?: ComponentData): {
   requirements: string[];
 } {
   const url = component?.slug
-    ? `${MCP_CONVEX_SITE_URL}/api/mcp/protocol?slug=${encodeURIComponent(component.slug)}`
-    : `${MCP_CONVEX_SITE_URL}/api/mcp/protocol`;
+    ? `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol?slug=${encodeURIComponent(component.slug)}`
+    : `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol`;
 
   return {
     url,

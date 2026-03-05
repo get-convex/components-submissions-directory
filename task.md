@@ -1,17 +1,29 @@
 # Task List
 
 ## to do
-- check all routes for mcp and md and llm.
+
+- meta data
+- fix returns in Long Description (markdown) descritpon nad markdown links with show links 
+- update challenge url
+- add https://plausible.io/sites
+- check all routes for mcp and md and llms.text
+- https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
+- check all routes for mcp and md and llms.text
+- fix logout on submit page
+- test submitting
+- update routes for mcp
 
 ### Multi-platform MCP install section (PRD: prds/multi-platform-mcp-install.md)
+
 - [x] Add platform toggle tabs (Cursor, Claude, ChatGPT) to AgentInstallSection (2026-03-04 20:10 UTC)
 - [x] Add Claude Desktop config generator and manual setup instructions (2026-03-04 20:08 UTC)
 - [x] Add ChatGPT custom connector setup instructions (2026-03-04 20:08 UTC)
 - [x] Test all three platform MCP install flows (2026-03-04 20:15 UTC)
-- [x] Fix MCP endpoint URLs to use Convex site URL directly (2026-03-04 21:00 UTC)
-- [x] Update files.md, changelog.md, task.md (2026-03-04 21:05 UTC)
+- [x] Update files.md, changelog.md, task.md (2026-03-04 20:15 UTC)
+- [x] Switch MCP install URLs to live public `/components/api` path and refresh docs (2026-03-05 00:10 UTC)
 
 ### Documentation full feature coverage update
+
 - [x] Audited all docs against files.md and changelog.md for missing features (2026-03-04 22:30 UTC)
 - [x] Created mcp.md covering MCP protocol, REST API, Cursor install, agent prompts (2026-03-04 22:30 UTC)
 - [x] Created api-endpoints.md covering llms.txt, markdown, badge SVG, Netlify aliases (2026-03-04 22:30 UTC)
@@ -21,15 +33,18 @@
 - [x] Verified build passes and updated files.md, changelog.md, task.md (2026-03-04 22:30 UTC)
 
 ### Documentation markdown rendering improvements (PRD: prds/docs-markdown-rendering-improvements.md)
+
 - [x] Improve Documentation.tsx markdown rendering for tables, code blocks, lists, blockquotes, and related rich markdown formats (2026-03-04 21:24 UTC)
 - [x] Verify `npm run build` passes after markdown rendering updates (2026-03-04 21:24 UTC)
 - [x] Update `files.md`, `changelog.md`, and `task.md` with session changes (2026-03-04 21:24 UTC)
 
 ### Admin filter bar UX fix
+
 - [x] Changed filter tabs from horizontal scroll to flex wrap (2026-03-04 19:00 UTC)
 - [x] Changed filter tab tooltips to position above instead of below (2026-03-04 19:00 UTC)
 
 ### Admin documentation system (PRD: prds/admin-documentation-system.md)
+
 - [x] Create PRD with UI design and file structure plan (2026-03-04 12:00 UTC)
 - [x] Create 13 markdown documentation files in `src/docs/` covering user guide and admin guide topics (2026-03-04 12:15 UTC)
 - [x] Create `Documentation.tsx` component with admin gating and markdown rendering (2026-03-04 12:20 UTC)
@@ -41,6 +56,7 @@
 - [x] Update `files.md`, `changelog.md`, and `task.md` (2026-03-04 12:35 UTC)
 
 ### AI provider runtime failover (PRD: prds/ai-provider-runtime-failover.md)
+
 - [x] Add internal provider settings query for failover candidate selection in `convex/aiSettings.ts` (2026-03-04 02:29 UTC)
 - [x] Add shared failover helper to build candidate chain and execute fallback in `convex/aiProviderFallback.ts` (2026-03-04 02:29 UTC)
 - [x] Wire failover chain into `convex/aiReview.ts` so runtime provider errors fall through to next candidate (2026-03-04 02:29 UTC)
@@ -48,6 +64,7 @@
 - [x] Verify with `npx convex codegen`, `npx tsc -p convex/tsconfig.json --noEmit --pretty false`, and `npx tsc -p . --noEmit --pretty false` (2026-03-04 02:29 UTC)
 
 ### Directory sort by verified and category verified counts (PRD: prds/directory-sort-verified-and-category-verified-count.md)
+
 - [x] Add `verified` sort mode in directory backend query and UI dropdowns (2026-03-03 07:47 UTC)
 - [x] Add `verifiedCount` to category aggregation used by Category Management (2026-03-03 07:47 UTC)
 - [x] Update admin category row display to include verified counts (2026-03-03 07:47 UTC)
@@ -55,6 +72,7 @@
 - [x] Update docs: `task.md`, `changelog.md`, and `files.md` after verification (2026-03-03 07:47 UTC)
 
 ### Private profile admin messages and admin notes separation (PRD: prds/private-profile-admin-messages-and-admin-notes.md)
+
 - [x] Route profile user messages to admin comments thread in `packageComments` and keep admin notes in `packageNotes` only (2026-03-03 06:24 UTC)
 - [x] Remove public comment rendering from `src/pages/Submit.tsx` so user admin messages stay private (2026-03-03 06:24 UTC)
 - [x] Add ownership based message actions (hide, archive, delete) for both profile and admin comment UIs (2026-03-03 06:24 UTC)
@@ -62,6 +80,7 @@
 - [x] Update docs: `task.md`, `changelog.md`, and `files.md` after verification (2026-03-03 06:24 UTC)
 
 ### WorkOS Connect migration for Convex app auth (PRD: prds/workos-connect-convex-migration.md)
+
 - [x] Implement Connect OAuth PKCE provider and callback handling (2026-03-03 00:22 UTC)
 - [x] Bridge Connect tokens into Convex auth client (2026-03-03 00:23 UTC)
 - [x] Update Convex JWT provider configuration for Connect issuer/JWKS (2026-03-03 00:23 UTC)
@@ -69,6 +88,7 @@
 - [x] Update task, changelog, and files docs with timestamps (2026-03-03 00:26 UTC)
 
 ### WorkOS AuthKit migration for components routes (PRD: prds/workos-authkit-migration-components-routes.md)
+
 - [x] Swap frontend auth provider from legacy Convex Auth to WorkOS AuthKit and keep `/components/callback` return path behavior (2026-03-02 23:36 UTC)
 - [x] Replace backend auth helpers and admin checks to use `ctx.auth.getUserIdentity()` email claims (2026-03-02 23:37 UTC)
 - [x] Remove legacy auth schema and HTTP route coupling (`authTables`, `auth.addHttpRoutes`) (2026-03-02 23:37 UTC)
@@ -77,12 +97,14 @@
 - [x] Update `task.md`, `changelog.md`, and `files.md` with completion timestamps (2026-03-02 23:42 UTC)
 
 ### WorkOS Convex environment runbook (PRD: prds/workos-convex-environment-runbook.md)
+
 - [x] Create runbook PRD with staging and production WorkOS setup for redirects, CORS, and JWT email claim requirements (2026-03-02 22:30 UTC)
 - [x] Document exact Convex deployment environment variables for staging and production including required and optional AuthKit auto-provision keys (2026-03-02 22:30 UTC)
 - [x] Document frontend environment variables for local and Netlify production along with route verification checklist (2026-03-02 22:30 UTC)
 - [x] Update `task.md`, `changelog.md`, and `files.md` to include this runbook deliverable (2026-03-02 22:30 UTC)
 
 ### PRD and docs timestamp tracking (PRD: prds/prd-doc-timestamp-tracking.md)
+
 - [x] Add PRD metadata requirements with date and time format in workflow and create-prd skill (2026-03-02 22:18 UTC)
 - [x] Add timestamp guidance for task completion logging in task workflow docs (2026-03-02 22:18 UTC)
 - [x] Add timestamp guidance for changelog updates in update-project-docs skill and workflow rule (2026-03-02 22:18 UTC)
@@ -92,6 +114,7 @@
 - [x] Normalize legacy date-only changelog bullets to timestamp format in `changelog.md` (2026-03-02 22:26 UTC)
 
 ### MCP and Agent Install UX (PRD: prds/mcp-agent-install-ux.md)
+
 - [x] Create PRD for read-only MCP, ComponentDetail UX, and rollback constraints (2026-02-28 12:00 UTC)
 - [x] Define exact SubmitForm to MCP public field mapping and strip non-public submitter fields (2026-02-28 12:00 UTC)
 - [x] Add per-component MCP profile generation (`src/lib/mcpProfile.ts`) (2026-02-28 12:00 UTC)
@@ -109,6 +132,7 @@
 - [x] Reordered sections: Use with agents and CLI, then Agent Skill (SKILL.md), then Keywords (2026-03-02 12:00 UTC)
 
 Acceptance checks:
+
 - [x] Component detail route works
 - [x] Markdown alias resolves via Netlify Edge Function (unchanged)
 - [x] llms.txt routes work (per-component and directory-wide) (unchanged)
@@ -118,6 +142,7 @@ Acceptance checks:
 - [x] Copy actions work on detail page
 
 ### Submit page pagination and default page size (PRD: prds/submit-pagination-admin-page-size-setting.md)
+
 - [x] Add paginated submissions queries for list and search in `convex/packages.ts`
 - [x] Add admin and public settings queries for Submit page default page size (20, 40, 60)
 - [x] Update `src/pages/Submit.tsx` to use paging controls and default page size setting
@@ -125,6 +150,7 @@ Acceptance checks:
 - [x] Verify pagination behavior and update docs (`task.md`, `changelog.md`, `files.md`)
 
 ### Component URL centralization (PRD: prds/component-url-centralization.md)
+
 - [x] Add shared helper for component detail, markdown alias, and llms URLs
 - [x] Update `ComponentDetail.tsx` dropdown with open markdown and AI-link actions using helper
 - [x] Add llms link below Keywords in `ComponentDetail.tsx`
@@ -132,6 +158,7 @@ Acceptance checks:
 - [x] Run build and Convex typecheck verification
 
 ### AI Provider Settings and Prompt Versioning (PRD: prds/ai-provider-settings-and-prompt-versioning.md)
+
 - [x] Add `aiProviderSettings` table to schema
 - [x] Add `aiPromptVersions` table to schema
 - [x] Create `convex/aiSettings.ts` with provider and prompt queries/mutations
@@ -143,6 +170,7 @@ Acceptance checks:
 - [ ] Test prompt versioning and restore
 
 ### Existing tasks
+
 - [ ] vercel.json in website can point to repo app
 - [ ] fix ai check
 - docs for badges
@@ -162,6 +190,7 @@ Acceptance checks:
 ## Recent updates
 
 - [x] Implemented MCP Additive Rollout Phase 1 (2026-03-03 18:00 UTC)
+
   - Added MCP protocol endpoint at `/api/mcp/protocol` with JSON-RPC 2.0 interface
   - Implemented `initialize`, `tools/list`, and `tools/call` methods
   - Added 5 tools: `search_components`, `get_component`, `get_install_command`, `get_docs`, `list_categories`
@@ -173,6 +202,7 @@ Acceptance checks:
   - PRD: `prds/mcp-additive-rollout-phase1.md`
 
 - [x] Added runtime AI provider failover across admin settings and environment vars (2026-03-04 02:29 UTC)
+
   - Added `convex/aiProviderFallback.ts` for candidate chain building and sequential fallback execution
   - Added `_getProviderSettingsForFallback` internal query in `convex/aiSettings.ts`
   - Updated `convex/aiReview.ts` and `convex/seoContent.ts` to try active admin, backup admin, then env providers on runtime failures
@@ -180,11 +210,13 @@ Acceptance checks:
   - Verified via Convex codegen and TypeScript checks
 
 - [x] Fixed TypeScript errors in AgentInstallSection.tsx (2026-03-03 09:30 UTC)
+
   - Removed undefined `PromptComponentData` type reference
   - Made `npmUrl`, `version`, `description`, `weeklyDownloads` required in local interface
   - Build verified passing (tsc and npm run build)
 
 - [x] Synced Status Legend, Visibility Guide, and Badges across Profile.tsx, Submit.tsx, and Admin.tsx (2026-03-03 09:15 UTC)
+
   - Profile.tsx: removed Archived and Pending Deletion from Visibility Guide
   - Profile.tsx: added Featured status, updated rejected icon to Prohibit for consistency
   - Profile.tsx: removed DeletionBadge component and markedForDeletion SubmissionCard props
@@ -193,6 +225,7 @@ Acceptance checks:
   - Build verified passing (tsc and npm run build)
 
 - [x] Rebuilt Footer.tsx to match official Convex.dev footer design (2026-03-03 08:25 UTC)
+
   - Dark background (`#141414`) with Convex design system tokens
   - White Convex wordmark logo, 4 link columns (Product, Developers, Company, Social)
   - Social icons from `/public/*.svg`, external links with `ExternalLinkIcon`
@@ -202,10 +235,12 @@ Acceptance checks:
   - Original footer saved as `FooterBackup.tsx`
 
 - [x] Updated Directory sort label text from "Verified first" to "Verified" and revalidated production build (2026-03-03 07:52 UTC)
+
   - Updated desktop and mobile sort display labels in `src/pages/Directory.tsx`
   - Confirmed `npm run build` passes for Netlify style output
 
 - [x] Added Related Components section to component detail pages (2026-03-03 07:29 UTC)
+
   - New `getRelatedComponents` query scoring by category, tags, and downloads
   - Compact no-thumbnail cards (max 3) below View llms.txt with border divider
   - New `showRelatedOnDetailPage` admin setting with toggle in AI Review Settings panel (on by default)
@@ -214,6 +249,7 @@ Acceptance checks:
   - Build verified passing
 
 - [x] Added Component Authoring Challenge banner to Directory page (2026-03-03 07:15 UTC)
+
   - Created `src/components/ChallengeBanner.tsx` with dark background, grid texture, and pink bordered CTA button
   - Uses inline SVG data URL based on `public/banner-grid.svg` with boosted stroke visibility for dark backgrounds
   - Placed above FAQSection in `src/pages/Directory.tsx`
@@ -221,22 +257,26 @@ Acceptance checks:
   - Build verified passing
 
 - [x] Fixed Convex return validator mismatch for private message thread payloads (2026-03-03 06:44 UTC)
+
   - Updated `getPackageComments` return validator in `convex/packages.ts` to include optional `statusUpdatedAt`
   - Resolved runtime `ReturnsValidationError` caused by archived or hidden message records
   - Verified with local build and Convex function validation
 
 - [x] Updated Directory badge placement for community-only component cards (2026-03-03 06:32 UTC)
+
   - Adjusted `src/components/ComponentCard.tsx` so Community-only listings render in the same right-side badge slot as Verified
   - Preserved dual-badge order when both badges are present (Community then Verified)
   - Verified with production build
 
 - [x] Added hidden or archived message toggle and restore controls in Profile and Admin message modals (2026-03-03 06:32 UTC)
+
   - Added `Show hidden or archived` toggle in both modals
   - Added `Restore` action for owned hidden and archived messages
   - Updated backend message queries to support optional `includeInactive`
   - Confirmed admin own notes deletion remains enforced in backend and UI
 
 - [x] Fixed private message routing and ownership controls between Profile and Admin (2026-03-03 06:24 UTC)
+
   - Profile requests now write to private `packageComments` message thread
   - Admin `Comments` panel now represents private submitter/admin messages, not public frontend comments
   - `Submit.tsx` no longer renders package comments publicly
@@ -244,12 +284,14 @@ Acceptance checks:
   - Enforced backend authorization for note/comment ownership operations
 
 - [x] Published team handoff guide for WorkOS Connect with Convex and Netlify (2026-03-03 01:28 UTC)
+
   - Updated `prds/workos-convex-environment-runbook.md` with final working configuration and explicit route policy
   - Added `prds/workos-connect-convex-netlify-how-to.md` with development, staging, and production setup sections
   - Included route matrix for public, authenticated, admin, and non app alias routes
   - Excluded secrets and used placeholders for safe sharing in Notion
 
 - [x] Added Community badge toggle to Admin Actions row (2026-03-03)
+
   - Added `communitySubmitted` prop to `InlineActions` component
   - Added `handleToggleCommunity` handler calling `updateComponentDetails` mutation
   - Added Community toggle button with `Users` icon and Community badge color scheme
@@ -258,12 +300,14 @@ Acceptance checks:
   - Build verified passing
 
 - [x] Finalized Connect environment variable guidance after admin doc cross-check (2026-03-03 01:12 UTC)
+
   - Confirmed this app uses WorkOS Connect OAuth client credentials with AuthKit domain based OAuth endpoints
   - Validated local `.env.local` requires `VITE_WORKOS_CLIENT_ID`, `VITE_WORKOS_REDIRECT_URI`, and `VITE_WORKOS_AUTHKIT_DOMAIN`
   - Confirmed Convex dev and prod require `WORKOS_CLIENT_ID` and `WORKOS_AUTHKIT_DOMAIN`
   - Updated session docs to reflect Connect domain requirements in runbook and migration PRD
 
 - [x] Switched app auth flow to WorkOS Connect OAuth with PKCE and Convex token bridge (2026-03-03 00:26 UTC)
+
   - Added `src/lib/connectAuth.tsx` provider and hook for OAuth authorize, callback exchange, token storage, and sign out
   - Updated `src/main.tsx` to use `ConnectAuthProvider` + `ConvexProviderWithAuthKit` with custom connect hook
   - Updated `src/lib/auth.tsx` to use connect `signIn`/`signOut` while keeping `useConvexAuth` auth state
@@ -273,6 +317,7 @@ Acceptance checks:
   - Verification: `tsc -p convex`, `tsc -p .`, and `npm run build` passed
 
 - [x] Migrated auth wiring from legacy Convex Auth to WorkOS AuthKit across frontend and Convex backend (2026-03-02 23:42 UTC)
+
   - Updated `src/main.tsx` provider stack to `AuthKitProvider` + `ConvexProviderWithAuthKit`
   - Updated `src/lib/auth.tsx` to use WorkOS `signIn` and `signOut`
   - Reworked `convex/auth.ts` admin and user checks to use `ctx.auth.getUserIdentity()`
@@ -282,6 +327,7 @@ Acceptance checks:
   - Verified with `npm run lint`
 
 - [x] Added Community badge feature for community-submitted components (2026-03-02 12:00 UTC)
+
   - New `communitySubmitted` field on packages schema
   - Created `CommunityBadge` component with `#E9DDC2` background color
   - Badge appears between downloads and Verified on Directory cards
@@ -293,27 +339,32 @@ Acceptance checks:
   - Build verified passing
 
 - [x] Fixed `View llms.txt` visibility when keywords are missing (2026-02-27 12:00 UTC)
+
   - Moved llms link out of the Keywords conditional in `src/pages/ComponentDetail.tsx`
   - Link now renders whenever component links are available, regardless of tags
   - Verified with `npx tsc -p . --noEmit --pretty false`
 
 - [x] Synced session docs for pagination and markdown link updates (2026-02-27 12:00 UTC)
+
   - Updated `files.md` with Submit pagination APIs and admin setting query coverage
   - Updated PRD index in `files.md` with session PRDs
   - Updated `changelog.md` unreleased notes to reflect completed session documentation
 
 - [x] Updated Netlify markdown alias PRD with centralized helper and local fallback notes (2026-02-27 12:00 UTC)
+
   - Documented why alias URLs are production-only and why localhost must use Convex API endpoints
   - Added guidance for shared URL helper usage to prevent route drift across frontend and Convex HTTP output
   - Captured verification matrix for local and production link behavior
 
 - [x] Fixed localhost markdown and llms dropdown links after URL centralization (2026-02-27 12:00 UTC)
+
   - Added client-aware URL strategy in `shared/componentUrls.ts`
   - Localhost now resolves markdown and llms links to Convex HTTP endpoints
   - Netlify production remains on alias URLs backed by edge function and redirects
   - Verified with `npx tsc -p . --noEmit`, `npx tsc -p convex/tsconfig.json --noEmit`, and `npm run build`
 
 - [x] Added Submit page pagination with admin default page size control (2026-02-27 12:00 UTC)
+
   - Added paginated public queries in `convex/packages.ts` for Submit list and search views
   - Added admin and public setting queries plus admin mutation for Submit default page size (`20`, `40`, `60`)
   - Updated `src/pages/Submit.tsx` to load paged results with Previous and Next controls
@@ -321,6 +372,7 @@ Acceptance checks:
   - Verified with `npx tsc -p convex -noEmit --pretty false` and `npx tsc -p . -noEmit --pretty false`
 
 - [x] Centralized component markdown and llms URL generation (2026-02-27 12:00 UTC)
+
   - Added shared helper at `shared/componentUrls.ts` for detail, markdown alias, and llms URL construction
   - Updated `src/pages/ComponentDetail.tsx` dropdown with `Open markdown file`, `Open in ChatGPT`, `Open in Claude`, and `Open in Perplexity`
   - Added `View llms.txt` link below Keywords on component detail page
@@ -328,17 +380,20 @@ Acceptance checks:
   - Verified with `npm run build`, `npx tsc -p convex/tsconfig.json --noEmit`, and `npx tsc -p . --noEmit`
 
 - [x] Kept markdown alias URL on Netlify domain (2026-02-27 12:00 UTC)
+
   - Added Netlify Edge Function mapping for `/components/*/*.md`
   - Added `netlify/edge-functions/component-markdown.ts` to resolve markdown by slug
   - Removed client-side redirect for markdown alias from router
   - Alias now serves markdown without switching browser URL to Convex domain
 
 - [x] Added markdown alias URL support for component slugs (2026-02-27 12:00 UTC)
+
   - Added route handling for `/components/<slug>/<slug>.md`
   - Client router now redirects alias URL to Convex markdown endpoint
   - Keeps SPA/admin routes stable while providing markdown access path
 
 - [x] Fixed Netlify SPA routing and GitHub avatar URLs (2026-02-27 12:00 UTC)
+
   - Fixed routes like `/components/submissions/admin` returning 404 markdown
   - Replaced greedy named-parameter redirect rules with explicit splat suffix rules:
     - `/components/*.md` for markdown
@@ -348,6 +403,7 @@ Acceptance checks:
   - Main `/components/llms.txt` and `/components.md` still work
 
 - [x] Created Tremendous Rewards Integration PRD (2026-02-27 12:00 UTC)
+
   - Full PRD at `prds/tremendous-rewards-integration.md`
   - Documents Tremendous API setup, SDK usage, and environment variables
   - Defines new `payments` table schema and package reward fields
@@ -357,6 +413,7 @@ Acceptance checks:
   - Ready for implementation
 
 - [x] Applied Convex return validator best practices to internal functions (2026-02-26 12:00 UTC)
+
   - Removed redundant `returns: v.null()` from 5 internal mutations (`_saveSeoContent`, `_updateSeoStatus`, `_setSeoError`, `_updateThumbnailJob`, `_saveGeneratedThumbnail`)
   - Removed `returns: v.union(v.null(), v.any())` from 2 internal queries (`_getPackage`, `_getPackageByName`)
   - Fixed `ctx.db.patch` API bugs in `seoContentDb.ts` (was incorrectly passing table name as first argument)
@@ -365,6 +422,7 @@ Acceptance checks:
   - No behavioral changes; TypeScript inference handles return types for internal functions
 
 - [x] AI Review Results panel collapsed by default in Admin dashboard (2026-02-26 12:00 UTC)
+
   - Entire panel now collapsed by default, showing only status icon, label, and date
   - Single toggle expands/collapses all content (summary, error, and criteria)
   - Removed nested toggle (previously had outer panel + inner criteria toggle)
@@ -372,6 +430,7 @@ Acceptance checks:
   - Reduces vertical space in admin package rows
 
 - [x] Removed user visibility controls from Profile page (2026-02-26 12:00 UTC)
+
   - Removed Hide, Show, Delete, and Cancel Deletion buttons from user profile
   - Users must contact admin via "Send Request" to manage component visibility
   - Removed `ConfirmModal` component (no longer needed)
@@ -383,6 +442,7 @@ Acceptance checks:
   - Build verified passing
 
 - [x] Added Download Skill button for SKILL.md files (2026-02-25 12:00 UTC)
+
   - Download button with Phosphor FileArrowDown icon next to Markdown dropdown in author row
   - Button only appears when SKILL.md has been generated (after SEO content generation runs)
   - SKILL.md section now has both copy and download buttons
@@ -390,11 +450,13 @@ Acceptance checks:
   - Uses browser Blob API for client-side file generation
 
 - [x] Directory sidebar sticky position adjusted (2026-02-25 12:00 UTC)
+
   - Changed sticky top from `top-6` to `top-20` (80px from viewport top)
   - Submit button now remains visible below the header when scrolling
   - Entire sidebar (Submit, Search, Sort, Categories) stays sticky together
 
 - [x] SEO Prompt Versioning and Multi-Provider AI support (2026-02-25 12:00 UTC)
+
   - Added `seoPromptVersions` table to schema for SEO prompt version history
   - Added SEO prompt queries/mutations to `convex/aiSettings.ts`: `getSeoDefaultPrompt`, `getSeoActivePrompt`, `getSeoPromptVersions`, `saveSeoPromptVersion`, `activateSeoPromptVersion`, `resetSeoToDefaultPrompt`
   - Added `DEFAULT_SEO_PROMPT` constant with placeholder substitution (e.g., `{{displayName}}`, `{{packageName}}`)
@@ -409,6 +471,7 @@ Acceptance checks:
   - Added confirmation modal for "Clear (use env)" buttons with danger styling and warning message
 
 - [x] Added Actions row to Admin InlineActions panel (2026-02-25 12:00 UTC)
+
   - New "Actions" row above Status and Visibility rows in expanded package view
   - Convex Verified toggle button (teal, shows fill when verified)
   - Regenerate SEO + Skill button (shows spinner during generation, green when completed)
@@ -420,6 +483,7 @@ Acceptance checks:
   - PRD: `prds/admin-actions-row.md`
 
 - [x] Added hide from submissions page feature for admin control (2026-02-25 12:00 UTC)
+
   - New `hideFromSubmissions` field on packages schema
   - `toggleHideFromSubmissions` mutation to toggle visibility on Submit.tsx
   - `listPackages` and `searchPackages` filter out hidden packages
@@ -429,6 +493,7 @@ Acceptance checks:
   - PRD: `prds/hide-from-submissions.md`
 
 - [x] Added featured components sort order for admin control (2026-02-25 12:00 UTC)
+
   - New `featuredSortOrder` field on packages schema
   - `getFeaturedComponents` query sorts by `featuredSortOrder` (nulls last), then newest first
   - `setFeaturedSortOrder` mutation for admin to set order value
@@ -437,6 +502,7 @@ Acceptance checks:
   - PRD: `prds/featured-sort-order.md`
 
 - [x] Added hide thumbnail in category option for components (2026-02-25 12:00 UTC)
+
   - New `hideThumbnailInCategory` field on packages schema
   - Checkbox in Admin Component Details editor (visible when thumbnail exists)
   - Thumbnails always shown in Featured section
@@ -446,6 +512,7 @@ Acceptance checks:
   - PRD: `prds/hide-thumbnail-in-category.md`
 
 - [x] Imported 41 official Convex components to production database (2026-02-24 12:00 UTC)
+
   - Created `seedOfficialComponents` internal action with `importAsPending` and `dryRun` flags
   - Added `browser-use` component (AI category) and synced with convex.dev/components source
   - Renamed `_upsertSeededComponent` to `_upsertOfficialComponent` with improved logic
@@ -597,7 +664,7 @@ Acceptance checks:
   - Updated ComponentDetail.tsx with copy button and pre-formatted display
   - Updated ComponentDetailsEditor.tsx with skillMd prop and status display
   - Updated Admin.tsx to pass skillMd prop to editor
-- [x] Configured Netlify SPA routing for /components/* (2026-02-23 12:00 UTC)
+- [x] Configured Netlify SPA routing for /components/\* (2026-02-23 12:00 UTC)
   - Router in `src/main.tsx` strips `/components` prefix for route matching
   - `netlify.toml` redirects `/` to `/components` (301)
   - `netlify.toml` redirects `/components` and `/components/*` to `/index.html` (200)
@@ -786,8 +853,6 @@ For admin auth to work, configure your WorkOS JWT template to include the email 
 - [x] Add Terms of Service and Privacy Policy links on Submit page
 - [x] Add clear thumbnail option in admin `ComponentDetailsEditor`
 - [x] Persist thumbnail removal on Save by wiring `clearThumbnail` through `updateComponentDetails`
-
-
 
 ## Components Directory Expansion (v2.0.0)
 

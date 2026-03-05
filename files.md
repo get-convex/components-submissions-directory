@@ -450,7 +450,7 @@ Utility functions including `cn` for Tailwind class merging.
 
 ### `src/lib/mcpProfile.ts`
 
-MCP profile builder utilities. Builds MCP-compatible component profiles from package data for agent consumption. Uses `MCP_CONVEX_SITE_URL` constant pointing to the Convex HTTP site for all MCP endpoints. Includes:
+MCP profile builder utilities. Builds MCP-compatible component profiles from package data for agent consumption. Uses `MCP_PUBLIC_COMPONENTS_BASE_URL` constant so MCP install configs point to the live public route (`https://www.convex.dev/components/api/mcp/protocol`). Includes:
 - `buildMcpProfile`: Builds full MCP component profile for agent consumption
 - `buildMcpSearchResult`: Builds lightweight search result items
 - `isMcpReady`/`hasAiInstallSupport`: Badge readiness checks
@@ -459,7 +459,7 @@ MCP profile builder utilities. Builds MCP-compatible component profiles from pac
 - `generateClaudeDesktopConfig`: Generates Claude Desktop JSON config for manual file editing (mcpServers wrapper)
 - `generateChatGPTConnectorConfig`: Generates ChatGPT custom connector URL with Developer mode setup steps
 - `CLAUDE_DESKTOP_CONFIG_PATHS`: macOS and Windows config file paths
-- `getMcpProtocolEndpoint`/`getCursorInstallApiUrl`: URL helpers for MCP endpoints (use Convex site URL)
+- `getMcpProtocolEndpoint`/`getCursorInstallApiUrl`: URL helpers for MCP endpoints (use public `/components/api` path)
 
 ### `src/lib/promptComposer.ts`
 
