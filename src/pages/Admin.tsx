@@ -5658,7 +5658,10 @@ function AdminDashboard({
     | "oldest"
     | "name_asc"
     | "name_desc"
-    | "downloads";
+    | "downloads"
+    | "verified"
+    | "community"
+    | "featured";
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   
@@ -5692,6 +5695,9 @@ function AdminDashboard({
     { value: "name_asc", label: "Name A-Z" },
     { value: "name_desc", label: "Name Z-A" },
     { value: "downloads", label: "Most downloads" },
+    { value: "verified", label: "Verified first" },
+    { value: "community", label: "Community first" },
+    { value: "featured", label: "Featured first" },
   ];
 
   // Toggle a package's expanded state
@@ -5765,6 +5771,20 @@ function AdminDashboard({
           return b.name.localeCompare(a.name);
         case "downloads":
           return b.weeklyDownloads - a.weeklyDownloads;
+        case "verified": {
+          const verifiedSort = Number(Boolean(b.convexVerified))
+            - Number(Boolean(a.convexVerified));
+          return verifiedSort !== 0 ? verifiedSort : b.submittedAt - a.submittedAt;
+        }
+        case "community": {
+          const communitySort = Number(Boolean(b.communitySubmitted))
+            - Number(Boolean(a.communitySubmitted));
+          return communitySort !== 0 ? communitySort : b.submittedAt - a.submittedAt;
+        }
+        case "featured": {
+          const featuredSort = Number(Boolean(b.featured)) - Number(Boolean(a.featured));
+          return featuredSort !== 0 ? featuredSort : b.submittedAt - a.submittedAt;
+        }
         default:
           return b.submittedAt - a.submittedAt;
       }

@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Admin submissions sort dropdown now includes Verified, Community, and Featured options (2026-03-05 21:53 UTC)
+  - Added three sort modes in `src/pages/Admin.tsx`: `verified`, `community`, and `featured`
+  - Added dropdown labels: `Verified first`, `Community first`, `Featured first`
+  - Added stable sorting with newest (`submittedAt`) as tie-breaker to preserve list behavior
+
 - MCP install URLs now use live Components public path (2026-03-05 00:10 UTC)
   - Updated all MCP install generators to use `https://www.convex.dev/components/api/mcp/protocol`
   - Applies to Cursor install config, Claude Desktop JSON config, and ChatGPT connector URL

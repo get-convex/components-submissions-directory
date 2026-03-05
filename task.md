@@ -3,7 +3,7 @@
 ## to do
 
 - meta data
-- fix returns in Long Description (markdown) descritpon nad markdown links with show links 
+- fix returns in Long Description (markdown) descritpon nad markdown links with show links
 - update challenge url
 - add https://plausible.io/sites
 - check all routes for mcp and md and llms.text
@@ -11,6 +11,7 @@
 - check all routes for mcp and md and llms.text
 - fix logout on submit page
 - test submitting
+  badges
 - update routes for mcp
 
 ### Multi-platform MCP install section (PRD: prds/multi-platform-mcp-install.md)
@@ -42,6 +43,13 @@
 
 - [x] Changed filter tabs from horizontal scroll to flex wrap (2026-03-04 19:00 UTC)
 - [x] Changed filter tab tooltips to position above instead of below (2026-03-04 19:00 UTC)
+
+### Admin submissions sort dropdown update
+
+- [x] Added `verified`, `community`, and `featured` sort modes in `src/pages/Admin.tsx` (2026-03-05 21:53 UTC)
+- [x] Added dropdown options `Verified first`, `Community first`, and `Featured first` (2026-03-05 21:53 UTC)
+- [x] Verified sort stability with newest-date fallback tie-breaker (2026-03-05 21:53 UTC)
+- [x] Updated `files.md`, `changelog.md`, and `task.md` for this session (2026-03-05 21:53 UTC)
 
 ### Admin documentation system (PRD: prds/admin-documentation-system.md)
 
