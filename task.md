@@ -201,6 +201,14 @@ Acceptance checks:
 
 ## Recent updates
 
+- [x] Updated "Live Demo URL" label to "Live Demo URL or Example App" in SubmitForm.tsx and ComponentDetailsEditor.tsx (2026-03-05 17:45 UTC)
+
+- [x] Fixed long package name overflow in ComponentDetail author row (2026-03-05 15:30 UTC)
+
+  - Added `flex-wrap` to author row so items wrap gracefully instead of overflowing
+  - Added `truncate max-w-[280px] sm:max-w-none` to repo name link (truncates on mobile, full on desktop)
+  - Added `title` attribute for hover tooltip showing full name when truncated
+
 - [x] Fixed long description markdown rendering and added submit form mini preview (2026-03-05 23:08 UTC)
 
   - `ComponentDetail.tsx`: long description markdown now preserves line breaks and uses purple links (`#8D2676`) with hover underline

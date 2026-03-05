@@ -599,7 +599,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
             </p>
 
             {/* npm package name + author row */}
-            <div className="flex items-center gap-3 mb-4">
+            <div className="flex items-center gap-3 mb-4 flex-wrap">
               <a
                 href={
                   component.repositoryUrl ||
@@ -607,7 +607,8 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 }
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm font-mono text-text-secondary hover:text-text-primary hover:underline">
+                className="text-sm font-mono text-text-secondary hover:text-text-primary hover:underline truncate max-w-[280px] sm:max-w-none"
+                title={component.name}>
                 {component.name}
               </a>
               {component.authorUsername && (

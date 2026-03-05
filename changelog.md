@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated "Live Demo URL" field label to "Live Demo URL or Example App" in SubmitForm.tsx and ComponentDetailsEditor.tsx (2026-03-05 17:45 UTC)
+
 ### Added
 
 - Multi-platform MCP install section with toggle tabs (2026-03-04 20:15 UTC)
@@ -19,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - PRD: `prds/multi-platform-mcp-install.md`
 
 ### Fixed
+
+- Long package names in ComponentDetail author row now truncate gracefully instead of wrapping awkwardly (2026-03-05 15:30 UTC)
+  - Added `flex-wrap` to author row container for graceful line breaks
+  - Added `truncate max-w-[280px] sm:max-w-none` to repo name link (truncates on mobile, full on desktop)
+  - Added `title` attribute for hover tooltip when name is truncated
 
 - Submit form long description markdown preview now renders headings, lists, and links correctly (2026-03-05 23:25 UTC)
   - Added explicit component renderers for `h1`, `h2`, `h3`, `ul`, `ol`, `li` in `src/pages/SubmitForm.tsx`

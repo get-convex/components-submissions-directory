@@ -362,7 +362,7 @@ export default function SubmitForm() {
             {/* Live Demo URL */}
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">
-                Live Demo URL <span className="text-red-500">*</span>
+                Live Demo URL or Example App <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"

@@ -531,7 +531,7 @@ export function ComponentDetailsEditor({
         {/* Live Demo URL */}
         <div className="sm:col-span-2">
           <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
-            Live Demo URL
+            Live Demo URL or Example App
           </label>
           <input
             type="text"
