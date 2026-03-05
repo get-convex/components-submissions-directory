@@ -3,8 +3,9 @@
 ## to do
 
 - meta data
-- fix returns in Long Description (markdown) descritpon nad markdown links with show links
+- [x] Fix submit form markdown mini preview rendering (headings, lists) and add 500 char limit (2026-03-05 23:25 UTC)
 - update challenge url
+- badge shield
 - add https://plausible.io/sites
 - check all routes for mcp and md and llms.text
 - https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
@@ -13,6 +14,9 @@
 - test submitting
   badges
 - update routes for mcp
+- [x] Fix long description markdown line breaks and purple hover-link styling on component detail page (PRD: `prds/markdown-long-description-rendering-and-preview.md`) (2026-03-05 23:08 UTC)
+- [x] Add safe markdown long description support notes and mini preview in submit form (PRD: `prds/markdown-long-description-rendering-and-preview.md`) (2026-03-05 23:08 UTC)
+- [x] Verify markdown rendering behavior and update docs (`task.md`, `changelog.md`, `files.md`) (2026-03-05 23:08 UTC)
 
 ### Multi-platform MCP install section (PRD: prds/multi-platform-mcp-install.md)
 
@@ -196,6 +200,12 @@ Acceptance checks:
 - [ ] - [ ] add payments api
 
 ## Recent updates
+
+- [x] Fixed long description markdown rendering and added submit form mini preview (2026-03-05 23:08 UTC)
+
+  - `ComponentDetail.tsx`: long description markdown now preserves line breaks and uses purple links (`#8D2676`) with hover underline
+  - `SubmitForm.tsx`: long description now includes safe markdown support guidance and live mini markdown preview
+  - Supports headings, bullet lists, line breaks, and markdown links in author-facing submit flow
 
 - [x] Implemented MCP Additive Rollout Phase 1 (2026-03-03 18:00 UTC)
 

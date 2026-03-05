@@ -931,8 +931,26 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               <>
                 {/* Long description markdown content */}
                 {component.longDescription && (
-                  <div className="prose prose-sm max-w-none text-text-primary prose-headings:text-text-primary prose-a:text-[rgb(33,34,181)] prose-code:text-sm prose-code:bg-bg-secondary prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-[#1a1a1a] prose-pre:text-gray-300 prose-p:mb-4 prose-p:leading-relaxed mb-6">
-                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                  <div className="prose prose-sm max-w-none text-text-primary prose-headings:text-text-primary prose-a:text-[#8D2676] hover:prose-a:underline prose-code:text-sm prose-code:bg-bg-secondary prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-[#1a1a1a] prose-pre:text-gray-300 prose-p:mb-4 prose-p:leading-relaxed prose-p:whitespace-pre-line mb-6">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkBreaks]}
+                      components={{
+                        p: ({ children }) => (
+                          <p className="mb-4 leading-relaxed whitespace-pre-line">{children}</p>
+                        ),
+                        a: ({ href, children }) => {
+                          const isExternal = Boolean(href?.startsWith("http"));
+                          return (
+                            <a
+                              href={href}
+                              className="text-[#8D2676] hover:underline"
+                              target={isExternal ? "_blank" : undefined}
+                              rel={isExternal ? "noopener noreferrer" : undefined}>
+                              {children}
+                            </a>
+                          );
+                        },
+                      }}>
                       {component.longDescription}
                     </ReactMarkdown>
                   </div>

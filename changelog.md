@@ -20,6 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Submit form long description markdown preview now renders headings, lists, and links correctly (2026-03-05 23:25 UTC)
+  - Added explicit component renderers for `h1`, `h2`, `h3`, `ul`, `ol`, `li` in `src/pages/SubmitForm.tsx`
+  - Added 500 character max limit with live counter
+  - Preview only shows when content is entered
+
+- Long description markdown now preserves line breaks on component detail pages and links use purple hover-underlined styling (2026-03-05 23:08 UTC)
+  - Updated `src/pages/ComponentDetail.tsx` markdown rendering to preserve author-entered line breaks
+  - Updated markdown link styling to `#8D2676` with underline on hover
+
 - Admin submissions sort dropdown now includes Verified, Community, and Featured options (2026-03-05 21:53 UTC)
   - Added three sort modes in `src/pages/Admin.tsx`: `verified`, `community`, and `featured`
   - Added dropdown labels: `Verified first`, `Community first`, `Featured first`

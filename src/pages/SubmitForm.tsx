@@ -7,6 +7,9 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useDirectoryCategories } from "../lib/categories";
 import Header from "../components/Header";
 import { FAQSection } from "../components/FAQSection";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import {
   CheckCircle,
   CaretDown,
@@ -442,14 +445,64 @@ export default function SubmitForm() {
                 Long Description <span className="text-red-500">*</span>
               </label>
               <textarea
-                placeholder="Detailed description of your component, features, and use cases"
+                placeholder="Detailed markdown description of your component, features, and use cases"
                 value={longDescription}
-                onChange={(e) => setLongDescription(e.target.value)}
+                onChange={(e) => setLongDescription(e.target.value.slice(0, 500))}
                 required
                 disabled={isLoading}
                 rows={4}
+                maxLength={500}
                 className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20 resize-none"
               />
+              <p className="text-xs text-text-tertiary mt-1">
+                {longDescription.length}/500 characters. Supports markdown: headings, bullet lists, line breaks, and links.
+              </p>
+              {longDescription.trim() && (
+                <div className="mt-2 rounded-lg border border-border bg-white p-3">
+                  <p className="text-[11px] uppercase tracking-wider text-text-secondary mb-2">
+                    Mini preview
+                  </p>
+                  <div className="prose prose-sm max-w-none text-text-primary">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkBreaks]}
+                      components={{
+                        h1: ({ children }) => (
+                          <h1 className="text-lg font-semibold text-text-primary mt-3 mb-2">{children}</h1>
+                        ),
+                        h2: ({ children }) => (
+                          <h2 className="text-base font-semibold text-text-primary mt-2 mb-1">{children}</h2>
+                        ),
+                        h3: ({ children }) => (
+                          <h3 className="text-sm font-semibold text-text-primary mt-2 mb-1">{children}</h3>
+                        ),
+                        p: ({ children }) => (
+                          <p className="whitespace-pre-line mb-2 text-sm">{children}</p>
+                        ),
+                        ul: ({ children }) => (
+                          <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>
+                        ),
+                        ol: ({ children }) => (
+                          <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>
+                        ),
+                        li: ({ children }) => <li className="text-sm">{children}</li>,
+                        a: ({ href, children }) => {
+                          const isExternal = Boolean(href?.startsWith("http"));
+                          return (
+                            <a
+                              href={href}
+                              className="text-[#8D2676] hover:underline"
+                              target={isExternal ? "_blank" : undefined}
+                              rel={isExternal ? "noopener noreferrer" : undefined}>
+                              {children}
+                            </a>
+                          );
+                        },
+                      }}>
+                      {longDescription}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Tags */}
