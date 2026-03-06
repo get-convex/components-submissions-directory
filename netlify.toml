@@ -56,14 +56,6 @@
   to = "https://giant-grouse-674.convex.site/api/badge?slug=:splat"
   status = 200
 
-# ============ OG Image Proxy ============
-# Proxy OG image endpoint for clean social sharing URLs
-
-[[redirects]]
-  from = "/components/og/*"
-  to = "https://giant-grouse-674.convex.site/api/og-image?slug=:splat"
-  status = 200
-
 # ============ SPA Routes ============
 
 # Serve index.html for /components root

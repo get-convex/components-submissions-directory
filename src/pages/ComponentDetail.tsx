@@ -266,18 +266,13 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
       // Prefer AI-generated value prop for meta description
       const metaDesc =
         component.seoValueProp || component.shortDescription || component.description || "";
-      // Use proxied OG image URL for clean social sharing (convex.dev domain)
-      const ogImageUrl =
-        component.slug && component.thumbnailUrl
-          ? `https://www.convex.dev/components/og/${component.slug}`
-          : component.thumbnailUrl;
 
       // Set all SEO tags: title, description, OG, Twitter cards, canonical URL
       setComponentSeoTags({
         title: displayName,
         description: metaDesc,
         url: canonicalUrl,
-        image: ogImageUrl,
+        image: component.thumbnailUrl,
       });
 
       // Inject dual JSON-LD: SoftwareSourceCode + FAQPage (if FAQ exists)

@@ -6,12 +6,15 @@
 - [ ] fix logout on submit page
 - [ ] add admin
 - [x] fix image meta (2026-03-06 UTC)
-  - Added `/api/og-image` endpoint that proxies component thumbnail image content by slug
-  - Endpoint returns image bytes directly (not redirect) for social crawler compatibility
-  - Added Netlify redirect `/components/og/*` to Convex OG image endpoint
-  - Updated og-meta.ts edge function to use proxied `https://www.convex.dev/components/og/<slug>` URL
-  - Updated ComponentDetail.tsx client-side SEO to use the same proxied OG image pattern
-  - OG meta tags now show `convex.dev` URLs instead of raw Convex storage URLs
+  - Final fix reverts `og:image` back to the known working raw `thumbnailUrl` storage format
+  - Updated `og-meta.ts` edge function to emit `component.thumbnailUrl` directly
+  - Updated `ComponentDetail.tsx` client-side SEO to use `component.thumbnailUrl` again
+  - Removed the unused `/api/og-image` endpoint and `/components/og/*` Netlify redirect
+  - Social crawlers now see the original working image URL format like `https://giant-grouse-674.convex.cloud/api/storage/...`
+- [x] revert OG image proxy path to raw thumbnail URLs (`prds/og-image-meta-revert.md`) (2026-03-06 22:54 UTC)
+  - Reverted both server side and client side OG image generation to direct storage URLs
+  - Removed the unused OG proxy backend and Netlify route
+  - Kept badge routing unchanged since the dedicated badge edge proxy is the known working pattern
 - [ ] share
 - [ ] test submitting
   - Commented out MCP ready badge in AgentInstallSection.tsx

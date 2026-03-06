@@ -49,11 +49,10 @@ Netlify deployment configuration. Sets build command (`npm run build`), publish 
   - `/components/llms.txt` -> `/api/llms.txt`
   - `/components.md` -> `/api/markdown-index`
   - `/components/*/llms.txt` -> `/api/component-llms?slug=:splat` (single and scoped slugs)
-- MCP, badge, and OG image proxies to production Convex deployment (`https://giant-grouse-674.convex.site`):
+- MCP and badge proxies to production Convex deployment (`https://giant-grouse-674.convex.site`):
   - `/components/api/mcp/*` -> `https://giant-grouse-674.convex.site/api/mcp/:splat`
   - `/api/mcp/*` -> `https://giant-grouse-674.convex.site/api/mcp/:splat`
   - `/components/badge/*` -> `https://giant-grouse-674.convex.site/api/badge?slug=:splat`
-  - `/components/og/*` -> `https://giant-grouse-674.convex.site/api/og-image?slug=:splat` (OG image proxy for clean social sharing URLs)
 - `/components` and `/components/*` fall back to `/index.html` for SPA routing (200)
 - Edge Function mapping:
   - `/components/badge/*` -> `netlify/edge-functions/component-badge.ts` (proxies badge SVG by slug to Convex HTTP badge endpoint)
@@ -204,7 +203,6 @@ HTTP router configuration. Defines:
 Main HTTP router with all API endpoints. Defines:
 - `/api/export-csv` endpoint for CSV export of all packages
 - `/api/badge` endpoint for dynamic SVG badge generation with shields.io styling (`#555555` left box, status colors aligned to frontend pills) and analytics tracking
-- `/api/og-image?slug=<slug>` endpoint that proxies component thumbnail image content for clean OG image URLs; returns image bytes directly (not redirect) for social crawler compatibility; proxied at `https://www.convex.dev/components/og/<slug>`
 - `/api/markdown?slug=<slug>` endpoint serving raw markdown for a single component
 - `/api/markdown-index` endpoint serving markdown listing of all approved components
 - `/api/llms.txt` endpoint serving a plain-text index of all approved components
@@ -506,7 +504,7 @@ TypeScript declarations for Vite environment variables.
 
 ### `netlify/edge-functions/og-meta.ts`
 
-Netlify Edge Function that injects component-specific OpenGraph and Twitter Card meta tags into the SPA HTML for all requests to `/components/{slug}`. Fetches component data from the Convex public `getComponentBySlug` query via HTTP API in parallel with the SPA response, then replaces default meta tags (`og:title`, `og:description`, `og:image`, `twitter:card`, `<title>`, etc.) in the HTML before serving. Uses proxied OG image URLs (`https://www.convex.dev/components/og/<slug>`) instead of raw Convex storage URLs for clean social sharing. Works for all clients including headless browsers, social crawlers, and regular browsers. Falls back to default SPA behavior if the component is not found or if the path is a reserved route or static asset. CDN cached for 5 minutes. Required because the SPA sets meta tags via client-side JavaScript which crawlers do not execute. Reserved paths that skip OG injection: `submit`, `admin`, `login`, `callback`, `profile`, `submissions`, `documentation`, `badge`, `badge/*`, `og`, and `og/*` (badge and OG paths use Netlify redirect to Convex endpoints instead).
+Netlify Edge Function that injects component-specific OpenGraph and Twitter Card meta tags into the SPA HTML for all requests to `/components/{slug}`. Fetches component data from the Convex public `getComponentBySlug` query via HTTP API in parallel with the SPA response, then replaces default meta tags (`og:title`, `og:description`, `og:image`, `twitter:card`, `<title>`, etc.) in the HTML before serving. Uses the component `thumbnailUrl` directly for `og:image`, which keeps social previews on the known working raw Convex storage URL format. Works for all clients including headless browsers, social crawlers, and regular browsers. Falls back to default SPA behavior if the component is not found or if the path is a reserved route or static asset. CDN cached for 5 minutes. Required because the SPA sets meta tags via client-side JavaScript which crawlers do not execute. Reserved paths that skip OG injection: `submit`, `admin`, `login`, `callback`, `profile`, `submissions`, `documentation`, `badge`, and `badge/*` (badge paths use the dedicated badge edge proxy instead).
 
 ### `netlify/edge-functions/component-badge.ts`
 
@@ -586,6 +584,7 @@ Product requirements documents:
 - `workos-connect-convex-migration.md`: Connect specific migration PRD for OAuth PKCE frontend flow, Convex token bridge, and Connect issuer/JWKS validation
 - `workos-connect-convex-netlify-how-to.md`: Shareable how-to guide for setting up WorkOS Connect with Convex and Netlify across development, staging, and production, including route access policy and alias route behavior
 - `ai-provider-runtime-failover.md`: Runtime failover PRD for AI provider orchestration across admin and env configurations to keep AI Review and SEO generation available during provider outages or key failures
+- `og-image-meta-revert.md`: Bug fix PRD documenting why the attempted `/components/og/*` alias was rolled back and why direct Convex storage URLs remain the stable `og:image` format
 - `ai-review-prompt-v1.md`: Archived original AI review prompt (v1) before updates. Documents known issues fixed in v2 including false negatives on helper function return validators and false positives on public API functions.
 - `mcp-streamable-http-migration.md`: Migration from dead `@anthropic-ai/mcp-server-fetch` npm proxy to Streamable HTTP transport. All MCP install configs now use direct URL with no npm dependency. Covers Cursor, Claude Desktop, and ChatGPT.
 

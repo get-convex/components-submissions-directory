@@ -550,64 +550,6 @@ function svgHeaders(): Record<string, string> {
   };
 }
 
-// ============ OG IMAGE PROXY ============
-// Proxies component thumbnail image for clean OG image URLs
-// Public URL: https://www.convex.dev/components/og/<slug>
-// Note: Must proxy content directly (not redirect) for social crawlers
-http.route({
-  path: "/api/og-image",
-  method: "GET",
-  handler: httpAction(async (ctx, request) => {
-    const url = new URL(request.url);
-    const slug = url.searchParams.get("slug") || "";
-
-    if (!slug) {
-      return new Response("Missing slug parameter", {
-        status: 400,
-        headers: { "Content-Type": "text/plain" },
-      });
-    }
-
-    const pkg = await ctx.runQuery(internal.packages._getPackageBySlug, {
-      slug,
-    });
-
-    if (!pkg || !pkg.thumbnailUrl) {
-      return new Response("Not found", {
-        status: 404,
-        headers: { "Content-Type": "text/plain" },
-      });
-    }
-
-    try {
-      const imageRes = await fetch(pkg.thumbnailUrl);
-      if (!imageRes.ok) {
-        return new Response("Image not found", {
-          status: 404,
-          headers: { "Content-Type": "text/plain" },
-        });
-      }
-
-      const imageBuffer = await imageRes.arrayBuffer();
-      const contentType = imageRes.headers.get("Content-Type") || "image/png";
-
-      return new Response(imageBuffer, {
-        status: 200,
-        headers: {
-          "Content-Type": contentType,
-          "Cache-Control": "public, max-age=3600, s-maxage=3600",
-          "Access-Control-Allow-Origin": "*",
-        },
-      });
-    } catch {
-      return new Response("Failed to fetch image", {
-        status: 500,
-        headers: { "Content-Type": "text/plain" },
-      });
-    }
-  }),
-});
-
 // ============ MCP API ENDPOINTS ============
 // Read-only MCP tools for agent and CLI consumption
 

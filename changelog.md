@@ -7,16 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+### Fixed
 
-- OG image proxy for clean social sharing URLs (2026-03-06 UTC)
-  - Added `/api/og-image` endpoint to `convex/http.ts` that proxies component thumbnail image content by slug
-  - Endpoint fetches and returns image bytes directly (not redirect) for social crawler compatibility
-  - Added Netlify redirect `/components/og/*` to proxy OG image requests to Convex endpoint
-  - Updated `netlify/edge-functions/og-meta.ts` to use proxied URL `https://www.convex.dev/components/og/<slug>` instead of raw Convex storage URL
-  - Updated `src/pages/ComponentDetail.tsx` client-side SEO to use the same proxied OG image pattern
-  - Added `og` to reserved paths in og-meta.ts to prevent edge function interference with the proxy route
-  - Social crawlers and link previews now see branded `convex.dev` URLs instead of raw storage URLs
+- Reverted component OG image tags to the known working raw Convex storage URL format after the `/components/og/*` proxy path failed in production (2026-03-06 22:54 UTC)
+  - Updated `netlify/edge-functions/og-meta.ts` to emit `component.thumbnailUrl` directly for `og:image`
+  - Updated `src/pages/ComponentDetail.tsx` client-side SEO to use `component.thumbnailUrl` again
+  - Removed the unused `/api/og-image` endpoint from `convex/http.ts`
+  - Removed the unused Netlify redirect for `/components/og/*`
+  - Removed temporary `og` route exclusions from `og-meta.ts`
+  - Final stable behavior matches the original working image URLs like `https://giant-grouse-674.convex.cloud/api/storage/...`
 
 ### Changed
 
