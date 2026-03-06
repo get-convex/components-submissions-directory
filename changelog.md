@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- MCP install flow for Cursor, Claude Desktop, and ChatGPT (2026-03-06 06:45 UTC)
+  - Removed all references to `@anthropic-ai/mcp-server-fetch` which was deleted from npm (404 error)
+  - Migrated from `command`/`args` proxy pattern to direct URL-based Streamable HTTP transport
+  - All three platforms now connect directly via `url: "https://www.convex.dev/components/api/mcp/protocol"` with no npm package dependency
+  - Added GET handler for `/api/mcp/protocol` so browsers and discovery clients get server info instead of a 404
+  - Updated protocol version from `2024-11-05` to `2025-03-26` (MCP Streamable HTTP spec)
+  - Updated CORS headers to support MCP transport headers (`Accept`, `Mcp-Session-Id`, `Mcp-Protocol-Version`)
+  - Updated Cursor install deeplink endpoints to emit url-based config
+  - Updated `shared/mcpTypes.ts` `CursorInstallLink` interface to match new config shape
+  - Updated `src/docs/mcp.md` documentation with new config examples for all three platforms
+  - All existing REST MCP endpoints preserved unchanged (`/api/mcp/search`, `/api/mcp/component`, etc.)
+  - PRD: `prds/mcp-streamable-http-migration.md`
+
 ### Changed
 
 - Improved SKILL.md generation following Anthropic skill creator guidelines (2026-03-06 UTC)

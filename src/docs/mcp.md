@@ -8,15 +8,18 @@ MCP is a JSON-RPC 2.0 based protocol that lets AI coding assistants (Cursor, Cla
 
 ## Protocol endpoint
 
-The main MCP entry point is a POST endpoint that accepts JSON-RPC 2.0 requests.
+The MCP entry point supports the Streamable HTTP transport. It accepts both GET (server discovery) and POST (JSON-RPC 2.0) requests.
 
-**Endpoint:** `POST /api/mcp/protocol`
+**Endpoint:** `/api/mcp/protocol`
+
+- **GET** returns server info, capabilities, and available tool names (for browser discovery and MCP client initialization)
+- **POST** accepts JSON-RPC 2.0 requests for tool invocation
 
 ### Supported methods
 
 | Method | Description |
 |--------|-------------|
-| `initialize` | Returns server capabilities and protocol version (`2024-11-05`) |
+| `initialize` | Returns server capabilities and protocol version (`2025-03-26`) |
 | `tools/list` | Returns all available MCP tools with their input schemas |
 | `tools/call` | Invokes a tool by name with the given arguments |
 
@@ -78,23 +81,33 @@ Each component with a slug and install command gets its own Cursor install link.
 
 **Link:** `/api/mcp/cursor-install-component?slug=component-slug`
 
-### Cursor MCP config format
+### MCP config format (Cursor, Claude Desktop, ChatGPT)
 
-The generated config follows Cursor's MCP server format:
+The directory uses the Streamable HTTP transport. No npm packages or local processes needed. All platforms connect directly via URL.
 
+**Cursor** (`.cursor/mcp.json`):
 ```json
 {
   "mcpServers": {
-    "convex-component": {
-      "command": "npx",
-      "args": ["-y", "@anthropic-ai/mcp-server-fetch", "https://www.convex.dev/api/mcp/protocol"],
-      "env": {
-        "CONVEX_COMPONENT_SLUG": "component-slug"
-      }
+    "convex-components-directory": {
+      "url": "https://www.convex.dev/components/api/mcp/protocol"
     }
   }
 }
 ```
+
+**Claude Desktop** (`claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "convex-components-directory": {
+      "url": "https://www.convex.dev/components/api/mcp/protocol"
+    }
+  }
+}
+```
+
+**ChatGPT**: Use the connector URL `https://www.convex.dev/components/api/mcp/protocol` in Settings > Apps and Connectors > Create.
 
 ## Component profiles
 
@@ -120,8 +133,9 @@ On each component detail page, the "Use with agents and CLI" section provides:
 
 1. **Copy prompt** button with a pre-formatted agent prompt including package name, install command, and documentation links
 2. **Install in Cursor** button with a one-click deeplink (when MCP is enabled)
-3. **Copy MCP config** for manual Cursor setup
-4. **MCP ready** badge for components that have a slug and install command
+3. **Multi-platform MCP config** with tabs for Cursor, Claude Desktop, and ChatGPT
+4. **Copy config** button that adapts to the selected platform
+5. **MCP ready** badge for components that have a slug and install command
 
 ### Feature flags
 

@@ -137,9 +137,7 @@ export interface CursorInstallLink {
   serverName: string;
   installLink: string;
   config: {
-    command: string;
-    args: string[];
-    env?: Record<string, string>;
+    url: string;
   };
   instructions: string;
 }

@@ -577,8 +577,8 @@ function mcpJsonHeaders(): Record<string, string> {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "public, max-age=60, s-maxage=60",
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version",
   };
 }
 
@@ -1024,8 +1024,9 @@ http.route({
 // Implements JSON-RPC 2.0 style interface for MCP tool discovery and invocation
 // Reference: https://modelcontextprotocol.io/docs/develop/build-server
 
-const MCP_SERVER_VERSION = "1.0.0";
+const MCP_SERVER_VERSION = "1.1.0";
 const MCP_SERVER_NAME = "convex-components-directory";
+const MCP_PROTOCOL_VERSION = "2025-03-26";
 
 interface McpJsonRpcRequest {
   jsonrpc: "2.0";
@@ -1096,9 +1097,8 @@ http.route({
       // Handle MCP protocol methods
       switch (body.method) {
         case "initialize": {
-          // Return server capabilities
           const result = {
-            protocolVersion: "2024-11-05",
+            protocolVersion: MCP_PROTOCOL_VERSION,
             capabilities: {
               tools: {},
             },
@@ -1476,6 +1476,51 @@ http.route({
   }),
 });
 
+// MCP Protocol: GET handler for server discovery (Streamable HTTP transport)
+// Browsers and MCP clients can GET this endpoint to discover server capabilities
+http.route({
+  path: "/api/mcp/protocol",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    ctx.runMutation(internal.packages._recordMcpApiRequest, {
+      endpoint: "protocol/GET",
+      userAgent: request.headers.get("user-agent") || undefined,
+      referer: request.headers.get("referer") || undefined,
+      responseStatus: 200,
+      responseTimeMs: 0,
+    });
+
+    return new Response(
+      JSON.stringify({
+        name: MCP_SERVER_NAME,
+        version: MCP_SERVER_VERSION,
+        protocolVersion: MCP_PROTOCOL_VERSION,
+        description: "Read-only MCP server for the Convex Components Directory. Provides component discovery, documentation, and install commands for AI agents.",
+        transport: "streamable-http",
+        capabilities: {
+          tools: {},
+        },
+        tools: [
+          "search_components",
+          "get_component",
+          "get_install_command",
+          "get_docs",
+          "list_categories",
+        ],
+        endpoints: {
+          protocol: `${DIRECTORY_ORIGIN}/api/mcp/protocol`,
+          search: `${DIRECTORY_ORIGIN}/api/mcp/search`,
+          component: `${DIRECTORY_ORIGIN}/api/mcp/component`,
+          installCommand: `${DIRECTORY_ORIGIN}/api/mcp/install-command`,
+          docs: `${DIRECTORY_ORIGIN}/api/mcp/docs`,
+          info: `${DIRECTORY_ORIGIN}/api/mcp/info`,
+        },
+      }, null, 2),
+      { status: 200, headers: mcpJsonHeaders() }
+    );
+  }),
+});
+
 // MCP Protocol: CORS preflight
 http.route({
   path: "/api/mcp/protocol",
@@ -1494,7 +1539,7 @@ function generateCursorInstallLink(serverName: string, config: object): string {
   return `cursor://anysphere.cursor-deeplink/mcp/install?name=${encodeURIComponent(serverName)}&config=${configBase64}`;
 }
 
-// Cursor install link for global directory server
+// Cursor install link for global directory server (url-based, no npm dependency)
 http.route({
   path: "/api/mcp/cursor-install",
   method: "GET",
@@ -1502,8 +1547,7 @@ http.route({
     const startTime = Date.now();
 
     const config = {
-      command: "npx",
-      args: ["-y", "@anthropic-ai/mcp-server-fetch", `${DIRECTORY_ORIGIN}/api/mcp/protocol`],
+      url: `${DIRECTORY_ORIGIN}/api/mcp/protocol`,
     };
 
     const installLink = generateCursorInstallLink(MCP_SERVER_NAME, config);
@@ -1570,11 +1614,7 @@ http.route({
 
     const componentServerName = `convex-component-${slug.replace(/\//g, "-")}`;
     const config = {
-      command: "npx",
-      args: ["-y", "@anthropic-ai/mcp-server-fetch", `${DIRECTORY_ORIGIN}/api/mcp/protocol`],
-      env: {
-        CONVEX_COMPONENT_SLUG: slug,
-      },
+      url: `${DIRECTORY_ORIGIN}/api/mcp/protocol`,
     };
 
     const installLink = generateCursorInstallLink(componentServerName, config);

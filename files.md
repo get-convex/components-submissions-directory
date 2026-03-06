@@ -206,10 +206,12 @@ Main HTTP router with all API endpoints. Defines:
   - `/api/mcp/install-command`: Get install command by slug
   - `/api/mcp/docs`: Get documentation URLs by slug
   - `/api/mcp/info`: Server info and tool definitions
-- MCP Protocol endpoint (JSON-RPC 2.0):
-  - `/api/mcp/protocol`: Standards-based MCP server implementing `initialize`, `tools/list`, and `tools/call` methods
+- MCP Protocol endpoint (Streamable HTTP transport, JSON-RPC 2.0):
+  - `GET /api/mcp/protocol`: Server discovery (returns server info, capabilities, tool names)
+  - `POST /api/mcp/protocol`: JSON-RPC 2.0 handler implementing `initialize`, `tools/list`, and `tools/call` methods
+  - Protocol version: `2025-03-26` (MCP Streamable HTTP spec)
   - Tools: `search_components`, `get_component`, `get_install_command`, `get_docs`, `list_categories`
-- Cursor MCP install link endpoints:
+- Cursor MCP install link endpoints (url-based config, no npm dependency):
   - `/api/mcp/cursor-install`: Generate Cursor deeplink for global directory server
   - `/api/mcp/cursor-install-component?slug=<slug>`: Generate Cursor deeplink for per-component context
 - All MCP endpoints log to `mcpApiLogs` table with endpoint, tool, slug, query, status, and timing
@@ -462,13 +464,13 @@ Utility functions including `cn` for Tailwind class merging.
 
 ### `src/lib/mcpProfile.ts`
 
-MCP profile builder utilities. Builds MCP-compatible component profiles from package data for agent consumption. Uses `MCP_PUBLIC_COMPONENTS_BASE_URL` constant so MCP install configs point to the live public route (`https://www.convex.dev/components/api/mcp/protocol`). Includes:
+MCP profile builder utilities. Builds MCP-compatible component profiles from package data for agent consumption. Uses `MCP_PUBLIC_COMPONENTS_BASE_URL` constant so MCP install configs point to the live public route (`https://www.convex.dev/components/api/mcp/protocol`). All platform configs use direct URL-based Streamable HTTP transport (no npm package dependency). Includes:
 - `buildMcpProfile`: Builds full MCP component profile for agent consumption
 - `buildMcpSearchResult`: Builds lightweight search result items
 - `isMcpReady`/`hasAiInstallSupport`: Badge readiness checks
-- `generateGlobalCursorInstallLink`: Generates Cursor MCP install deeplink for directory server
-- `generateComponentCursorInstallLink`: Generates Cursor MCP install deeplink for specific component
-- `generateClaudeDesktopConfig`: Generates Claude Desktop JSON config for manual file editing (mcpServers wrapper)
+- `generateGlobalCursorInstallLink`: Generates Cursor MCP install deeplink with url config
+- `generateComponentCursorInstallLink`: Generates Cursor MCP install deeplink with url config for specific component
+- `generateClaudeDesktopConfig`: Generates Claude Desktop JSON config with url-based mcpServers wrapper
 - `generateChatGPTConnectorConfig`: Generates ChatGPT custom connector URL with Developer mode setup steps
 - `CLAUDE_DESKTOP_CONFIG_PATHS`: macOS and Windows config file paths
 - `getMcpProtocolEndpoint`/`getCursorInstallApiUrl`: URL helpers for MCP endpoints (use public `/components/api` path)
@@ -491,7 +493,7 @@ Shared URL builder used by frontend and Convex HTTP code to generate consistent 
 
 ### `shared/mcpTypes.ts`
 
-TypeScript types for MCP (Model Context Protocol) data structures. Defines `McpComponentProfile` (public profile for agent consumption), `McpSearchResult`, `McpToolDefinition`, `McpServerConfig`, `McpUniversalPrompt`, `CursorInstallLink` (Cursor deeplink config and instructions), and `McpDirectoryInfo` (directory-level MCP server metadata). Also includes `MCP_EXCLUDED_FIELDS` and `MCP_PUBLIC_SUBMIT_FIELDS` constants documenting the data contract.
+TypeScript types for MCP (Model Context Protocol) data structures. Defines `McpComponentProfile` (public profile for agent consumption), `McpSearchResult`, `McpToolDefinition`, `McpServerConfig`, `McpUniversalPrompt`, `CursorInstallLink` (url-based Cursor deeplink config), and `McpDirectoryInfo` (directory-level MCP server metadata). Also includes `MCP_EXCLUDED_FIELDS` and `MCP_PUBLIC_SUBMIT_FIELDS` constants documenting the data contract.
 
 ### `src/vite-env.d.ts`
 
@@ -566,6 +568,7 @@ Product requirements documents:
 - `workos-connect-convex-netlify-how-to.md`: Shareable how-to guide for setting up WorkOS Connect with Convex and Netlify across development, staging, and production, including route access policy and alias route behavior
 - `ai-provider-runtime-failover.md`: Runtime failover PRD for AI provider orchestration across admin and env configurations to keep AI Review and SEO generation available during provider outages or key failures
 - `ai-review-prompt-v1.md`: Archived original AI review prompt (v1) before updates. Documents known issues fixed in v2 including false negatives on helper function return validators and false positives on public API functions.
+- `mcp-streamable-http-migration.md`: Migration from dead `@anthropic-ai/mcp-server-fetch` npm proxy to Streamable HTTP transport. All MCP install configs now use direct URL with no npm dependency. Covers Cursor, Claude Desktop, and ChatGPT.
 
 All PRDs in this folder now include metadata headers (`Created`, `Last Updated`, `Status`) and a `Task completion log` section for agent session traceability.
 

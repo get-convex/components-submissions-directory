@@ -125,7 +125,7 @@ function detectPackageManager(
  */
 export function generateMcpServerConfig(
   component: ComponentData,
-  baseUrl: string,
+  _baseUrl: string,
 ): string {
   if (!component.slug) {
     return "";
@@ -134,12 +134,7 @@ export function generateMcpServerConfig(
   const config = {
     mcpServers: {
       "convex-component": {
-        command: "npx",
-        args: ["-y", "@anthropic-ai/mcp-server-fetch"],
-        env: {
-          CONVEX_COMPONENT_SLUG: component.slug,
-          CONVEX_MCP_BASE_URL: baseUrl,
-        },
+        url: `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol`,
       },
     },
   };
@@ -195,8 +190,7 @@ export function generateGlobalCursorInstallLink(): {
   config: object;
 } {
   const config = {
-    command: "npx",
-    args: ["-y", "@anthropic-ai/mcp-server-fetch", `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol`],
+    url: `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol`,
   };
 
   const configBase64 = base64UrlEncode(JSON.stringify(config));
@@ -223,11 +217,7 @@ export function generateComponentCursorInstallLink(component: ComponentData): {
 
   const serverName = `convex-component-${component.slug.replace(/\//g, "-")}`;
   const config = {
-    command: "npx",
-    args: ["-y", "@anthropic-ai/mcp-server-fetch", `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol`],
-    env: {
-      CONVEX_COMPONENT_SLUG: component.slug,
-    },
+    url: `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol`,
   };
 
   const configBase64 = base64UrlEncode(JSON.stringify(config));
@@ -281,15 +271,8 @@ export function generateClaudeDesktopConfig(component?: ComponentData): {
     : MCP_SERVER_NAME;
 
   const serverConfig: Record<string, unknown> = {
-    command: "npx",
-    args: ["-y", "@anthropic-ai/mcp-server-fetch", `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol`],
+    url: `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol`,
   };
-
-  if (component?.slug) {
-    serverConfig.env = {
-      CONVEX_COMPONENT_SLUG: component.slug,
-    };
-  }
 
   const config = {
     mcpServers: {

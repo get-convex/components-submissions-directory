@@ -2,12 +2,28 @@
 
 ## to do
 
+- [x] fix mcp (2026-03-06 06:45 UTC)
 - [ ] badge shield on each compopnet page
-- [x] fix opengraph view (2026-03-06 06:15 UTC)
+- [ ] npm security scanner
+- [ ] check api ai model
 - [ ] add posthog
 - [ ]check all routes for mcp and md and llms.text
 - [ ]fix logout on submit page
 - [ ]test submitting
+
+### MCP Streamable HTTP migration (PRD: prds/mcp-streamable-http-migration.md)
+
+- [x] Diagnosed `@anthropic-ai/mcp-server-fetch` removed from npm (404) breaking all MCP installs (2026-03-06 06:30 UTC)
+- [x] Wrote PRD at `prds/mcp-streamable-http-migration.md` (2026-03-06 06:30 UTC)
+- [x] Added GET handler for `/api/mcp/protocol` returning server discovery info (2026-03-06 06:40 UTC)
+- [x] Updated protocol version to `2025-03-26` (MCP Streamable HTTP spec) (2026-03-06 06:40 UTC)
+- [x] Updated CORS headers for MCP transport (`Accept`, `Mcp-Session-Id`, `Mcp-Protocol-Version`) (2026-03-06 06:40 UTC)
+- [x] Migrated `cursor-install` and `cursor-install-component` endpoints from command/args to url config (2026-03-06 06:40 UTC)
+- [x] Migrated `src/lib/mcpProfile.ts`: all 4 generator functions now use url-based config (2026-03-06 06:42 UTC)
+- [x] Updated `shared/mcpTypes.ts` `CursorInstallLink` interface to `{url: string}` (2026-03-06 06:43 UTC)
+- [x] Updated `src/docs/mcp.md` with new config examples for Cursor, Claude Desktop, ChatGPT (2026-03-06 06:44 UTC)
+- [x] Zero type errors, zero remaining references to dead package (2026-03-06 06:45 UTC)
+- [x] Updated `files.md`, `changelog.md`, `task.md` (2026-03-06 06:50 UTC)
 
 ### SKILL.md generation improvements (Anthropic guidelines)
 
@@ -24,6 +40,7 @@
 - [x] Created `netlify/edge-functions/og-meta.ts` to serve dynamic OG tags to bots (2026-03-05 23:45 UTC)
 - [x] Updated `netlify.toml` with edge function registration on `/components/*` (2026-03-05 23:45 UTC)
 - [x] Updated `files.md`, `changelog.md`, `task.md` (2026-03-05 23:50 UTC)
+      [x] fix opengraph view (2026-03-06 06:15 UTC)
 
 ### OpenGraph meta fix v2: HTML injection approach
 
