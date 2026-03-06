@@ -64,7 +64,7 @@ async function callAiProvider(
   }
 }
 
-// Convex component review criteria
+// Convex component review criteria (v2 - updated 2025-03-05)
 const REVIEW_CRITERIA = [
   {
     name: "Has convex.config.ts with defineComponent()",
@@ -83,8 +83,9 @@ const REVIEW_CRITERIA = [
     critical: true,
   },
   {
-    name: "All functions have returns: validator",
-    check: "Check handler signatures include return validators",
+    name: "Exported functions have returns: validator",
+    check:
+      "Check that exported query/mutation/action functions have explicit 'returns' validators. Regular TypeScript helper functions do NOT need return type annotations.",
     critical: true,
   },
   {
@@ -98,8 +99,9 @@ const REVIEW_CRITERIA = [
     critical: false,
   },
   {
-    name: "Internal functions use internal*",
-    check: "Sensitive functions use internalQuery, etc.",
+    name: "Internal-only functions use internal*",
+    check:
+      "Functions that are ONLY called internally by other component functions should use internalQuery, internalMutation, or internalAction. Functions that are part of the component's PUBLIC API (intended to be called by apps) should use regular query, mutation, action.",
     critical: false,
   },
   {
@@ -108,9 +110,9 @@ const REVIEW_CRITERIA = [
     critical: false,
   },
   {
-    name: "Uses token-based authorization (when applicable)",
+    name: "Uses auth pattern (when applicable)",
     check:
-      "If component needs auth, uses token-based pattern like Presence component (heartbeat returns tokens, methods require tokens). Not all components need auth.",
+      "Components cannot use ctx.auth. If auth is needed, check for token-based pattern or auth callback pattern for re-exported functions. Not all components need auth.",
     critical: false,
   },
 ];
@@ -409,7 +411,7 @@ export const runAiReview = action({
       if (customPromptContent) {
         basePrompt = customPromptContent;
       } else {
-        // Default prompt template
+        // Default prompt template v2 (updated 2025-03-05)
         const docsReference = `
 OFFICIAL CONVEX COMPONENT DOCUMENTATION REFERENCES:
 - Authoring Components: https://docs.convex.dev/components/authoring
@@ -424,10 +426,11 @@ KEY REQUIREMENTS FROM DOCS:
 1. Components must have convex.config.ts with defineComponent() export
 2. Component structure: convex.config.ts at root or src/component/, with functions in component/ directory
 3. Functions must use new syntax: query({ args: {}, returns: v.null(), handler: async (ctx, args) => {} })
-4. All functions MUST have explicit 'returns' validator (use v.null() for functions that don't return values)
+4. All EXPORTED query/mutation/action functions MUST have explicit 'returns' validator. Regular TypeScript helper functions do NOT require return type annotations.
 5. Functions returning nothing MUST use v.null() as the return validator, not undefined
-6. Internal functions should use internalQuery, internalMutation, internalAction
-7. If component needs authorization, use token-based pattern (like Presence component): methods return tokens, subsequent calls require tokens. Note: Not all components need authorization.
+6. Functions that are ONLY called internally by other component functions should use internalQuery, internalMutation, internalAction. Functions that are part of the component's PUBLIC API (intended to be called by apps using the component) should use regular query, mutation, action.
+7. Components do NOT have access to ctx.auth. Authentication must be done in the app, with identifiers (userId, tokens) passed to the component.
+8. If component provides functions for apps to re-export (makeXXXAPI pattern), it should accept an auth callback option so apps can authenticate requests.
 `;
 
         basePrompt = `You are reviewing a Convex component package against official Convex component specifications.
@@ -442,6 +445,12 @@ A Convex component is an npm package that:
 - Exports functionality through the component definition
 - Can include schema, client code, and HTTP endpoints
 
+IMPORTANT DISTINCTIONS:
+- EXPORTED functions (using query/mutation/action syntax) = need returns validators
+- Regular TypeScript helper functions = do NOT need explicit return type annotations
+- Functions called by apps = PUBLIC API, use query/mutation/action
+- Functions only called internally = use internalQuery/internalMutation/internalAction
+
 Analyze this code and provide a structured review with:
 1. Overall summary (2-3 sentences about component quality and compliance with official Convex component specs)
 2. For each criterion IN THE EXACT ORDER LISTED ABOVE, indicate PASS or FAIL with a brief note
@@ -451,6 +460,8 @@ IMPORTANT:
 - Return criteria in the EXACT same order as listed above
 - Base all suggestions on the official Convex documentation links provided
 - For any failed criterion, reference the specific documentation URL that explains the correct approach
+- Do NOT flag regular helper functions for missing return validators
+- Do NOT flag public API functions for not using internal* (they are intentionally public)
 
 Respond in this exact JSON format:
 {
@@ -459,12 +470,12 @@ Respond in this exact JSON format:
     {"name": "Has convex.config.ts with defineComponent()", "passed": true/false, "notes": "Your note"},
     {"name": "Has component functions", "passed": true/false, "notes": "Your note"},
     {"name": "Functions use new syntax", "passed": true/false, "notes": "Your note"},
-    {"name": "All functions have returns: validator", "passed": true/false, "notes": "Your note"},
+    {"name": "Exported functions have returns: validator", "passed": true/false, "notes": "Your note - only check exported query/mutation/action, not helper functions"},
     {"name": "Uses v.null() for void returns", "passed": true/false, "notes": "Your note"},
     {"name": "Uses withIndex() not filter()", "passed": true/false, "notes": "Your note"},
-    {"name": "Internal functions use internal*", "passed": true/false, "notes": "Your note"},
+    {"name": "Internal-only functions use internal*", "passed": true/false, "notes": "Your note - functions that are part of the public API should NOT use internal*"},
     {"name": "Has TypeScript with proper types", "passed": true/false, "notes": "Your note"},
-    {"name": "Uses token-based authorization (when applicable)", "passed": true/false, "notes": "Your note - if component doesn't need auth, mark as PASS with note explaining why auth isn't needed"}
+    {"name": "Uses auth pattern (when applicable)", "passed": true/false, "notes": "Your note - components cannot use ctx.auth, so check for token-based or auth callback patterns if auth is needed"}
   ],
   "suggestions": "Improvement suggestions with references to official docs (e.g., 'See https://docs.convex.dev/components/authoring for...')"
 }`;

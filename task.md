@@ -4,6 +4,16 @@
 
 - meta data
 
+### AI review prompt v2 update (PRD: prds/ai-review-prompt-v1.md)
+
+- [x] Archived original AI review prompt to `prds/ai-review-prompt-v1.md` (2025-03-05 21:30 UTC)
+- [x] Updated `convex/aiSettings.ts` DEFAULT_REVIEW_PROMPT to v2 (2025-03-05 21:30 UTC)
+- [x] Updated `convex/aiReview.ts` REVIEW_CRITERIA and default prompt template to v2 (2025-03-05 21:30 UTC)
+- [x] Fixed false negative: only exported query/mutation/action need returns validators, not helper functions (2025-03-05 21:30 UTC)
+- [x] Fixed false positive: public API functions should NOT use internal* (2025-03-05 21:30 UTC)
+- [x] Added ctx.auth unavailability note and auth callback pattern guidance (2025-03-05 21:30 UTC)
+- [x] Updated `files.md`, `changelog.md`, and `task.md` (2025-03-05 21:45 UTC)
+
 ### Admin search enhancement (PRD: prds/admin-search-enhancement.md)
 
 - [x] Add `search_componentName` index to schema (2026-03-05 22:12 UTC)

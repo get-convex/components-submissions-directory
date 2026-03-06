@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated AI review prompt to v2 with improved accuracy (2025-03-05 21:30 UTC)
+  - Fixed false negative: now only checks exported query/mutation/action for `returns` validators, not helper functions
+  - Fixed false positive: functions intentionally in public API no longer flagged for not using `internal*`
+  - Added documentation that components cannot use `ctx.auth`
+  - Added auth callback pattern guidance for re-exported functions
+  - Renamed criteria for clarity: "Exported functions have returns: validator", "Internal-only functions use internal*", "Uses auth pattern (when applicable)"
+  - Archived original prompt to `prds/ai-review-prompt-v1.md`
+
 ### Added
 
 - Admin search now supports component name and repository URL searches (2026-03-05 22:12 UTC)
