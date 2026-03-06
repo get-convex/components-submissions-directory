@@ -55,6 +55,7 @@ Netlify deployment configuration. Sets build command (`npm run build`), publish 
   - `/components/badge/*` -> `https://giant-grouse-674.convex.site/api/badge?slug=:splat`
 - `/components` and `/components/*` fall back to `/index.html` for SPA routing (200)
 - Edge Function mapping:
+  - `/components/badge/*` -> `netlify/edge-functions/component-badge.ts` (proxies badge SVG by slug to Convex HTTP badge endpoint)
   - `/components/*` -> `netlify/edge-functions/og-meta.ts` (injects component-specific OG meta tags into SPA HTML for all requests)
   - `/components/*/*.md` -> `netlify/edge-functions/component-markdown.ts` (keeps Netlify URL, proxies markdown by slug)
 
@@ -503,6 +504,10 @@ TypeScript declarations for Vite environment variables.
 ### `netlify/edge-functions/og-meta.ts`
 
 Netlify Edge Function that injects component-specific OpenGraph and Twitter Card meta tags into the SPA HTML for all requests to `/components/{slug}`. Fetches component data from the Convex public `getComponentBySlug` query via HTTP API in parallel with the SPA response, then replaces default meta tags (`og:title`, `og:description`, `og:image`, `twitter:card`, `<title>`, etc.) in the HTML before serving. Works for all clients including headless browsers, social crawlers, and regular browsers. Falls back to default SPA behavior if the component is not found or if the path is a reserved route or static asset. CDN cached for 5 minutes. Required because the SPA sets meta tags via client-side JavaScript which crawlers do not execute. Reserved paths that skip OG injection: `submit`, `admin`, `login`, `callback`, `profile`, `submissions`, `documentation`, `badge`, and `badge/*` (badge paths use Netlify redirect to Convex badge endpoint instead).
+
+### `netlify/edge-functions/component-badge.ts`
+
+Netlify Edge Function that handles `/components/badge/*` and proxies requests directly to the Convex badge endpoint (`/api/badge?slug=<slug>`). Returns SVG responses on the Netlify domain and avoids route ordering issues where SPA fallback or OG meta injection could return HTML instead of badge images.
 
 ### `netlify/edge-functions/component-markdown.ts`
 

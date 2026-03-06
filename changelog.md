@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Badge route fallback to SPA HTML on Netlify for `/components/badge/*` (2026-03-06 09:05 UTC)
+  - Added dedicated Netlify Edge Function `component-badge` for `/components/badge/*`
+  - Badge edge function now proxies directly to `https://giant-grouse-674.convex.site/api/badge?slug=<slug>`
+  - This avoids redirect and edge ordering conflicts with `/components/*` OG metadata injection
+  - Verified `npm run build` passes for Netlify production build
+
 - Component Detail MCP installs now use the verified direct Convex endpoint as a temporary fallback (2026-03-06 08:17 UTC)
   - Updated Cursor deeplink config generation to use `https://giant-grouse-674.convex.site/api/mcp/protocol`
   - Updated Claude Desktop config generation to use the same direct endpoint

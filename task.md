@@ -8,6 +8,8 @@
   - Fixed edge function conflict blocking badge endpoint
   - Updated og-meta.ts to skip both "badge" and "badge/*" paths so badge redirects work
   - Updated badge endpoint docs in src/docs/badges.md and src/docs/api-endpoints.md to use /components/badge/<slug>
+  - Added dedicated Netlify edge function `component-badge.ts` for `/components/badge/*` to bypass SPA fallback and proxy badge SVG directly
+  - Verified production build passes with `npm run build` (2026-03-06 UTC)
 - [x] Temporarily disable MCP UI and backend routes (2026-03-06 UTC)
   - Commented out MCP Install section in AgentInstallSection.tsx
   - Commented out MCP ready badge in AgentInstallSection.tsx

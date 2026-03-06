@@ -74,6 +74,11 @@
 
 # ============ Edge Functions ============
 
+# Badge proxy edge function (avoids SPA fallback/OG interception order issues)
+[[edge_functions]]
+  path = "/components/badge/*"
+  function = "component-badge"
+
 # OG meta tags for social crawlers (must be before SPA fallback)
 [[edge_functions]]
   path = "/components/*"
