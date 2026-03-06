@@ -10,7 +10,9 @@ MCP is a JSON-RPC 2.0 based protocol that lets AI coding assistants (Cursor, Cla
 
 The MCP entry point supports the Streamable HTTP transport. It accepts both GET (server discovery) and POST (JSON-RPC 2.0) requests.
 
-**Endpoint:** `/api/mcp/protocol`
+**Temporary working endpoint:** `https://giant-grouse-674.convex.site/api/mcp/protocol`
+
+The public `www.convex.dev/components/api/mcp/protocol` route is still returning SPA HTML in production, so the install flows currently use the direct Convex endpoint as a temporary fallback.
 
 - **GET** returns server info, capabilities, and available tool names (for browser discovery and MCP client initialization)
 - **POST** accepts JSON-RPC 2.0 requests for tool invocation
@@ -90,7 +92,7 @@ The directory uses the Streamable HTTP transport. No npm packages or local proce
 {
   "mcpServers": {
     "convex-components-directory": {
-      "url": "https://www.convex.dev/components/api/mcp/protocol"
+      "url": "https://giant-grouse-674.convex.site/api/mcp/protocol"
     }
   }
 }
@@ -101,13 +103,13 @@ The directory uses the Streamable HTTP transport. No npm packages or local proce
 {
   "mcpServers": {
     "convex-components-directory": {
-      "url": "https://www.convex.dev/components/api/mcp/protocol"
+      "url": "https://giant-grouse-674.convex.site/api/mcp/protocol"
     }
   }
 }
 ```
 
-**ChatGPT**: Use the connector URL `https://www.convex.dev/components/api/mcp/protocol` in Settings > Apps and Connectors > Create.
+**ChatGPT**: Use the connector URL `https://giant-grouse-674.convex.site/api/mcp/protocol` in Settings > Apps and Connectors > Create.
 
 ## Component profiles
 

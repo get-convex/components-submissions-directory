@@ -134,7 +134,7 @@ export function generateMcpServerConfig(
   const config = {
     mcpServers: {
       "convex-component": {
-        url: `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol`,
+        url: MCP_PROTOCOL_URL,
       },
     },
   };
@@ -166,10 +166,11 @@ export function hasAiInstallSupport(component: ComponentData): boolean {
 }
 
 /**
- * Public MCP base URL for the live Components app.
- * MCP installs should use the same public host/path users see in production.
+ * Temporary direct MCP endpoint fallback.
+ * Public host routing still serves SPA HTML for MCP paths, so installs must
+ * point directly at the verified working Convex HTTP action endpoint.
  */
-const MCP_PUBLIC_COMPONENTS_BASE_URL = "https://www.convex.dev/components";
+const MCP_PROTOCOL_URL = "https://giant-grouse-674.convex.site/api/mcp/protocol";
 const MCP_SERVER_NAME = "convex-components-directory";
 
 /**
@@ -190,7 +191,7 @@ export function generateGlobalCursorInstallLink(): {
   config: object;
 } {
   const config = {
-    url: `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol`,
+    url: MCP_PROTOCOL_URL,
   };
 
   const configBase64 = base64UrlEncode(JSON.stringify(config));
@@ -217,7 +218,7 @@ export function generateComponentCursorInstallLink(component: ComponentData): {
 
   const serverName = `convex-component-${component.slug.replace(/\//g, "-")}`;
   const config = {
-    url: `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol`,
+    url: MCP_PROTOCOL_URL,
   };
 
   const configBase64 = base64UrlEncode(JSON.stringify(config));
@@ -234,7 +235,7 @@ export function generateComponentCursorInstallLink(component: ComponentData): {
  * Get the MCP protocol endpoint URL.
  */
 export function getMcpProtocolEndpoint(): string {
-  return `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol`;
+  return MCP_PROTOCOL_URL;
 }
 
 /**
@@ -242,9 +243,9 @@ export function getMcpProtocolEndpoint(): string {
  */
 export function getCursorInstallApiUrl(slug?: string): string {
   if (slug) {
-    return `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/cursor-install-component?slug=${encodeURIComponent(slug)}`;
+    return `${MCP_PROTOCOL_URL}?slug=${encodeURIComponent(slug)}`;
   }
-  return `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/cursor-install`;
+  return MCP_PROTOCOL_URL;
 }
 
 /**
@@ -271,7 +272,7 @@ export function generateClaudeDesktopConfig(component?: ComponentData): {
     : MCP_SERVER_NAME;
 
   const serverConfig: Record<string, unknown> = {
-    url: `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol`,
+    url: MCP_PROTOCOL_URL,
   };
 
   const config = {
@@ -299,8 +300,8 @@ export function generateChatGPTConnectorConfig(component?: ComponentData): {
   requirements: string[];
 } {
   const url = component?.slug
-    ? `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol?slug=${encodeURIComponent(component.slug)}`
-    : `${MCP_PUBLIC_COMPONENTS_BASE_URL}/api/mcp/protocol`;
+    ? `${MCP_PROTOCOL_URL}?slug=${encodeURIComponent(component.slug)}`
+    : MCP_PROTOCOL_URL;
 
   return {
     url,

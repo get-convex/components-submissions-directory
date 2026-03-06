@@ -7,7 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Temporarily disabled MCP UI and backend routes while public host routing is being debugged (2026-03-06 UTC)
+  - Commented out MCP Install section with platform tabs (Cursor, Claude, ChatGPT) in AgentInstallSection.tsx
+  - Commented out MCP ready badge in AgentInstallSection.tsx header
+  - Commented out all `/api/mcp/*` routes in convex/http.ts (search, component, install-command, docs, info, protocol, cursor-install)
+  - Copy prompt, Agent friendly summary, llms.txt, and markdown features remain fully functional
+  - MCP code preserved in comments for easy re-enablement when routing is fixed
+
 ### Fixed
+
+- Component Detail MCP installs now use the verified direct Convex endpoint as a temporary fallback (2026-03-06 08:17 UTC)
+  - Updated Cursor deeplink config generation to use `https://giant-grouse-674.convex.site/api/mcp/protocol`
+  - Updated Claude Desktop config generation to use the same direct endpoint
+  - Updated ChatGPT connector URL generation to use the same direct endpoint
+  - Updated backend MCP discovery metadata and Cursor install endpoints to stop advertising broken `www.convex.dev` MCP protocol URLs
+  - Updated MCP docs and project tracking docs to mark this as a temporary unblock until public host routing is fixed
+
+- Badge endpoint not working on deployed Netlify site (2026-03-06 09:15 UTC)
+  - Root cause: Netlify Edge Function `og-meta.ts` was intercepting `/components/badge/*` requests before the redirect rule could apply
+  - Fix: Added `"badge"` to the reserved paths list in `extractSlug()` so badge requests pass through to the Netlify redirect
+  - Badge requests now correctly proxy to `https://giant-grouse-674.convex.site/api/badge?slug=:splat`
 
 - MCP endpoint host mismatch diagnosis and fallback guidance (2026-03-06 08:00 UTC)
   - Verified live behavior: `https://www.convex.dev/components/api/mcp/protocol` currently returns SPA HTML instead of MCP JSON

@@ -126,11 +126,13 @@ export function AgentInstallSection({ component }: AgentInstallSectionProps) {
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-text-primary">Use with agents and CLI</span>
+          {/* MCP ready badge - temporarily disabled
           {MCP_BADGES_ENABLED && mcpReady && (
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
               MCP ready
             </span>
           )}
+          */}
         </div>
       </div>
 
@@ -164,7 +166,7 @@ export function AgentInstallSection({ component }: AgentInstallSectionProps) {
           </pre>
         </div>
 
-        {/* Multi-Platform MCP Install Section */}
+        {/* Multi-Platform MCP Install Section - temporarily disabled
         {MCP_ENABLED && mcpReady && (
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -200,7 +202,6 @@ export function AgentInstallSection({ component }: AgentInstallSectionProps) {
               </div>
             </div>
 
-            {/* Platform Toggle Tabs */}
             <div className="flex gap-1 mb-3 p-1 bg-bg-secondary rounded-lg border border-border">
               <button
                 onClick={() => setSelectedPlatform("cursor")}
@@ -231,7 +232,6 @@ export function AgentInstallSection({ component }: AgentInstallSectionProps) {
               </button>
             </div>
 
-            {/* Platform-Specific Content */}
             <div className="rounded-lg bg-bg-secondary border border-border p-3">
               {selectedPlatform === "cursor" && (
                 <>
@@ -279,6 +279,7 @@ export function AgentInstallSection({ component }: AgentInstallSectionProps) {
             </div>
           </div>
         )}
+        */}
 
         {/* Agent friendly summary */}
         <div className="rounded-lg bg-bg-secondary border border-border p-3">

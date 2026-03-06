@@ -3,7 +3,15 @@
 ## to do
 
 - [x] fix mcp (2026-03-06 06:45 UTC)
-- [ ] badge shield on each compopnet page
+- [x] badge shield on each component page (2026-03-06 09:15 UTC)
+  - Added badge preview with image to ComponentDetail.tsx
+  - Fixed edge function conflict blocking badge endpoint
+  - Added "badge" to reserved paths in og-meta.ts so redirects work
+- [x] Temporarily disable MCP UI and backend routes (2026-03-06 UTC)
+  - Commented out MCP Install section in AgentInstallSection.tsx
+  - Commented out MCP ready badge in AgentInstallSection.tsx
+  - Commented out all MCP routes in convex/http.ts
+  - Kept Copy prompt, Agent friendly summary, llms.txt, and markdown features working
 - [ ] npm security scanner
 - [ ] check api ai model
 - [ ] add posthog
@@ -40,6 +48,14 @@
 - [x] Verified `https://components-directory.netlify.app/components/api/mcp/protocol` returns SPA HTML and `/api/mcp/protocol` returns Netlify 404 (2026-03-06 08:00 UTC)
 - [x] Verified direct Convex MCP endpoint `https://giant-grouse-674.convex.site/api/mcp/protocol` works for both GET discovery and POST initialize (2026-03-06 08:00 UTC)
 - [x] Updated `files.md`, `changelog.md`, and `task.md` with session findings and immediate fallback guidance (2026-03-06 08:00 UTC)
+
+### MCP direct Convex endpoint fallback (PRD: prds/mcp-direct-convex-endpoint-fallback.md)
+
+- [x] Created PRD for temporary direct MCP fallback rollout (2026-03-06 08:17 UTC)
+- [x] Updated `src/lib/mcpProfile.ts` so Cursor, Claude Desktop, and ChatGPT configs use `https://giant-grouse-674.convex.site/api/mcp/protocol` (2026-03-06 08:17 UTC)
+- [x] Updated `convex/http.ts` MCP discovery metadata and backend Cursor install payloads to use the same direct MCP origin (2026-03-06 08:17 UTC)
+- [x] Updated `src/docs/mcp.md`, `files.md`, `changelog.md`, and `task.md` to document the temporary fallback (2026-03-06 08:17 UTC)
+- [ ] Verify deployed install flow in Cursor, Claude Desktop, and ChatGPT against the direct endpoint
 
 ### SKILL.md generation improvements (Anthropic guidelines)
 

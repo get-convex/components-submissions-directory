@@ -5,6 +5,7 @@ import { buildComponentUrls } from "../shared/componentUrls";
 
 const http = httpRouter();
 const DIRECTORY_ORIGIN = "https://www.convex.dev";
+const MCP_DIRECT_ORIGIN = "https://giant-grouse-674.convex.site";
 
 http.route({
   path: "/api/export-csv",
@@ -91,9 +92,9 @@ http.route({
     // MCP Capability Section
     lines.push("## MCP Server");
     lines.push("# This directory provides an MCP protocol endpoint for AI agent integration.");
-    lines.push(`- Protocol Endpoint: ${DIRECTORY_ORIGIN}/api/mcp/protocol`);
-    lines.push(`- REST API: ${DIRECTORY_ORIGIN}/api/mcp/info`);
-    lines.push(`- Cursor Install: ${DIRECTORY_ORIGIN}/api/mcp/cursor-install`);
+    lines.push(`- Protocol Endpoint: ${MCP_DIRECT_ORIGIN}/api/mcp/protocol`);
+    lines.push(`- REST API: ${MCP_DIRECT_ORIGIN}/api/mcp/info`);
+    lines.push(`- Cursor Install: ${MCP_DIRECT_ORIGIN}/api/mcp/cursor-install`);
     lines.push("- Available Tools: search_components, get_component, get_install_command, get_docs, list_categories");
     lines.push("");
 
@@ -294,9 +295,9 @@ http.route({
     lines.push("## MCP Server Integration\n");
     lines.push("This directory provides an MCP (Model Context Protocol) server for AI agent integration.\n");
     lines.push("**Endpoints:**\n");
-    lines.push(`- Protocol: \`${DIRECTORY_ORIGIN}/api/mcp/protocol\``);
-    lines.push(`- REST API: \`${DIRECTORY_ORIGIN}/api/mcp/info\``);
-    lines.push(`- Cursor Install: \`${DIRECTORY_ORIGIN}/api/mcp/cursor-install\`\n`);
+    lines.push(`- Protocol: \`${MCP_DIRECT_ORIGIN}/api/mcp/protocol\``);
+    lines.push(`- REST API: \`${MCP_DIRECT_ORIGIN}/api/mcp/info\``);
+    lines.push(`- Cursor Install: \`${MCP_DIRECT_ORIGIN}/api/mcp/cursor-install\`\n`);
     lines.push("**Available Tools:**\n");
     lines.push("- `search_components` - Search components by name, description, or category");
     lines.push("- `get_component` - Get full component profile with install command and docs");
@@ -638,6 +639,8 @@ function detectPackageManager(command: string): "npm" | "yarn" | "pnpm" | "bun" 
   return "npm";
 }
 
+// MCP routes temporarily disabled - see prds/mcp-ui-rollback.md
+/*
 // MCP: Search components
 http.route({
   path: "/api/mcp/search",
@@ -1511,12 +1514,12 @@ http.route({
           "list_categories",
         ],
         endpoints: {
-          protocol: `${DIRECTORY_ORIGIN}/api/mcp/protocol`,
-          search: `${DIRECTORY_ORIGIN}/api/mcp/search`,
-          component: `${DIRECTORY_ORIGIN}/api/mcp/component`,
-          installCommand: `${DIRECTORY_ORIGIN}/api/mcp/install-command`,
-          docs: `${DIRECTORY_ORIGIN}/api/mcp/docs`,
-          info: `${DIRECTORY_ORIGIN}/api/mcp/info`,
+          protocol: `${MCP_DIRECT_ORIGIN}/api/mcp/protocol`,
+          search: `${MCP_DIRECT_ORIGIN}/api/mcp/search`,
+          component: `${MCP_DIRECT_ORIGIN}/api/mcp/component`,
+          installCommand: `${MCP_DIRECT_ORIGIN}/api/mcp/install-command`,
+          docs: `${MCP_DIRECT_ORIGIN}/api/mcp/docs`,
+          info: `${MCP_DIRECT_ORIGIN}/api/mcp/info`,
         },
       }, null, 2),
       { status: 200, headers: mcpJsonHeaders() }
@@ -1550,7 +1553,7 @@ http.route({
     const startTime = Date.now();
 
     const config = {
-      url: `${DIRECTORY_ORIGIN}/api/mcp/protocol`,
+      url: `${MCP_DIRECT_ORIGIN}/api/mcp/protocol`,
     };
 
     const installLink = generateCursorInstallLink(MCP_SERVER_NAME, config);
@@ -1617,7 +1620,7 @@ http.route({
 
     const componentServerName = `convex-component-${slug.replace(/\//g, "-")}`;
     const config = {
-      url: `${DIRECTORY_ORIGIN}/api/mcp/protocol`,
+      url: `${MCP_DIRECT_ORIGIN}/api/mcp/protocol`,
     };
 
     const installLink = generateCursorInstallLink(componentServerName, config);
@@ -1661,5 +1664,7 @@ http.route({
     return new Response(null, { status: 204, headers: mcpJsonHeaders() });
   }),
 });
+*/
+// End of temporarily disabled MCP routes
 
 export default http;

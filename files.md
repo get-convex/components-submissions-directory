@@ -206,21 +206,12 @@ Main HTTP router with all API endpoints. Defines:
 - `/api/markdown-index` endpoint serving markdown listing of all approved components (includes MCP capability section)
 - `/api/llms.txt` endpoint serving a plain-text index of all approved components (includes MCP capability section)
 - `/api/component-llms?slug=<slug>` endpoint serving llms.txt format for a single component
-- Read-only REST MCP API endpoints (JSON responses):
-  - `/api/mcp/search`: Search components with pagination (query, category, limit, offset)
-  - `/api/mcp/component`: Get full MCP component profile by slug
-  - `/api/mcp/install-command`: Get install command by slug
-  - `/api/mcp/docs`: Get documentation URLs by slug
-  - `/api/mcp/info`: Server info and tool definitions
-- MCP Protocol endpoint (Streamable HTTP transport, JSON-RPC 2.0):
-  - `GET /api/mcp/protocol`: Server discovery (returns server info, capabilities, tool names)
-  - `POST /api/mcp/protocol`: JSON-RPC 2.0 handler implementing `initialize`, `tools/list`, and `tools/call` methods
-  - Protocol version: `2025-03-26` (MCP Streamable HTTP spec)
-  - Tools: `search_components`, `get_component`, `get_install_command`, `get_docs`, `list_categories`
-- Cursor MCP install link endpoints (url-based config, no npm dependency):
-  - `/api/mcp/cursor-install`: Generate Cursor deeplink for global directory server
-  - `/api/mcp/cursor-install-component?slug=<slug>`: Generate Cursor deeplink for per-component context
-- All MCP endpoints log to `mcpApiLogs` table with endpoint, tool, slug, query, status, and timing
+
+MCP endpoints temporarily disabled (commented out) while public host routing is being debugged:
+- `/api/mcp/search`, `/api/mcp/component`, `/api/mcp/install-command`, `/api/mcp/docs`, `/api/mcp/info`
+- `/api/mcp/protocol` (JSON-RPC 2.0 handler)
+- `/api/mcp/cursor-install`, `/api/mcp/cursor-install-component`
+- Code preserved for easy re-enablement when routing is fixed
 
 ### `convex/convex.config.ts`
 
@@ -438,7 +429,7 @@ Admin editor for directory-specific fields: slug, category, tags, descriptions, 
 
 ### `src/components/AgentInstallSection.tsx`
 
-"Use with agents and CLI" section for ComponentDetail page. Always visible (no toggle) for SEO/AEO/GEO. Shows single copy prompt optimized for AI agents (Claude style), MCP ready badge in header, and agent-friendly summary with install command, setup steps, and verification checklist. Includes multi-platform MCP install section with toggle tabs for Cursor (deeplink install), Claude Desktop (manual JSON config), and ChatGPT (custom connector URL). Platform-aware copy button adapts to selected tab. Respects feature flags (VITE_AGENT_INSTALL_ENABLED, VITE_MCP_BADGES_ENABLED, VITE_MCP_ENABLED) for controlled rollout.
+"Use with agents and CLI" section for ComponentDetail page. Always visible (no toggle) for SEO/AEO/GEO. Shows single copy prompt optimized for AI agents (Claude style) and agent-friendly summary with install command, setup steps, and verification checklist. Multi-platform MCP install section (Cursor, Claude Desktop, ChatGPT tabs) and MCP ready badge are temporarily commented out while public host MCP routing is being debugged. Code preserved for easy re-enablement. Respects feature flags (VITE_AGENT_INSTALL_ENABLED, VITE_MCP_BADGES_ENABLED, VITE_MCP_ENABLED) for controlled rollout.
 
 ### `src/lib/categories.ts`
 
@@ -470,7 +461,7 @@ Utility functions including `cn` for Tailwind class merging.
 
 ### `src/lib/mcpProfile.ts`
 
-MCP profile builder utilities. Builds MCP-compatible component profiles from package data for agent consumption. Uses `MCP_PUBLIC_COMPONENTS_BASE_URL` constant so MCP install configs point to the public route (`https://www.convex.dev/components/api/mcp/protocol`). All platform configs use direct URL-based Streamable HTTP transport (no npm package dependency). Includes:
+MCP profile builder utilities. Builds MCP-compatible component profiles from package data for agent consumption. Uses `MCP_PROTOCOL_URL` so MCP install configs point to the verified working direct endpoint (`https://giant-grouse-674.convex.site/api/mcp/protocol`). All platform configs use direct URL-based Streamable HTTP transport (no npm package dependency). Includes:
 - `buildMcpProfile`: Builds full MCP component profile for agent consumption
 - `buildMcpSearchResult`: Builds lightweight search result items
 - `isMcpReady`/`hasAiInstallSupport`: Badge readiness checks
@@ -479,7 +470,7 @@ MCP profile builder utilities. Builds MCP-compatible component profiles from pac
 - `generateClaudeDesktopConfig`: Generates Claude Desktop JSON config with url-based mcpServers wrapper
 - `generateChatGPTConnectorConfig`: Generates ChatGPT custom connector URL with Developer mode setup steps
 - `CLAUDE_DESKTOP_CONFIG_PATHS`: macOS and Windows config file paths
-- `getMcpProtocolEndpoint`/`getCursorInstallApiUrl`: URL helpers for MCP endpoints (use public `/components/api` path)
+- `getMcpProtocolEndpoint`/`getCursorInstallApiUrl`: URL helpers for MCP endpoints using the temporary direct Convex fallback
 
 Session note (2026-03-06): Until public host MCP routing is fully active, direct endpoint `https://giant-grouse-674.convex.site/api/mcp/protocol` is the verified working fallback for MCP clients.
 
@@ -511,7 +502,7 @@ TypeScript declarations for Vite environment variables.
 
 ### `netlify/edge-functions/og-meta.ts`
 
-Netlify Edge Function that injects component-specific OpenGraph and Twitter Card meta tags into the SPA HTML for all requests to `/components/{slug}`. Fetches component data from the Convex public `getComponentBySlug` query via HTTP API in parallel with the SPA response, then replaces default meta tags (`og:title`, `og:description`, `og:image`, `twitter:card`, `<title>`, etc.) in the HTML before serving. Works for all clients including headless browsers, social crawlers, and regular browsers. Falls back to default SPA behavior if the component is not found or if the path is a reserved route or static asset. CDN cached for 5 minutes. Required because the SPA sets meta tags via client-side JavaScript which crawlers do not execute.
+Netlify Edge Function that injects component-specific OpenGraph and Twitter Card meta tags into the SPA HTML for all requests to `/components/{slug}`. Fetches component data from the Convex public `getComponentBySlug` query via HTTP API in parallel with the SPA response, then replaces default meta tags (`og:title`, `og:description`, `og:image`, `twitter:card`, `<title>`, etc.) in the HTML before serving. Works for all clients including headless browsers, social crawlers, and regular browsers. Falls back to default SPA behavior if the component is not found or if the path is a reserved route or static asset. CDN cached for 5 minutes. Required because the SPA sets meta tags via client-side JavaScript which crawlers do not execute. Reserved paths that skip OG injection: `submit`, `admin`, `login`, `callback`, `profile`, `submissions`, `documentation`, `badge` (badge paths use Netlify redirect to Convex badge endpoint instead).
 
 ### `netlify/edge-functions/component-markdown.ts`
 
