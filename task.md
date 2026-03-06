@@ -6,7 +6,8 @@
 - [ ] fix logout on submit page
 - [ ] add admin
 - [x] fix image meta (2026-03-06 UTC)
-  - Added `/api/og-image` endpoint to redirect to component thumbnail by slug
+  - Added `/api/og-image` endpoint that proxies component thumbnail image content by slug
+  - Endpoint returns image bytes directly (not redirect) for social crawler compatibility
   - Added Netlify redirect `/components/og/*` to Convex OG image endpoint
   - Updated og-meta.ts edge function to use proxied `https://www.convex.dev/components/og/<slug>` URL
   - Updated ComponentDetail.tsx client-side SEO to use the same proxied OG image pattern

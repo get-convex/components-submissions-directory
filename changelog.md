@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - OG image proxy for clean social sharing URLs (2026-03-06 UTC)
-  - Added `/api/og-image` endpoint to `convex/http.ts` that redirects to component `thumbnailUrl` by slug
+  - Added `/api/og-image` endpoint to `convex/http.ts` that proxies component thumbnail image content by slug
+  - Endpoint fetches and returns image bytes directly (not redirect) for social crawler compatibility
   - Added Netlify redirect `/components/og/*` to proxy OG image requests to Convex endpoint
   - Updated `netlify/edge-functions/og-meta.ts` to use proxied URL `https://www.convex.dev/components/og/<slug>` instead of raw Convex storage URL
   - Updated `src/pages/ComponentDetail.tsx` client-side SEO to use the same proxied OG image pattern

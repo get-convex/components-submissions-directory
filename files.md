@@ -204,7 +204,7 @@ HTTP router configuration. Defines:
 Main HTTP router with all API endpoints. Defines:
 - `/api/export-csv` endpoint for CSV export of all packages
 - `/api/badge` endpoint for dynamic SVG badge generation with shields.io styling (`#555555` left box, status colors aligned to frontend pills) and analytics tracking
-- `/api/og-image?slug=<slug>` endpoint that redirects (302) to component `thumbnailUrl` for clean OG image URLs; proxied at `https://www.convex.dev/components/og/<slug>`
+- `/api/og-image?slug=<slug>` endpoint that proxies component thumbnail image content for clean OG image URLs; returns image bytes directly (not redirect) for social crawler compatibility; proxied at `https://www.convex.dev/components/og/<slug>`
 - `/api/markdown?slug=<slug>` endpoint serving raw markdown for a single component
 - `/api/markdown-index` endpoint serving markdown listing of all approved components
 - `/api/llms.txt` endpoint serving a plain-text index of all approved components

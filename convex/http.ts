@@ -551,8 +551,9 @@ function svgHeaders(): Record<string, string> {
 }
 
 // ============ OG IMAGE PROXY ============
-// Redirects to component thumbnail URL for clean OG image URLs
+// Proxies component thumbnail image for clean OG image URLs
 // Public URL: https://www.convex.dev/components/og/<slug>
+// Note: Must proxy content directly (not redirect) for social crawlers
 http.route({
   path: "/api/og-image",
   method: "GET",
@@ -578,13 +579,32 @@ http.route({
       });
     }
 
-    return new Response(null, {
-      status: 302,
-      headers: {
-        Location: pkg.thumbnailUrl,
-        "Cache-Control": "public, max-age=3600, s-maxage=3600",
-      },
-    });
+    try {
+      const imageRes = await fetch(pkg.thumbnailUrl);
+      if (!imageRes.ok) {
+        return new Response("Image not found", {
+          status: 404,
+          headers: { "Content-Type": "text/plain" },
+        });
+      }
+
+      const imageBuffer = await imageRes.arrayBuffer();
+      const contentType = imageRes.headers.get("Content-Type") || "image/png";
+
+      return new Response(imageBuffer, {
+        status: 200,
+        headers: {
+          "Content-Type": contentType,
+          "Cache-Control": "public, max-age=3600, s-maxage=3600",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    } catch {
+      return new Response("Failed to fetch image", {
+        status: 500,
+        headers: { "Content-Type": "text/plain" },
+      });
+    }
   }),
 });
 
