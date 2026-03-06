@@ -2,7 +2,11 @@
 
 ## to do
 
-- meta data
+### OpenGraph meta tags for social crawlers
+
+- [x] Created `netlify/edge-functions/og-meta.ts` to serve dynamic OG tags to bots (2026-03-05 23:45 UTC)
+- [x] Updated `netlify.toml` with edge function registration on `/components/*` (2026-03-05 23:45 UTC)
+- [x] Updated `files.md`, `changelog.md`, `task.md` (2026-03-05 23:50 UTC)
 
 ### AI review prompt v2 update (PRD: prds/ai-review-prompt-v1.md)
 
@@ -10,7 +14,7 @@
 - [x] Updated `convex/aiSettings.ts` DEFAULT_REVIEW_PROMPT to v2 (2025-03-05 21:30 UTC)
 - [x] Updated `convex/aiReview.ts` REVIEW_CRITERIA and default prompt template to v2 (2025-03-05 21:30 UTC)
 - [x] Fixed false negative: only exported query/mutation/action need returns validators, not helper functions (2025-03-05 21:30 UTC)
-- [x] Fixed false positive: public API functions should NOT use internal* (2025-03-05 21:30 UTC)
+- [x] Fixed false positive: public API functions should NOT use internal\* (2025-03-05 21:30 UTC)
 - [x] Added ctx.auth unavailability note and auth callback pattern guidance (2025-03-05 21:30 UTC)
 - [x] Updated `files.md`, `changelog.md`, and `task.md` (2025-03-05 21:45 UTC)
 
@@ -27,12 +31,12 @@
 - badge shield
 - add https://plausible.io/sites
 - check all routes for mcp and md and llms.text
-- https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
-- check all routes for mcp and md and llms.text
-- fix logout on submit page
-- test submitting
-  badges
-- update routes for mcp
+- [ ] https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
+- [ ]check all routes for mcp and md and llms.text
+- [ ]fix logout on submit page
+- [ ]test submitting
+- [ ] fix badges
+- [x] update routes for mcp
 - [x] Fix long description markdown line breaks and purple hover-link styling on component detail page (PRD: `prds/markdown-long-description-rendering-and-preview.md`) (2026-03-05 23:08 UTC)
 - [x] Add safe markdown long description support notes and mini preview in submit form (PRD: `prds/markdown-long-description-rendering-and-preview.md`) (2026-03-05 23:08 UTC)
 - [x] Verify markdown rendering behavior and update docs (`task.md`, `changelog.md`, `files.md`) (2026-03-05 23:08 UTC)
@@ -221,6 +225,7 @@ Acceptance checks:
 ## Recent updates
 
 - [x] Unified font sizes between AI generated SEO content and long description markdown in ComponentDetail.tsx (2026-03-05 UTC)
+
   - Replaced `prose prose-sm` with explicit `text-sm text-text-secondary` selectors
   - Long description now matches SEO content styling
   - Changed "Made by" to "by" in author row

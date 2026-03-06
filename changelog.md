@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Dynamic OpenGraph meta tags for social crawlers via Netlify Edge Function (2026-03-05 23:45 UTC)
+  - New `netlify/edge-functions/og-meta.ts` serves correct `og:title`, `og:description`, `og:image`, and Twitter Card tags to bots
+  - Detects crawlers by user agent (Facebook, Twitter, LinkedIn, Slack, Discord, Google, OpenGraph checkers, etc.)
+  - Fetches component data from Convex `getComponentBySlug` public query via HTTP API
+  - Non-bot requests pass through to the SPA unchanged
+  - Fixes issue where social link previews showed generic site metadata instead of component-specific data
+  - Registered in `netlify.toml` as edge function on `/components/*` path (runs before SPA fallback)
+
 ### Changed
 
 - Updated AI review prompt to v2 with improved accuracy (2025-03-05 21:30 UTC)

@@ -52,6 +52,11 @@
 
 # ============ Edge Functions ============
 
+# OG meta tags for social crawlers (must be before SPA fallback)
+[[edge_functions]]
+  path = "/components/*"
+  function = "og-meta"
+
 [[edge_functions]]
   path = "/components/*/*.md"
   function = "component-markdown"
