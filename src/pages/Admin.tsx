@@ -5141,35 +5141,81 @@ function ThumbnailTemplatePanel() {
   >([]);
   const [isGeneratingSelected, setIsGeneratingSelected] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [editingTemplateId, setEditingTemplateId] = useState<Id<"thumbnailTemplates"> | null>(null);
+  const [editingTemplateName, setEditingTemplateName] = useState("");
 
-  // Upload a new background template
-  const handleUploadTemplate = async (file: File) => {
-    if (!newTemplateName.trim()) {
-      toast.error("Enter a template name first");
+  // Upload multiple background templates (names derived from filenames or user input)
+  const handleUploadTemplates = async (files: FileList) => {
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+
+    setIsUploading(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const file of fileArray) {
+      try {
+        // Use user-provided name for single file, or derive from filename for multiple
+        let templateName: string;
+        if (fileArray.length === 1 && newTemplateName.trim()) {
+          templateName = newTemplateName.trim();
+        } else {
+          // Extract name from filename (remove extension)
+          templateName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+        }
+
+        const uploadUrl = await generateUploadUrl();
+        const uploadResult = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+        if (!uploadResult.ok) throw new Error("Upload failed");
+        const { storageId } = await uploadResult.json();
+        await createTemplate({
+          name: templateName,
+          storageId,
+          isDefault: (!templates || templates.length === 0) && successCount === 0,
+        });
+        successCount++;
+      } catch {
+        failCount++;
+      }
+    }
+
+    setNewTemplateName("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+
+    if (successCount > 0 && failCount === 0) {
+      toast.success(`${successCount} template${successCount > 1 ? "s" : ""} added`);
+    } else if (successCount > 0) {
+      toast.success(`${successCount} uploaded, ${failCount} failed`);
+    } else {
+      toast.error("Failed to upload templates");
+    }
+    setIsUploading(false);
+  };
+
+  // Rename a template
+  const handleRenameTemplate = async (templateId: Id<"thumbnailTemplates">) => {
+    if (!editingTemplateName.trim()) {
+      toast.error("Enter a name");
       return;
     }
-    setIsUploading(true);
     try {
-      const uploadUrl = await generateUploadUrl();
-      const uploadResult = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      if (!uploadResult.ok) throw new Error("Upload failed");
-      const { storageId } = await uploadResult.json();
-      await createTemplate({
-        name: newTemplateName.trim(),
-        storageId,
-        isDefault: !templates || templates.length === 0,
-      });
-      setNewTemplateName("");
-      toast.success("Template added");
+      await updateTemplate({ templateId, name: editingTemplateName.trim() });
+      setEditingTemplateId(null);
+      setEditingTemplateName("");
+      toast.success("Template renamed");
     } catch {
-      toast.error("Failed to upload template");
-    } finally {
-      setIsUploading(false);
+      toast.error("Failed to rename template");
     }
+  };
+
+  // Start editing a template name
+  const startEditingTemplate = (template: { _id: Id<"thumbnailTemplates">; name: string }) => {
+    setEditingTemplateId(template._id);
+    setEditingTemplateName(template.name);
   };
 
   // Set a template as default
@@ -5278,11 +5324,11 @@ function ThumbnailTemplatePanel() {
             </p>
           </div>
 
-          {/* Add template */}
+          {/* Add template (supports multiple files) */}
           <div className="flex items-center gap-2">
             <input
               type="text"
-              placeholder="Template name"
+              placeholder="Template name (optional for multi-upload)"
               value={newTemplateName}
               onChange={(e) => setNewTemplateName(e.target.value)}
               className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-border bg-bg-primary text-text-primary"
@@ -5296,18 +5342,25 @@ function ThumbnailTemplatePanel() {
                 accept=".png,.jpg,.jpeg,.webp"
                 className="hidden"
                 disabled={isUploading}
+                multiple
                 onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  if (file.size > 5 * 1024 * 1024) {
-                    toast.error("Template images must be under 5MB");
-                    return;
+                  const files = e.target.files;
+                  if (!files || files.length === 0) return;
+                  // Validate all files
+                  for (const file of Array.from(files)) {
+                    if (file.size > 5 * 1024 * 1024) {
+                      toast.error(`${file.name} exceeds 5MB limit`);
+                      return;
+                    }
                   }
-                  handleUploadTemplate(file);
+                  handleUploadTemplates(files);
                 }}
               />
             </label>
           </div>
+          <p className="text-[10px] text-text-secondary">
+            Select multiple images to batch upload. Names are derived from filenames.
+          </p>
 
           {/* Template list */}
           {templates && templates.length > 0 ? (
@@ -5334,27 +5387,70 @@ function ThumbnailTemplatePanel() {
                     </div>
                   )}
 
-                  {/* Info */}
+                  {/* Info with inline rename */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-text-primary truncate">
-                        {template.name}
-                      </span>
-                      {template.isDefault && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 font-medium">
-                          DEFAULT
+                    {editingTemplateId === template._id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editingTemplateName}
+                          onChange={(e) => setEditingTemplateName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleRenameTemplate(template._id);
+                            if (e.key === "Escape") {
+                              setEditingTemplateId(null);
+                              setEditingTemplateName("");
+                            }
+                          }}
+                          className="flex-1 px-2 py-0.5 text-sm rounded border border-border bg-bg-primary text-text-primary"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => handleRenameTemplate(template._id)}
+                          className="text-xs px-2 py-0.5 rounded bg-button text-white hover:bg-button/90"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingTemplateId(null);
+                            setEditingTemplateName("");
+                          }}
+                          className="text-xs px-2 py-0.5 rounded hover:bg-bg-hover text-text-secondary"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-text-primary truncate">
+                          {template.name}
                         </span>
-                      )}
-                      {!template.active && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-500/10 text-gray-500 font-medium">
-                          DISABLED
-                        </span>
-                      )}
-                    </div>
+                        {template.isDefault && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 font-medium">
+                            DEFAULT
+                          </span>
+                        )}
+                        {!template.active && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-500/10 text-gray-500 font-medium">
+                            DISABLED
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Actions */}
                   <div className="flex items-center gap-1 flex-shrink-0">
+                    {editingTemplateId !== template._id && (
+                      <button
+                        onClick={() => startEditingTemplate(template)}
+                        className="p-1 rounded hover:bg-bg-hover transition-colors"
+                        title="Rename template"
+                      >
+                        <PencilSimple size={14} className="text-text-secondary" />
+                      </button>
+                    )}
                     {!template.isDefault && (
                       <button
                         onClick={() => handleSetDefault(template._id)}
