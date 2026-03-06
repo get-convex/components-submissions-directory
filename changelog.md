@@ -7,7 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Submission badge sync rollout for new and existing component submissions (2026-03-06 01:45 UTC)
+  - Added `isSlugTaken()` and `generateUniqueSlug()` helper functions to `convex/packages.ts` for robust slug uniqueness enforcement
+  - Updated `addPackage`, `generateSlugForPackage`, `generateMissingSlugs`, and `updateComponentDetails` mutations to use collision safe slug generation
+  - Admin slug edits now throw error if slug is already in use by another component
+  - Added `BadgeSnippet` component to `src/pages/Submit.tsx` showing README badge markdown, copy button, and live preview for submitted packages with slugs
+  - Added `BadgeSnippet` component to `src/pages/Profile.tsx` so authors can copy badge markdown for their own submissions
+  - Badge display stays in sync with review status at request time (no status caching)
+  - Admin slug backfill through existing `SlugMigrationPanel` now uses uniqueness guards to prevent collision on legacy packages
+  - Documentation updated in PRD `prds/netlify-markdown-alias-edge-function.md` under new "Submission badge sync rollout" section
+
 ### Changed
+
+- Profile page: replaced Delete Account section with "Need help?" guidance (2026-03-06 UTC)
+  - Removed `DeleteAccountModal` component and all self-service account deletion logic
+  - Replaced red danger zone with neutral section directing users to use "Send Request" on their submissions to contact the Convex team for component removal or account changes
+  - Cleaned up unused imports (`UserMinus`, `useMemo`)
 
 - Component detail sidebar now shows package license above category (2026-03-06 UTC)
   - Updated `src/pages/ComponentDetail.tsx` to render a License block in the left sidebar above Category
@@ -23,6 +40,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Commented out all `/api/mcp/*` routes in convex/http.ts (search, component, install-command, docs, info, protocol, cursor-install)
   - Copy prompt, Agent friendly summary, llms.txt, and markdown features remain fully functional
   - MCP code preserved in comments for easy re-enablement when routing is fixed
+
+- Removed MCP Server references from `/api/llms.txt` and `/api/markdown-index` endpoints (2026-03-06 UTC)
+  - These endpoints were still advertising disabled MCP protocol URLs
+  - Removed "MCP Server" section from llms.txt output
+  - Removed "MCP Server Integration" section from markdown-index output
+  - `MCP_DIRECT_ORIGIN` constant kept for when MCP is re-enabled
 
 ### Fixed
 

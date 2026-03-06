@@ -2,7 +2,17 @@
 
 ## to do
 
-- [ ]fix logout on submit page
+- [x] Replace Delete Account with "Need help?" guidance on Profile page (2026-03-06 UTC)
+  - Removed DeleteAccountModal component and all delete account state/logic
+  - Replaced red "Delete Account" section with neutral "Need help?" section
+  - Users now use existing "Send Request" button to contact Convex team for component removal or account changes
+  - Removed unused `UserMinus` and `useMemo` imports
+- [x] Removed MCP Server references from `/api/llms.txt` and `/api/markdown-index` endpoints (2026-03-06 UTC)
+  - Endpoints were still advertising disabled MCP protocol URLs
+  - Removed "MCP Server" section from llms.txt output
+  - Removed "MCP Server Integration" section from markdown-index output
+  - Kept `MCP_DIRECT_ORIGIN` constant for future MCP re-enablement
+- [ ] fix logout on submit page
 - [ ] test submitting
 - [ ] setup trenmdous
 - [ ] - Commented out MCP Install section in AgentInstallSection.tsx
@@ -23,7 +33,15 @@
 - [x]Verified production build passes with `npm run build` (2026-03-06 UTC)
 - [x] Updated fix plan and PRD with final working badge routing pattern
 - [x] Added local `badge-palette-preview.html` with badge/status color previews and added it to `.gitignore`
+- [x] Submission badge sync rollout (2026-03-06 01:45 UTC)
+  - Added `isSlugTaken()` and `generateUniqueSlug()` helpers for slug uniqueness in `convex/packages.ts`
+  - Updated `addPackage`, `generateSlugForPackage`, `generateMissingSlugs`, `updateComponentDetails` for collision safe slug handling
+  - Added `BadgeSnippet` component to `src/pages/Submit.tsx` for README badge copy and preview
+  - Added `BadgeSnippet` component to `src/pages/Profile.tsx` for owner facing badge access
+  - Badges auto sync with review status at request time (no caching)
+  - Admin backfill through existing slug migration UI now uses uniqueness guards
 - [x] Temporarily disable MCP UI and backend routes (2026-03-06 UTC)
+- [x] Removed MCP Server references from public llms.txt and markdown-index endpoints (2026-03-06 UTC)
 - [x] Show package license above category in `src/pages/ComponentDetail.tsx` (2026-03-06 UTC)
   - Added License metadata block in the sidebar above Category
   - Reads from existing `getComponentBySlug` package payload, so Admin auto refresh updates license automatically on detail pages

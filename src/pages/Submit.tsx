@@ -213,6 +213,53 @@ function ApprovedDetailQuickLink({
   );
 }
 
+// Badge snippet component for showing README badge markdown in expanded rows
+function BadgeSnippet({ slug }: { slug: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const badgeMarkdown = `[![Convex Component](https://www.convex.dev/components/badge/${slug})](https://www.convex.dev/components/${slug})`;
+  const badgeImageUrl = `https://www.convex.dev/components/badge/${slug}`;
+  const badgeTargetUrl = `https://www.convex.dev/components/${slug}`;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(badgeMarkdown);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
+
+  return (
+    <div className="mt-4 pt-4 border-t border-border/50">
+      <p className="text-xs text-text-secondary mb-2">Add badge to your README</p>
+      <div className="flex items-center gap-2 rounded-md bg-[#1a1a1a] px-3 py-2 font-mono text-xs text-gray-300">
+        <code className="flex-1 overflow-x-auto whitespace-nowrap">{badgeMarkdown}</code>
+        <Tooltip content={copied ? "Copied!" : "Copy markdown"}>
+          <button
+            onClick={handleCopy}
+            className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors">
+            {copied ? (
+              <Check size={14} className="text-green-400" />
+            ) : (
+              <Copy size={14} className="text-gray-400" />
+            )}
+          </button>
+        </Tooltip>
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <span className="text-xs text-text-secondary">Preview:</span>
+        <a href={badgeTargetUrl} target="_blank" rel="noopener noreferrer">
+          <img
+            src={badgeImageUrl}
+            alt="Convex Component badge"
+            className="inline-block h-5"
+          />
+        </a>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const basePath = useBasePath();
   const [showAboutModal, setShowAboutModal] = useState(false);
@@ -2152,6 +2199,9 @@ function PackageRow({
               </Tooltip>
             )}
           </div>
+
+          {/* Badge snippet for README - show only when slug exists */}
+          {pkg.slug && <BadgeSnippet slug={pkg.slug} />}
         </div>
       )}
     </div>

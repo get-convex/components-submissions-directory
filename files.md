@@ -204,8 +204,8 @@ Main HTTP router with all API endpoints. Defines:
 - `/api/export-csv` endpoint for CSV export of all packages
 - `/api/badge` endpoint for dynamic SVG badge generation with analytics tracking
 - `/api/markdown?slug=<slug>` endpoint serving raw markdown for a single component
-- `/api/markdown-index` endpoint serving markdown listing of all approved components (includes MCP capability section)
-- `/api/llms.txt` endpoint serving a plain-text index of all approved components (includes MCP capability section)
+- `/api/markdown-index` endpoint serving markdown listing of all approved components
+- `/api/llms.txt` endpoint serving a plain-text index of all approved components
 - `/api/component-llms?slug=<slug>` endpoint serving llms.txt format for a single component
 
 MCP endpoints temporarily disabled (commented out) while public host routing is being debugged:
@@ -323,6 +323,7 @@ Public submissions directory at `/submissions`. Table-based UI showing submitted
 - Expandable package rows with install command, license, size, files, maintainers
 - npm/Repo/Website/Demo action buttons per package
 - Status badges (pending, in review, approved, changes requested, rejected)
+- Badge snippet with README markdown, copy button, and live preview for packages with slugs
 - Submit button links to `/submit` (auth-gated form page)
 - About modal with status legend and Badges section (Convex Verified, Community)
 
@@ -338,11 +339,11 @@ User profile page for managing submitted components. Accessible at `/profile`. F
 - Message lifecycle controls on user-authored messages: hide, archive, and delete
 - "Edit" button to update submission details (name, descriptions, category, tags, URLs)
 - Links to view approved components
+- Badge snippet with README markdown, copy button, and live preview for submissions with slugs
 - Status Guide with all 6 statuses (Pending, In Review, Approved, Changes Requested, Rejected, Featured) synced with Submit.tsx and Admin.tsx
 - Visibility Guide (Visible, Hidden) with removed Archived and Pending Deletion states
 - Badges section showing Convex Verified and Community badge explanations
-- Account section with Delete Account button (requires all components deleted first)
-- Delete Account modal with warning if active submissions exist
+- "Need help?" section directing users to use "Send Request" for component removal or account changes (no self-service delete)
 - Submit New button linking to submission form
 - Note: Visibility controls (Hide/Show/Delete) removed from user profile; users must contact admin via "Send Request" to manage visibility
 

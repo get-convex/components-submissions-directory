@@ -483,6 +483,50 @@ function generateSlugFromName(npmPackageName: string): string {
   return npmPackageName;
 }
 
+// Check if slug is already in use by another package (excluding the given packageId)
+async function isSlugTaken(
+  ctx: QueryCtx | MutationCtx,
+  slug: string,
+  excludePackageId?: Id<"packages">
+): Promise<boolean> {
+  const existing = await ctx.db
+    .query("packages")
+    .withIndex("by_slug", (q) => q.eq("slug", slug))
+    .first();
+  if (!existing) return false;
+  if (excludePackageId && existing._id === excludePackageId) return false;
+  return true;
+}
+
+// Generate a unique slug, appending numeric suffix if collision occurs
+// Deterministic: always appends -2, -3, etc. until unique
+async function generateUniqueSlug(
+  ctx: QueryCtx | MutationCtx,
+  baseSlug: string,
+  excludePackageId?: Id<"packages">
+): Promise<string> {
+  if (!baseSlug) return "";
+  
+  // Check base slug first
+  if (!(await isSlugTaken(ctx, baseSlug, excludePackageId))) {
+    return baseSlug;
+  }
+  
+  // Append numeric suffix until unique
+  let suffix = 2;
+  const maxAttempts = 100;
+  while (suffix <= maxAttempts) {
+    const candidate = `${baseSlug}-${suffix}`;
+    if (!(await isSlugTaken(ctx, candidate, excludePackageId))) {
+      return candidate;
+    }
+    suffix++;
+  }
+  
+  // Fallback: append timestamp if all numeric suffixes exhausted
+  return `${baseSlug}-${Date.now()}`;
+}
+
 export const fetchNpmPackage = action({
   args: { packageName: v.string() },
   handler: async (ctx, args) => {
@@ -830,6 +874,12 @@ export const addPackage = mutation({
       return existing._id;
     }
 
+    // Ensure slug is unique before inserting
+    let finalSlug = args.slug;
+    if (finalSlug) {
+      finalSlug = await generateUniqueSlug(ctx, finalSlug);
+    }
+
     // Insert new package with submitter info, maintainer names, and directory fields
     return await ctx.db.insert("packages", {
       name: args.name,
@@ -854,7 +904,7 @@ export const addPackage = mutation({
       reviewStatus: "pending",
       visibility: "visible",
       // Directory expansion fields
-      slug: args.slug,
+      slug: finalSlug,
       componentName: args.componentName,
       category: args.category,
       shortDescription: args.shortDescription,
@@ -4332,13 +4382,26 @@ export const updateComponentDetails = mutation({
   handler: async (ctx, args) => {
     await requireAdminIdentity(ctx);
 
-    const { packageId, clearThumbnail, ...updates } = args;
+    const { packageId, clearThumbnail, slug, ...updates } = args;
 
     // Build patch object with only defined fields
     const patch: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(updates)) {
       if (value !== undefined) {
         patch[key] = value;
+      }
+    }
+
+    // Validate slug uniqueness if being updated
+    if (slug !== undefined) {
+      if (slug.trim() === "") {
+        patch.slug = undefined;
+      } else {
+        const slugTaken = await isSlugTaken(ctx, slug, packageId);
+        if (slugTaken) {
+          throw new Error(`Slug "${slug}" is already in use by another component.`);
+        }
+        patch.slug = slug;
       }
     }
 
@@ -4350,7 +4413,7 @@ export const updateComponentDetails = mutation({
 
     // Patch directly without reading first to avoid write conflicts
     if (Object.keys(patch).length > 0) {
-      await ctx.db.patch("packages", packageId, patch);
+      await ctx.db.patch(packageId, patch);
     }
 
     return null;
@@ -4967,11 +5030,13 @@ export const generateSlugForPackage = mutation({
       return pkg.slug;
     }
 
-    const slug = generateSlugFromName(pkg.name);
-    if (!slug) return null;
+    const baseSlug = generateSlugFromName(pkg.name);
+    if (!baseSlug) return null;
 
-    await ctx.db.patch(args.packageId, { slug });
-    return slug;
+    // Ensure uniqueness before saving
+    const uniqueSlug = await generateUniqueSlug(ctx, baseSlug, args.packageId);
+    await ctx.db.patch(args.packageId, { slug: uniqueSlug });
+    return uniqueSlug;
   },
 });
 
@@ -4997,9 +5062,11 @@ export const generateMissingSlugs = mutation({
         continue;
       }
 
-      const slug = generateSlugFromName(pkg.name);
-      if (slug) {
-        await ctx.db.patch(pkg._id, { slug });
+      const baseSlug = generateSlugFromName(pkg.name);
+      if (baseSlug) {
+        // Ensure uniqueness before saving
+        const uniqueSlug = await generateUniqueSlug(ctx, baseSlug, pkg._id);
+        await ctx.db.patch(pkg._id, { slug: uniqueSlug });
         generated++;
       } else {
         skipped++;

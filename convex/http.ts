@@ -89,15 +89,6 @@ http.route({
     );
     lines.push("");
 
-    // MCP Capability Section
-    lines.push("## MCP Server");
-    lines.push("# This directory provides an MCP protocol endpoint for AI agent integration.");
-    lines.push(`- Protocol Endpoint: ${MCP_DIRECT_ORIGIN}/api/mcp/protocol`);
-    lines.push(`- REST API: ${MCP_DIRECT_ORIGIN}/api/mcp/info`);
-    lines.push(`- Cursor Install: ${MCP_DIRECT_ORIGIN}/api/mcp/cursor-install`);
-    lines.push("- Available Tools: search_components, get_component, get_install_command, get_docs, list_categories");
-    lines.push("");
-
     const sorted = [...packages].sort((a: any, b: any) =>
       (a.name || "").localeCompare(b.name || ""),
     );
@@ -290,20 +281,6 @@ http.route({
     lines.push("# Convex Components Directory\n");
     lines.push("A curated index of open-source components for the Convex backend platform.\n");
     lines.push(`**${packages.length} components** | Updated ${new Date().toISOString().slice(0, 10)}\n`);
-
-    // MCP Capability Section
-    lines.push("## MCP Server Integration\n");
-    lines.push("This directory provides an MCP (Model Context Protocol) server for AI agent integration.\n");
-    lines.push("**Endpoints:**\n");
-    lines.push(`- Protocol: \`${MCP_DIRECT_ORIGIN}/api/mcp/protocol\``);
-    lines.push(`- REST API: \`${MCP_DIRECT_ORIGIN}/api/mcp/info\``);
-    lines.push(`- Cursor Install: \`${MCP_DIRECT_ORIGIN}/api/mcp/cursor-install\`\n`);
-    lines.push("**Available Tools:**\n");
-    lines.push("- `search_components` - Search components by name, description, or category");
-    lines.push("- `get_component` - Get full component profile with install command and docs");
-    lines.push("- `get_install_command` - Get the install command for a component");
-    lines.push("- `get_docs` - Get documentation URLs for a component");
-    lines.push("- `list_categories` - List all component categories\n");
 
     // Group by category
     const byCategory: Record<string, any[]> = {};

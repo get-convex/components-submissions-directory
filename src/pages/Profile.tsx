@@ -2,7 +2,7 @@ import { useQuery, useMutation } from "convex/react";
 import { useAuth } from "../lib/auth";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Toaster, toast } from "sonner";
 import Header from "../components/Header";
 import {
@@ -21,14 +21,61 @@ import {
   PencilSimple,
   Trash,
   SignOut,
-  UserMinus,
   Star,
   Prohibit,
+  Copy,
+  Check,
 } from "@phosphor-icons/react";
 
 // Get base path for links (always /components)
 function useBasePath() {
   return "/components";
+}
+
+// Badge snippet component for showing README badge markdown
+function BadgeSnippet({ slug }: { slug: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const badgeMarkdown = `[![Convex Component](https://www.convex.dev/components/badge/${slug})](https://www.convex.dev/components/${slug})`;
+  const badgeImageUrl = `https://www.convex.dev/components/badge/${slug}`;
+  const badgeTargetUrl = `https://www.convex.dev/components/${slug}`;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(badgeMarkdown);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
+
+  return (
+    <div className="mt-3 pt-3 border-t border-border/50">
+      <p className="text-xs text-text-secondary mb-2">Add badge to your README</p>
+      <div className="flex items-center gap-2 rounded-md bg-[#1a1a1a] px-3 py-2 font-mono text-xs text-gray-300">
+        <code className="flex-1 overflow-x-auto whitespace-nowrap">{badgeMarkdown}</code>
+        <button
+          onClick={handleCopy}
+          title={copied ? "Copied!" : "Copy markdown"}
+          className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors">
+          {copied ? (
+            <Check size={14} className="text-green-400" />
+          ) : (
+            <Copy size={14} className="text-gray-400" />
+          )}
+        </button>
+      </div>
+      <div className="mt-2 flex items-center gap-2">
+        <span className="text-xs text-text-secondary">Preview:</span>
+        <a href={badgeTargetUrl} target="_blank" rel="noopener noreferrer">
+          <img
+            src={badgeImageUrl}
+            alt="Convex Component badge"
+            className="inline-block h-5"
+          />
+        </a>
+      </div>
+    </div>
+  );
 }
 
 // Status badge component (synced with Submit.tsx and Admin.tsx)
@@ -390,128 +437,6 @@ function ViewNotesModal({
   );
 }
 
-// Delete account confirmation modal with typed confirmation
-function DeleteAccountModal({
-  onConfirm,
-  onClose,
-  isLoading,
-  activeSubmissionsCount,
-}: {
-  onConfirm: () => void;
-  onClose: () => void;
-  isLoading: boolean;
-  activeSubmissionsCount: number;
-}) {
-  const [confirmText, setConfirmText] = useState("");
-  const isConfirmed = confirmText === "DELETE";
-  const hasActiveSubmissions = activeSubmissionsCount > 0;
-
-  return (
-    <div
-      className="fixed inset-0 flex items-start justify-center pt-12 p-4 overflow-y-auto"
-      style={{ zIndex: 2147483647 }}>
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md p-6 rounded-lg bg-white border border-border shadow-lg">
-        <button
-          onClick={onClose}
-          disabled={isLoading}
-          className="absolute top-4 right-4 p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors disabled:opacity-50">
-          <X size={20} />
-        </button>
-
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-            <UserMinus size={20} className="text-red-600" />
-          </div>
-          <h2 className="text-lg font-medium text-text-primary">Delete Account</h2>
-        </div>
-
-        {hasActiveSubmissions ? (
-          // Warning: Must delete submissions first
-          <div className="space-y-4">
-            <div className="p-4 rounded-lg border border-yellow-200 bg-yellow-50">
-              <div className="flex gap-3">
-                <Warning size={20} className="text-yellow-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <h3 className="text-sm font-medium text-yellow-800">
-                    Delete your components first
-                  </h3>
-                  <p className="text-sm text-yellow-700 mt-1">
-                    You have {activeSubmissionsCount} active component
-                    {activeSubmissionsCount > 1 ? "s" : ""} that must be deleted before you can
-                    delete your account.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <p className="text-sm text-text-secondary">
-              To delete your account, go to each of your submissions and click the Delete button.
-              Once all your components are marked for deletion, you can return here to delete your
-              account.
-            </p>
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full px-4 py-2 rounded-full text-sm font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors">
-              Close
-            </button>
-          </div>
-        ) : (
-          // Normal deletion flow
-          <>
-            <div className="space-y-3 mb-6">
-              <p className="text-sm text-text-secondary">
-                This action is permanent and cannot be undone. Deleting your account will:
-              </p>
-              <ul className="text-sm text-text-secondary list-disc list-inside space-y-1">
-                <li>Remove your access from any shared submissions</li>
-                <li>Sign you out of this application</li>
-              </ul>
-              <p className="text-sm text-green-700 bg-green-50 p-2 rounded">
-                All your components have been marked for deletion and will be permanently removed by
-                our admin team.
-              </p>
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-text-primary mb-2">
-                Type DELETE to confirm
-              </label>
-              <input
-                type="text"
-                value={confirmText}
-                onChange={(e) => setConfirmText(e.target.value)}
-                placeholder="DELETE"
-                disabled={isLoading}
-                className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20 disabled:opacity-50"
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={isLoading}
-                className="flex-1 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors disabled:opacity-50">
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={onConfirm}
-                disabled={isLoading || !isConfirmed}
-                className="flex-1 px-4 py-2 rounded-full text-sm font-normal bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                {isLoading ? "Deleting..." : "Delete My Account"}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // Edit submission modal
 function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose: () => void }) {
   const submission = useQuery(api.packages.getMySubmissionForEdit, { packageId });
@@ -830,6 +755,9 @@ function SubmissionCard({
               </a>
             )}
           </div>
+
+          {/* Badge snippet for README - show when slug exists */}
+          {submission.slug && <BadgeSnippet slug={submission.slug} />}
         </div>
       </div>
     </div>
@@ -841,13 +769,6 @@ export default function Profile() {
   const { isAuthenticated, isLoading: authLoading, signIn, signOut } = useAuth();
   const user = useQuery(api.auth.loggedInUser);
   const submissions = useQuery(api.packages.getMySubmissions, isAuthenticated ? {} : "skip");
-
-  // Mutations for user actions (visibility controls removed - admin only)
-  const deleteAccount = useMutation(api.packages.deleteMyAccount);
-
-  const activeSubmissions = useMemo(() => {
-    return submissions ?? [];
-  }, [submissions]);
 
   // Modal state for request
   const [requestModal, setRequestModal] = useState<{
@@ -864,27 +785,6 @@ export default function Profile() {
   // Modal state for editing
   const [editModal, setEditModal] = useState<Id<"packages"> | null>(null);
 
-  // Delete account modal state
-  const [deleteAccountModal, setDeleteAccountModal] = useState(false);
-  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
-
-  // Handle delete account
-  const handleDeleteAccount = async () => {
-    setDeleteAccountLoading(true);
-    try {
-      await deleteAccount({});
-      toast.success("Your account has been deleted");
-      setDeleteAccountModal(false);
-      // Sign out and redirect to home
-      signOut();
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to delete account";
-      toast.error(errorMessage);
-      console.error(err);
-    } finally {
-      setDeleteAccountLoading(false);
-    }
-  };
 
   // Loading state
   if (authLoading) {
@@ -1075,27 +975,19 @@ export default function Profile() {
           </ul>
         </div>
 
-        {/* Account section */}
+        {/* Account help section */}
         <div className="mt-12 pt-6 border-t border-border">
-          <h3 className="text-sm font-medium text-text-primary mb-3">Account</h3>
-          <div className="p-4 rounded-lg border border-red-200 bg-red-50">
+          <h3 className="text-sm font-medium text-text-primary mb-3">Need help?</h3>
+          <div className="p-4 rounded-lg border border-border bg-white">
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                <UserMinus size={16} className="text-red-600" />
+              <div className="w-8 h-8 rounded-full bg-bg-secondary flex items-center justify-center flex-shrink-0">
+                <ChatCircleText size={16} className="text-text-secondary" />
               </div>
               <div className="flex-1">
-                <h4 className="text-sm font-medium text-red-800">Delete Account</h4>
-                <p className="text-xs text-red-700 mt-1 mb-3">
-                  To delete your account, first delete all your component submissions using the
-                  Delete button on each component. Once all components are marked for deletion, you
-                  can delete your account.
+                <h4 className="text-sm font-medium text-text-primary">Remove a component or close your account</h4>
+                <p className="text-xs text-text-secondary mt-1">
+                  To request removal of a component from the directory, use the "Send Request" button on any of your submissions above. You can also use it to request account removal or any other changes. The Convex team will follow up in your Messages thread.
                 </p>
-                <button
-                  onClick={() => setDeleteAccountModal(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors">
-                  <Trash size={14} />
-                  Delete My Account
-                </button>
               </div>
             </div>
           </div>
@@ -1125,15 +1017,6 @@ export default function Profile() {
       {/* Edit modal */}
       {editModal && <EditModal packageId={editModal} onClose={() => setEditModal(null)} />}
 
-      {/* Delete account modal */}
-      {deleteAccountModal && (
-        <DeleteAccountModal
-          onConfirm={handleDeleteAccount}
-          onClose={() => setDeleteAccountModal(false)}
-          isLoading={deleteAccountLoading}
-          activeSubmissionsCount={activeSubmissions.length}
-        />
-      )}
     </div>
   );
 }
