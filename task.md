@@ -2,25 +2,34 @@
 
 ## to do
 
-- [x] fix mcp (2026-03-06 06:45 UTC)
-- [x] badge shield on each component page (2026-03-06 09:15 UTC)
-  - Added badge preview with image to ComponentDetail.tsx
-  - Fixed edge function conflict blocking badge endpoint
-  - Updated og-meta.ts to skip both "badge" and "badge/*" paths so badge redirects work
-  - Updated badge endpoint docs in src/docs/badges.md and src/docs/api-endpoints.md to use /components/badge/<slug>
-  - Added dedicated Netlify edge function `component-badge.ts` for `/components/badge/*` to bypass SPA fallback and proxy badge SVG directly
-  - Verified production build passes with `npm run build` (2026-03-06 UTC)
-- [x] Temporarily disable MCP UI and backend routes (2026-03-06 UTC)
-  - Commented out MCP Install section in AgentInstallSection.tsx
+- [ ]fix logout on submit page
+- [ ] test submitting
+- [ ] setup trenmdous
+- [ ] - Commented out MCP Install section in AgentInstallSection.tsx
   - Commented out MCP ready badge in AgentInstallSection.tsx
   - Commented out all MCP routes in convex/http.ts
   - Kept Copy prompt, Agent friendly summary, llms.txt, and markdown features working
 - [ ] npm security scanner
 - [ ] check api ai model
 - [ ] add posthog
-- [ ]check all routes for mcp and md and llms.text
-- [ ]fix logout on submit page
-- [ ]test submitting
+
+- [x] fix mcp (2026-03-06 06:45 UTC)
+- [x] badge shield on each component page (2026-03-06 09:15 UTC)
+- [x] Added badge preview with image to ComponentDetail.tsx
+- [x]Fixed edge function conflict blocking badge endpoint
+- [x] Updated og-meta.ts to skip both "badge" and "badge/\*" paths so badge redirects work
+- [x] Updated badge endpoint docs in src/docs/badges.md and src/docs/api-endpoints.md to use /components/badge/<slug>
+- [x] Added dedicated Netlify edge function `component-badge.ts` for `/components/badge/*` to bypass SPA fallback and proxy badge SVG directly
+- [x]Verified production build passes with `npm run build` (2026-03-06 UTC)
+- [x] Updated fix plan and PRD with final working badge routing pattern
+- [x] Added local `badge-palette-preview.html` with badge/status color previews and added it to `.gitignore`
+- [x] Temporarily disable MCP UI and backend routes (2026-03-06 UTC)
+- [x] Show package license above category in `src/pages/ComponentDetail.tsx` (2026-03-06 UTC)
+  - Added License metadata block in the sidebar above Category
+  - Reads from existing `getComponentBySlug` package payload, so Admin auto refresh updates license automatically on detail pages
+- [x] Updated `files.md`, `changelog.md`, and `task.md` for this session change (2026-03-06 UTC)
+
+- [x]check all routes for mcp and md and llms.text
 
 ### MCP Streamable HTTP migration (PRD: prds/mcp-streamable-http-migration.md)
 

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Component detail sidebar now shows package license above category (2026-03-06 UTC)
+  - Updated `src/pages/ComponentDetail.tsx` to render a License block in the left sidebar above Category
+  - Uses existing reactive `getComponentBySlug` data, so license updates from admin npm metadata refresh appear automatically on detail pages
+
+- Updated badge implementation planning docs with final working routing pattern (2026-03-06 UTC)
+  - Updated `.cursor/plans/fix_badge_system_af9c2908.plan.md` with final outcome details
+  - Updated `prds/netlify-markdown-alias-edge-function.md` with the working badge proxy approach
+
 - Temporarily disabled MCP UI and backend routes while public host routing is being debugged (2026-03-06 UTC)
   - Commented out MCP Install section with platform tabs (Cursor, Claude, ChatGPT) in AgentInstallSection.tsx
   - Commented out MCP ready badge in AgentInstallSection.tsx header
@@ -17,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - MCP code preserved in comments for easy re-enablement when routing is fixed
 
 ### Fixed
+
+- Added local badge palette preview file for design review and ignored it from git tracking (2026-03-06 UTC)
+  - Added `badge-palette-preview.html` with badge status colors, hex values, and Tailwind/site mappings
+  - Added `badge-palette-preview.html` to `.gitignore` for local-only review
 
 - Badge route fallback to SPA HTML on Netlify for `/components/badge/*` (2026-03-06 09:05 UTC)
   - Added dedicated Netlify Edge Function `component-badge` for `/components/badge/*`

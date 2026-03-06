@@ -564,6 +564,16 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               </a>
             )}
 
+            {/* License */}
+            {component.license && component.license !== "Unknown" && (
+              <div>
+                <p className="text-xs font-medium text-text-primary mb-1.5">License</p>
+                <span className="inline-block text-xs font-mono uppercase tracking-wider px-3 py-1.5 rounded-lg border border-border bg-bg-secondary text-text-primary hover:bg-bg-hover hover:border-text-secondary transition-colors cursor-default">
+                  {component.license}
+                </span>
+              </div>
+            )}
+
             {/* Category -- bordered pill with hover */}
             {component.category && (
               <div>
