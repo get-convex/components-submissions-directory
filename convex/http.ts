@@ -550,6 +550,44 @@ function svgHeaders(): Record<string, string> {
   };
 }
 
+// ============ OG IMAGE PROXY ============
+// Redirects to component thumbnail URL for clean OG image URLs
+// Public URL: https://www.convex.dev/components/og/<slug>
+http.route({
+  path: "/api/og-image",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    const url = new URL(request.url);
+    const slug = url.searchParams.get("slug") || "";
+
+    if (!slug) {
+      return new Response("Missing slug parameter", {
+        status: 400,
+        headers: { "Content-Type": "text/plain" },
+      });
+    }
+
+    const pkg = await ctx.runQuery(internal.packages._getPackageBySlug, {
+      slug,
+    });
+
+    if (!pkg || !pkg.thumbnailUrl) {
+      return new Response("Not found", {
+        status: 404,
+        headers: { "Content-Type": "text/plain" },
+      });
+    }
+
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: pkg.thumbnailUrl,
+        "Cache-Control": "public, max-age=3600, s-maxage=3600",
+      },
+    });
+  }),
+});
+
 // ============ MCP API ENDPOINTS ============
 // Read-only MCP tools for agent and CLI consumption
 

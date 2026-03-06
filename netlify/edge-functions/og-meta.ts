@@ -17,11 +17,13 @@ function extractSlug(pathname: string): string | null {
     "submissions",
     "documentation",
     "badge",
+    "og",
   ];
   if (
     reserved.includes(slug) ||
     slug.startsWith("submissions/") ||
-    slug.startsWith("badge/")
+    slug.startsWith("badge/") ||
+    slug.startsWith("og/")
   ) {
     return null;
   }
@@ -85,7 +87,11 @@ function injectMetaTags(html: string, component: ComponentData): string {
       ""
   );
   const url = escapeAttr(`${SITE_ORIGIN}/components/${component.slug || ""}`);
-  const image = escapeAttr(component.thumbnailUrl || DEFAULT_OG_IMAGE);
+  // Use proxied OG image URL for clean social sharing (convex.dev domain)
+  // Falls back to default OG image if no slug is available
+  const image = component.slug && component.thumbnailUrl
+    ? escapeAttr(`${SITE_ORIGIN}/components/og/${component.slug}`)
+    : escapeAttr(DEFAULT_OG_IMAGE);
 
   // Replacement pairs: attribute identifier -> new full tag
   // Ordered with more specific identifiers first to avoid partial matches

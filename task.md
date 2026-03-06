@@ -2,6 +2,24 @@
 
 ## to do
 
+- [ ] setup trenmdous
+- [ ] fix logout on submit page
+- [ ] add admin
+- [x] fix image meta (2026-03-06 UTC)
+  - Added `/api/og-image` endpoint to redirect to component thumbnail by slug
+  - Added Netlify redirect `/components/og/*` to Convex OG image endpoint
+  - Updated og-meta.ts edge function to use proxied `https://www.convex.dev/components/og/<slug>` URL
+  - Updated ComponentDetail.tsx client-side SEO to use the same proxied OG image pattern
+  - OG meta tags now show `convex.dev` URLs instead of raw Convex storage URLs
+- [ ] share
+- [ ] test submitting
+  - Commented out MCP ready badge in AgentInstallSection.tsx
+  - Commented out all MCP routes in convex/http.ts
+  - Kept Copy prompt, Agent friendly summary, llms.txt, and markdown features working
+- [ ] npm security scanner
+- [ ] check api ai model
+- [ ] add posthog
+
 - [x] Updated badge SVG colors to match frontend status pills and shields.io styling (2026-03-06 21:45 UTC)
   - Changed left box from `#2a2825` to `#555555` (shields.io gray)
   - Approved: `#228909` (Convex Verified green)
@@ -18,17 +36,6 @@
   - Removed "MCP Server" section from llms.txt output
   - Removed "MCP Server Integration" section from markdown-index output
   - Kept `MCP_DIRECT_ORIGIN` constant for future MCP re-enablement
-- [ ] fix logout on submit page
-- [ ] test submitting
-- [ ] setup trenmdous
-- [ ] - Commented out MCP Install section in AgentInstallSection.tsx
-  - Commented out MCP ready badge in AgentInstallSection.tsx
-  - Commented out all MCP routes in convex/http.ts
-  - Kept Copy prompt, Agent friendly summary, llms.txt, and markdown features working
-- [ ] npm security scanner
-- [ ] check api ai model
-- [ ] add posthog
-
 - [x] fix mcp (2026-03-06 06:45 UTC)
 - [x] badge shield on each component page (2026-03-06 09:15 UTC)
 - [x] Added badge preview with image to ComponentDetail.tsx

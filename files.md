@@ -49,10 +49,11 @@ Netlify deployment configuration. Sets build command (`npm run build`), publish 
   - `/components/llms.txt` -> `/api/llms.txt`
   - `/components.md` -> `/api/markdown-index`
   - `/components/*/llms.txt` -> `/api/component-llms?slug=:splat` (single and scoped slugs)
-- MCP and badge proxies to production Convex deployment (`https://giant-grouse-674.convex.site`):
+- MCP, badge, and OG image proxies to production Convex deployment (`https://giant-grouse-674.convex.site`):
   - `/components/api/mcp/*` -> `https://giant-grouse-674.convex.site/api/mcp/:splat`
   - `/api/mcp/*` -> `https://giant-grouse-674.convex.site/api/mcp/:splat`
   - `/components/badge/*` -> `https://giant-grouse-674.convex.site/api/badge?slug=:splat`
+  - `/components/og/*` -> `https://giant-grouse-674.convex.site/api/og-image?slug=:splat` (OG image proxy for clean social sharing URLs)
 - `/components` and `/components/*` fall back to `/index.html` for SPA routing (200)
 - Edge Function mapping:
   - `/components/badge/*` -> `netlify/edge-functions/component-badge.ts` (proxies badge SVG by slug to Convex HTTP badge endpoint)
@@ -203,6 +204,7 @@ HTTP router configuration. Defines:
 Main HTTP router with all API endpoints. Defines:
 - `/api/export-csv` endpoint for CSV export of all packages
 - `/api/badge` endpoint for dynamic SVG badge generation with shields.io styling (`#555555` left box, status colors aligned to frontend pills) and analytics tracking
+- `/api/og-image?slug=<slug>` endpoint that redirects (302) to component `thumbnailUrl` for clean OG image URLs; proxied at `https://www.convex.dev/components/og/<slug>`
 - `/api/markdown?slug=<slug>` endpoint serving raw markdown for a single component
 - `/api/markdown-index` endpoint serving markdown listing of all approved components
 - `/api/llms.txt` endpoint serving a plain-text index of all approved components
@@ -504,7 +506,7 @@ TypeScript declarations for Vite environment variables.
 
 ### `netlify/edge-functions/og-meta.ts`
 
-Netlify Edge Function that injects component-specific OpenGraph and Twitter Card meta tags into the SPA HTML for all requests to `/components/{slug}`. Fetches component data from the Convex public `getComponentBySlug` query via HTTP API in parallel with the SPA response, then replaces default meta tags (`og:title`, `og:description`, `og:image`, `twitter:card`, `<title>`, etc.) in the HTML before serving. Works for all clients including headless browsers, social crawlers, and regular browsers. Falls back to default SPA behavior if the component is not found or if the path is a reserved route or static asset. CDN cached for 5 minutes. Required because the SPA sets meta tags via client-side JavaScript which crawlers do not execute. Reserved paths that skip OG injection: `submit`, `admin`, `login`, `callback`, `profile`, `submissions`, `documentation`, `badge`, and `badge/*` (badge paths use Netlify redirect to Convex badge endpoint instead).
+Netlify Edge Function that injects component-specific OpenGraph and Twitter Card meta tags into the SPA HTML for all requests to `/components/{slug}`. Fetches component data from the Convex public `getComponentBySlug` query via HTTP API in parallel with the SPA response, then replaces default meta tags (`og:title`, `og:description`, `og:image`, `twitter:card`, `<title>`, etc.) in the HTML before serving. Uses proxied OG image URLs (`https://www.convex.dev/components/og/<slug>`) instead of raw Convex storage URLs for clean social sharing. Works for all clients including headless browsers, social crawlers, and regular browsers. Falls back to default SPA behavior if the component is not found or if the path is a reserved route or static asset. CDN cached for 5 minutes. Required because the SPA sets meta tags via client-side JavaScript which crawlers do not execute. Reserved paths that skip OG injection: `submit`, `admin`, `login`, `callback`, `profile`, `submissions`, `documentation`, `badge`, `badge/*`, `og`, and `og/*` (badge and OG paths use Netlify redirect to Convex endpoints instead).
 
 ### `netlify/edge-functions/component-badge.ts`
 

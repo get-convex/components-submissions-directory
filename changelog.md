@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- OG image proxy for clean social sharing URLs (2026-03-06 UTC)
+  - Added `/api/og-image` endpoint to `convex/http.ts` that redirects to component `thumbnailUrl` by slug
+  - Added Netlify redirect `/components/og/*` to proxy OG image requests to Convex endpoint
+  - Updated `netlify/edge-functions/og-meta.ts` to use proxied URL `https://www.convex.dev/components/og/<slug>` instead of raw Convex storage URL
+  - Updated `src/pages/ComponentDetail.tsx` client-side SEO to use the same proxied OG image pattern
+  - Added `og` to reserved paths in og-meta.ts to prevent edge function interference with the proxy route
+  - Social crawlers and link previews now see branded `convex.dev` URLs instead of raw storage URLs
+
 ### Changed
 
 - Updated badge SVG colors to match frontend status pills and shields.io styling (2026-03-06 21:45 UTC)
