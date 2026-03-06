@@ -27,8 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Badge endpoint not working on deployed Netlify site (2026-03-06 09:15 UTC)
   - Root cause: Netlify Edge Function `og-meta.ts` was intercepting `/components/badge/*` requests before the redirect rule could apply
-  - Fix: Added `"badge"` to the reserved paths list in `extractSlug()` so badge requests pass through to the Netlify redirect
+  - Fix: Updated `extractSlug()` to skip both `/components/badge` and `/components/badge/*` (`"badge"` + `slug.startsWith("badge/")`) so requests pass through to the Netlify redirect
   - Badge requests now correctly proxy to `https://giant-grouse-674.convex.site/api/badge?slug=:splat`
+  - Enabled README badge section in `ComponentDetail.tsx` above Related Components with border separators and live preview image
+  - Updated badge docs to the public URL format `/components/badge/<slug>` in `src/docs/badges.md` and `src/docs/api-endpoints.md`
 
 - MCP endpoint host mismatch diagnosis and fallback guidance (2026-03-06 08:00 UTC)
   - Verified live behavior: `https://www.convex.dev/components/api/mcp/protocol` currently returns SPA HTML instead of MCP JSON

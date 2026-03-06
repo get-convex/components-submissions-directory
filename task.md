@@ -6,7 +6,8 @@
 - [x] badge shield on each component page (2026-03-06 09:15 UTC)
   - Added badge preview with image to ComponentDetail.tsx
   - Fixed edge function conflict blocking badge endpoint
-  - Added "badge" to reserved paths in og-meta.ts so redirects work
+  - Updated og-meta.ts to skip both "badge" and "badge/*" paths so badge redirects work
+  - Updated badge endpoint docs in src/docs/badges.md and src/docs/api-endpoints.md to use /components/badge/<slug>
 - [x] Temporarily disable MCP UI and backend routes (2026-03-06 UTC)
   - Commented out MCP Install section in AgentInstallSection.tsx
   - Commented out MCP ready badge in AgentInstallSection.tsx

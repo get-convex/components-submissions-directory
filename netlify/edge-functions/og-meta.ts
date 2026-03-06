@@ -18,7 +18,13 @@ function extractSlug(pathname: string): string | null {
     "documentation",
     "badge",
   ];
-  if (reserved.includes(slug) || slug.startsWith("submissions/")) return null;
+  if (
+    reserved.includes(slug) ||
+    slug.startsWith("submissions/") ||
+    slug.startsWith("badge/")
+  ) {
+    return null;
+  }
   return slug;
 }
 
