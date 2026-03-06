@@ -25,6 +25,14 @@
 - [x] Zero type errors, zero remaining references to dead package (2026-03-06 06:45 UTC)
 - [x] Updated `files.md`, `changelog.md`, `task.md` (2026-03-06 06:50 UTC)
 
+### Netlify proxy routing fix (dev to prod)
+
+- [x] Changed all `netlify.toml` redirect targets from `third-hedgehog-429.convex.site` (dev) to `giant-grouse-674.convex.site` (prod) (2026-03-06 07:15 UTC)
+- [x] Added MCP API proxy redirects `/api/mcp/*` and `/components/api/mcp/*` before SPA fallback (2026-03-06 07:15 UTC)
+- [x] Added badge API proxy redirect `/components/badge/*` (2026-03-06 07:15 UTC)
+- [x] Verified build passes with zero type errors (2026-03-06 07:15 UTC)
+- [x] Updated `changelog.md`, `task.md` (2026-03-06 07:15 UTC)
+
 ### SKILL.md generation improvements (Anthropic guidelines)
 
 - [x] Analyzed current `buildSkillMd()` implementation against Anthropic skill creator guidelines (2026-03-06 UTC)

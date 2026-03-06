@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Netlify proxy redirects pointing to wrong Convex deployment (2026-03-06 07:15 UTC)
+  - Changed all `netlify.toml` redirect targets from dev (`third-hedgehog-429.convex.site`) to production (`giant-grouse-674.convex.site`)
+  - Added MCP API proxy redirects (`/api/mcp/*` and `/components/api/mcp/*`) before SPA fallback so Cursor/Claude/ChatGPT can reach the Convex MCP protocol endpoint
+  - Added badge API proxy redirect (`/components/badge/*`) for SVG badge endpoint
+  - Without these redirects, MCP clients hit Netlify's SPA fallback or 404 page instead of the Convex backend
+
 - MCP install flow for Cursor, Claude Desktop, and ChatGPT (2026-03-06 06:45 UTC)
   - Removed all references to `@anthropic-ai/mcp-server-fetch` which was deleted from npm (404 error)
   - Migrated from `command`/`args` proxy pattern to direct URL-based Streamable HTTP transport

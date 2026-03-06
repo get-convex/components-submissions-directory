@@ -19,19 +19,41 @@
 # Main directory llms.txt
 [[redirects]]
   from = "/components/llms.txt"
-  to = "https://third-hedgehog-429.convex.site/api/llms.txt"
+  to = "https://giant-grouse-674.convex.site/api/llms.txt"
   status = 200
 
 # Main directory markdown (explicit .md file)
 [[redirects]]
   from = "/components.md"
-  to = "https://third-hedgehog-429.convex.site/api/markdown-index"
+  to = "https://giant-grouse-674.convex.site/api/markdown-index"
   status = 200
 
 # Per-component llms.txt (supports single and scoped slugs)
 [[redirects]]
   from = "/components/*/llms.txt"
-  to = "https://third-hedgehog-429.convex.site/api/component-llms?slug=:splat"
+  to = "https://giant-grouse-674.convex.site/api/component-llms?slug=:splat"
+  status = 200
+
+# ============ MCP API Proxies ============
+# Proxy MCP endpoints to Convex HTTP actions (must be before SPA fallback)
+# Supports both /components/api/mcp/* (frontend URLs) and /api/mcp/* (backend URLs)
+
+[[redirects]]
+  from = "/components/api/mcp/*"
+  to = "https://giant-grouse-674.convex.site/api/mcp/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/mcp/*"
+  to = "https://giant-grouse-674.convex.site/api/mcp/:splat"
+  status = 200
+
+# ============ Badge API Proxy ============
+# Proxy badge SVG endpoint to Convex HTTP actions
+
+[[redirects]]
+  from = "/components/badge/*"
+  to = "https://giant-grouse-674.convex.site/api/badge/:splat"
   status = 200
 
 # ============ SPA Routes ============
