@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Unified font sizes between AI generated SEO content and long description markdown in ComponentDetail.tsx (2026-03-05 UTC)
+  - Long description now uses `text-sm text-text-secondary` matching SEO content styling
+  - Removed prose typography classes in favor of explicit size selectors
+  - Changed "Made by" to "by" in author row for cleaner display
 - Updated "Live Demo URL" field label to "Live Demo URL or Example App" in SubmitForm.tsx and ComponentDetailsEditor.tsx (2026-03-05 17:45 UTC)
 
 ### Added

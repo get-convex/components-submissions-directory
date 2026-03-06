@@ -201,6 +201,11 @@ Acceptance checks:
 
 ## Recent updates
 
+- [x] Unified font sizes between AI generated SEO content and long description markdown in ComponentDetail.tsx (2026-03-05 UTC)
+  - Replaced `prose prose-sm` with explicit `text-sm text-text-secondary` selectors
+  - Long description now matches SEO content styling
+  - Changed "Made by" to "by" in author row
+
 - [x] Updated "Live Demo URL" label to "Live Demo URL or Example App" in SubmitForm.tsx and ComponentDetailsEditor.tsx (2026-03-05 17:45 UTC)
 
 - [x] Fixed long package name overflow in ComponentDetail author row (2026-03-05 15:30 UTC)

@@ -614,7 +614,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               {component.authorUsername && (
                 <>
                   <span className="text-text-secondary/40">|</span>
-                  <span className="text-sm text-text-secondary">Made by</span>
+                  <span className="text-sm text-text-secondary">by</span>
                   <a
                     href={authorGitHubUrl || "#"}
                     target="_blank"
@@ -932,12 +932,14 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               <>
                 {/* Long description markdown content */}
                 {component.longDescription && (
-                  <div className="prose prose-sm max-w-none text-text-primary prose-headings:text-text-primary prose-a:text-[#8D2676] hover:prose-a:underline prose-code:text-sm prose-code:bg-bg-secondary prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-[#1a1a1a] prose-pre:text-gray-300 prose-p:mb-4 prose-p:leading-relaxed prose-p:whitespace-pre-line mb-6">
+                  <div className="max-w-none text-text-primary prose-headings:text-text-primary prose-a:text-[#8D2676] hover:prose-a:underline prose-code:text-sm prose-code:bg-bg-secondary prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-[#1a1a1a] prose-pre:text-gray-300 mb-6 [&_p]:text-sm [&_p]:text-text-secondary [&_p]:leading-relaxed [&_p]:mb-4 [&_ul]:text-sm [&_ul]:text-text-secondary [&_ol]:text-sm [&_ol]:text-text-secondary [&_li]:text-sm [&_li]:text-text-secondary [&_h1]:text-sm [&_h1]:font-semibold [&_h1]:uppercase [&_h1]:tracking-wider [&_h1]:mb-2 [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:uppercase [&_h2]:tracking-wider [&_h2]:mb-2 [&_h3]:text-sm [&_h3]:font-medium [&_h3]:mb-1">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm, remarkBreaks]}
                       components={{
                         p: ({ children }) => (
-                          <p className="mb-4 leading-relaxed whitespace-pre-line">{children}</p>
+                          <p className="text-sm text-text-secondary leading-relaxed mb-4 whitespace-pre-line">
+                            {children}
+                          </p>
                         ),
                         a: ({ href, children }) => {
                           const isExternal = Boolean(href?.startsWith("http"));
