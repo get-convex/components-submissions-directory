@@ -202,7 +202,7 @@ HTTP router configuration. Defines:
 
 Main HTTP router with all API endpoints. Defines:
 - `/api/export-csv` endpoint for CSV export of all packages
-- `/api/badge` endpoint for dynamic SVG badge generation with analytics tracking
+- `/api/badge` endpoint for dynamic SVG badge generation with shields.io styling (`#555555` left box, status colors aligned to frontend pills) and analytics tracking
 - `/api/markdown?slug=<slug>` endpoint serving raw markdown for a single component
 - `/api/markdown-index` endpoint serving markdown listing of all approved components
 - `/api/llms.txt` endpoint serving a plain-text index of all approved components
@@ -536,7 +536,15 @@ Convex Components Challenge documentation.
 
 ### `badge-palette-preview.html`
 
-Local visual review page for badge and status colors. Shows badge status hex colors from `convex/http.ts`, frontend status badge class mappings, and site badge colors (Verified and Community). This file is intentionally ignored by git for local review only.
+Local visual review page for badge and status colors. Shows badge SVG colors using shields.io styling (`#555555` left box) with status colors aligned to frontend pills:
+- Approved: `#228909` (Convex Verified green)
+- In Review: `#2563eb` (frontend blue pill)
+- Changes Requested: `#ea580c` (frontend orange pill)
+- Pending: `#ca8a04` (frontend yellow pill)
+- Rejected: `#dc2626` (frontend red pill)
+- Not Found: `#6b6b6b` (gray)
+
+Also shows frontend status badge class mappings and site badge colors (Verified and Community). This file is intentionally ignored by git for local review only.
 
 ### `files.md`
 

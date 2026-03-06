@@ -468,13 +468,13 @@ http.route({
     if (pkg) {
       if (pkg.reviewStatus === "approved") {
         statusLabel = "Approved";
-        statusColor = "#074ee8";
+        statusColor = "#228909";
       } else if (pkg.reviewStatus === "in_review") {
         statusLabel = "In Review";
-        statusColor = "#7c3aed";
+        statusColor = "#2563eb";
       } else if (pkg.reviewStatus === "changes_requested") {
         statusLabel = "Changes Requested";
-        statusColor = "#d57115";
+        statusColor = "#ea580c";
       } else if (pkg.reviewStatus === "rejected") {
         statusLabel = "Rejected";
         statusColor = "#dc2626";
@@ -521,7 +521,7 @@ function generateBadgeSvg(
     <rect width="${totalWidth}" height="20" rx="3" fill="#fff"/>
   </clipPath>
   <g clip-path="url(#r)">
-    <rect width="${leftWidth}" height="20" fill="#2a2825"/>
+    <rect width="${leftWidth}" height="20" fill="#555555"/>
     <rect x="${leftWidth}" width="${rightWidth}" height="20" fill="${statusColor}"/>
     <rect width="${totalWidth}" height="20" fill="url(#s)"/>
   </g>

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated badge SVG colors to match frontend status pills and shields.io styling (2026-03-06 21:45 UTC)
+  - Changed left box (Convex label) from `#2a2825` to `#555555` for shields.io look
+  - Approved: changed from `#074ee8` (blue) to `#228909` (Convex Verified green)
+  - In Review: changed from `#7c3aed` (purple) to `#2563eb` (frontend blue pill)
+  - Changes Requested: changed from `#d57115` to `#ea580c` (frontend orange pill)
+  - Pending and Rejected colors unchanged (already matched frontend)
+  - Updated `badge-palette-preview.html` with new color values and shields.io reference
+
 ### Added
 
 - Submission badge sync rollout for new and existing component submissions (2026-03-06 01:45 UTC)

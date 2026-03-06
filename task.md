@@ -2,6 +2,12 @@
 
 ## to do
 
+- [x] Updated badge SVG colors to match frontend status pills and shields.io styling (2026-03-06 21:45 UTC)
+  - Changed left box from `#2a2825` to `#555555` (shields.io gray)
+  - Approved: `#228909` (Convex Verified green)
+  - In Review: `#2563eb` (frontend blue pill)
+  - Changes Requested: `#ea580c` (frontend orange pill)
+  - Updated `badge-palette-preview.html` preview file
 - [x] Replace Delete Account with "Need help?" guidance on Profile page (2026-03-06 UTC)
   - Removed DeleteAccountModal component and all delete account state/logic
   - Replaced red "Delete Account" section with neutral "Need help?" section
