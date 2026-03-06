@@ -6,28 +6,31 @@ Component authors can add a dynamic SVG badge to their GitHub README that links 
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/badge?slug=X` | Returns an SVG badge image |
+| GET | `/components/badge/your-slug` | Returns an SVG badge image |
 
-Replace `X` with your component's slug (the URL-safe identifier shown in your component's directory URL).
+Replace `your-slug` with your component's slug (the URL-safe identifier shown in your component's directory URL).
 
 ## Adding a badge to your README
 
 Paste this markdown into your `README.md`, replacing `your-component` with your slug:
 
 ```markdown
-[![Convex Components](https://www.convex.dev/api/badge?slug=your-component)](https://www.convex.dev/components/your-component)
+[![Convex Component](https://www.convex.dev/components/badge/your-component)](https://www.convex.dev/components/your-component)
 ```
 
-The badge renders as an inline SVG showing "Convex Components" with a verified or community indicator based on your listing status.
+The badge renders as an inline SVG showing your component's review status.
 
 ## Badge styles
 
-| Status | Appearance |
-|--------|------------|
-| Convex Verified | Badge with verified indicator |
-| Community | Badge with community indicator |
+| Status | Color | Description |
+|--------|-------|-------------|
+| Approved | Blue | Component has been approved |
+| In Review | Purple | Component is currently being reviewed |
+| Changes Requested | Orange | Changes have been requested |
+| Pending | Yellow | Awaiting review |
+| Rejected | Red | Component was rejected |
 
-The badge automatically reflects your current listing status. If an admin changes your verified or community flag, the badge updates on the next load.
+The badge automatically reflects your current review status. When an admin updates your status, the badge updates on the next load.
 
 ## Badge analytics
 

@@ -51,16 +51,16 @@ Dynamic SVG badges that component authors can embed in their GitHub READMEs.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/api/badge?slug=X` | SVG badge image for a component |
+| GET | `/components/badge/your-slug` | SVG badge image for a component |
 
 ### Badge format
 
-The badge displays "Convex Components" with a verified or community indicator. It is returned as an SVG image with appropriate cache headers.
+The badge displays the component's review status (Approved, In Review, Changes Requested, Pending, or Rejected) with color coding. It is returned as an SVG image with appropriate cache headers.
 
 ### Adding a badge to your README
 
 ```markdown
-[![Convex Components](https://www.convex.dev/api/badge?slug=your-component)](https://www.convex.dev/components/your-component)
+[![Convex Component](https://www.convex.dev/components/badge/your-component)](https://www.convex.dev/components/your-component)
 ```
 
 ### Badge analytics

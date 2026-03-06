@@ -121,13 +121,12 @@ function buildMarkdownDoc(c: {
     lines.push(c.longDescription);
   }
 
-  // Badge disabled until endpoint is working
-  // if (c.slug) {
-  //   lines.push(`\n---\n`);
-  //   lines.push(
-  //     `[![Convex Component](https://www.convex.dev/components/badge/${c.slug})](https://www.convex.dev/components/${c.slug})`
-  //   );
-  // }
+  if (c.slug) {
+    lines.push(`\n---\n`);
+    lines.push(
+      `[![Convex Component](https://www.convex.dev/components/badge/${c.slug})](https://www.convex.dev/components/${c.slug})`
+    );
+  }
 
   return lines.join("\n");
 }
@@ -1155,6 +1154,39 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               </div>
             )}
 
+            {/* Badge snippet for README */}
+            {badgeMarkdown && (
+              <div className="mt-8 pt-6 border-t border-border pb-6 border-b">
+                <h3 className="text-sm font-semibold text-text-primary mb-2">
+                  Add badge to your README
+                </h3>
+                <div className="flex items-center gap-2 rounded-md bg-[#1a1a1a] px-3 py-2 font-mono text-xs text-gray-300">
+                  <code className="flex-1 overflow-x-auto whitespace-nowrap">{badgeMarkdown}</code>
+                  <button
+                    onClick={handleCopyBadge}
+                    className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors">
+                    {badgeCopied ? (
+                      <CheckIcon className="w-3.5 h-3.5 text-green-400" />
+                    ) : (
+                      <CopyIcon className="w-3.5 h-3.5 text-gray-400" />
+                    )}
+                  </button>
+                </div>
+                {badgeImageUrl && (
+                  <div className="mt-3">
+                    <span className="text-xs text-text-secondary mr-2">Preview:</span>
+                    <a href={badgeTargetUrl} target="_blank" rel="noopener noreferrer">
+                      <img
+                        src={badgeImageUrl}
+                        alt="Convex Component badge"
+                        className="inline-block h-5"
+                      />
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Related components (no-thumbnail compact cards, max 3) */}
             {relatedComponents && relatedComponents.length > 0 && (
               <div className="mt-8 pt-6 border-t border-border">
@@ -1241,27 +1273,6 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               </div>
             )}
 
-            {/* Badge snippet - commented out until badge endpoint is working
-            {badgeMarkdown && (
-              <div>
-                <h3 className="text-sm font-semibold text-text-primary mb-2">
-                  Add badge to your README
-                </h3>
-                <div className="flex items-center gap-2 rounded-md bg-[#1a1a1a] px-3 py-2 font-mono text-xs text-gray-300">
-                  <code className="flex-1 overflow-x-auto whitespace-nowrap">{badgeMarkdown}</code>
-                  <button
-                    onClick={handleCopyBadge}
-                    className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors">
-                    {badgeCopied ? (
-                      <CheckIcon className="w-3.5 h-3.5 text-green-400" />
-                    ) : (
-                      <CopyIcon className="w-3.5 h-3.5 text-gray-400" />
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-            */}
           </main>
         </div>
       </div>

@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- MCP endpoint host mismatch diagnosis and fallback guidance (2026-03-06 08:00 UTC)
+  - Verified live behavior: `https://www.convex.dev/components/api/mcp/protocol` currently returns SPA HTML instead of MCP JSON
+  - Verified live behavior: `https://components-directory.netlify.app/components/api/mcp/protocol` currently returns SPA HTML and `/api/mcp/protocol` returns Netlify 404
+  - Verified working MCP transport endpoint: `https://giant-grouse-674.convex.site/api/mcp/protocol` responds correctly to both `GET` and JSON-RPC `POST initialize`
+  - Documented direct Convex MCP URL as immediate unblock path for Cursor/Claude/ChatGPT installs while public host routing propagation is finalized
+
 - Netlify proxy redirects pointing to wrong Convex deployment (2026-03-06 07:15 UTC)
   - Changed all `netlify.toml` redirect targets from dev (`third-hedgehog-429.convex.site`) to production (`giant-grouse-674.convex.site`)
   - Added MCP API proxy redirects (`/api/mcp/*` and `/components/api/mcp/*`) before SPA fallback so Cursor/Claude/ChatGPT can reach the Convex MCP protocol endpoint

@@ -49,10 +49,16 @@ Netlify deployment configuration. Sets build command (`npm run build`), publish 
   - `/components/llms.txt` -> `/api/llms.txt`
   - `/components.md` -> `/api/markdown-index`
   - `/components/*/llms.txt` -> `/api/component-llms?slug=:splat` (single and scoped slugs)
+- MCP and badge proxies to production Convex deployment (`https://giant-grouse-674.convex.site`):
+  - `/components/api/mcp/*` -> `https://giant-grouse-674.convex.site/api/mcp/:splat`
+  - `/api/mcp/*` -> `https://giant-grouse-674.convex.site/api/mcp/:splat`
+  - `/components/badge/*` -> `https://giant-grouse-674.convex.site/api/badge?slug=:splat`
 - `/components` and `/components/*` fall back to `/index.html` for SPA routing (200)
 - Edge Function mapping:
   - `/components/*` -> `netlify/edge-functions/og-meta.ts` (injects component-specific OG meta tags into SPA HTML for all requests)
   - `/components/*/*.md` -> `netlify/edge-functions/component-markdown.ts` (keeps Netlify URL, proxies markdown by slug)
+
+Session note (2026-03-06): Live endpoint checks showed `www.convex.dev/components/api/mcp/protocol` still returning SPA HTML while direct Convex MCP endpoint `https://giant-grouse-674.convex.site/api/mcp/protocol` returns valid JSON-RPC responses.
 
 Environment variables must be set in Netlify Dashboard:
 - `VITE_CONVEX_URL`: Convex deployment URL
@@ -464,7 +470,7 @@ Utility functions including `cn` for Tailwind class merging.
 
 ### `src/lib/mcpProfile.ts`
 
-MCP profile builder utilities. Builds MCP-compatible component profiles from package data for agent consumption. Uses `MCP_PUBLIC_COMPONENTS_BASE_URL` constant so MCP install configs point to the live public route (`https://www.convex.dev/components/api/mcp/protocol`). All platform configs use direct URL-based Streamable HTTP transport (no npm package dependency). Includes:
+MCP profile builder utilities. Builds MCP-compatible component profiles from package data for agent consumption. Uses `MCP_PUBLIC_COMPONENTS_BASE_URL` constant so MCP install configs point to the public route (`https://www.convex.dev/components/api/mcp/protocol`). All platform configs use direct URL-based Streamable HTTP transport (no npm package dependency). Includes:
 - `buildMcpProfile`: Builds full MCP component profile for agent consumption
 - `buildMcpSearchResult`: Builds lightweight search result items
 - `isMcpReady`/`hasAiInstallSupport`: Badge readiness checks
@@ -474,6 +480,8 @@ MCP profile builder utilities. Builds MCP-compatible component profiles from pac
 - `generateChatGPTConnectorConfig`: Generates ChatGPT custom connector URL with Developer mode setup steps
 - `CLAUDE_DESKTOP_CONFIG_PATHS`: macOS and Windows config file paths
 - `getMcpProtocolEndpoint`/`getCursorInstallApiUrl`: URL helpers for MCP endpoints (use public `/components/api` path)
+
+Session note (2026-03-06): Until public host MCP routing is fully active, direct endpoint `https://giant-grouse-674.convex.site/api/mcp/protocol` is the verified working fallback for MCP clients.
 
 ### `src/lib/promptComposer.ts`
 

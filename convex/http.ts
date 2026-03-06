@@ -488,18 +488,21 @@ http.route({
     let statusColor = "#6b6b6b";
 
     if (pkg) {
-      if (pkg.convexVerified) {
-        statusLabel = "Verified";
-        statusColor = "#228909";
-      } else if (pkg.reviewStatus === "approved") {
+      if (pkg.reviewStatus === "approved") {
         statusLabel = "Approved";
         statusColor = "#074ee8";
-      } else if (pkg.reviewStatus === "pending" || !pkg.reviewStatus) {
-        statusLabel = "Pending";
+      } else if (pkg.reviewStatus === "in_review") {
+        statusLabel = "In Review";
+        statusColor = "#7c3aed";
+      } else if (pkg.reviewStatus === "changes_requested") {
+        statusLabel = "Changes Requested";
         statusColor = "#d57115";
+      } else if (pkg.reviewStatus === "rejected") {
+        statusLabel = "Rejected";
+        statusColor = "#dc2626";
       } else {
-        statusLabel = "Submitted";
-        statusColor = "#6b6b6b";
+        statusLabel = "Pending";
+        statusColor = "#ca8a04";
       }
     }
 

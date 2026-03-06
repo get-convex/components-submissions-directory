@@ -33,6 +33,14 @@
 - [x] Verified build passes with zero type errors (2026-03-06 07:15 UTC)
 - [x] Updated `changelog.md`, `task.md` (2026-03-06 07:15 UTC)
 
+### MCP live endpoint verification and fallback
+
+- [x] Read `prds/deploy-commands.md` and confirmed production app host mapping (`components-directory.netlify.app`) (2026-03-06 08:00 UTC)
+- [x] Verified `https://www.convex.dev/components/api/mcp/protocol` returns SPA HTML, not MCP JSON (2026-03-06 08:00 UTC)
+- [x] Verified `https://components-directory.netlify.app/components/api/mcp/protocol` returns SPA HTML and `/api/mcp/protocol` returns Netlify 404 (2026-03-06 08:00 UTC)
+- [x] Verified direct Convex MCP endpoint `https://giant-grouse-674.convex.site/api/mcp/protocol` works for both GET discovery and POST initialize (2026-03-06 08:00 UTC)
+- [x] Updated `files.md`, `changelog.md`, and `task.md` with session findings and immediate fallback guidance (2026-03-06 08:00 UTC)
+
 ### SKILL.md generation improvements (Anthropic guidelines)
 
 - [x] Analyzed current `buildSkillMd()` implementation against Anthropic skill creator guidelines (2026-03-06 UTC)

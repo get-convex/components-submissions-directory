@@ -53,7 +53,7 @@
 
 [[redirects]]
   from = "/components/badge/*"
-  to = "https://giant-grouse-674.convex.site/api/badge/:splat"
+  to = "https://giant-grouse-674.convex.site/api/badge?slug=:splat"
   status = 200
 
 # ============ SPA Routes ============
