@@ -3,12 +3,11 @@
 ## to do
 
 - [ ] badge shield on each compopnet page
-- [ ] fix opengraph view
+- [x] fix opengraph view (2026-03-06 06:15 UTC)
 - [ ] add posthog
 - [ ]check all routes for mcp and md and llms.text
 - [ ]fix logout on submit page
 - [ ]test submitting
-- [ ] fix badges
 
 ### SKILL.md generation improvements (Anthropic guidelines)
 
@@ -25,6 +24,16 @@
 - [x] Created `netlify/edge-functions/og-meta.ts` to serve dynamic OG tags to bots (2026-03-05 23:45 UTC)
 - [x] Updated `netlify.toml` with edge function registration on `/components/*` (2026-03-05 23:45 UTC)
 - [x] Updated `files.md`, `changelog.md`, `task.md` (2026-03-05 23:50 UTC)
+
+### OpenGraph meta fix v2: HTML injection approach
+
+- [x] Diagnosed v1 failure: opengraph.xyz uses headless Chrome without bot UA (2026-03-06 06:05 UTC)
+- [x] Rewrote `og-meta.ts` to inject meta tags into SPA HTML for all requests (2026-03-06 06:10 UTC)
+- [x] Verified regex handles multi-line meta tags in production HTML (2026-03-06 06:12 UTC)
+- [x] Verified slug extraction excludes static assets and reserved paths (2026-03-06 06:13 UTC)
+- [x] Created PRD at `prds/opengraph-meta-fix.md` (2026-03-06 06:15 UTC)
+- [x] Updated `files.md`, `changelog.md`, `task.md` (2026-03-06 06:15 UTC)
+- [ ] Deploy and verify with opengraph.xyz
 
 ### AI review prompt v2 update (PRD: prds/ai-review-prompt-v1.md)
 

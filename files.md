@@ -51,7 +51,7 @@ Netlify deployment configuration. Sets build command (`npm run build`), publish 
   - `/components/*/llms.txt` -> `/api/component-llms?slug=:splat` (single and scoped slugs)
 - `/components` and `/components/*` fall back to `/index.html` for SPA routing (200)
 - Edge Function mapping:
-  - `/components/*` -> `netlify/edge-functions/og-meta.ts` (serves dynamic OG meta tags to social crawlers/bots)
+  - `/components/*` -> `netlify/edge-functions/og-meta.ts` (injects component-specific OG meta tags into SPA HTML for all requests)
   - `/components/*/*.md` -> `netlify/edge-functions/component-markdown.ts` (keeps Netlify URL, proxies markdown by slug)
 
 Environment variables must be set in Netlify Dashboard:
@@ -501,7 +501,7 @@ TypeScript declarations for Vite environment variables.
 
 ### `netlify/edge-functions/og-meta.ts`
 
-Netlify Edge Function that serves dynamic OpenGraph and Twitter Card meta tags to social media crawlers and link preview bots. Detects bot user agents (Facebook, Twitter, LinkedIn, Slack, Discord, Google, OpenGraph checkers, etc.), fetches component data from the Convex public `getComponentBySlug` query via HTTP API, and returns a minimal HTML page with the correct `og:title`, `og:description`, `og:image`, `twitter:card`, and canonical URL. Non-bot requests pass through to the SPA via `context.next()`. Falls back to default SPA behavior if the component is not found. Cached for 5 minutes. Required because the SPA sets meta tags via client-side JavaScript which crawlers do not execute.
+Netlify Edge Function that injects component-specific OpenGraph and Twitter Card meta tags into the SPA HTML for all requests to `/components/{slug}`. Fetches component data from the Convex public `getComponentBySlug` query via HTTP API in parallel with the SPA response, then replaces default meta tags (`og:title`, `og:description`, `og:image`, `twitter:card`, `<title>`, etc.) in the HTML before serving. Works for all clients including headless browsers, social crawlers, and regular browsers. Falls back to default SPA behavior if the component is not found or if the path is a reserved route or static asset. CDN cached for 5 minutes. Required because the SPA sets meta tags via client-side JavaScript which crawlers do not execute.
 
 ### `netlify/edge-functions/component-markdown.ts`
 

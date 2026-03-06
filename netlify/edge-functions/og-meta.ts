@@ -4,50 +4,29 @@ const SITE_NAME = "Convex Components";
 const SITE_ORIGIN = "https://www.convex.dev";
 const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/components/og-preview.png`;
 
-const BOT_USER_AGENTS = [
-  "facebookexternalhit",
-  "Facebot",
-  "Twitterbot",
-  "LinkedInBot",
-  "Slackbot",
-  "WhatsApp",
-  "TelegramBot",
-  "Discordbot",
-  "Googlebot",
-  "bingbot",
-  "Applebot",
-  "Pinterestbot",
-  "redditbot",
-  "Embedly",
-  "Quora Link Preview",
-  "outbrain",
-  "vkShare",
-  "W3C_Validator",
-  "Iframely",
-  "opengraph",
-  "OpenGraphCheck",
-];
-
-function isBot(userAgent: string): boolean {
-  const ua = userAgent.toLowerCase();
-  return BOT_USER_AGENTS.some((bot) => ua.includes(bot.toLowerCase()));
-}
-
 function extractSlug(pathname: string): string | null {
   const match = pathname.match(/^\/components\/([^/.]+(?:\/[^/.]+)*)$/);
   if (!match) return null;
   const slug = match[1];
-  if (slug === "submit" || slug === "admin" || slug === "login") return null;
+  const reserved = [
+    "submit",
+    "admin",
+    "login",
+    "callback",
+    "profile",
+    "submissions",
+    "documentation",
+  ];
+  if (reserved.includes(slug) || slug.startsWith("submissions/")) return null;
   return slug;
 }
 
-function escapeHtml(str: string): string {
+function escapeAttr(str: string): string {
   return str
     .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 interface ComponentData {
@@ -72,6 +51,7 @@ async function fetchComponent(slug: string): Promise<ComponentData | null> {
       body: JSON.stringify({
         path: "packages:getComponentBySlug",
         args: { slug },
+        format: "json",
       }),
     });
     if (!res.ok) return null;
@@ -85,77 +65,97 @@ async function fetchComponent(slug: string): Promise<ComponentData | null> {
   }
 }
 
-function buildOgHtml(component: ComponentData): string {
-  const title = escapeHtml(component.componentName || component.name);
+// Replace meta tags in HTML with component-specific values.
+// Works by finding all <meta ...> tags (including multiline) and replacing
+// the ones that match known OG/Twitter attributes.
+function injectMetaTags(html: string, component: ComponentData): string {
+  const title = escapeAttr(component.componentName || component.name);
   const fullTitle = `${title} | ${SITE_NAME}`;
-  const description = escapeHtml(
+  const description = escapeAttr(
     component.seoValueProp ||
       component.shortDescription ||
       component.description ||
       ""
   );
-  const url = `${SITE_ORIGIN}/components/${component.slug || ""}`;
-  const image = component.thumbnailUrl || DEFAULT_OG_IMAGE;
+  const url = escapeAttr(`${SITE_ORIGIN}/components/${component.slug || ""}`);
+  const image = escapeAttr(component.thumbnailUrl || DEFAULT_OG_IMAGE);
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  // Replacement pairs: attribute identifier -> new full tag
+  // Ordered with more specific identifiers first to avoid partial matches
+  // (e.g. twitter:image:alt must come before twitter:image)
+  const replacements: Array<[string, string]> = [
+    ['name="title"', `<meta name="title" content="${fullTitle}" />`],
+    ['name="description"', `<meta name="description" content="${description}" />`],
+    ['property="og:url"', `<meta property="og:url" content="${url}" />`],
+    ['property="og:title"', `<meta property="og:title" content="${title}" />`],
+    ['property="og:description"', `<meta property="og:description" content="${description}" />`],
+    ['property="og:image"', `<meta property="og:image" content="${image}" />`],
+    ['name="twitter:title"', `<meta name="twitter:title" content="${title}" />`],
+    ['name="twitter:description"', `<meta name="twitter:description" content="${description}" />`],
+    ['name="twitter:image:alt"', `<meta name="twitter:image:alt" content="${title}" />`],
+    ['name="twitter:image"', `<meta name="twitter:image" content="${image}" />`],
+  ];
 
-<title>${fullTitle}</title>
-<meta name="description" content="${description}" />
+  // Match all meta tags including multiline ones.
+  // This regex finds <meta followed by content up to the next /> or >
+  // Using a global replace to process each tag individually.
+  // Matches <meta ...> or <meta .../> including newlines between attributes
+  const metaTagPattern = /<meta\b[\s\S]*?(?:\/>|>)/g;
 
-<!-- Open Graph / Facebook -->
-<meta property="og:type" content="website" />
-<meta property="og:url" content="${escapeHtml(url)}" />
-<meta property="og:title" content="${title}" />
-<meta property="og:description" content="${description}" />
-<meta property="og:image" content="${escapeHtml(image)}" />
-<meta property="og:site_name" content="${SITE_NAME}" />
+  html = html.replace(metaTagPattern, (match) => {
+    for (const [identifier, replacement] of replacements) {
+      if (match.includes(identifier)) {
+        return replacement;
+      }
+    }
+    return match;
+  });
 
-<!-- Twitter Card -->
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="${title}" />
-<meta name="twitter:description" content="${description}" />
-<meta name="twitter:image" content="${escapeHtml(image)}" />
-<meta name="twitter:image:alt" content="${title}" />
+  // Replace <title>
+  html = html.replace(/<title>[^<]*<\/title>/, `<title>${fullTitle}</title>`);
 
-<link rel="canonical" href="${escapeHtml(url)}" />
-</head>
-<body>
-<p>${fullTitle}</p>
-<p>${description}</p>
-</body>
-</html>`;
+  return html;
 }
 
 export default async (
   request: Request,
   context: { next: () => Promise<Response> }
 ) => {
-  const userAgent = request.headers.get("user-agent") || "";
-  if (!isBot(userAgent)) {
-    return context.next();
-  }
-
   const url = new URL(request.url);
   const slug = extractSlug(url.pathname);
+
   if (!slug) {
     return context.next();
   }
 
-  const component = await fetchComponent(slug);
+  // Fetch component data and SPA response in parallel
+  const [component, response] = await Promise.all([
+    fetchComponent(slug),
+    context.next(),
+  ]);
+
   if (!component) {
-    return context.next();
+    return response;
   }
 
-  const html = buildOgHtml(component);
-  return new Response(html, {
-    status: 200,
-    headers: {
-      "content-type": "text/html; charset=utf-8",
-      "cache-control": "public, max-age=300, s-maxage=300",
-    },
+  const contentType = response.headers.get("content-type") || "";
+  if (!contentType.includes("text/html")) {
+    return response;
+  }
+
+  const originalHtml = await response.text();
+  const modifiedHtml = injectMetaTags(originalHtml, component);
+
+  // Preserve original headers but update content-type and caching
+  const headers = new Headers(response.headers);
+  headers.set("content-type", "text/html; charset=utf-8");
+  headers.set(
+    "cache-control",
+    "public, max-age=60, s-maxage=300, stale-while-revalidate=600"
+  );
+
+  return new Response(modifiedHtml, {
+    status: response.status,
+    headers,
   });
 };
