@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Admin search now supports component name and repository URL searches (2026-03-05 22:12 UTC)
+  - Added `search_componentName` and `search_repositoryUrl` indexes to `convex/schema.ts`
+  - Updated `adminSearchPackages` query to search across five fields: package name, description, maintainer names, component name, and repository URL
+  - Admins can now search by human readable names like "Convex Agent" or repo paths like "gilhrpenner/convex-files"
+
 ### Changed
 
 - Unified font sizes between AI generated SEO content and long description markdown in ComponentDetail.tsx (2026-03-05 UTC)

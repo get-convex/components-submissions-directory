@@ -1188,7 +1188,7 @@ export const updateSubmitPageSizeSetting = mutation({
 });
 
 // SECURITY: Admin-only search - requires @convex.dev email authentication
-// Searches all packages by name, description, or maintainer names
+// Searches packages by name, description, maintainer names, component name, and repository URL
 export const adminSearchPackages = query({
   args: { searchTerm: v.string() },
   returns: v.array(adminPackageValidator),
@@ -1232,6 +1232,22 @@ export const adminSearchPackages = query({
       )
       .take(100);
 
+    // Search by component display name (e.g. "Convex Agent")
+    const componentNameResults = await ctx.db
+      .query("packages")
+      .withSearchIndex("search_componentName", (q) =>
+        q.search("componentName", args.searchTerm),
+      )
+      .take(100);
+
+    // Search by repository URL (e.g. "gilhrpenner/convex-files")
+    const repoResults = await ctx.db
+      .query("packages")
+      .withSearchIndex("search_repositoryUrl", (q) =>
+        q.search("repositoryUrl", args.searchTerm),
+      )
+      .take(100);
+
     // Combine results and deduplicate by _id
     const seen = new Set<string>();
     const combined: typeof nameResults = [];
@@ -1240,6 +1256,8 @@ export const adminSearchPackages = query({
       ...nameResults,
       ...descriptionResults,
       ...maintainerResults,
+      ...componentNameResults,
+      ...repoResults,
     ]) {
       if (!seen.has(pkg._id)) {
         seen.add(pkg._id);

@@ -208,6 +208,14 @@ const applicationTables = {
     .searchIndex("search_maintainers", {
       searchField: "maintainerNames",
       filterFields: ["visibility", "reviewStatus"],
+    })
+    .searchIndex("search_componentName", {
+      searchField: "componentName",
+      filterFields: ["visibility", "reviewStatus"],
+    })
+    .searchIndex("search_repositoryUrl", {
+      searchField: "repositoryUrl",
+      filterFields: ["visibility", "reviewStatus"],
     }),
 
   // Admin notes for packages (internal, admin-only) - supports threading

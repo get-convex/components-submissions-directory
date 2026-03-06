@@ -3,6 +3,15 @@
 ## to do
 
 - meta data
+
+### Admin search enhancement (PRD: prds/admin-search-enhancement.md)
+
+- [x] Add `search_componentName` index to schema (2026-03-05 22:12 UTC)
+- [x] Add `search_repositoryUrl` index to schema (2026-03-05 22:12 UTC)
+- [x] Update `adminSearchPackages` to search componentName and repositoryUrl (2026-03-05 22:12 UTC)
+- [x] Verify Convex functions compile successfully (2026-03-05 22:12 UTC)
+- [x] Update `files.md`, `changelog.md`, and `task.md` (2026-03-05 22:15 UTC)
+
 - [x] Fix submit form markdown mini preview rendering (headings, lists) and add 500 char limit (2026-03-05 23:25 UTC)
 - update challenge url
 - badge shield
