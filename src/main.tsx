@@ -13,8 +13,11 @@ import ComponentDetail from "./pages/ComponentDetail";
 import Documentation from "./pages/Documentation";
 import NotFound from "./pages/NotFound";
 import Footer from "./components/Footer";
+import PostHogProvider from "./components/PostHogProvider";
+import CookieBanner from "./components/CookieBanner";
 import { isReservedRoute, parseSlugFromPath } from "./lib/slugs";
 import { ConnectAuthProvider, useConnectAuth } from "./lib/connectAuth";
+import { CookiesProvider } from "react-cookie";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string, {
   verbose: true,
@@ -160,16 +163,21 @@ function AuthCallback() {
 }
 
 createRoot(document.getElementById("root")!).render(
-  <ConnectAuthProvider>
-    <ConvexProviderWithAuthKit client={convex} useAuth={useConnectAuth}>
-      <div className="antialiased min-h-screen flex flex-col">
-        <div className="flex-1">
-          <Router />
-        </div>
-        <div className="pt-[50px]">
-          <Footer />
-        </div>
-      </div>
-    </ConvexProviderWithAuthKit>
-  </ConnectAuthProvider>
+  <CookiesProvider>
+    <PostHogProvider>
+      <ConnectAuthProvider>
+        <ConvexProviderWithAuthKit client={convex} useAuth={useConnectAuth}>
+          <div className="antialiased min-h-screen flex flex-col">
+            <div className="flex-1">
+              <Router />
+            </div>
+            <div className="pt-[50px]">
+              <Footer />
+            </div>
+          </div>
+          <CookieBanner />
+        </ConvexProviderWithAuthKit>
+      </ConnectAuthProvider>
+    </PostHogProvider>
+  </CookiesProvider>
 );
