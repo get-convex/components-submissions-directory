@@ -3595,9 +3595,9 @@ function AdminSettingsPanel() {
                   </code>
                 </li>
                 <li>
-                  All functions have{" "}
+                  Exported functions have{" "}
                   <code className="bg-bg-primary px-1 rounded">returns:</code>{" "}
-                  validator
+                  validator (helper functions do not need this)
                 </li>
                 <li>
                   Uses{" "}
@@ -3620,7 +3620,10 @@ function AdminSettingsPanel() {
                   not{" "}
                   <code className="bg-bg-primary px-1 rounded">filter()</code>
                 </li>
-                <li>Internal functions use internalQuery, etc.</li>
+                <li>
+                  Internal-only functions use internalQuery, etc. (public API
+                  functions should NOT use internal*)
+                </li>
                 <li>
                   Proper TypeScript types (
                   <code className="bg-bg-primary px-1 rounded">
@@ -3629,8 +3632,8 @@ function AdminSettingsPanel() {
                   )
                 </li>
                 <li>
-                  Token-based authorization (when applicable, not all components
-                  need auth)
+                  Auth pattern when applicable (components cannot use ctx.auth,
+                  so token-based or auth callback patterns are used)
                 </li>
               </ul>
             </div>
@@ -4605,11 +4608,16 @@ function SeoPromptSettingsPanel() {
 
       {isExpanded && (
         <div className="p-4 border-t border-border space-y-4">
-          <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary">
+          <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary space-y-2">
             <p>
               View and customize the AI SEO content generation prompt. This prompt
               generates value propositions, benefits, use cases, FAQs, and SKILL.md
               files for each component. Uses placeholders like {"{{displayName}}"}, {"{{packageName}}"}, etc.
+            </p>
+            <p className="text-text-tertiary">
+              <strong>SKILL.md format:</strong> Generated skills follow Anthropic skill creator guidelines with
+              "pushy" description fields (trigger contexts from category, tags, and use cases),
+              imperative instructions, and a "When NOT to use" section to prevent over-triggering.
             </p>
           </div>
 

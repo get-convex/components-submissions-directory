@@ -2,6 +2,24 @@
 
 ## to do
 
+- [ ] badge shield on each compopnet page
+- [ ] fix opengraph view
+- [ ] add posthog
+- [ ]check all routes for mcp and md and llms.text
+- [ ]fix logout on submit page
+- [ ]test submitting
+- [ ] fix badges
+
+### SKILL.md generation improvements (Anthropic guidelines)
+
+- [x] Analyzed current `buildSkillMd()` implementation against Anthropic skill creator guidelines (2026-03-06 UTC)
+- [x] Added `buildTriggerContexts()` helper for "pushy" description fields (2026-03-06 UTC)
+- [x] Updated description field to include dynamic trigger contexts from category, tags, and use cases (2026-03-06 UTC)
+- [x] Changed instructions to imperative form per Anthropic guidelines (2026-03-06 UTC)
+- [x] Added "When NOT to use" section to prevent over-triggering (2026-03-06 UTC)
+- [x] Updated SEO + SKILL.md Prompt panel description in Admin.tsx to document new format (2026-03-06 UTC)
+- [x] Updated `files.md`, `changelog.md`, and `task.md` (2026-03-06 UTC)
+
 ### OpenGraph meta tags for social crawlers
 
 - [x] Created `netlify/edge-functions/og-meta.ts` to serve dynamic OG tags to bots (2026-03-05 23:45 UTC)
@@ -16,7 +34,8 @@
 - [x] Fixed false negative: only exported query/mutation/action need returns validators, not helper functions (2025-03-05 21:30 UTC)
 - [x] Fixed false positive: public API functions should NOT use internal\* (2025-03-05 21:30 UTC)
 - [x] Added ctx.auth unavailability note and auth callback pattern guidance (2025-03-05 21:30 UTC)
-- [x] Updated `files.md`, `changelog.md`, and `task.md` (2025-03-05 21:45 UTC)
+- [x] Updated "How AI Review Works" section in Admin settings panel to match v2 criteria (2025-03-05 22:00 UTC)
+- [x] Updated `files.md`, `changelog.md`, and `task.md` (2025-03-05 22:00 UTC)
 
 ### Admin search enhancement (PRD: prds/admin-search-enhancement.md)
 
@@ -25,17 +44,7 @@
 - [x] Update `adminSearchPackages` to search componentName and repositoryUrl (2026-03-05 22:12 UTC)
 - [x] Verify Convex functions compile successfully (2026-03-05 22:12 UTC)
 - [x] Update `files.md`, `changelog.md`, and `task.md` (2026-03-05 22:15 UTC)
-
 - [x] Fix submit form markdown mini preview rendering (headings, lists) and add 500 char limit (2026-03-05 23:25 UTC)
-- update challenge url
-- badge shield
-- add https://plausible.io/sites
-- check all routes for mcp and md and llms.text
-- [ ] https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
-- [ ]check all routes for mcp and md and llms.text
-- [ ]fix logout on submit page
-- [ ]test submitting
-- [ ] fix badges
 - [x] update routes for mcp
 - [x] Fix long description markdown line breaks and purple hover-link styling on component detail page (PRD: `prds/markdown-long-description-rendering-and-preview.md`) (2026-03-05 23:08 UTC)
 - [x] Add safe markdown long description support notes and mini preview in submit form (PRD: `prds/markdown-long-description-rendering-and-preview.md`) (2026-03-05 23:08 UTC)

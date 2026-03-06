@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Improved SKILL.md generation following Anthropic skill creator guidelines (2026-03-06 UTC)
+  - Description field now uses "pushy" trigger contexts per Anthropic recommendation to prevent under-triggering
+  - Added `buildTriggerContexts()` helper that extracts trigger phrases from category, tags, and use case queries
+  - Instructions now use imperative form ("Use X to..." instead of "X is a component that...")
+  - Added "When NOT to use" section to prevent over-triggering on unrelated queries
+  - Updated SEO + SKILL.md Prompt panel in Admin.tsx settings to document the new SKILL.md format
+  - Reference: https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
+
 ### Added
 
 - Dynamic OpenGraph meta tags for social crawlers via Netlify Edge Function (2026-03-05 23:45 UTC)
@@ -26,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added auth callback pattern guidance for re-exported functions
   - Renamed criteria for clarity: "Exported functions have returns: validator", "Internal-only functions use internal*", "Uses auth pattern (when applicable)"
   - Archived original prompt to `prds/ai-review-prompt-v1.md`
+  - Updated "How AI Review Works" section in Admin settings panel to match v2 criteria (2025-03-05 22:00 UTC)
 
 ### Added
 

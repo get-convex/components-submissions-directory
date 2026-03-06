@@ -87,40 +87,98 @@ interface SeoContentResponse {
   resourceLinks: { label: string; url: string }[];
 }
 
-// Build SKILL.md content following Agent Skills spec
+// Build trigger contexts for skill description (per Anthropic guidelines: make descriptions "pushy")
+function buildTriggerContexts(
+  category: string,
+  tags: string[],
+  seoContent: SeoContentResponse,
+  displayName: string,
+): string {
+  const contexts: string[] = [];
+
+  // Add category as primary context
+  if (category && category !== "general" && category !== "development") {
+    contexts.push(category.replace(/-/g, " "));
+  }
+
+  // Add relevant tags (lowercase, deduplicated)
+  const tagContexts = tags
+    .slice(0, 4)
+    .map((t) => t.toLowerCase().trim())
+    .filter((t) => t && t !== category);
+  contexts.push(...tagContexts);
+
+  // Extract trigger phrases from use case queries
+  if (seoContent.useCases?.length > 0) {
+    for (const uc of seoContent.useCases.slice(0, 2)) {
+      const phrase = uc.query
+        .toLowerCase()
+        .replace(/^how (do i |to )?/i, "")
+        .replace(/^what is (a |the )?/i, "")
+        .replace(/\?$/, "")
+        .trim();
+      if (phrase && phrase.length > 3 && phrase.length < 50) {
+        contexts.push(phrase);
+      }
+    }
+  }
+
+  // Deduplicate and limit
+  const uniqueContexts = [...new Set(contexts)].slice(0, 6);
+
+  if (uniqueContexts.length === 0) {
+    return `Also trigger when the user asks about ${displayName} or related Convex component functionality.`;
+  }
+
+  return `Use this skill whenever the user mentions ${uniqueContexts.slice(0, 3).join(", ")}. Also trigger when discussing ${uniqueContexts.slice(3).join(", ") || "related functionality"}, even if they don't explicitly ask for ${displayName}.`;
+}
+
+// Build SKILL.md content following Anthropic Agent Skills spec
+// Reference: https://github.com/anthropics/skills/blob/main/skills/skill-creator/SKILL.md
 function buildSkillMd(pkg: any, seoContent: SeoContentResponse): string {
   const displayName = pkg.componentName || pkg.name || "component";
   const kebabName = (pkg.name || displayName)
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
-  
-  const description = seoContent.valueProp || pkg.shortDescription || pkg.description || "";
+
+  const valueProp =
+    seoContent.valueProp || pkg.shortDescription || pkg.description || "";
   const category = pkg.category || "development";
-  const tags = pkg.tags || [];
+  const tags: string[] = pkg.tags || [];
   const repoUrl = pkg.repositoryUrl || "";
   const npmUrl = pkg.npmUrl || "";
   const installCmd = pkg.installCommand || `npm install ${pkg.name}`;
 
+  // Build "pushy" trigger contexts per Anthropic guidelines
+  const triggerContexts = buildTriggerContexts(
+    category,
+    tags,
+    seoContent,
+    displayName,
+  );
+
   const lines: string[] = [];
-  
-  // YAML frontmatter
+
+  // YAML frontmatter with enhanced "pushy" description
   lines.push("---");
   lines.push(`name: ${kebabName}`);
-  lines.push(`description: ${description} Use when working with ${category} features, ${tags.slice(0, 3).join(", ") || displayName}.`);
+  lines.push(`description: ${valueProp} ${triggerContexts}`);
   lines.push("---");
   lines.push("");
-  
+
   // Main title
   lines.push(`# ${displayName}`);
   lines.push("");
-  
-  // Instructions section
+
+  // Instructions section (imperative form per Anthropic guidelines)
   lines.push("## Instructions");
   lines.push("");
-  lines.push(`${displayName} is a Convex component that provides ${description.toLowerCase()}`);
+  lines.push(
+    `Use ${displayName} to ${valueProp.toLowerCase().replace(/\.$/, "")}. This Convex component integrates directly with your backend.`,
+  );
   lines.push("");
-  
+
   // Installation
   lines.push("### Installation");
   lines.push("");
@@ -128,7 +186,7 @@ function buildSkillMd(pkg: any, seoContent: SeoContentResponse): string {
   lines.push(installCmd);
   lines.push("```");
   lines.push("");
-  
+
   // Benefits/capabilities
   if (seoContent.benefits && seoContent.benefits.length > 0) {
     lines.push("### Capabilities");
@@ -138,7 +196,7 @@ function buildSkillMd(pkg: any, seoContent: SeoContentResponse): string {
     }
     lines.push("");
   }
-  
+
   // Use cases as examples
   if (seoContent.useCases && seoContent.useCases.length > 0) {
     lines.push("## Examples");
@@ -150,7 +208,19 @@ function buildSkillMd(pkg: any, seoContent: SeoContentResponse): string {
       lines.push("");
     }
   }
-  
+
+  // When NOT to use section (per Anthropic guidelines to prevent over-triggering)
+  lines.push("## When NOT to use");
+  lines.push("");
+  lines.push(
+    "- When a simpler built-in solution exists for your specific use case",
+  );
+  lines.push("- If you are not using Convex as your backend");
+  lines.push(
+    `- When the functionality provided by ${displayName} is not needed`,
+  );
+  lines.push("");
+
   // FAQ as troubleshooting
   if (seoContent.faq && seoContent.faq.length > 0) {
     lines.push("## Troubleshooting");
@@ -162,7 +232,7 @@ function buildSkillMd(pkg: any, seoContent: SeoContentResponse): string {
       lines.push("");
     }
   }
-  
+
   // Resources
   lines.push("## Resources");
   lines.push("");
@@ -176,10 +246,12 @@ function buildSkillMd(pkg: any, seoContent: SeoContentResponse): string {
     lines.push(`- [Live demo](${pkg.demoUrl})`);
   }
   if (pkg.slug) {
-    lines.push(`- [Convex Components Directory](https://www.convex.dev/components/${pkg.slug})`);
+    lines.push(
+      `- [Convex Components Directory](https://www.convex.dev/components/${pkg.slug})`,
+    );
   }
   lines.push("- [Convex documentation](https://docs.convex.dev)");
-  
+
   return lines.join("\n");
 }
 
