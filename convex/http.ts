@@ -1644,4 +1644,72 @@ http.route({
 */
 // End of temporarily disabled MCP routes
 
+// ============ SITEMAP.XML ENDPOINT ============
+http.route({
+  path: "/api/sitemap.xml",
+  method: "GET",
+  handler: httpAction(async (ctx) => {
+    const packages = await ctx.runQuery(
+      internal.packages._listApprovedPackages
+    );
+
+    const origin = DIRECTORY_ORIGIN;
+    const today = new Date().toISOString().slice(0, 10);
+
+    const staticPages = [
+      { loc: `${origin}/components`, changefreq: "daily", priority: "1.0" },
+      {
+        loc: `${origin}/components/submit`,
+        changefreq: "monthly",
+        priority: "0.5",
+      },
+      {
+        loc: `${origin}/components/submissions`,
+        changefreq: "weekly",
+        priority: "0.4",
+      },
+      {
+        loc: `${origin}/components/documentation`,
+        changefreq: "monthly",
+        priority: "0.4",
+      },
+    ];
+
+    const urls: string[] = [];
+    for (const page of staticPages) {
+      urls.push(
+        `  <url>\n    <loc>${page.loc}</loc>\n    <lastmod>${today}</lastmod>\n    <changefreq>${page.changefreq}</changefreq>\n    <priority>${page.priority}</priority>\n  </url>`
+      );
+    }
+
+    const sorted = [...packages].sort((a: any, b: any) =>
+      (a.name || "").localeCompare(b.name || "")
+    );
+
+    for (const pkg of sorted) {
+      const slug = (pkg as any).slug;
+      if (!slug) continue;
+      const lastmod = (pkg as any).lastPublish
+        ? new Date((pkg as any).lastPublish).toISOString().slice(0, 10)
+        : today;
+      urls.push(
+        `  <url>\n    <loc>${origin}/components/${escapeXml(slug)}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>`
+      );
+    }
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.join("\n")}
+</urlset>`;
+
+    return new Response(xml, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/xml; charset=utf-8",
+        "Cache-Control": "public, max-age=3600, s-maxage=3600",
+      },
+    });
+  }),
+});
+
 export default http;
