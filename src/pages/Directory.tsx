@@ -30,7 +30,7 @@ export default function Directory() {
   const [visibleBySection, setVisibleBySection] = useState<Record<string, number>>({});
   const desktopSortRef = useRef<HTMLDivElement>(null);
   const mobileSortRef = useRef<HTMLDivElement>(null);
-  const groupedCardsPerLoad = gridColumns * 2;
+  const groupedCardsPerLoad = gridColumns * 3;
   const flatCardsPerLoad = gridColumns * 3;
   const featuredFirstRowCount = 3;
   const featuredExtraPerLoad = 8;

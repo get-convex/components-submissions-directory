@@ -5,6 +5,9 @@
 - [ ] setup trenmdous
 - [ ] fix logout on submit page
 - [ ] add admin
+- [x] Admin dashboard default filter changed from "pending" to "all" (2026-03-07 00:35 UTC)
+- [x] Directory category sections now show 3 rows before "Load more" (2026-03-07 00:35 UTC)
+  - Changed `groupedCardsPerLoad` from `gridColumns * 2` to `gridColumns * 3`
 - [x] fix image meta (2026-03-06 UTC)
   - Final fix reverts `og:image` back to the known working raw `thumbnailUrl` storage format
   - Updated `og-meta.ts` edge function to emit `component.thumbnailUrl` directly

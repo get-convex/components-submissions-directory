@@ -5732,8 +5732,8 @@ function AdminDashboard({
   searchTerm: string;
   setSearchTerm: (term: string) => void;
 }) {
-  // Default to pending to show new submissions first
-  const [activeFilter, setActiveFilter] = useState<FilterType>("pending");
+  // Default to all to show complete overview first
+  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   // Pagination state - track current page for each filter
   const [currentPage, setCurrentPage] = useState<Record<FilterType, number>>({
     all: 1,

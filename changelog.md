@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Admin dashboard default filter changed from "pending" to "all" for complete submission overview (2026-03-07 00:35 UTC)
+- Directory category sections now show 3 rows of cards initially before "Load more" button (2026-03-07 00:35 UTC)
+  - Changed `groupedCardsPerLoad` from `gridColumns * 2` to `gridColumns * 3`
+  - Shows 12 cards on 4-column desktop, 9 on 3-column, 6 on 2-column, 3 on mobile
+
 ### Fixed
 
 - Reverted component OG image tags to the known working raw Convex storage URL format after the `/components/og/*` proxy path failed in production (2026-03-06 22:54 UTC)
