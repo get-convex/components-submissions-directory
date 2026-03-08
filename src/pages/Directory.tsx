@@ -30,6 +30,8 @@ export default function Directory() {
   const [visibleBySection, setVisibleBySection] = useState<Record<string, number>>({});
   const desktopSortRef = useRef<HTMLDivElement>(null);
   const mobileSortRef = useRef<HTMLDivElement>(null);
+  const directoryTopRef = useRef<HTMLDivElement>(null);
+  const shouldScrollToTopRef = useRef(false);
   const groupedCardsPerLoad = gridColumns * 3;
   const flatCardsPerLoad = gridColumns * 3;
   const featuredFirstRowCount = 3;
@@ -61,6 +63,29 @@ export default function Directory() {
   useEffect(() => {
     setVisibleBySection({});
   }, [selectedCategory, searchTerm, sortBy, gridColumns]);
+
+  useEffect(() => {
+    if (!shouldScrollToTopRef.current) {
+      return;
+    }
+
+    shouldScrollToTopRef.current = false;
+
+    if (!directoryTopRef.current) {
+      return;
+    }
+
+    const stickyHeaderOffset = 96;
+    const nextTop =
+      directoryTopRef.current.getBoundingClientRect().top +
+      window.scrollY -
+      stickyHeaderOffset;
+
+    window.scrollTo({
+      top: Math.max(nextTop, 0),
+      behavior: "smooth",
+    });
+  }, [selectedCategory]);
 
   // Fetch data from Convex
   const components = useQuery(api.packages.listApprovedComponents, {
@@ -107,6 +132,11 @@ export default function Directory() {
     }));
   };
 
+  const handleSelectCategory = (category: string | null) => {
+    shouldScrollToTopRef.current = true;
+    setSelectedCategory(category);
+  };
+
   // Show featured only when no category and no search
   const showFeatured = !selectedCategory && !searchTerm.trim() && featured && featured.length > 0;
   const directoryCardHoverClass = "hover:bg-[rgb(246_238_219/var(--tw-bg-opacity,1))]";
@@ -122,7 +152,7 @@ export default function Directory() {
 
       {/* Page header */}
       <header>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
+        <div ref={directoryTopRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
           <h1 className="text-2xl font-semibold text-text-primary mb-1">Components</h1>
           <p className="text-sm text-text-secondary">
             Open-source building blocks for your Convex app
@@ -219,7 +249,7 @@ export default function Directory() {
                   <CategorySidebar
                     categories={categories}
                     selectedCategory={selectedCategory}
-                    onSelectCategory={setSelectedCategory}
+                    onSelectCategory={handleSelectCategory}
                   />
                 )}
               </div>
@@ -288,7 +318,7 @@ export default function Directory() {
             {/* Mobile category pills */}
             <div className="lg:hidden flex gap-2 overflow-x-auto pb-4 mb-4 -mx-1 px-1">
               <button
-                onClick={() => setSelectedCategory(null)}
+                onClick={() => handleSelectCategory(null)}
                 className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                   selectedCategory === null
                     ? "bg-text-primary text-white"
@@ -299,7 +329,7 @@ export default function Directory() {
               {categories?.map((cat) => (
                 <button
                   key={cat.category}
-                  onClick={() => setSelectedCategory(cat.category)}
+                  onClick={() => handleSelectCategory(cat.category)}
                   className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                     selectedCategory === cat.category
                       ? "bg-text-primary text-white"

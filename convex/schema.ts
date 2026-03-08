@@ -320,8 +320,8 @@ const applicationTables = {
     .index("by_status", ["status"])
     .index("by_sent_at", ["sentAt"]),
 
-  // Admin settings for AI review/SEO automation and auto-refresh
-  // Keys: "autoApproveOnPass", "autoRejectOnFail", "autoGenerateSeoOnPendingOrInReview", "autoRefreshEnabled"
+  // Admin settings for AI review, SEO automation, thumbnails, and auto-refresh
+  // Keys include "autoAiReview", "autoApproveOnPass", "autoRejectOnFail", "autoGenerateSeoOnPendingOrInReview", "autoGenerateThumbnailOnSubmit", "rotateThumbnailTemplatesOnSubmit", and "autoRefreshEnabled"
   // For numeric settings like refreshIntervalDays, store in adminSettingsNumeric
   adminSettings: defineTable({
     key: v.string(),
@@ -495,6 +495,34 @@ const applicationTables = {
     .index("by_endpoint", ["endpoint"])
     .index("by_endpoint_and_requested_at", ["endpoint", "requestedAt"])
     .index("by_requested_at", ["requestedAt"]),
+
+  // Public preflight checks for component validation before submission
+  // Tracks rate limiting by hashed IP and caches results by repo URL
+  preflightChecks: defineTable({
+    normalizedRepoUrl: v.string(),
+    hashedIp: v.string(),
+    createdAt: v.number(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("passed"),
+      v.literal("failed"),
+      v.literal("partial"),
+      v.literal("error"),
+    ),
+    summary: v.optional(v.string()),
+    criteria: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          passed: v.boolean(),
+          notes: v.string(),
+        }),
+      ),
+    ),
+    expiresAt: v.number(),
+  })
+    .index("by_hashed_ip_and_created", ["hashedIp", "createdAt"])
+    .index("by_repo_and_expires", ["normalizedRepoUrl", "expiresAt"]),
 };
 
 export default defineSchema({

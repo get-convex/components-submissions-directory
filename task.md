@@ -2,8 +2,52 @@
 
 ## to do
 
-Session updates complete on 2026-03-08 17:16 UTC.
+Session updates complete on 2026-03-08 22:13 UTC.
 
+- [x] fix directory category selection scroll position (2026-03-08 22:13 UTC)
+  - Updated `src/pages/Directory.tsx` so category selection runs through a shared handler for desktop and mobile filters
+  - Added smooth scroll reset to the top of the directory header after a category change so the new results are visible immediately
+  - Synced `files.md` and `changelog.md` for this session change
+
+- [x] fix preflight.ts crypto module error (2026-03-08 23:15 UTC)
+  - Changed `hashIp` from Node.js `crypto.createHash()` to Web Crypto API `crypto.subtle.digest()`
+  - The default Convex runtime does not have access to Node.js built-in modules
+  - Updated `convex/http.ts` to handle the now-async `hashIp` function
+  - Verified with `npx convex codegen`, `npx tsc -p convex/tsconfig.json --noEmit --pretty false`, and `npm run build`
+
+- [x] restore optional auto approve and auto reject outcomes behind auto AI review (`prds/admin-auto-ai-review-and-logo-thumbnail-gating.md`) (2026-03-08 22:01 UTC)
+  - Brought back `Auto-approve on pass` and `Auto-reject on fail` while keeping `Auto AI review` as the top level trigger
+  - Kept `Auto AI review` off by default and made the two outcome toggles depend on it in the Admin UI
+  - Updated backend settings and AI review completion logic so optional approval or rejection automation runs only when `autoAiReview` is enabled
+  - Supersedes the earlier single-toggle-only automation pass from the same session
+  - Verified with `npx convex codegen`, `npx tsc -p convex/tsconfig.json --noEmit --pretty false`, and `npm run build`
+
+- [x] add public preflight checker for component validation (`prds/public-preflight-checker.md`) (2026-03-08 22:30 UTC)
+  - Extracted shared review helper `runReviewOnRepo` from `convex/aiReview.ts` so admin and public checks use the same logic
+  - Added `runPreflightCheck` internal action that runs review without persisting to `packages` table
+  - Added `preflightChecks` table in `convex/schema.ts` for rate limiting and result caching
+  - Added `/api/preflight` HTTP endpoint with IP-based rate limiting (10 checks/hour), in-flight limits (1 concurrent), and 30-minute result caching
+  - Created `convex/preflight.ts` with helper functions for IP hashing, URL normalization, and internal queries and mutations
+  - Created `src/pages/SubmitCheck.tsx` with form input, loading states, and detailed results display including critical and advisory criteria
+  - Added route for `/components/submit/check` in `src/main.tsx`
+  - Added preflight check link in `src/pages/SubmitForm.tsx` below the header with icon and description
+  - Verified with `npx convex codegen`, TypeScript checks, and `npm run build`
+
+- [x] replace auto approve or reject with auto AI review workflow (`prds/admin-auto-ai-review-and-logo-thumbnail-gating.md`) (2026-03-08 19:17 UTC)
+  - Replaced the Admin AI automation toggle pair with a single `Auto AI review` setting that queues review jobs and moves eligible packages into `in_review`
+  - Turning the setting on now queues current pending packages that have repository URLs and leaves final approval or rejection to admins
+  - Verified with `npx convex codegen`, `npx tsc -p convex/tsconfig.json --noEmit --pretty false`, and `npm run build`
+- [x] gate auto submit thumbnail generation to logo backed submissions and clarify the admin setting copy (2026-03-08 19:17 UTC)
+  - Confirmed `saveLogo` remains the only submit-time auto thumbnail trigger, so submissions without a logo are skipped
+  - Updated the Admin settings copy to explicitly state the logo requirement for automatic thumbnail generation
+- [x] update docs for the admin AI review automation change after verification (2026-03-08 19:17 UTC)
+  - Added PRD `prds/admin-auto-ai-review-and-logo-thumbnail-gating.md`
+  - Synced `task.md`, `changelog.md`, and `files.md` with the new automation workflow
+
+- [x] add shared git and Cursor collaboration workflow PRD (`prds/git-cursor-shared-repo-workflow.md`) (2026-03-08 17:39 UTC)
+  - Added a team workflow guide for working in the same repo with another developer using both Git CLI and Cursor's Commit and Sync UI
+  - Documented the recommended branch first workflow plus a safe direct to `main` fallback using `git pull --rebase origin main`
+  - Included quick safety checks for ahead, behind, and diverged branch states before using Cursor `Sync`
 - [x] update AI review prompt to v3 with repo-based critical pass criteria and advisory notes (`prds/ai-review-prompt-v3.md`) (2026-03-08 17:16 UTC)
   - Archived the previous default AI review prompt v2 into `prds/ai-review-prompt-v3.md`
   - Updated `convex/aiReview.ts` and `convex/aiSettings.ts` to use a v3 prompt that judges component validity from the linked GitHub repository, not a published npm tarball

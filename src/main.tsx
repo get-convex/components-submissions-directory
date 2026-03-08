@@ -7,6 +7,7 @@ import "./index.css";
 import Directory from "./pages/Directory";
 import Submit from "./pages/Submit";
 import SubmitForm from "./pages/SubmitForm";
+import SubmitCheck from "./pages/SubmitCheck";
 import Admin from "./pages/Admin";
 import Profile from "./pages/Profile";
 import ComponentDetail from "./pages/ComponentDetail";
@@ -64,6 +65,11 @@ function Router() {
     }
     // /submissions = Public submissions directory (table view)
     return <Submit />;
+  }
+
+  // /submit/check = Public preflight checker
+  if (segments[0] === "submit" && segments[1] === "check") {
+    return <SubmitCheck />;
   }
 
   // /submit = Auth-gated submission form

@@ -1,15 +1,15 @@
 "use node";
 
 import { v } from "convex/values";
-import { action } from "./_generated/server";
+import { action, internalAction } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { buildProviderCandidates, executeWithProviderFallback } from "./aiProviderFallback";
+import { buildProviderCandidates, executeWithProviderFallback, ProviderSettingsForFallback, AiProvider, AiProviderSource } from "./aiProviderFallback";
 
 // Helper function to call different AI providers
-async function callAiProvider(
+export async function callAiProvider(
   provider: "anthropic" | "openai" | "gemini",
   apiKey: string,
   model: string,
@@ -62,7 +62,7 @@ async function callAiProvider(
 }
 
 // Convex component review criteria (v3 - updated 2026-03-08)
-const REVIEW_CRITERIA = [
+export const REVIEW_CRITERIA = [
   {
     name: "Has convex.config.ts with defineComponent()",
     check: "Check for convex.config.ts in root with defineComponent() export",
@@ -133,8 +133,22 @@ const REVIEW_CRITERIA = [
   },
 ];
 
+// Types for shared review results
+export interface ReviewCriterion {
+  name: string;
+  passed: boolean;
+  notes: string;
+}
+
+export interface ReviewResult {
+  status: "passed" | "failed" | "partial" | "error";
+  summary: string;
+  criteria: ReviewCriterion[];
+  error?: string;
+}
+
 // Fetch repository contents from GitHub (for Convex components)
-async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
+export async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
   // Normalize the URL to handle various formats
   const normalizedUrl = repoUrl
     .replace(/^git\+/, "") // Remove git+ prefix (npm style)
@@ -327,121 +341,26 @@ async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
   };
 }
 
-// Run AI review using configured provider (Anthropic, OpenAI, or Gemini)
-export const runAiReview = action({
-  args: { packageId: v.id("packages") },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const reviewCreatedAt = Date.now();
+// Build the AI review prompt from repo files
+export function buildReviewPrompt(
+  repoFiles: Array<{ name: string; content: string }>,
+  packageName: string,
+  version: string,
+  customPromptContent?: string
+): string {
+  const filesContext = repoFiles
+    .map((f) => `File: ${f.name}\n\`\`\`typescript\n${f.content}\n\`\`\``)
+    .join("\n\n");
 
-    // Set status to reviewing
-    await ctx.runMutation(api.packages.updateAiReviewStatus, {
-      packageId: args.packageId,
-      status: "reviewing",
-    });
+  const criteriaList = REVIEW_CRITERIA.map(
+    (c, i) => `${i + 1}. ${c.name}: ${c.check}${c.critical ? " (CRITICAL)" : ""}`
+  ).join("\n");
 
-    try {
-      // SECURITY: Use internal query to get full package data including repositoryUrl
-      const pkg = await ctx.runQuery(internal.packages._getPackage, {
-        packageId: args.packageId,
-      });
-
-      if (!pkg) {
-        throw new Error("Package not found");
-      }
-
-      // Check if package has GitHub repository URL
-      if (!pkg.repositoryUrl) {
-        const summary =
-          "Cannot perform full review: Package does not have a GitHub repository URL. Only npm metadata is available.";
-        const criteria = REVIEW_CRITERIA.map((c) => ({
-          name: c.name,
-          passed: false,
-          notes: "Unable to check: No repository URL provided",
-        }));
-
-        await ctx.runMutation(api.packages.updateAiReviewResult, {
-          packageId: args.packageId,
-          status: "partial",
-          summary,
-          criteria,
-          error: undefined,
-        });
-        await ctx.runMutation(internal.packages._createAiReviewRun, {
-          packageId: args.packageId,
-          createdAt: reviewCreatedAt,
-          status: "partial",
-          summary,
-          criteria,
-          error: undefined,
-          provider: undefined,
-          model: undefined,
-          source: undefined,
-          rawOutput: undefined,
-        });
-        return null;
-      }
-
-      // Fetch GitHub repository contents
-      const githubToken = process.env.GITHUB_TOKEN;
-      const repoData = await fetchGitHubRepo(pkg.repositoryUrl, githubToken);
-
-      if (!repoData.exists || !repoData.isComponent || repoData.files.length === 0) {
-        const summary =
-          "Review failed: No convex.config.ts found in repository. This package is not a valid Convex component. Components must have convex.config.ts with defineComponent().";
-        const criteria = REVIEW_CRITERIA.map((c) => ({
-          name: c.name,
-          passed: false,
-          notes:
-            c.name === "Has convex.config.ts with defineComponent()"
-              ? "Failed: No convex.config.ts found"
-              : "Unable to check: Not a Convex component",
-        }));
-
-        await ctx.runMutation(api.packages.updateAiReviewResult, {
-          packageId: args.packageId,
-          status: "failed",
-          summary,
-          criteria,
-          error: undefined,
-        });
-        await ctx.runMutation(internal.packages._createAiReviewRun, {
-          packageId: args.packageId,
-          createdAt: reviewCreatedAt,
-          status: "failed",
-          summary,
-          criteria,
-          error: undefined,
-          provider: undefined,
-          model: undefined,
-          source: undefined,
-          rawOutput: undefined,
-        });
-        return null;
-      }
-
-      // Get provider settings and prompt from aiSettings
-      const providerSettings = await ctx.runQuery(
-        internal.aiSettings._getProviderSettingsForFallback
-      );
-      const customPromptContent = await ctx.runQuery(internal.aiSettings._getActivePromptContent);
-
-      // Prepare AI prompt
-      const filesContext = repoData.files
-        .map((f) => `File: ${f.name}\n\`\`\`typescript\n${f.content}\n\`\`\``)
-        .join("\n\n");
-
-      const criteriaList = REVIEW_CRITERIA.map(
-        (c, i) => `${i + 1}. ${c.name}: ${c.check}${c.critical ? " (CRITICAL)" : ""}`
-      ).join("\n");
-
-      // Use custom prompt if available, otherwise use default
-      let basePrompt: string;
-      if (customPromptContent) {
-        basePrompt = customPromptContent;
-      } else {
-        // Default prompt template v3 (updated 2026-03-08)
-        const docsReference = `
+  let basePrompt: string;
+  if (customPromptContent) {
+    basePrompt = customPromptContent;
+  } else {
+    const docsReference = `
 OFFICIAL CONVEX COMPONENT DOCUMENTATION REFERENCES:
 - Authoring Components: https://docs.convex.dev/components/authoring
 - Understanding Components: https://docs.convex.dev/components/understanding
@@ -463,7 +382,7 @@ KEY REQUIREMENTS FROM DOCS:
 9. If a component provides functions for apps to re-export (makeXXXAPI pattern), it should use an app-side auth wrapper or accept an auth callback option where appropriate.
 `;
 
-        basePrompt = `You are reviewing a Convex component package against official Convex component specifications.
+    basePrompt = `You are reviewing a Convex component package against official Convex component specifications.
 
 ${docsReference}
 
@@ -540,124 +459,291 @@ Respond in this exact JSON format:
   ],
   "suggestions": "Improvement suggestions with references to official docs (e.g., 'See https://docs.convex.dev/components/authoring for...')"
 }`;
-      }
+  }
 
-      // Build final prompt with package-specific context
-      const prompt = `${basePrompt}
+  return `${basePrompt}
 
-PACKAGE: ${pkg.name}
-VERSION: ${pkg.version}
+PACKAGE: ${packageName}
+VERSION: ${version}
 
 CRITERIA TO CHECK (in order, marking critical ones):
 ${criteriaList}
 
 SOURCE CODE (convex.config.ts + component files):
 ${filesContext}`;
+}
 
-      // Run with automatic provider failover:
-      // active admin -> backup admin providers -> environment variables
-      const candidates = buildProviderCandidates({
-        adminProviders: providerSettings,
-        envKeys: {
-          anthropic: process.env.ANTHROPIC_API_KEY,
-          openai: process.env.CONVEX_OPENAI_API_KEY,
-          gemini: process.env.GEMINI_API_KEY ?? process.env.CONVEX_GEMINI_API_KEY,
-        },
-        defaultEnvModels: {
-          anthropic: "claude-opus-4-6",
-          openai: "gpt-5.2",
-          gemini: "gemini-3-pro",
-        },
-      });
+// Parse AI response and determine review result
+export function parseReviewResponse(aiResponseText: string): ReviewResult {
+  let jsonText = aiResponseText.trim();
+  const jsonMatch =
+    jsonText.match(/```json\n?([\s\S]*?)\n?```/) || jsonText.match(/```\n?([\s\S]*?)\n?```/);
+  if (jsonMatch) {
+    jsonText = jsonMatch[1];
+  }
 
-      const {
-        result: aiResponseText,
-        usedProvider,
-        usedModel,
-        usedSource,
-      } = await executeWithProviderFallback({
-        candidates,
-        run: async (candidate) =>
-          callAiProvider(candidate.provider, candidate.apiKey, candidate.model, prompt),
-      });
-      console.log(
-        `AI review provider selected: ${usedProvider} (${usedSource}) model=${usedModel}`
+  const aiResponse = JSON.parse(jsonText) as {
+    summary: string;
+    criteria: Array<{ name: string; passed: boolean; notes: string }>;
+    suggestions?: string;
+  };
+
+  const criticalCriteriaResults = aiResponse.criteria.filter(
+    (_criterion, index) => REVIEW_CRITERIA[index]?.critical
+  );
+  const anyCriticalFailed = criticalCriteriaResults.some((criterion) => !criterion.passed);
+
+  let status: "passed" | "failed" | "partial" = "passed";
+  if (anyCriticalFailed) {
+    status = "failed";
+  }
+
+  let summary = aiResponse.summary;
+  if (aiResponse.suggestions) {
+    summary += `\n\nSuggestions: ${aiResponse.suggestions}`;
+  }
+
+  return {
+    status,
+    summary,
+    criteria: aiResponse.criteria,
+  };
+}
+
+// Shared helper for running the AI review on a repo
+// Used by both admin reviews and public preflight checks
+export async function runReviewOnRepo(
+  repoUrl: string,
+  packageName: string,
+  version: string,
+  providerSettings: ProviderSettingsForFallback[] | null,
+  customPromptContent?: string
+): Promise<ReviewResult & { provider?: AiProvider; model?: string; source?: AiProviderSource; rawOutput?: string }> {
+  const githubToken = process.env.GITHUB_TOKEN;
+  const repoData = await fetchGitHubRepo(repoUrl, githubToken);
+
+  if (!repoData.exists || !repoData.isComponent || repoData.files.length === 0) {
+    return {
+      status: "failed",
+      summary:
+        "Review failed: No convex.config.ts found in repository. This package is not a valid Convex component. Components must have convex.config.ts with defineComponent().",
+      criteria: REVIEW_CRITERIA.map((c) => ({
+        name: c.name,
+        passed: false,
+        notes:
+          c.name === "Has convex.config.ts with defineComponent()"
+            ? "Failed: No convex.config.ts found"
+            : "Unable to check: Not a Convex component",
+      })),
+    };
+  }
+
+  const prompt = buildReviewPrompt(repoData.files, packageName, version, customPromptContent);
+
+  const candidates = buildProviderCandidates({
+    adminProviders: providerSettings ?? [],
+    envKeys: {
+      anthropic: process.env.ANTHROPIC_API_KEY,
+      openai: process.env.CONVEX_OPENAI_API_KEY,
+      gemini: process.env.GEMINI_API_KEY ?? process.env.CONVEX_GEMINI_API_KEY,
+    },
+    defaultEnvModels: {
+      anthropic: "claude-opus-4-6",
+      openai: "gpt-5.2",
+      gemini: "gemini-3-pro",
+    },
+  });
+
+  const {
+    result: aiResponseText,
+    usedProvider,
+    usedModel,
+    usedSource,
+  } = await executeWithProviderFallback({
+    candidates,
+    run: async (candidate) =>
+      callAiProvider(candidate.provider, candidate.apiKey, candidate.model, prompt),
+  });
+
+  console.log(`AI review provider selected: ${usedProvider} (${usedSource}) model=${usedModel}`);
+
+  const reviewResult = parseReviewResponse(aiResponseText);
+
+  return {
+    ...reviewResult,
+    provider: usedProvider,
+    model: usedModel,
+    source: usedSource,
+    rawOutput: aiResponseText,
+  };
+}
+
+// Internal action for public preflight checks
+// Does not persist to packages table, only returns result
+export const runPreflightCheck = internalAction({
+  args: {
+    repoUrl: v.string(),
+    packageName: v.optional(v.string()),
+  },
+  returns: v.object({
+    status: v.union(
+      v.literal("passed"),
+      v.literal("failed"),
+      v.literal("partial"),
+      v.literal("error"),
+    ),
+    summary: v.string(),
+    criteria: v.array(
+      v.object({
+        name: v.string(),
+        passed: v.boolean(),
+        notes: v.string(),
+      }),
+    ),
+    error: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    try {
+      const providerSettings = await ctx.runQuery(
+        internal.aiSettings._getProviderSettingsForFallback
+      );
+      const customPromptContent = await ctx.runQuery(internal.aiSettings._getActivePromptContent);
+
+      const result = await runReviewOnRepo(
+        args.repoUrl,
+        args.packageName || "Unknown Package",
+        "0.0.0",
+        providerSettings,
+        customPromptContent ?? undefined
       );
 
-      // Extract JSON from response (it might be wrapped in markdown code blocks)
-      let jsonText = aiResponseText.trim();
-      const jsonMatch =
-        jsonText.match(/```json\n?([\s\S]*?)\n?```/) || jsonText.match(/```\n?([\s\S]*?)\n?```/);
-      if (jsonMatch) {
-        jsonText = jsonMatch[1];
-      }
-
-      const aiResponse = JSON.parse(jsonText) as {
-        summary: string;
-        criteria: Array<{ name: string; passed: boolean; notes: string }>;
-        suggestions?: string;
+      return {
+        status: result.status,
+        summary: result.summary,
+        criteria: result.criteria,
+        error: result.error,
       };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        status: "error" as const,
+        summary: "Preflight check encountered an error",
+        criteria: [],
+        error: message,
+      };
+    }
+  },
+});
 
-      // Determine overall status
-      const criticalCriteriaResults = aiResponse.criteria.filter(
-        (_criterion, index) => REVIEW_CRITERIA[index]?.critical
+// Run AI review using configured provider (Anthropic, OpenAI, or Gemini)
+// Uses the shared runReviewOnRepo helper but persists results to the package record
+export const runAiReview = action({
+  args: { packageId: v.id("packages") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const reviewCreatedAt = Date.now();
+
+    // Set status to reviewing
+    await ctx.runMutation(api.packages.updateAiReviewStatus, {
+      packageId: args.packageId,
+      status: "reviewing",
+    });
+
+    try {
+      // SECURITY: Use internal query to get full package data including repositoryUrl
+      const pkg = await ctx.runQuery(internal.packages._getPackage, {
+        packageId: args.packageId,
+      });
+
+      if (!pkg) {
+        throw new Error("Package not found");
+      }
+
+      // Check if package has GitHub repository URL
+      if (!pkg.repositoryUrl) {
+        const summary =
+          "Cannot perform full review: Package does not have a GitHub repository URL. Only npm metadata is available.";
+        const criteria = REVIEW_CRITERIA.map((c) => ({
+          name: c.name,
+          passed: false,
+          notes: "Unable to check: No repository URL provided",
+        }));
+
+        await ctx.runMutation(api.packages.updateAiReviewResult, {
+          packageId: args.packageId,
+          status: "partial",
+          summary,
+          criteria,
+          error: undefined,
+        });
+        await ctx.runMutation(internal.packages._createAiReviewRun, {
+          packageId: args.packageId,
+          createdAt: reviewCreatedAt,
+          status: "partial",
+          summary,
+          criteria,
+          error: undefined,
+          provider: undefined,
+          model: undefined,
+          source: undefined,
+          rawOutput: undefined,
+        });
+        return null;
+      }
+
+      // Get provider settings and prompt from aiSettings
+      const providerSettings = await ctx.runQuery(
+        internal.aiSettings._getProviderSettingsForFallback
       );
-      const allCriticalPassed = criticalCriteriaResults.every((criterion) => criterion.passed);
-      const anyCriticalFailed = criticalCriteriaResults.some((criterion) => !criterion.passed);
+      const customPromptContent = await ctx.runQuery(internal.aiSettings._getActivePromptContent);
 
-      let status: "passed" | "failed" | "partial" = "passed";
-      if (anyCriticalFailed) {
-        status = "failed";
-      }
-
-      // Build summary
-      let summary = aiResponse.summary;
-      if (aiResponse.suggestions) {
-        summary += `\n\nSuggestions: ${aiResponse.suggestions}`;
-      }
+      // Use the shared review helper
+      const result = await runReviewOnRepo(
+        pkg.repositoryUrl,
+        pkg.name,
+        pkg.version,
+        providerSettings,
+        customPromptContent ?? undefined
+      );
 
       // Store review results
       await ctx.runMutation(api.packages.updateAiReviewResult, {
         packageId: args.packageId,
-        status,
-        summary,
-        criteria: aiResponse.criteria,
-        error: undefined,
+        status: result.status,
+        summary: result.summary,
+        criteria: result.criteria,
+        error: result.error,
       });
       await ctx.runMutation(internal.packages._createAiReviewRun, {
         packageId: args.packageId,
         createdAt: reviewCreatedAt,
-        status,
-        summary,
-        criteria: aiResponse.criteria,
-        error: undefined,
-        provider: usedProvider,
-        model: usedModel,
-        source: usedSource,
-        rawOutput: aiResponseText,
+        status: result.status,
+        summary: result.summary,
+        criteria: result.criteria,
+        error: result.error,
+        provider: result.provider,
+        model: result.model,
+        source: result.source,
+        rawOutput: result.rawOutput,
       });
 
-      // Check auto-approve/reject settings
       const settings = await ctx.runQuery(api.packages.getAdminSettings);
-      const autoApprove = settings.autoApproveOnPass || false;
-      const autoReject = settings.autoRejectOnFail || false;
-
-      if (status === "passed" && autoApprove) {
-        await ctx.runMutation(api.packages.updateReviewStatus, {
-          packageId: args.packageId,
-          reviewStatus: "approved",
-          reviewedBy: "AI",
-          reviewNotes: allCriticalPassed
-            ? "Auto-approved: AI review passed all critical component criteria"
-            : "Auto-approved: AI review passed the required component checks",
-        });
-      } else if (status === "failed" && autoReject && anyCriticalFailed) {
-        await ctx.runMutation(api.packages.updateReviewStatus, {
-          packageId: args.packageId,
-          reviewStatus: "rejected",
-          reviewedBy: "AI",
-          reviewNotes: "Auto-rejected: AI review found critical issues",
-        });
+      if (settings.autoAiReview) {
+        if (result.status === "passed" && settings.autoApproveOnPass) {
+          await ctx.runMutation(api.packages.updateReviewStatus, {
+            packageId: args.packageId,
+            reviewStatus: "approved",
+            reviewedBy: "AI",
+            reviewNotes: "Auto-approved after AI review passed all critical checks",
+          });
+        } else if (result.status === "failed" && settings.autoRejectOnFail) {
+          await ctx.runMutation(api.packages.updateReviewStatus, {
+            packageId: args.packageId,
+            reviewStatus: "rejected",
+            reviewedBy: "AI",
+            reviewNotes: "Auto-rejected after AI review failed critical checks",
+          });
+        }
       }
 
       return null;

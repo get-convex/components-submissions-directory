@@ -4454,6 +4454,7 @@ function AdminSettingsPanel() {
 
   const handleToggle = async (
     key:
+      | "autoAiReview"
       | "autoApproveOnPass"
       | "autoRejectOnFail"
       | "autoGenerateSeoOnPendingOrInReview"
@@ -4471,6 +4472,8 @@ function AdminSettingsPanel() {
   };
 
   if (!settings) return null;
+
+  const outcomeAutomationDisabled = !settings.autoAiReview;
 
   return (
     <div className="mb-4 rounded-lg border border-border bg-bg-card overflow-hidden">
@@ -4500,7 +4503,7 @@ function AdminSettingsPanel() {
                 How AI Review Works
               </p>
               <p className="mt-1">
-                The AI analyzes the package's GitHub repository against official{" "}
+                The AI analyzes the package&apos;s GitHub repository against official{" "}
                 <a
                   href="https://docs.convex.dev/components/authoring"
                   target="_blank"
@@ -4509,7 +4512,10 @@ function AdminSettingsPanel() {
                 >
                   Convex component specifications
                 </a>
-                . Suggestions reference the official documentation.
+                . The default v3 review uses 8 critical pass criteria and 4
+                advisory notes. AI review results update the AI review panel,
+                and you can choose whether the final approval decision stays
+                manual or auto-updates on pass or fail.
               </p>
             </div>
 
@@ -4542,7 +4548,7 @@ function AdminSettingsPanel() {
 
             <div>
               <p className="font-medium text-text-primary">
-                Critical Criteria (auto-reject if failed)
+                Critical pass criteria
               </p>
               <ul className="list-disc list-inside space-y-1 ml-1 mt-1">
                 <li>
@@ -4557,7 +4563,13 @@ function AdminSettingsPanel() {
                 </li>
                 <li>Has component functions (queries, mutations, actions)</li>
                 <li>
-                  Functions use new syntax:{" "}
+                  Component functions import builders from{" "}
+                  <code className="bg-bg-primary px-1 rounded">
+                    ./_generated/server
+                  </code>
+                </li>
+                <li>
+                  Functions use object style syntax:{" "}
                   <code className="bg-bg-primary px-1 rounded">
                     query({"{ args, returns, handler }"})
                   </code>
@@ -4572,12 +4584,21 @@ function AdminSettingsPanel() {
                   <code className="bg-bg-primary px-1 rounded">v.null()</code>{" "}
                   for void returns
                 </li>
+                <li>
+                  Does not use{" "}
+                  <code className="bg-bg-primary px-1 rounded">ctx.auth</code>{" "}
+                  in component code
+                </li>
+                <li>
+                  Cross-boundary visibility uses public versus internal
+                  functions correctly
+                </li>
               </ul>
             </div>
 
             <div>
               <p className="font-medium text-text-primary">
-                Non-Critical Criteria (partial pass if failed)
+                Advisory notes
               </p>
               <ul className="list-disc list-inside space-y-1 ml-1 mt-1">
                 <li>
@@ -4587,10 +4608,6 @@ function AdminSettingsPanel() {
                   </code>{" "}
                   not{" "}
                   <code className="bg-bg-primary px-1 rounded">filter()</code>
-                </li>
-                <li>
-                  Internal-only functions use internalQuery, etc. (public API
-                  functions should NOT use internal*)
                 </li>
                 <li>
                   Proper TypeScript types (
@@ -4603,6 +4620,7 @@ function AdminSettingsPanel() {
                   Auth pattern when applicable (components cannot use ctx.auth,
                   so token-based or auth callback patterns are used)
                 </li>
+                <li>Package exports or client helpers look publish ready</li>
               </ul>
             </div>
 
@@ -4675,24 +4693,57 @@ function AdminSettingsPanel() {
             </div>
           </div>
 
-          {/* Auto-approve toggle */}
+          {/* Auto AI review toggle */}
           <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-text-primary">
+                Auto AI review
+              </label>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Automatically queue AI review for submissions with a repository
+                URL, move them into In Review, and queue current pending
+                submissions when this is turned on. Default is off.
+              </p>
+            </div>
+            <button
+              onClick={() =>
+                handleToggle("autoAiReview", settings.autoAiReview)
+              }
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                settings.autoAiReview ? "bg-blue-600" : "bg-gray-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  settings.autoAiReview ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Auto-approve on pass */}
+          <div
+            className={`flex items-center justify-between ${
+              outcomeAutomationDisabled ? "opacity-60" : ""
+            }`}
+          >
             <div>
               <label className="text-sm font-medium text-text-primary">
                 Auto-approve on pass
               </label>
               <p className="text-xs text-text-secondary mt-0.5">
-                Automatically approve packages when AI review passes all
-                criteria
+                Optional. After Auto AI review runs, automatically approve when
+                all critical checks pass.
               </p>
             </div>
             <button
+              disabled={outcomeAutomationDisabled}
               onClick={() =>
                 handleToggle("autoApproveOnPass", settings.autoApproveOnPass)
               }
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                 settings.autoApproveOnPass ? "bg-green-600" : "bg-gray-300"
-              }`}
+              } ${outcomeAutomationDisabled ? "cursor-not-allowed" : ""}`}
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -4702,24 +4753,29 @@ function AdminSettingsPanel() {
             </button>
           </div>
 
-          {/* Auto-reject toggle */}
-          <div className="flex items-center justify-between">
+          {/* Auto-reject on fail */}
+          <div
+            className={`flex items-center justify-between ${
+              outcomeAutomationDisabled ? "opacity-60" : ""
+            }`}
+          >
             <div>
               <label className="text-sm font-medium text-text-primary">
                 Auto-reject on fail
               </label>
               <p className="text-xs text-text-secondary mt-0.5">
-                Automatically reject packages when AI review finds critical
-                issues
+                Optional. After Auto AI review runs, automatically reject when
+                critical checks fail.
               </p>
             </div>
             <button
+              disabled={outcomeAutomationDisabled}
               onClick={() =>
                 handleToggle("autoRejectOnFail", settings.autoRejectOnFail)
               }
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                 settings.autoRejectOnFail ? "bg-red-600" : "bg-gray-300"
-              }`}
+              } ${outcomeAutomationDisabled ? "cursor-not-allowed" : ""}`}
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
@@ -4771,7 +4827,8 @@ function AdminSettingsPanel() {
               </label>
               <p className="text-xs text-text-secondary mt-0.5">
                 Automatically compose a thumbnail from the uploaded logo and
-                default template when a component is submitted
+                default template only when the submission includes a logo.
+                Submissions without a logo are skipped.
               </p>
             </div>
             <button

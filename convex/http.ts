@@ -1644,6 +1644,211 @@ http.route({
 */
 // End of temporarily disabled MCP routes
 
+// ============ PUBLIC PREFLIGHT CHECK ENDPOINT ============
+// Allows developers to test their repo against component review criteria before submission
+// Rate limited by hashed IP, results cached for 30 minutes
+
+function preflightJsonHeaders(request?: Request): Record<string, string> {
+  // Get the origin from the request, or default to allow all
+  const origin = request?.headers.get("Origin") || "*";
+  
+  // For localhost development or production, allow the specific origin
+  const allowedOrigin = origin.includes("localhost") || origin.includes("convex.dev") || origin.includes("netlify.app")
+    ? origin
+    : "*";
+
+  return {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Credentials": "true",
+  };
+}
+
+// Helper to extract IP from request headers (Convex/Cloudflare headers)
+function getClientIp(request: Request): string {
+  // Try Cloudflare headers first
+  const cfIp = request.headers.get("cf-connecting-ip");
+  if (cfIp) return cfIp;
+
+  // Try X-Forwarded-For (take first IP if comma-separated)
+  const xffHeader = request.headers.get("x-forwarded-for");
+  if (xffHeader) {
+    const firstIp = xffHeader.split(",")[0].trim();
+    if (firstIp) return firstIp;
+  }
+
+  // Try X-Real-IP
+  const realIp = request.headers.get("x-real-ip");
+  if (realIp) return realIp;
+
+  // Fallback: use a hash of user-agent + timestamp (not ideal but allows testing)
+  const userAgent = request.headers.get("user-agent") || "unknown";
+  return `ua-fallback-${userAgent.slice(0, 50)}`;
+}
+
+http.route({
+  path: "/api/preflight",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const corsHeaders = preflightJsonHeaders(request);
+    try {
+      // Require authentication
+      const identity = await ctx.auth.getUserIdentity();
+      if (!identity) {
+        return new Response(
+          JSON.stringify({ error: "Authentication required. Please sign in to use the preflight checker." }),
+          { status: 401, headers: corsHeaders }
+        );
+      }
+
+      const body = (await request.json()) as { repoUrl?: string; npmUrl?: string };
+
+      if (!body.repoUrl) {
+        return new Response(
+          JSON.stringify({ error: "Missing repoUrl parameter" }),
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      // Validate URL format
+      const urlPattern = /^https?:\/\/(www\.)?github\.com\/[^/]+\/[^/]+/;
+      if (!urlPattern.test(body.repoUrl)) {
+        return new Response(
+          JSON.stringify({
+            error:
+              "Invalid GitHub repository URL. Expected format: https://github.com/owner/repo",
+          }),
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      // Hash the client IP for rate limiting
+      const clientIp = getClientIp(request);
+      const { hashIp, normalizeRepoUrl } = await import("./preflight");
+      const hashedIp = await hashIp(clientIp);
+      const normalizedUrl = normalizeRepoUrl(body.repoUrl!);
+
+      // Check rate limit
+      const rateLimitCheck = await ctx.runQuery(internal.preflight._checkRateLimit, {
+        hashedIp,
+      });
+
+      if (!rateLimitCheck.allowed) {
+        const retryAfter = rateLimitCheck.resetAt
+          ? Math.ceil((rateLimitCheck.resetAt - Date.now()) / 1000)
+          : 3600;
+
+        return new Response(
+          JSON.stringify({
+            error: "Rate limit exceeded. Please try again later.",
+            retryAfterSeconds: retryAfter,
+            remaining: 0,
+          }),
+          {
+            status: 429,
+            headers: {
+              ...corsHeaders,
+              "Retry-After": String(retryAfter),
+            },
+          }
+        );
+      }
+
+      // Check for in-flight request from same IP
+      const hasInFlight = await ctx.runQuery(internal.preflight._hasInFlightCheck, {
+        hashedIp,
+      });
+
+      if (hasInFlight) {
+        return new Response(
+          JSON.stringify({
+            error: "A preflight check is already in progress. Please wait for it to complete.",
+          }),
+          { status: 429, headers: corsHeaders }
+        );
+      }
+
+      // Check for cached result
+      const cachedResult = await ctx.runQuery(internal.preflight._getCachedResult, {
+        normalizedRepoUrl: normalizedUrl,
+      });
+
+      if (cachedResult) {
+        return new Response(
+          JSON.stringify({
+            status: cachedResult.status,
+            summary: cachedResult.summary,
+            criteria: cachedResult.criteria,
+            cached: true,
+            cachedAt: cachedResult.cachedAt,
+            expiresAt: cachedResult.expiresAt,
+            remaining: rateLimitCheck.remaining,
+          }),
+          { status: 200, headers: corsHeaders }
+        );
+      }
+
+      // Create a pending check record
+      const checkId = await ctx.runMutation(internal.preflight._createPreflightCheck, {
+        normalizedRepoUrl: normalizedUrl,
+        hashedIp,
+      });
+
+      // Run the actual preflight check
+      const result = await ctx.runAction(internal.aiReview.runPreflightCheck, {
+        repoUrl: body.repoUrl,
+        packageName: body.npmUrl ? extractPackageNameFromNpmUrl(body.npmUrl) : undefined,
+      });
+
+      // Update the check record with the result
+      await ctx.runMutation(internal.preflight._updatePreflightCheck, {
+        checkId,
+        status: result.status,
+        summary: result.summary,
+        criteria: result.criteria,
+      });
+
+      return new Response(
+        JSON.stringify({
+          status: result.status,
+          summary: result.summary,
+          criteria: result.criteria,
+          cached: false,
+          remaining: rateLimitCheck.remaining - 1,
+        }),
+        { status: 200, headers: corsHeaders }
+      );
+    } catch (error) {
+      console.error("Preflight check error:", error);
+      return new Response(
+        JSON.stringify({
+          error: "An error occurred during the preflight check",
+          status: "error",
+        }),
+        { status: 500, headers: corsHeaders }
+      );
+    }
+  }),
+});
+
+// Helper to extract package name from npm URL
+function extractPackageNameFromNpmUrl(npmUrl: string): string | undefined {
+  const match = npmUrl.match(/npmjs\.com\/package\/(@?[^/]+(?:\/[^/]+)?)/);
+  return match ? match[1] : undefined;
+}
+
+// CORS preflight for preflight endpoint
+http.route({
+  path: "/api/preflight",
+  method: "OPTIONS",
+  handler: httpAction(async (ctx, request) => {
+    return new Response(null, { status: 204, headers: preflightJsonHeaders(request) });
+  }),
+});
+
 // ============ SITEMAP.XML ENDPOINT ============
 http.route({
   path: "/api/sitemap.xml",

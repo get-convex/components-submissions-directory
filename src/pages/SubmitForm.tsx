@@ -14,6 +14,8 @@ import {
   CheckCircle,
   CaretDown,
   X,
+  Checks,
+  ArrowRight,
 } from "@phosphor-icons/react";
 
 // Get base path for links (always /components)
@@ -302,7 +304,25 @@ export default function SubmitForm() {
       <Header />
       <div className="max-w-3xl mx-auto px-4 py-8">
         {/* Page title */}
-        <h1 className="text-xl font-medium text-text-primary mb-6">Submit a Component</h1>
+        <h1 className="text-xl font-medium text-text-primary mb-4">Submit a Component</h1>
+
+        {/* Preflight check link */}
+        <a
+          href={`${basePath}/submit/check`}
+          className="flex items-center gap-3 p-4 mb-6 rounded-lg border border-border bg-blue-50 hover:bg-blue-100 transition-colors group">
+          <div className="shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 group-hover:bg-blue-200 transition-colors">
+            <Checks size={20} weight="bold" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-text-primary">
+              Check your component before submitting
+            </p>
+            <p className="text-xs text-text-secondary mt-0.5">
+              Run a preflight check to validate your repo against our review criteria
+            </p>
+          </div>
+          <ArrowRight size={18} className="text-text-secondary group-hover:text-text-primary transition-colors" />
+        </a>
 
         {/* Form container */}
         <div className="bg-white border border-border rounded-lg p-6">

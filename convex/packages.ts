@@ -815,18 +815,18 @@ export const submitPackage = action({
       authorAvatar,
     });
 
-    // Check if auto-approve or auto-reject is enabled
-    // If so, automatically trigger AI review in background
+    // Auto AI review moves eligible submissions into in_review and
+    // queues the background review without changing the final outcome.
     const settings = await ctx.runQuery(api.packages.getAdminSettings);
-    const autoApproveEnabled = settings.autoApproveOnPass || false;
-    const autoRejectEnabled = settings.autoRejectOnFail || false;
+    const autoAiReviewEnabled = settings.autoAiReview || false;
 
-    if (
-      (autoApproveEnabled || autoRejectEnabled) &&
-      args.repositoryUrl
-    ) {
-      // Schedule AI review to run immediately in background
-      // Package is already in database, so user sees it while AI reviews
+    if (autoAiReviewEnabled && args.repositoryUrl) {
+      const _: null = await ctx.runMutation(api.packages.updateReviewStatus, {
+        packageId,
+        reviewStatus: "in_review",
+        reviewedBy: "AI",
+        reviewNotes: "Auto AI review queued on submission",
+      });
       await ctx.scheduler.runAfter(0, api.aiReview.runAiReview, {
         packageId,
       });
@@ -2171,10 +2171,11 @@ export const deleteAiReviewRun = mutation({
   },
 });
 
-// Get admin settings for auto-approve/reject and thumbnail generation
+// Get admin settings for AI review, thumbnails, and related automation
 export const getAdminSettings = query({
   args: {},
   returns: v.object({
+    autoAiReview: v.boolean(),
     autoApproveOnPass: v.boolean(),
     autoRejectOnFail: v.boolean(),
     autoGenerateSeoOnPendingOrInReview: v.boolean(),
@@ -2185,12 +2186,15 @@ export const getAdminSettings = query({
     defaultRewardAmount: v.number(),
   }),
   handler: async (ctx) => {
-    const autoApprove = await ctx.db
+    const autoAiReview = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q) => q.eq("key", "autoAiReview"))
+      .first();
+    const autoApproveOnPass = await ctx.db
       .query("adminSettings")
       .withIndex("by_key", (q) => q.eq("key", "autoApproveOnPass"))
       .first();
-
-    const autoReject = await ctx.db
+    const autoRejectOnFail = await ctx.db
       .query("adminSettings")
       .withIndex("by_key", (q) => q.eq("key", "autoRejectOnFail"))
       .first();
@@ -2232,8 +2236,9 @@ export const getAdminSettings = query({
       .first();
 
     return {
-      autoApproveOnPass: autoApprove?.value || false,
-      autoRejectOnFail: autoReject?.value || false,
+      autoAiReview: autoAiReview?.value || false,
+      autoApproveOnPass: autoApproveOnPass?.value || false,
+      autoRejectOnFail: autoRejectOnFail?.value || false,
       autoGenerateSeoOnPendingOrInReview: autoGenerateSeoOnReview?.value || false,
       autoGenerateThumbnailOnSubmit: autoGenerateThumb?.value || false,
       rotateThumbnailTemplatesOnSubmit: rotateTemplates?.value || false,
@@ -2248,6 +2253,7 @@ export const getAdminSettings = query({
 export const updateAdminSetting = mutation({
   args: {
     key: v.union(
+      v.literal("autoAiReview"),
       v.literal("autoApproveOnPass"),
       v.literal("autoRejectOnFail"),
       v.literal("autoGenerateSeoOnPendingOrInReview"),
@@ -2277,6 +2283,30 @@ export const updateAdminSetting = mutation({
         key: args.key,
         value: args.value,
       });
+    }
+
+    if (args.key === "autoAiReview" && args.value) {
+      const allPackages = await ctx.db.query("packages").collect();
+      const packagesToQueue = allPackages.filter(
+        (pkg) =>
+          !!pkg.repositoryUrl &&
+          (!pkg.reviewStatus || pkg.reviewStatus === "pending") &&
+          pkg.aiReviewStatus !== "reviewing",
+      );
+
+      await Promise.all(
+        packagesToQueue.map(async (pkg) => {
+          const _: null = await ctx.runMutation(api.packages.updateReviewStatus, {
+            packageId: pkg._id,
+            reviewStatus: "in_review",
+            reviewedBy: "AI",
+            reviewNotes: "Auto AI review queued from settings",
+          });
+          await ctx.scheduler.runAfter(0, api.aiReview.runAiReview, {
+            packageId: pkg._id,
+          });
+        }),
+      );
     }
 
     return null;

@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Public preflight checker for validating component repos before submission (2026-03-08 22:30 UTC)
+  - New page at `/components/submit/check` where developers can test their GitHub repo against review criteria
+  - Requires authentication (auto-redirects to sign in if not authenticated)
+  - Uses same AI review logic as admin reviews via shared `runReviewOnRepo` helper extracted from `convex/aiReview.ts`
+  - Added `runPreflightCheck` internal action that runs review without persisting results to `packages` table
+  - Added `preflightChecks` table in `convex/schema.ts` for rate limiting (hashed IP) and 30-minute result caching
+  - Added `/api/preflight` HTTP endpoint with authentication check, IP-based throttling: 10 checks per hour per IP, 1 concurrent check limit
+  - Created `convex/preflight.ts` with helpers for IP hashing (`hashIp`), URL normalization (`normalizeRepoUrl`), and internal queries and mutations (`_checkRateLimit`, `_getCachedResult`, `_createPreflightCheck`, `_updatePreflightCheck`, `_hasInFlightCheck`)
+  - Created `src/pages/SubmitCheck.tsx` with auth gate, repo input form, loading states, and detailed results UI showing pass or fail status, summary, critical vs advisory criteria breakdown, and suggestions
+  - Added route at `/components/submit/check` in `src/main.tsx`
+  - Added prominent preflight check link in `src/pages/SubmitForm.tsx` below the page header with icon and helper text
+  - Security: Returns only status, summary, criteria, and suggestions. Does not expose provider names, model names, or raw LLM output. Stores only hashed IPs. Requires valid auth token.
+  - PRD: `prds/public-preflight-checker.md`
+
+### Fixed
+
+- Directory category selection now scrolls back to the top of the page so filtered results are visible immediately (2026-03-08 22:13 UTC)
+  - Updated `src/pages/Directory.tsx` to route category changes through a shared selection handler
+  - Added a smooth scroll reset to the directory header when users choose a sidebar category or mobile category pill
+
+- Fixed preflight.ts crypto module error in Convex runtime (2026-03-08 23:15 UTC)
+  - Changed `hashIp` function from Node.js `crypto.createHash()` to Web Crypto API `crypto.subtle.digest()`
+  - The default Convex runtime (V8) does not have access to Node.js built-in modules like `crypto`
+  - Function is now async and uses `TextEncoder` and `crypto.subtle.digest("SHA-256", data)` for hashing
+  - Updated `convex/http.ts` to await the now-async `hashIp` call
+  - Verified with `npx convex codegen`, `npx tsc -p convex/tsconfig.json --noEmit --pretty false`, and `npm run build`
+
+- Shared Git and Cursor collaboration workflow PRD for multi developer repo work (2026-03-08 17:39 UTC)
+  - Added `prds/git-cursor-shared-repo-workflow.md` with a branch first team workflow, a safe direct to `main` fallback, conflict handling steps, and explicit guidance for Cursor's Commit and Sync controls
+  - Includes exact Git commands for fetch, status, rebase, push, stash, and conflict recovery when another developer is pushing to the same repo
+
 - Admin AI review history drawer with persistent run logging (2026-03-08 06:06 UTC)
   - Added `aiReviewRuns` table in `convex/schema.ts` to store every saved AI review result per package, including status, criteria, provider metadata, and raw model output
   - Updated `convex/aiReview.ts` to create history records for successful reviews, partial reviews, invalid component checks, and runtime errors while keeping the existing latest review snapshot fields on `packages`
@@ -17,6 +48,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Verified with `npx convex codegen`, `npx tsc -p convex/tsconfig.json --noEmit --pretty false`, and `npm run build`
 
 ### Changed
+
+- Admin AI automation now uses a three-toggle workflow with `Auto AI review` off by default (2026-03-08 22:01 UTC)
+  - Restored `Auto-approve on pass` and `Auto-reject on fail` as optional outcome controls in `src/pages/Admin.tsx`
+  - Kept `Auto AI review` as the top level trigger and visually disabled the outcome toggles until it is enabled
+  - Updated `convex/packages.ts` so admin settings now track `autoAiReview`, `autoApproveOnPass`, and `autoRejectOnFail`
+  - Updated `convex/aiReview.ts` so automatic approval or rejection only runs after review completion when `autoAiReview` is enabled and the matching outcome toggle is on
+  - Kept `Auto AI review` false by default by preserving fallback defaults in `getAdminSettings`
+  - Clarified the thumbnail automation setting so it explicitly states that auto-generation only runs for submissions that include a logo
+  - Verified with `npx convex codegen`, `npx tsc -p convex/tsconfig.json --noEmit --pretty false`, and `npm run build`
 
 - AI review prompt moved to v3 with repo-based critical pass criteria and advisory notes (2026-03-08 17:16 UTC)
   - Archived the previous default prompt into `prds/ai-review-prompt-v3.md`
