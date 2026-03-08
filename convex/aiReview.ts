@@ -6,17 +6,14 @@ import { api, internal } from "./_generated/api";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import {
-  buildProviderCandidates,
-  executeWithProviderFallback,
-} from "./aiProviderFallback";
+import { buildProviderCandidates, executeWithProviderFallback } from "./aiProviderFallback";
 
 // Helper function to call different AI providers
 async function callAiProvider(
   provider: "anthropic" | "openai" | "gemini",
   apiKey: string,
   model: string,
-  prompt: string,
+  prompt: string
 ): Promise<string> {
   switch (provider) {
     case "anthropic": {
@@ -73,8 +70,7 @@ const REVIEW_CRITERIA = [
   },
   {
     name: "Has component functions",
-    check:
-      "Check for TypeScript files with queries, mutations, or actions in component/ or root",
+    check: "Check for TypeScript files with queries, mutations, or actions in component/ or root",
     critical: true,
   },
   {
@@ -134,7 +130,7 @@ async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
   if (!match) {
     console.error("Failed to parse GitHub URL:", repoUrl, "->", normalizedUrl);
     throw new Error(
-      `Invalid GitHub repository URL: ${repoUrl}. Expected format: https://github.com/owner/repo`,
+      `Invalid GitHub repository URL: ${repoUrl}. Expected format: https://github.com/owner/repo`
     );
   }
 
@@ -153,9 +149,7 @@ async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
   const files: Array<{ name: string; content: string }> = [];
 
   // Helper to fetch file content
-  async function fetchFileContent(
-    path: string,
-  ): Promise<{ found: boolean; content: string }> {
+  async function fetchFileContent(path: string): Promise<{ found: boolean; content: string }> {
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
     const response = await fetch(url, { headers });
     if (!response.ok) {
@@ -174,7 +168,7 @@ async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
 
   // Helper to fetch directory contents
   async function fetchDirContents(
-    path: string,
+    path: string
   ): Promise<Array<{ name: string; download_url: string }>> {
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
     const response = await fetch(url, { headers });
@@ -184,9 +178,7 @@ async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
     const data = await response.json();
     if (Array.isArray(data)) {
       return data
-        .filter(
-          (item: any) => item.type === "file" && item.name.endsWith(".ts"),
-        )
+        .filter((item: any) => item.type === "file" && item.name.endsWith(".ts"))
         .map((item: any) => ({
           name: item.name,
           download_url: item.download_url,
@@ -214,13 +206,9 @@ async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
   // Supports various component structures including deeply nested ones
   const configPaths = [
     // Monorepo structures (packages/<name>/src/component/)
-    ...monorepoPackages.map(
-      (pkg) => `packages/${pkg}/src/component/convex.config.ts`,
-    ),
+    ...monorepoPackages.map((pkg) => `packages/${pkg}/src/component/convex.config.ts`),
     ...monorepoPackages.map((pkg) => `packages/${pkg}/convex.config.ts`),
-    ...monorepoPackages.map(
-      (pkg) => `packages/${pkg}/component/convex.config.ts`,
-    ),
+    ...monorepoPackages.map((pkg) => `packages/${pkg}/component/convex.config.ts`),
     // Deep nested structures (like useautumn/typescript: convex/src/component/)
     "convex/src/component/convex.config.ts",
     "convex/component/convex.config.ts",
@@ -254,7 +242,7 @@ async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
       "/",
       repo,
       "- checked paths:",
-      configPaths,
+      configPaths
     );
     return { exists: false, files: [], isComponent: false };
   }
@@ -277,11 +265,7 @@ async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
     componentDirPaths.push("convex/component");
   } else if (foundConfigPath.startsWith("convex/")) {
     // Config is in convex/, check convex/component/ first, then convex/
-    componentDirPaths.push(
-      "convex/src/component",
-      "convex/component",
-      "convex",
-    );
+    componentDirPaths.push("convex/src/component", "convex/component", "convex");
   } else if (foundConfigPath.startsWith("src/component/")) {
     // Config is in src/component/, component files are likely siblings
     componentDirPaths.push("src/component");
@@ -365,11 +349,7 @@ export const runAiReview = action({
       const githubToken = process.env.GITHUB_TOKEN;
       const repoData = await fetchGitHubRepo(pkg.repositoryUrl, githubToken);
 
-      if (
-        !repoData.exists ||
-        !repoData.isComponent ||
-        repoData.files.length === 0
-      ) {
+      if (!repoData.exists || !repoData.isComponent || repoData.files.length === 0) {
         await ctx.runMutation(api.packages.updateAiReviewResult, {
           packageId: args.packageId,
           status: "failed",
@@ -390,11 +370,9 @@ export const runAiReview = action({
 
       // Get provider settings and prompt from aiSettings
       const providerSettings = await ctx.runQuery(
-        internal.aiSettings._getProviderSettingsForFallback,
+        internal.aiSettings._getProviderSettingsForFallback
       );
-      const customPromptContent = await ctx.runQuery(
-        internal.aiSettings._getActivePromptContent,
-      );
+      const customPromptContent = await ctx.runQuery(internal.aiSettings._getActivePromptContent);
 
       // Prepare AI prompt
       const filesContext = repoData.files
@@ -402,8 +380,7 @@ export const runAiReview = action({
         .join("\n\n");
 
       const criteriaList = REVIEW_CRITERIA.map(
-        (c, i) =>
-          `${i + 1}. ${c.name}: ${c.check}${c.critical ? " (CRITICAL)" : ""}`,
+        (c, i) => `${i + 1}. ${c.name}: ${c.check}${c.critical ? " (CRITICAL)" : ""}`
       ).join("\n");
 
       // Use custom prompt if available, otherwise use default
@@ -503,32 +480,30 @@ ${filesContext}`;
           gemini: process.env.GEMINI_API_KEY ?? process.env.CONVEX_GEMINI_API_KEY,
         },
         defaultEnvModels: {
-          anthropic: "claude-opus-4-5-20251101",
-          openai: "gpt-4o",
-          gemini: "gemini-1.5-pro",
+          anthropic: "claude-opus-4-6",
+          openai: "gpt-5.2",
+          gemini: "gemini-3-pro",
         },
       });
 
-      const { result: aiResponseText, usedProvider, usedModel, usedSource } =
-        await executeWithProviderFallback({
-          candidates,
-          run: async (candidate) =>
-            callAiProvider(
-              candidate.provider,
-              candidate.apiKey,
-              candidate.model,
-              prompt,
-            ),
-        });
+      const {
+        result: aiResponseText,
+        usedProvider,
+        usedModel,
+        usedSource,
+      } = await executeWithProviderFallback({
+        candidates,
+        run: async (candidate) =>
+          callAiProvider(candidate.provider, candidate.apiKey, candidate.model, prompt),
+      });
       console.log(
-        `AI review provider selected: ${usedProvider} (${usedSource}) model=${usedModel}`,
+        `AI review provider selected: ${usedProvider} (${usedSource}) model=${usedModel}`
       );
 
       // Extract JSON from response (it might be wrapped in markdown code blocks)
       let jsonText = aiResponseText.trim();
       const jsonMatch =
-        jsonText.match(/```json\n?([\s\S]*?)\n?```/) ||
-        jsonText.match(/```\n?([\s\S]*?)\n?```/);
+        jsonText.match(/```json\n?([\s\S]*?)\n?```/) || jsonText.match(/```\n?([\s\S]*?)\n?```/);
       if (jsonMatch) {
         jsonText = jsonMatch[1];
       }
@@ -538,7 +513,7 @@ ${filesContext}`;
       // Determine overall status
       const allPassed = aiResponse.criteria.every((c: any) => c.passed);
       const anyCriticalFailed = aiResponse.criteria.some(
-        (c: any, i: number) => !c.passed && REVIEW_CRITERIA[i]?.critical,
+        (c: any, i: number) => !c.passed && REVIEW_CRITERIA[i]?.critical
       );
 
       let status: "passed" | "failed" | "partial" = "passed";
