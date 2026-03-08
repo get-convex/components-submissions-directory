@@ -54,6 +54,7 @@
   from = "/components/sitemap.xml"
   to = "https://giant-grouse-674.convex.site/api/sitemap.xml"
   status = 200
+  force = true
 
 # ============ Badge API Proxy ============
 # Proxy badge SVG endpoint to Convex HTTP actions
