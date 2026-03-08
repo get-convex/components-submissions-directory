@@ -261,6 +261,39 @@ const applicationTables = {
     .index("by_package", ["packageId"])
     .index("by_package_and_created", ["packageId", "createdAt"]),
 
+  // Historical AI review runs for admin audit and comparison
+  aiReviewRuns: defineTable({
+    packageId: v.id("packages"),
+    createdAt: v.number(),
+    status: v.union(
+      v.literal("passed"),
+      v.literal("failed"),
+      v.literal("partial"),
+      v.literal("error"),
+    ),
+    summary: v.string(),
+    criteria: v.array(
+      v.object({
+        name: v.string(),
+        passed: v.boolean(),
+        notes: v.string(),
+      }),
+    ),
+    error: v.optional(v.string()),
+    provider: v.optional(
+      v.union(
+        v.literal("anthropic"),
+        v.literal("openai"),
+        v.literal("gemini"),
+      ),
+    ),
+    model: v.optional(v.string()),
+    source: v.optional(v.string()),
+    rawOutput: v.optional(v.string()),
+  })
+    .index("by_package", ["packageId"])
+    .index("by_package_and_created", ["packageId", "createdAt"]),
+
   // Reward payments tracking (Tremendous integration)
   payments: defineTable({
     packageId: v.optional(v.id("packages")),

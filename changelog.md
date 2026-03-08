@@ -9,6 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Admin AI review history drawer with persistent run logging (2026-03-08 06:06 UTC)
+  - Added `aiReviewRuns` table in `convex/schema.ts` to store every saved AI review result per package, including status, criteria, provider metadata, and raw model output
+  - Updated `convex/aiReview.ts` to create history records for successful reviews, partial reviews, invalid component checks, and runtime errors while keeping the existing latest review snapshot fields on `packages`
+  - Added `getAiReviewRunsForPackage` admin query and `_createAiReviewRun` internal mutation in `convex/packages.ts`
+  - Added a right-side `AI Review History` drawer in `src/pages/Admin.tsx` with a run list, score summary, criteria checklist, provider/model details, and raw output view
+  - Verified with `npx convex codegen`, `npx tsc -p convex/tsconfig.json --noEmit --pretty false`, and `npm run build`
+
+### Changed
+
+- AI review prompt moved to v3 with repo-based critical pass criteria and advisory notes (2026-03-08 17:16 UTC)
+  - Archived the previous default prompt into `prds/ai-review-prompt-v3.md`
+  - Updated `convex/aiReview.ts` and `convex/aiSettings.ts` so the default review prompt now explicitly judges component validity from the linked GitHub repository contents rather than implying npm tarball inspection
+  - Split the review into 8 critical pass criteria and 4 advisory notes while keeping the existing Admin JSON response shape unchanged
+  - Updated `convex/aiReview.ts` runtime scoring so advisory misses no longer block a valid component from receiving `passed`
+  - Verified with `npx convex codegen`, `npx tsc -p convex/tsconfig.json --noEmit --pretty false`, and `npm run build`
+  - Smoke tested the review flow against the stored `@convex-dev/stripe` package linked to `https://github.com/get-convex/stripe` and confirmed the new review completed with `aiReviewStatus: "passed"`
+
+- Admin AI review history now supports deleting older saved runs without removing the current latest snapshot (2026-03-08 17:04 UTC)
+  - Added `deleteAiReviewRun` mutation in `convex/packages.ts` with a backend guard that blocks deletion of the latest saved review entry for a package
+  - Updated the AI review history drawer in `src/pages/Admin.tsx` to show delete controls for past runs and a confirmation flow before removal
+  - Verified with `npx convex codegen`, `npx tsc -p convex/tsconfig.json --noEmit --pretty false`, and `npm run build`
+
+- AI review history drawer now closes on `Escape` in the admin dashboard (2026-03-08 17:05 UTC)
+  - Updated `src/pages/Admin.tsx` so admins can dismiss the AI review history drawer with the keyboard
+  - Keeps the delete confirmation flow safe by not closing the drawer when the confirm modal is open
+  - Verified with `npm run build`
+
+- Clarified Convex component function visibility guidance in the AI review prompts (2026-03-08 01:18 UTC)
+  - Updated `convex/aiReview.ts` and `convex/aiSettings.ts` default review guidance to better reflect component boundary rules from the Convex docs
+  - Wrapper or app code crossing a component boundary must target public component functions, even though those functions are not browser-client-accessible
+  - `internal*` functions are only for same-component implementation details
+  - Verified `npm run build` passes for Netlify output; the only remaining build note is the existing Vite chunk size warning
+
+### Added
+
 - Tremendous rewards integration for submitter payouts (2026-03-07 UTC)
   - New `payments` table in `convex/schema.ts` for tracking reward payments
   - Added `rewardStatus` and `rewardTotalAmount` fields to `packages` table

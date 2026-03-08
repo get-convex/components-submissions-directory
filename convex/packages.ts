@@ -257,6 +257,38 @@ const adminPackageValidator = v.object({
   markedForDeletionBy: v.optional(v.string()),
 });
 
+const aiReviewCriterionValidator = v.object({
+  name: v.string(),
+  passed: v.boolean(),
+  notes: v.string(),
+});
+
+const aiReviewRunValidator = v.object({
+  _id: v.id("aiReviewRuns"),
+  _creationTime: v.number(),
+  packageId: v.id("packages"),
+  createdAt: v.number(),
+  status: v.union(
+    v.literal("passed"),
+    v.literal("failed"),
+    v.literal("partial"),
+    v.literal("error"),
+  ),
+  summary: v.string(),
+  criteria: v.array(aiReviewCriterionValidator),
+  error: v.optional(v.string()),
+  provider: v.optional(
+    v.union(
+      v.literal("anthropic"),
+      v.literal("openai"),
+      v.literal("gemini"),
+    ),
+  ),
+  model: v.optional(v.string()),
+  source: v.optional(v.string()),
+  rawOutput: v.optional(v.string()),
+});
+
 const submitPageSizeValidator = v.union(v.literal(20), v.literal(40), v.literal(60));
 
 const paginatedPublicPackagesValidator = v.object({
@@ -2047,6 +2079,94 @@ export const updateAiReviewResult = mutation({
       aiReviewedAt: Date.now(),
       aiReviewError: args.error,
     });
+    return null;
+  },
+});
+
+export const getAiReviewRunsForPackage = query({
+  args: {
+    packageId: v.id("packages"),
+  },
+  returns: v.array(aiReviewRunValidator),
+  handler: async (ctx, args) => {
+    const adminIdentity = await getAdminIdentity(ctx);
+    if (!adminIdentity) {
+      return [];
+    }
+
+    return await ctx.db
+      .query("aiReviewRuns")
+      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .order("desc")
+      .collect();
+  },
+});
+
+export const _createAiReviewRun = internalMutation({
+  args: {
+    packageId: v.id("packages"),
+    createdAt: v.number(),
+    status: v.union(
+      v.literal("passed"),
+      v.literal("failed"),
+      v.literal("partial"),
+      v.literal("error"),
+    ),
+    summary: v.string(),
+    criteria: v.array(aiReviewCriterionValidator),
+    error: v.optional(v.string()),
+    provider: v.optional(
+      v.union(
+        v.literal("anthropic"),
+        v.literal("openai"),
+        v.literal("gemini"),
+      ),
+    ),
+    model: v.optional(v.string()),
+    source: v.optional(v.string()),
+    rawOutput: v.optional(v.string()),
+  },
+  returns: v.id("aiReviewRuns"),
+  handler: async (ctx, args) => {
+    return await ctx.db.insert("aiReviewRuns", {
+      packageId: args.packageId,
+      createdAt: args.createdAt,
+      status: args.status,
+      summary: args.summary,
+      criteria: args.criteria,
+      error: args.error,
+      provider: args.provider,
+      model: args.model,
+      source: args.source,
+      rawOutput: args.rawOutput,
+    });
+  },
+});
+
+export const deleteAiReviewRun = mutation({
+  args: {
+    runId: v.id("aiReviewRuns"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
+    const run = await ctx.db.get(args.runId);
+    if (!run) {
+      return null;
+    }
+
+    const latestRun = await ctx.db
+      .query("aiReviewRuns")
+      .withIndex("by_package_and_created", (q) => q.eq("packageId", run.packageId))
+      .order("desc")
+      .first();
+
+    if (latestRun?._id === args.runId) {
+      throw new Error("Cannot delete the latest AI review snapshot");
+    }
+
+    await ctx.db.delete(args.runId);
     return null;
   },
 });

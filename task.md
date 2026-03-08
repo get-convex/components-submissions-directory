@@ -2,6 +2,31 @@
 
 ## to do
 
+Session updates complete on 2026-03-08 17:16 UTC.
+
+- [x] update AI review prompt to v3 with repo-based critical pass criteria and advisory notes (`prds/ai-review-prompt-v3.md`) (2026-03-08 17:16 UTC)
+  - Archived the previous default AI review prompt v2 into `prds/ai-review-prompt-v3.md`
+  - Updated `convex/aiReview.ts` and `convex/aiSettings.ts` to use a v3 prompt that judges component validity from the linked GitHub repository, not a published npm tarball
+  - Split review output into 8 critical pass criteria and 4 advisory notes, while keeping the Admin JSON response shape unchanged
+  - Updated runtime status scoring so advisory misses do not block a valid component from receiving `passed`
+  - Ran `npx convex codegen`, `npx tsc -p convex/tsconfig.json --noEmit --pretty false`, and `npm run build`
+  - Smoke tested `aiReview:runAiReview` against the stored `@convex-dev/stripe` package and confirmed the review completed with `aiReviewStatus: "passed"`
+- [x] add admin ai review history panel (`prds/admin-ai-review-history.md`) (2026-03-08 06:06 UTC)
+  - Added persistent `aiReviewRuns` storage so each AI review now records a durable run without changing the existing latest review snapshot behavior
+  - Added admin history query plus a right-side review history drawer for previous review scores, summaries, criteria, provider metadata, raw output, and failures
+  - Verified with `npx convex codegen`, `npx tsc -p convex/tsconfig.json --noEmit --pretty false`, and `npm run build`
+- [x] allow admin to delete older AI review history runs (2026-03-08 17:04 UTC)
+  - Added backend deletion guard so admins can remove saved `aiReviewRuns` entries while the latest snapshot stays protected
+  - Added delete controls and confirmation flow in the AI review history drawer for past runs only
+  - Verified with `npx convex codegen`, `npx tsc -p convex/tsconfig.json --noEmit --pretty false`, and `npm run build`
+- [x] let escape close ai review history drawer (2026-03-08 17:05 UTC)
+  - Added `Escape` key handling to the AI review history drawer in `src/pages/Admin.tsx`
+  - Keeps the confirm dialog safe by only closing the drawer on `Escape` when a delete confirmation is not open
+  - Verified with `npm run build`
+- [x] sync session docs for Tremendous reward flow and component visibility prompt clarification (2026-03-08 01:18 UTC)
+  - Synced `files.md`, `changelog.md`, and `TASK.md` for the Tremendous reward flow session and the follow-up component visibility prompt clarification
+  - Clarified that wrapper or app calls across a Convex component boundary must target public component functions, while same-component implementation details should use `internal*`
+  - Verified `npm run build` passes for the Netlify production build flow
 - [x] add admin settings jump navigation (2026-03-08 00:49 UTC)
   - Added anchored section wrappers for each block in the Admin settings tab
   - Added a sticky jump bar for smaller screens and switched the desktop settings nav to a sticky in-layout sidebar on extra-wide screens
@@ -358,6 +383,24 @@ Acceptance checks:
 - [ ] - [ ] add payments api
 
 ## Recent updates
+
+- [x] Added admin delete controls for older AI review runs (2026-03-08 17:04 UTC)
+
+  - Added `deleteAiReviewRun` mutation with a backend guard that blocks deletion of the latest saved review snapshot
+  - Updated the AI review history drawer to let admins delete older runs from both the run list and the detail pane with confirmation
+  - Verified with Convex codegen, Convex TypeScript checks, and production build
+
+- [x] Added Escape key close support for AI review history drawer (2026-03-08 17:05 UTC)
+
+  - Updated `AiReviewHistoryPanel` to close on `Escape`
+  - Kept delete confirmation flow safe by ignoring drawer close on `Escape` while the confirm modal is open
+  - Verified with production build
+
+- [x] Added persistent AI review run history and admin review drawer (2026-03-08 06:06 UTC)
+
+  - Added `aiReviewRuns` storage so previous AI review runs are preserved instead of being overwritten on `packages`
+  - Added admin history query and right-side drawer with run list, score summary, provider metadata, criteria checklist, and raw model output
+  - Verified with Convex codegen, Convex TypeScript checks, and production build
 
 - [x] Unified font sizes between AI generated SEO content and long description markdown in ComponentDetail.tsx (2026-03-05 UTC)
 

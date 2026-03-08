@@ -61,7 +61,7 @@ async function callAiProvider(
   }
 }
 
-// Convex component review criteria (v2 - updated 2025-03-05)
+// Convex component review criteria (v3 - updated 2026-03-08)
 const REVIEW_CRITERIA = [
   {
     name: "Has convex.config.ts with defineComponent()",
@@ -74,41 +74,61 @@ const REVIEW_CRITERIA = [
     critical: true,
   },
   {
-    name: "Functions use new syntax",
-    check: "Check for query({, mutation({, action({ with args/handler",
+    name: "Component functions import builders from ./_generated/server",
+    check:
+      "Check that component functions import query, mutation, action, and internal* builders from the component's own ./_generated/server, not an app-level generated server path",
     critical: true,
   },
   {
-    name: "Exported functions have returns: validator",
+    name: "Functions use object-style syntax",
     check:
-      "Check that exported query/mutation/action functions have explicit 'returns' validators. Regular TypeScript helper functions do NOT need return type annotations.",
+      "Check for query({ ... }), mutation({ ... }), action({ ... }), internalQuery({ ... }), internalMutation({ ... }), or internalAction({ ... }) object-style definitions",
+    critical: true,
+  },
+  {
+    name: "Public component functions have validators",
+    check:
+      "Check that exported public query, mutation, and action functions have explicit args and returns validators. Regular TypeScript helper functions do NOT need function-level validators.",
     critical: true,
   },
   {
     name: "Uses v.null() for void returns",
-    check: "Functions returning nothing use v.null() not undefined",
+    check: "Functions returning nothing use v.null() rather than undefined",
     critical: true,
   },
   {
-    name: "Uses withIndex() not filter()",
-    check: "Queries use indexes instead of filter",
-    critical: false,
-  },
-  {
-    name: "Internal-only functions use internal*",
+    name: "Does not use ctx.auth in component code",
     check:
-      "Functions that are ONLY called internally by other component functions should use internalQuery, internalMutation, or internalAction. Functions that are part of the component's PUBLIC API (intended to be called by apps) should use regular query, mutation, action.",
-    critical: false,
+      "Check that component implementation does not call ctx.auth. Components must receive auth-derived identifiers from the app instead.",
+    critical: true,
   },
   {
-    name: "Has TypeScript with proper types",
-    check: 'Uses Id<"table"> types, proper validators',
-    critical: false,
-  },
-  {
-    name: "Uses auth pattern (when applicable)",
+    name: "Cross-boundary visibility uses public vs internal correctly",
     check:
-      "Components cannot use ctx.auth. If auth is needed, check for token-based pattern or auth callback pattern for re-exported functions. Not all components need auth.",
+      "Functions called by app code or wrapper classes across the component boundary must be public query/mutation/action. Functions used only inside the same component should use internalQuery/internalMutation/internalAction.",
+    critical: true,
+  },
+  {
+    name: "Queries prefer withIndex() over filter()",
+    check: "Use withIndex() when the query pattern clearly calls for an index; avoid filter() when an index-based query is the better fit",
+    critical: false,
+  },
+  {
+    name: "Has clear TypeScript types and validator-driven shapes",
+    check:
+      "Types, validators, and return shapes should be clear and consistent. Prefer validator-driven contracts and avoid loose typing when stronger types are visible from the repo.",
+    critical: false,
+  },
+  {
+    name: "Uses auth callback or app-side auth wrapper when needed",
+    check:
+      "If auth is needed for app-facing or re-exported APIs, prefer an app-side wrapper or auth callback pattern. If auth is not relevant, mark this as passed with a note saying it is not applicable.",
+    critical: false,
+  },
+  {
+    name: "Package exports or client helpers look publish-ready",
+    check:
+      "When visible in the repo, package.json exports, client helpers, and component entry points should look ready for apps to consume. If packaging details are not present, treat this as advisory and explain the uncertainty.",
     critical: false,
   },
 ];
@@ -312,6 +332,8 @@ export const runAiReview = action({
   args: { packageId: v.id("packages") },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const reviewCreatedAt = Date.now();
+
     // Set status to reviewing
     await ctx.runMutation(api.packages.updateAiReviewStatus, {
       packageId: args.packageId,
@@ -330,17 +352,32 @@ export const runAiReview = action({
 
       // Check if package has GitHub repository URL
       if (!pkg.repositoryUrl) {
+        const summary =
+          "Cannot perform full review: Package does not have a GitHub repository URL. Only npm metadata is available.";
+        const criteria = REVIEW_CRITERIA.map((c) => ({
+          name: c.name,
+          passed: false,
+          notes: "Unable to check: No repository URL provided",
+        }));
+
         await ctx.runMutation(api.packages.updateAiReviewResult, {
           packageId: args.packageId,
           status: "partial",
-          summary:
-            "Cannot perform full review: Package does not have a GitHub repository URL. Only npm metadata is available.",
-          criteria: REVIEW_CRITERIA.map((c) => ({
-            name: c.name,
-            passed: false,
-            notes: "Unable to check: No repository URL provided",
-          })),
+          summary,
+          criteria,
           error: undefined,
+        });
+        await ctx.runMutation(internal.packages._createAiReviewRun, {
+          packageId: args.packageId,
+          createdAt: reviewCreatedAt,
+          status: "partial",
+          summary,
+          criteria,
+          error: undefined,
+          provider: undefined,
+          model: undefined,
+          source: undefined,
+          rawOutput: undefined,
         });
         return null;
       }
@@ -350,20 +387,35 @@ export const runAiReview = action({
       const repoData = await fetchGitHubRepo(pkg.repositoryUrl, githubToken);
 
       if (!repoData.exists || !repoData.isComponent || repoData.files.length === 0) {
+        const summary =
+          "Review failed: No convex.config.ts found in repository. This package is not a valid Convex component. Components must have convex.config.ts with defineComponent().";
+        const criteria = REVIEW_CRITERIA.map((c) => ({
+          name: c.name,
+          passed: false,
+          notes:
+            c.name === "Has convex.config.ts with defineComponent()"
+              ? "Failed: No convex.config.ts found"
+              : "Unable to check: Not a Convex component",
+        }));
+
         await ctx.runMutation(api.packages.updateAiReviewResult, {
           packageId: args.packageId,
           status: "failed",
-          summary:
-            "Review failed: No convex.config.ts found in repository. This package is not a valid Convex component. Components must have convex.config.ts with defineComponent().",
-          criteria: REVIEW_CRITERIA.map((c) => ({
-            name: c.name,
-            passed: false,
-            notes:
-              c.name === "Has convex.config.ts with defineComponent()"
-                ? "Failed: No convex.config.ts found"
-                : "Unable to check: Not a Convex component",
-          })),
+          summary,
+          criteria,
           error: undefined,
+        });
+        await ctx.runMutation(internal.packages._createAiReviewRun, {
+          packageId: args.packageId,
+          createdAt: reviewCreatedAt,
+          status: "failed",
+          summary,
+          criteria,
+          error: undefined,
+          provider: undefined,
+          model: undefined,
+          source: undefined,
+          rawOutput: undefined,
         });
         return null;
       }
@@ -388,7 +440,7 @@ export const runAiReview = action({
       if (customPromptContent) {
         basePrompt = customPromptContent;
       } else {
-        // Default prompt template v2 (updated 2025-03-05)
+        // Default prompt template v3 (updated 2026-03-08)
         const docsReference = `
 OFFICIAL CONVEX COMPONENT DOCUMENTATION REFERENCES:
 - Authoring Components: https://docs.convex.dev/components/authoring
@@ -401,35 +453,60 @@ OFFICIAL CONVEX COMPONENT DOCUMENTATION REFERENCES:
 
 KEY REQUIREMENTS FROM DOCS:
 1. Components must have convex.config.ts with defineComponent() export
-2. Component structure: convex.config.ts at root or src/component/, with functions in component/ directory
-3. Functions must use new syntax: query({ args: {}, returns: v.null(), handler: async (ctx, args) => {} })
-4. All EXPORTED query/mutation/action functions MUST have explicit 'returns' validator. Regular TypeScript helper functions do NOT require return type annotations.
-5. Functions returning nothing MUST use v.null() as the return validator, not undefined
-6. Functions that are ONLY called internally by other component functions should use internalQuery, internalMutation, internalAction. Functions that are part of the component's PUBLIC API (intended to be called by apps using the component) should use regular query, mutation, action.
-7. Components do NOT have access to ctx.auth. Authentication must be done in the app, with identifiers (userId, tokens) passed to the component.
-8. If component provides functions for apps to re-export (makeXXXAPI pattern), it should accept an auth callback option so apps can authenticate requests.
+2. Component structure: convex.config.ts at root or src/component/, with functions in the component's own code
+3. Component functions should import query/mutation/action/internal* builders from the component's own ./_generated/server
+4. Functions must use object-style syntax, e.g. query({ args: {}, returns: v.string(), handler: async (ctx, args) => {} })
+5. Public component functions should have explicit args and returns validators
+6. Functions returning nothing must use v.null() as the return validator, not undefined
+7. Components do NOT have access to ctx.auth. Authentication must be done in the app, with identifiers or tokens passed into the component.
+8. Component function visibility differs from regular Convex apps. Public component functions are not browser-client-accessible, but they ARE callable across the component boundary via ctx.runQuery, ctx.runMutation, or ctx.runAction from the app or wrapper code. Internal functions are hidden even from the parent app.
+9. If a component provides functions for apps to re-export (makeXXXAPI pattern), it should use an app-side auth wrapper or accept an auth callback option where appropriate.
 `;
 
         basePrompt = `You are reviewing a Convex component package against official Convex component specifications.
 
 ${docsReference}
 
-WHAT IS A CONVEX COMPONENT:
-A Convex component is an npm package that:
-- Has convex.config.ts with defineComponent() at root, src/, or src/component/
-- Contains Convex functions (queries, mutations, actions) in the component
-- Is installed by other Convex apps via npm install
-- Exports functionality through the component definition
-- Can include schema, client code, and HTTP endpoints
+REVIEW SCOPE:
+- This review starts from a stored package record, but the actual component validity check is based on the linked GitHub repository contents included below.
+- Do NOT assume the published npm tarball was scanned.
+- Judge whether the repository passes as a valid Convex component. Use npm/package-level details only when they are visible in the repository.
 
 IMPORTANT DISTINCTIONS:
-- EXPORTED functions (using query/mutation/action syntax) = need returns validators
-- Regular TypeScript helper functions = do NOT need explicit return type annotations
-- Functions called by apps = PUBLIC API, use query/mutation/action
-- Functions only called internally = use internalQuery/internalMutation/internalAction
+- Public component functions become internal references at the app level and are called across the component boundary with ctx.runQuery, ctx.runMutation, or ctx.runAction
+- Functions called by apps or client wrapper classes across the component boundary = MUST use query/mutation/action
+- Functions called ONLY by other functions within the same component = use internalQuery/internalMutation/internalAction
+- Component functions should be defined with builders imported from the component's own ./_generated/server
+- EXPORTED public component functions should have validators
+- Regular TypeScript helper functions do NOT need validators or explicit return type annotations just because they exist in the repository
+- Do NOT confuse "called automatically by wrapper code" with "internal." Wrapper/client code runs in the app's environment and calls across the component boundary, which requires public visibility.
+- Docstrings like "Called automatically when..." do NOT indicate a function should be internal. Check WHO calls it.
+
+COMPONENT FUNCTION VISIBILITY REFERENCE:
+| Who calls the function?                                    | Required visibility                                    |
+|------------------------------------------------------------|--------------------------------------------------------|
+| Browser/React client directly                              | Not possible - all component functions are server-only at the app level |
+| App server code or client wrapper class (across boundary)  | query / mutation / action (public)                     |
+| Other functions inside the same component only             | internalQuery / internalMutation / internalAction      |
+
+CRITICAL PASS CRITERIA:
+1. Has convex.config.ts with defineComponent()
+2. Has component functions
+3. Component functions import builders from ./_generated/server
+4. Functions use object-style syntax
+5. Public component functions have validators
+6. Uses v.null() for void returns
+7. Does not use ctx.auth in component code
+8. Cross-boundary visibility uses public vs internal correctly
+
+ADVISORY NOTES:
+9. Queries prefer withIndex() over filter()
+10. Has clear TypeScript types and validator-driven shapes
+11. Uses auth callback or app-side auth wrapper when needed
+12. Package exports or client helpers look publish-ready
 
 Analyze this code and provide a structured review with:
-1. Overall summary (2-3 sentences about component quality and compliance with official Convex component specs)
+1. Overall summary (2-3 sentences answering whether the repository PASSES the critical component checks. Mention advisory improvements separately.)
 2. For each criterion IN THE EXACT ORDER LISTED ABOVE, indicate PASS or FAIL with a brief note
 3. Suggestions for improvement based on the OFFICIAL DOCUMENTATION REFERENCES above
 
@@ -437,8 +514,12 @@ IMPORTANT:
 - Return criteria in the EXACT same order as listed above
 - Base all suggestions on the official Convex documentation links provided
 - For any failed criterion, reference the specific documentation URL that explains the correct approach
-- Do NOT flag regular helper functions for missing return validators
-- Do NOT flag public API functions for not using internal* (they are intentionally public)
+- Criteria 1-8 are the actual pass/fail gate for whether the repo passes as a Convex component
+- Criteria 9-12 are advisory only and should NOT by themselves cause the repository to fail
+- Do NOT flag regular helper functions for missing validators
+- Do NOT flag public API functions for not using internal* (they are intentionally public across the component boundary)
+- For criterion 11, if auth is not relevant, mark it passed and say it is not applicable
+- For criterion 12, if packaging details are not visible in the repository, treat it as advisory and explain the uncertainty rather than failing the repo on that basis
 
 Respond in this exact JSON format:
 {
@@ -446,13 +527,16 @@ Respond in this exact JSON format:
   "criteria": [
     {"name": "Has convex.config.ts with defineComponent()", "passed": true/false, "notes": "Your note"},
     {"name": "Has component functions", "passed": true/false, "notes": "Your note"},
-    {"name": "Functions use new syntax", "passed": true/false, "notes": "Your note"},
-    {"name": "Exported functions have returns: validator", "passed": true/false, "notes": "Your note - only check exported query/mutation/action, not helper functions"},
+    {"name": "Component functions import builders from ./_generated/server", "passed": true/false, "notes": "Your note"},
+    {"name": "Functions use object-style syntax", "passed": true/false, "notes": "Your note"},
+    {"name": "Public component functions have validators", "passed": true/false, "notes": "Your note - only check exported public query/mutation/action functions, not helper functions"},
     {"name": "Uses v.null() for void returns", "passed": true/false, "notes": "Your note"},
-    {"name": "Uses withIndex() not filter()", "passed": true/false, "notes": "Your note"},
-    {"name": "Internal-only functions use internal*", "passed": true/false, "notes": "Your note - functions that are part of the public API should NOT use internal*"},
-    {"name": "Has TypeScript with proper types", "passed": true/false, "notes": "Your note"},
-    {"name": "Uses auth pattern (when applicable)", "passed": true/false, "notes": "Your note - components cannot use ctx.auth, so check for token-based or auth callback patterns if auth is needed"}
+    {"name": "Does not use ctx.auth in component code", "passed": true/false, "notes": "Your note - components should receive auth-derived identifiers from the app instead"},
+    {"name": "Cross-boundary visibility uses public vs internal correctly", "passed": true/false, "notes": "Your note - functions called by apps or wrapper classes across the component boundary must remain public"},
+    {"name": "Queries prefer withIndex() over filter()", "passed": true/false, "notes": "Your note - advisory only"},
+    {"name": "Has clear TypeScript types and validator-driven shapes", "passed": true/false, "notes": "Your note - advisory only"},
+    {"name": "Uses auth callback or app-side auth wrapper when needed", "passed": true/false, "notes": "Your note - advisory only; if auth is not relevant, say not applicable"},
+    {"name": "Package exports or client helpers look publish-ready", "passed": true/false, "notes": "Your note - advisory only; if packaging details are not visible in the repository, explain the uncertainty"}
   ],
   "suggestions": "Improvement suggestions with references to official docs (e.g., 'See https://docs.convex.dev/components/authoring for...')"
 }`;
@@ -508,19 +592,22 @@ ${filesContext}`;
         jsonText = jsonMatch[1];
       }
 
-      const aiResponse = JSON.parse(jsonText);
+      const aiResponse = JSON.parse(jsonText) as {
+        summary: string;
+        criteria: Array<{ name: string; passed: boolean; notes: string }>;
+        suggestions?: string;
+      };
 
       // Determine overall status
-      const allPassed = aiResponse.criteria.every((c: any) => c.passed);
-      const anyCriticalFailed = aiResponse.criteria.some(
-        (c: any, i: number) => !c.passed && REVIEW_CRITERIA[i]?.critical
+      const criticalCriteriaResults = aiResponse.criteria.filter(
+        (_criterion, index) => REVIEW_CRITERIA[index]?.critical
       );
+      const allCriticalPassed = criticalCriteriaResults.every((criterion) => criterion.passed);
+      const anyCriticalFailed = criticalCriteriaResults.some((criterion) => !criterion.passed);
 
       let status: "passed" | "failed" | "partial" = "passed";
       if (anyCriticalFailed) {
         status = "failed";
-      } else if (!allPassed) {
-        status = "partial";
       }
 
       // Build summary
@@ -537,6 +624,18 @@ ${filesContext}`;
         criteria: aiResponse.criteria,
         error: undefined,
       });
+      await ctx.runMutation(internal.packages._createAiReviewRun, {
+        packageId: args.packageId,
+        createdAt: reviewCreatedAt,
+        status,
+        summary,
+        criteria: aiResponse.criteria,
+        error: undefined,
+        provider: usedProvider,
+        model: usedModel,
+        source: usedSource,
+        rawOutput: aiResponseText,
+      });
 
       // Check auto-approve/reject settings
       const settings = await ctx.runQuery(api.packages.getAdminSettings);
@@ -548,7 +647,9 @@ ${filesContext}`;
           packageId: args.packageId,
           reviewStatus: "approved",
           reviewedBy: "AI",
-          reviewNotes: "Auto-approved: AI review passed all criteria",
+          reviewNotes: allCriticalPassed
+            ? "Auto-approved: AI review passed all critical component criteria"
+            : "Auto-approved: AI review passed the required component checks",
         });
       } else if (status === "failed" && autoReject && anyCriticalFailed) {
         await ctx.runMutation(api.packages.updateReviewStatus, {
@@ -561,13 +662,28 @@ ${filesContext}`;
 
       return null;
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const summary = "AI review encountered an error";
+
       // Store error
       await ctx.runMutation(api.packages.updateAiReviewResult, {
         packageId: args.packageId,
         status: "error",
-        summary: "AI review encountered an error",
+        summary,
         criteria: [],
-        error: error instanceof Error ? error.message : String(error),
+        error: message,
+      });
+      await ctx.runMutation(internal.packages._createAiReviewRun, {
+        packageId: args.packageId,
+        createdAt: reviewCreatedAt,
+        status: "error",
+        summary,
+        criteria: [],
+        error: message,
+        provider: undefined,
+        model: undefined,
+        source: undefined,
+        rawOutput: undefined,
       });
       return null;
     }

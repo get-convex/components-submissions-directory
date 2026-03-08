@@ -1593,6 +1593,27 @@ type AiReviewStatus =
   | "partial"
   | "error";
 
+type AiReviewCriterion = {
+  name: string;
+  passed: boolean;
+  notes: string;
+};
+
+type AiReviewRun = {
+  _id: Id<"aiReviewRuns">;
+  _creationTime: number;
+  packageId: Id<"packages">;
+  createdAt: number;
+  status: Exclude<AiReviewStatus, "not_reviewed" | "reviewing">;
+  summary: string;
+  criteria: Array<AiReviewCriterion>;
+  error?: string;
+  provider?: "anthropic" | "openai" | "gemini";
+  model?: string;
+  source?: string;
+  rawOutput?: string;
+};
+
 // AI Review button component
 function AiReviewButton({
   packageId,
@@ -1712,7 +1733,7 @@ function AiReviewResultsPanel({
 }: {
   aiReviewStatus?: AiReviewStatus;
   aiReviewSummary?: string;
-  aiReviewCriteria?: Array<{ name: string; passed: boolean; notes: string }>;
+  aiReviewCriteria?: Array<AiReviewCriterion>;
   aiReviewError?: string;
   aiReviewedAt?: number;
   packageName?: string;
@@ -1891,6 +1912,368 @@ ${aiReviewError ? `\n### Error\n${aiReviewError}` : ""}
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function AiReviewHistoryPanel({
+  packageId,
+  packageName,
+  isOpen,
+  onClose,
+}: {
+  packageId: Id<"packages">;
+  packageName: string;
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const reviewRuns = useQuery(api.packages.getAiReviewRunsForPackage, { packageId });
+  const deleteAiReviewRun = useMutation(api.packages.deleteAiReviewRun);
+  const [selectedRunId, setSelectedRunId] = useState<Id<"aiReviewRuns"> | null>(null);
+  const [runToDelete, setRunToDelete] = useState<Id<"aiReviewRuns"> | null>(null);
+  const [isDeletingRun, setIsDeletingRun] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen || !reviewRuns) return;
+
+    const hasSelectedRun = selectedRunId
+      ? reviewRuns.some((run) => run._id === selectedRunId)
+      : false;
+
+    if (!hasSelectedRun) {
+      setSelectedRunId(reviewRuns[0]?._id ?? null);
+    }
+  }, [isOpen, reviewRuns, selectedRunId]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && runToDelete === null) {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose, runToDelete]);
+
+  if (!isOpen) {
+    return null;
+  }
+
+  const runs: Array<AiReviewRun> = reviewRuns ?? [];
+  const latestRunId = runs[0]?._id ?? null;
+  const selectedRun =
+    runs.find((run) => run._id === selectedRunId) ?? runs[0] ?? null;
+
+  const getStatusClassName = (status: AiReviewRun["status"]) => {
+    switch (status) {
+      case "passed":
+        return "bg-green-500/10 text-green-600 border-green-500/20";
+      case "partial":
+        return "bg-yellow-500/10 text-yellow-700 border-yellow-500/20";
+      case "failed":
+      case "error":
+        return "bg-red-500/10 text-red-600 border-red-500/20";
+    }
+  };
+
+  const formatStatusLabel = (status: AiReviewRun["status"]) => {
+    switch (status) {
+      case "passed":
+        return "Passed";
+      case "partial":
+        return "Partial";
+      case "failed":
+        return "Failed";
+      case "error":
+        return "Error";
+    }
+  };
+
+  const scoreLabel = (criteria: Array<AiReviewCriterion>) => {
+    if (criteria.length === 0) return "No criteria";
+    const passedCount = criteria.filter((criterion) => criterion.passed).length;
+    return `${passedCount}/${criteria.length} passed`;
+  };
+
+  const handleDeleteRun = async () => {
+    if (!runToDelete || isDeletingRun) return;
+
+    setIsDeletingRun(true);
+    try {
+      await deleteAiReviewRun({ runId: runToDelete });
+      if (selectedRunId === runToDelete) {
+        setSelectedRunId(null);
+      }
+      toast.success("AI review history entry deleted");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete AI review history entry",
+      );
+    } finally {
+      setIsDeletingRun(false);
+      setRunToDelete(null);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-y-0 right-0 w-full max-w-5xl bg-white border-l border-border shadow-xl">
+        <div className="flex h-full flex-col">
+          <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
+            <div>
+              <h3 className="text-lg font-normal text-text-primary">AI Review History</h3>
+              <p className="mt-1 text-sm text-text-secondary">
+                {packageName} has {runs.length} saved AI review
+                {runs.length === 1 ? "" : "s"}.
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="rounded-full p-1 text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)]">
+            <div className="border-b border-border lg:border-b-0 lg:border-r">
+              <div className="max-h-[36vh] overflow-y-auto lg:max-h-full">
+                {reviewRuns === undefined ? (
+                  <div className="px-6 py-8 text-sm text-text-secondary">
+                    Loading review history...
+                  </div>
+                ) : runs.length === 0 ? (
+                  <div className="px-6 py-8">
+                    <div className="rounded-lg border border-dashed border-border bg-bg-primary px-4 py-6 text-center">
+                      <p className="text-sm text-text-primary">No review history yet</p>
+                      <p className="mt-1 text-xs text-text-secondary">
+                        Run AI Review to start collecting past review output.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border">
+                    {runs.map((run, index) => (
+                      <div
+                        key={run._id}
+                        className={`px-4 py-4 transition-colors ${
+                          selectedRun?._id === run._id
+                            ? "bg-[#FDFBF7]"
+                            : "hover:bg-bg-hover"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <button
+                            onClick={() => setSelectedRunId(run._id)}
+                            className="min-w-0 flex-1 text-left"
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span
+                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${getStatusClassName(run.status)}`}
+                              >
+                                {formatStatusLabel(run.status)}
+                              </span>
+                              {index === 0 && (
+                                <span className="text-[11px] text-text-secondary">
+                                  Latest
+                                </span>
+                              )}
+                            </div>
+                            <p className="mt-2 text-xs font-medium text-text-primary">
+                              {scoreLabel(run.criteria)}
+                            </p>
+                            <p className="mt-1 line-clamp-2 text-xs text-text-secondary">
+                              {run.summary}
+                            </p>
+                          </button>
+                          <div className="flex shrink-0 items-start gap-1">
+                            {run._id !== latestRunId && (
+                              <Tooltip content="Delete this saved review run">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setRunToDelete(run._id);
+                                  }}
+                                  className="rounded p-1 text-text-secondary hover:bg-red-50 hover:text-red-600 transition-colors"
+                                >
+                                  <TrashSimple size={14} />
+                                </button>
+                              </Tooltip>
+                            )}
+                            <button
+                              onClick={() => setSelectedRunId(run._id)}
+                              className="rounded p-0.5 text-text-secondary"
+                            >
+                              <CaretRight
+                                size={14}
+                                className={`shrink-0 transition-transform ${
+                                  selectedRun?._id === run._id ? "rotate-90" : ""
+                                }`}
+                              />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="mt-3 text-[11px] text-text-secondary">
+                          {new Date(run.createdAt).toLocaleString()}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="min-h-0 overflow-y-auto">
+              {!selectedRun ? (
+                <div className="px-6 py-10 text-sm text-text-secondary">
+                  Select a review run to inspect the full output.
+                </div>
+              ) : (
+                <div className="px-6 py-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${getStatusClassName(selectedRun.status)}`}
+                      >
+                        {formatStatusLabel(selectedRun.status)}
+                      </span>
+                      <span className="text-xs text-text-secondary">
+                        {new Date(selectedRun.createdAt).toLocaleString()}
+                      </span>
+                    </div>
+                    {selectedRun._id !== latestRunId && (
+                      <button
+                        onClick={() => setRunToDelete(selectedRun._id)}
+                        className="inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <TrashSimple size={14} />
+                        Delete run
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="mt-4 grid gap-2 text-xs text-text-secondary sm:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-lg border border-border bg-bg-primary px-3 py-2">
+                      <div className="text-[11px] uppercase tracking-wide">Score</div>
+                      <div className="mt-1 text-sm text-text-primary">
+                        {scoreLabel(selectedRun.criteria)}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border bg-bg-primary px-3 py-2">
+                      <div className="text-[11px] uppercase tracking-wide">Provider</div>
+                      <div className="mt-1 text-sm text-text-primary">
+                        {selectedRun.provider || "Unknown"}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border bg-bg-primary px-3 py-2">
+                      <div className="text-[11px] uppercase tracking-wide">Model</div>
+                      <div className="mt-1 text-sm text-text-primary break-all">
+                        {selectedRun.model || "Unknown"}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border bg-bg-primary px-3 py-2">
+                      <div className="text-[11px] uppercase tracking-wide">Source</div>
+                      <div className="mt-1 text-sm text-text-primary">
+                        {selectedRun.source || "Unknown"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 rounded-lg border border-border bg-bg-primary p-4">
+                    <div className="text-xs font-medium text-text-secondary">
+                      Summary
+                    </div>
+                    <div className="mt-2 whitespace-pre-wrap text-sm text-text-primary">
+                      {selectedRun.summary}
+                    </div>
+                  </div>
+
+                  {selectedRun.error && (
+                    <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
+                      <div className="text-xs font-medium text-red-700">Error</div>
+                      <div className="mt-2 whitespace-pre-wrap text-sm text-red-700">
+                        {selectedRun.error}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-5">
+                    <div className="text-xs font-medium text-text-secondary">
+                      Criteria checklist
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {selectedRun.criteria.length === 0 ? (
+                        <div className="rounded-lg border border-dashed border-border bg-bg-primary px-4 py-6 text-center text-sm text-text-secondary">
+                          No criteria were recorded for this run.
+                        </div>
+                      ) : (
+                        selectedRun.criteria.map((criterion) => (
+                          <div
+                            key={`${selectedRun._id}-${criterion.name}`}
+                            className="flex items-start gap-3 rounded-lg border border-border bg-bg-primary p-3"
+                          >
+                            {criterion.passed ? (
+                              <CheckCircle
+                                size={16}
+                                weight="bold"
+                                className="mt-0.5 shrink-0 text-green-600"
+                              />
+                            ) : (
+                              <XCircle
+                                size={16}
+                                weight="bold"
+                                className="mt-0.5 shrink-0 text-red-600"
+                              />
+                            )}
+                            <div className="min-w-0">
+                              <div className="text-sm font-medium text-text-primary">
+                                {criterion.name}
+                              </div>
+                              <div className="mt-1 text-xs text-text-secondary">
+                                {criterion.notes}
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  {selectedRun.rawOutput && (
+                    <div className="mt-5 rounded-lg border border-border bg-bg-primary p-4">
+                      <div className="text-xs font-medium text-text-secondary">
+                        Raw model output
+                      </div>
+                      <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words text-xs text-text-primary">
+                        {selectedRun.rawOutput}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <ConfirmModal
+        isOpen={runToDelete !== null}
+        onClose={() => {
+          if (!isDeletingRun) {
+            setRunToDelete(null);
+          }
+        }}
+        onConfirm={handleDeleteRun}
+        title="Delete AI review history?"
+        message="This removes the selected saved review run from history. The current latest review snapshot on the package will stay unchanged."
+        confirmText={isDeletingRun ? "Deleting..." : "Delete"}
+        cancelText="Cancel"
+        type="danger"
+      />
     </div>
   );
 }
@@ -2227,6 +2610,7 @@ function InlineActions({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showRewardConfirm, setShowRewardConfirm] = useState(false);
   const [showRewardHistory, setShowRewardHistory] = useState(false);
+  const [showAiReviewHistory, setShowAiReviewHistory] = useState(false);
   const [rewardAmount, setRewardAmount] = useState<string>(
     (defaultRewardAmount ?? 25).toString()
   );
@@ -2251,6 +2635,9 @@ function InlineActions({
   const rewardPayments = useQuery(api.paymentsDb.getPaymentsForPackage, {
     packageId,
   });
+  const aiReviewRuns = useQuery(api.packages.getAiReviewRunsForPackage, {
+    packageId,
+  });
   const autoFillAuthor = useMutation(api.packages.autoFillAuthorFromRepo);
   const regenerateSeo = useAction(api.seoContent.regenerateSeoContent);
   const refreshNpmData = useAction(api.packages.refreshNpmData);
@@ -2261,6 +2648,7 @@ function InlineActions({
   const featured = currentFeatured || false;
   const hideFromSubmissions = currentHideFromSubmissions || false;
   const rewardHistoryCount = rewardPayments?.length ?? 0;
+  const aiReviewHistoryCount = aiReviewRuns?.length ?? 0;
   const rewardTotalSent =
     rewardPayments?.reduce((total, payment) => {
       if (payment.status === "sent" || payment.status === "delivered") {
@@ -3017,6 +3405,27 @@ function InlineActions({
               packageName={packageName}
               repositoryUrl={repositoryUrl}
             />
+            <Tooltip
+              content={
+                aiReviewRuns === undefined
+                  ? "Loading AI review history"
+                  : aiReviewHistoryCount === 0
+                    ? "No saved AI review runs yet"
+                    : `View AI review history (${aiReviewHistoryCount})`
+              }
+            >
+              <button
+                onClick={() => setShowAiReviewHistory(true)}
+                disabled={aiReviewRuns === undefined}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-all disabled:opacity-50"
+              >
+                <ClockCounterClockwise size={14} weight="bold" />
+                <span className="hidden sm:inline">Review history</span>
+                <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-bg-hover px-1.5 py-0.5 text-[10px] text-text-primary">
+                  {aiReviewRuns === undefined ? "..." : aiReviewHistoryCount}
+                </span>
+              </button>
+            </Tooltip>
           </div>
 
           {/* Delete Button */}
@@ -3252,6 +3661,13 @@ function InlineActions({
           </div>
         </div>
       )}
+
+      <AiReviewHistoryPanel
+        packageId={packageId}
+        packageName={packageName}
+        isOpen={showAiReviewHistory}
+        onClose={() => setShowAiReviewHistory(false)}
+      />
     </>
   );
 }
