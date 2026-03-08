@@ -435,12 +435,25 @@ function SubmitterEmailEditor({
           <Envelope size={12} />
           <span className="font-medium">Primary:</span>
           {submitterEmail ? (
-            <a
-              href={`mailto:${submitterEmail}`}
-              className="hover:text-text-primary"
-              onClick={(e) => e.stopPropagation()}>
-              {submitterEmail}
-            </a>
+            <span className="flex items-center gap-1">
+              <a
+                href={`mailto:${submitterEmail}`}
+                className="hover:text-text-primary"
+                onClick={(e) => e.stopPropagation()}>
+                {submitterEmail}
+              </a>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigator.clipboard.writeText(submitterEmail);
+                  toast.success("Email copied to clipboard");
+                }}
+                className="p-0.5 rounded hover:bg-bg-hover hover:text-text-primary transition-colors"
+                title="Copy email">
+                <Copy size={12} />
+              </button>
+            </span>
           ) : (
             <span className="text-text-tertiary italic">Not set</span>
           )}
