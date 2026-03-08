@@ -129,6 +129,24 @@ export default async (
   context: { next: () => Promise<Response> }
 ) => {
   const url = new URL(request.url);
+
+  // Proxy sitemap.xml directly to Convex (redirects don't fire after edge fns)
+  if (url.pathname === "/components/sitemap.xml") {
+    const siteUrl =
+      Deno.env
+        .get("VITE_CONVEX_URL")
+        ?.replace(".convex.cloud", ".convex.site") ||
+      defaultConvexCloudUrl.replace(".convex.cloud", ".convex.site");
+    const res = await fetch(`${siteUrl}/api/sitemap.xml`);
+    return new Response(res.body, {
+      status: res.status,
+      headers: {
+        "Content-Type": "application/xml; charset=utf-8",
+        "Cache-Control": "public, max-age=3600, s-maxage=3600",
+      },
+    });
+  }
+
   const slug = extractSlug(url.pathname);
 
   if (!slug) {
