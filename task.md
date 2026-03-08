@@ -2,7 +2,25 @@
 
 ## to do
 
-- [ ] setup trenmdous
+- [x] add admin settings jump navigation (2026-03-08 00:49 UTC)
+  - Added anchored section wrappers for each block in the Admin settings tab
+  - Added a sticky jump bar for smaller screens and switched the desktop settings nav to a sticky in-layout sidebar on extra-wide screens
+  - Moved sticky positioning onto the desktop sidebar container so the rail stays pinned while scrolling the settings page
+  - Kept existing settings panels and feature behavior unchanged while making the long page easier to navigate
+- [x] setup tremendous (`prds/tremendous-rewards-working-setup.md`) (2026-03-07 02:25 UTC)
+  - Working setup uses `convex/payments.ts` for Node actions and `convex/paymentsDb.ts` for queries and mutations
+  - Uses Tremendous REST API via `fetch()` with normalized sandbox or production base URLs
+  - Campaign safe payload now avoids sending `products` when `TREMENDOUS_CAMPAIGN_ID` is present
+  - Admin UI includes Send Reward, PaymentBadge, RewardSettingsPanel, reward history modal, and settings-only test reward flow
+- [x] add Tremendous settings test reward (`prds/tremendous-settings-test-reward.md`) (2026-03-08 00:41 UTC)
+  - Added settings-only `Send Test Reward` action in `RewardSettingsPanel`
+  - Test reward sends to `TREMENDOUS_TEST_RECIPIENT_EMAIL` and records a `payments` row with `isTest: true`
+  - Test payments do not patch `packages.rewardStatus` or `packages.rewardTotalAmount`
+  - Test payments are excluded from reward stats totals
+- [x] add reward history modal and count in admin (`prds/admin-reward-history-modal.md`) (2026-03-07 06:10 UTC)
+  - Added reward history count pill next to the Reward button in `src/pages/Admin.tsx`
+  - Added reward history modal showing past payment attempts, including test payments, statuses, amounts, recipient email, notes, and Tremendous link when available
+  - Reused existing `api.paymentsDb.getPaymentsForPackage` query and existing admin modal styling
 - [ ] fix logout on submit page
 - [ ] add admin
 - [x] Admin dashboard default filter changed from "pending" to "all" (2026-03-07 00:35 UTC)

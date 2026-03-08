@@ -1411,13 +1411,48 @@ export const updateReviewStatus = mutation({
     }
 
     if (shouldAutoGenerateSeo) {
-      const pkg = await ctx.db.get("packages", args.packageId);
+      const pkg = await ctx.db.get(args.packageId);
       if (pkg && !pkg.seoGeneratedAt) {
         await ctx.scheduler.runAfter(
           0,
           internal.seoContent.generateSeoContent,
           { packageId: args.packageId },
         );
+      }
+    }
+
+    // Auto-send reward when approved + visible + enabled + not already paid
+    if (args.reviewStatus === "approved") {
+      const pkg = await ctx.db.get(args.packageId);
+      if (pkg && pkg.visibility === "visible") {
+        const autoSendRewardSetting = await ctx.db
+          .query("adminSettings")
+          .withIndex("by_key", (q) => q.eq("key", "autoSendRewardOnApprove"))
+          .first();
+
+        if (autoSendRewardSetting?.value) {
+          // Check if reward not already sent
+          const rewardStatus = pkg.rewardStatus;
+          if (rewardStatus !== "sent" && rewardStatus !== "delivered") {
+            // Get default reward amount
+            const defaultAmountSetting = await ctx.db
+              .query("adminSettingsNumeric")
+              .withIndex("by_key", (q) => q.eq("key", "defaultRewardAmount"))
+              .first();
+            const amount = defaultAmountSetting?.value ?? 25;
+
+            // Schedule reward send
+            await ctx.scheduler.runAfter(
+              0,
+              internal.payments.sendReward,
+              {
+                packageId: args.packageId,
+                amount,
+                sentBy: "auto",
+              },
+            );
+          }
+        }
       }
     }
 
@@ -2026,6 +2061,8 @@ export const getAdminSettings = query({
     autoGenerateThumbnailOnSubmit: v.boolean(),
     rotateThumbnailTemplatesOnSubmit: v.boolean(),
     showRelatedOnDetailPage: v.boolean(),
+    autoSendRewardOnApprove: v.boolean(),
+    defaultRewardAmount: v.number(),
   }),
   handler: async (ctx) => {
     const autoApprove = await ctx.db
@@ -2061,6 +2098,18 @@ export const getAdminSettings = query({
         q.eq("key", "showRelatedOnDetailPage"),
       )
       .first();
+    const autoSendReward = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q) =>
+        q.eq("key", "autoSendRewardOnApprove"),
+      )
+      .first();
+    const defaultRewardAmount = await ctx.db
+      .query("adminSettingsNumeric")
+      .withIndex("by_key", (q) =>
+        q.eq("key", "defaultRewardAmount"),
+      )
+      .first();
 
     return {
       autoApproveOnPass: autoApprove?.value || false,
@@ -2069,11 +2118,13 @@ export const getAdminSettings = query({
       autoGenerateThumbnailOnSubmit: autoGenerateThumb?.value || false,
       rotateThumbnailTemplatesOnSubmit: rotateTemplates?.value || false,
       showRelatedOnDetailPage: showRelated?.value ?? true,
+      autoSendRewardOnApprove: autoSendReward?.value || false,
+      defaultRewardAmount: defaultRewardAmount?.value ?? 25,
     };
   },
 });
 
-// Update admin setting
+// Update admin setting (boolean)
 export const updateAdminSetting = mutation({
   args: {
     key: v.union(
@@ -2083,6 +2134,7 @@ export const updateAdminSetting = mutation({
       v.literal("autoGenerateThumbnailOnSubmit"),
       v.literal("rotateThumbnailTemplatesOnSubmit"),
       v.literal("showRelatedOnDetailPage"),
+      v.literal("autoSendRewardOnApprove"),
     ),
     value: v.boolean(),
   },
@@ -2096,12 +2148,45 @@ export const updateAdminSetting = mutation({
 
     if (existing) {
       // Update existing with direct patch
-      await ctx.db.patch("adminSettings", existing._id, {
+      await ctx.db.patch(existing._id, {
         value: args.value,
       });
     } else {
       // Create new setting
       await ctx.db.insert("adminSettings", {
+        key: args.key,
+        value: args.value,
+      });
+    }
+
+    return null;
+  },
+});
+
+// Update admin setting (numeric)
+export const updateAdminSettingNumeric = mutation({
+  args: {
+    key: v.union(
+      v.literal("defaultRewardAmount"),
+    ),
+    value: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Find existing setting
+    const existing = await ctx.db
+      .query("adminSettingsNumeric")
+      .withIndex("by_key", (q) => q.eq("key", args.key))
+      .first();
+
+    if (existing) {
+      // Update existing with direct patch
+      await ctx.db.patch(existing._id, {
+        value: args.value,
+      });
+    } else {
+      // Create new setting
+      await ctx.db.insert("adminSettingsNumeric", {
         key: args.key,
         value: args.value,
       });

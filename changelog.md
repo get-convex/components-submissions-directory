@@ -7,8 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Tremendous rewards integration for submitter payouts (2026-03-07 UTC)
+  - New `payments` table in `convex/schema.ts` for tracking reward payments
+  - Added `rewardStatus` and `rewardTotalAmount` fields to `packages` table
+  - New `convex/payments.ts` and `convex/paymentsDb.ts` split Node actions from default-runtime queries and mutations
+  - `sendReward` now uses direct `fetch()` to Tremendous instead of the Tremendous SDK
+  - Added base URL normalization for Tremendous sandbox and production hosts
+  - Fixed campaign payload handling so `campaign_id` does not conflict with `products`
+  - Added `isTest` payment support and optional `packageId` handling so settings-level test rewards can be recorded without changing component reward state
+  - Auto-send hook in `updateReviewStatus` mutation when package becomes approved and visible
+  - Admin UI in `src/pages/Admin.tsx`:
+    - "Send Reward" button in Actions row with confirmation modal (amount/note inputs)
+    - `PaymentBadge` component showing Paid/Failed status in collapsed row header
+    - `RewardSettingsPanel` in Settings tab with auto-send toggle, default amount input, and payment stats
+    - Reward history count button next to the Reward action with modal showing past reward attempts and statuses
+    - Settings-only `Send Test Reward` button in `RewardSettingsPanel` for fixed env recipient verification
+  - New admin settings: `autoSendRewardOnApprove` (boolean) and `defaultRewardAmount` (numeric)
+  - Safe test flow documented: sandbox first, manual send first, settings-level test reward for fixed env recipient verification, auto-send only after one successful payment
+  - Test payments are stored with `isTest: true`, excluded from reward totals, and do not update package reward state
+  - Environment variables required: `TREMENDOUS_API_KEY`, `TREMENDOUS_CAMPAIGN_ID`, `TREMENDOUS_FUNDING_SOURCE_ID`, optional `TREMENDOUS_BASE_URL`, `TREMENDOUS_TEST_RECIPIENT_EMAIL`
+
 ### Changed
 
+- Admin settings tab now includes sticky section jump navigation for the long settings stack (2026-03-08 00:49 UTC)
+  - Added anchored section IDs across the existing settings panels in `src/pages/Admin.tsx`
+  - Added a sticky jump bar for smaller screens and a sticky in-layout right-side nav on extra-wide screens
+  - Moved sticky behavior to the desktop sidebar container so the settings rail stays pinned while the page scrolls
+  - Active section highlighting follows scroll position so admins can see where they are in the settings page
 - Admin dashboard default filter changed from "pending" to "all" for complete submission overview (2026-03-07 00:35 UTC)
 - Directory category sections now show 3 rows of cards initially before "Load more" button (2026-03-07 00:35 UTC)
   - Changed `groupedCardsPerLoad` from `gridColumns * 2` to `gridColumns * 3`

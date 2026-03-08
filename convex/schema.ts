@@ -186,6 +186,16 @@ const applicationTables = {
     seoGenerationError: v.optional(v.string()),
     // AI-generated SKILL.md content for Claude agent skills
     skillMd: v.optional(v.string()),
+    // Reward tracking (denormalized for quick badge rendering)
+    rewardStatus: v.optional(
+      v.union(
+        v.literal("not_sent"),
+        v.literal("sent"),
+        v.literal("delivered"),
+        v.literal("failed"),
+      ),
+    ),
+    rewardTotalAmount: v.optional(v.number()),
   })
     .index("by_name", ["name"])
     .index("by_submitted_at", ["submittedAt"])
@@ -250,6 +260,32 @@ const applicationTables = {
   })
     .index("by_package", ["packageId"])
     .index("by_package_and_created", ["packageId", "createdAt"]),
+
+  // Reward payments tracking (Tremendous integration)
+  payments: defineTable({
+    packageId: v.optional(v.id("packages")),
+    recipientEmail: v.string(),
+    recipientName: v.optional(v.string()),
+    amount: v.number(),
+    currencyCode: v.string(), // default "USD"
+    tremendousOrderId: v.optional(v.string()),
+    tremendousRewardId: v.optional(v.string()),
+    tremendousRewardLink: v.optional(v.string()),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("sent"),
+      v.literal("delivered"),
+      v.literal("failed"),
+    ),
+    error: v.optional(v.string()),
+    isTest: v.optional(v.boolean()),
+    sentBy: v.string(), // admin email or "auto"
+    sentAt: v.number(),
+    note: v.optional(v.string()),
+  })
+    .index("by_package", ["packageId"])
+    .index("by_status", ["status"])
+    .index("by_sent_at", ["sentAt"]),
 
   // Admin settings for AI review/SEO automation and auto-refresh
   // Keys: "autoApproveOnPass", "autoRejectOnFail", "autoGenerateSeoOnPendingOrInReview", "autoRefreshEnabled"

@@ -57,6 +57,7 @@ import {
   Clock,
   LinkSimple,
   Users,
+  CurrencyCircleDollar,
 } from "@phosphor-icons/react";
 import {
   ExternalLinkIcon as RadixExternalLinkIcon,
@@ -74,6 +75,187 @@ type Visibility = "visible" | "hidden" | "archived";
 // Get base path for navigation (always /components)
 function useBasePath() {
   return "/components";
+}
+
+type AdminSettingsSection = {
+  id: string;
+  label: string;
+  shortLabel: string;
+  icon: React.ReactNode;
+};
+
+const ADMIN_SETTINGS_SECTIONS: Array<AdminSettingsSection> = [
+  {
+    id: "settings-categories",
+    label: "Category Management",
+    shortLabel: "Categories",
+    icon: <List size={14} weight="bold" />,
+  },
+  {
+    id: "settings-auto-refresh",
+    label: "Auto-Refresh Settings",
+    shortLabel: "Refresh",
+    icon: <Lightning size={14} weight="bold" />,
+  },
+  {
+    id: "settings-submit-listing",
+    label: "Submit Listing Settings",
+    shortLabel: "Submit",
+    icon: <Files size={14} weight="bold" />,
+  },
+  {
+    id: "settings-ai-review",
+    label: "AI Review Settings",
+    shortLabel: "AI Review",
+    icon: <Gear size={14} weight="bold" />,
+  },
+  {
+    id: "settings-rewards",
+    label: "Reward Settings",
+    shortLabel: "Rewards",
+    icon: <CurrencyCircleDollar size={14} weight="bold" />,
+  },
+  {
+    id: "settings-ai-providers",
+    label: "AI Provider Settings",
+    shortLabel: "Providers",
+    icon: <Robot size={14} weight="bold" />,
+  },
+  {
+    id: "settings-ai-prompt",
+    label: "AI Review Prompt",
+    shortLabel: "Review Prompt",
+    icon: <ChatText size={14} weight="bold" />,
+  },
+  {
+    id: "settings-seo-prompt",
+    label: "SEO and SKILL Prompt",
+    shortLabel: "SEO Prompt",
+    icon: <Robot size={14} weight="bold" />,
+  },
+  {
+    id: "settings-deletion",
+    label: "Deletion Management",
+    shortLabel: "Deletion",
+    icon: <Trash size={14} weight="bold" />,
+  },
+  {
+    id: "settings-slugs",
+    label: "Slug Migration",
+    shortLabel: "Slugs",
+    icon: <LinkSimple size={14} weight="bold" />,
+  },
+  {
+    id: "settings-templates",
+    label: "Thumbnail Templates",
+    shortLabel: "Templates",
+    icon: <Image size={14} weight="bold" />,
+  },
+  {
+    id: "settings-stats",
+    label: "Stats",
+    shortLabel: "Stats",
+    icon: <Package size={14} weight="bold" />,
+  },
+];
+
+function scrollToAdminSettingsSection(sectionId: string) {
+  const section = document.getElementById(sectionId);
+  if (!section) return;
+
+  section.scrollIntoView({ behavior: "smooth", block: "start" });
+  window.history.replaceState(
+    null,
+    "",
+    `${window.location.pathname}${window.location.search}#${sectionId}`,
+  );
+}
+
+function AdminSettingsJumpNav({
+  activeSection,
+  onSelect,
+  desktop = false,
+}: {
+  activeSection: string;
+  onSelect: (sectionId: string) => void;
+  desktop?: boolean;
+}) {
+  if (desktop) {
+    return (
+      <div>
+        <div className="rounded-2xl border border-border bg-bg-card/95 backdrop-blur shadow-sm">
+          <div className="px-4 py-3 border-b border-border">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-secondary">
+              Settings Navigation
+            </p>
+            <p className="mt-1 text-xs text-text-secondary">
+              Jump between admin sections without losing your place.
+            </p>
+          </div>
+          <nav className="p-2">
+            {ADMIN_SETTINGS_SECTIONS.map((section) => {
+              const isActive = activeSection === section.id;
+
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => onSelect(section.id)}
+                  aria-current={isActive ? "true" : undefined}
+                  className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors ${
+                    isActive
+                      ? "bg-button text-white shadow-sm"
+                      : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                  }`}
+                >
+                  <span className={isActive ? "text-white" : "text-text-secondary"}>
+                    {section.icon}
+                  </span>
+                  <span>{section.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="2xl:hidden sticky top-28 z-20 mb-4">
+      <div className="rounded-2xl border border-border bg-bg-card/95 backdrop-blur shadow-sm">
+        <div className="px-3 py-2 border-b border-border">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-secondary">
+            Settings Navigation
+          </p>
+        </div>
+        <div className="flex gap-2 overflow-x-auto px-3 py-3">
+          {ADMIN_SETTINGS_SECTIONS.map((section) => {
+            const isActive = activeSection === section.id;
+
+            return (
+              <button
+                key={section.id}
+                type="button"
+                onClick={() => onSelect(section.id)}
+                aria-current={isActive ? "true" : undefined}
+                className={`flex min-w-max items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  isActive
+                    ? "border-button bg-button text-white shadow-sm"
+                    : "border-border bg-white text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                }`}
+              >
+                <span className={isActive ? "text-white" : "text-text-secondary"}>
+                  {section.icon}
+                </span>
+                <span>{section.shortLabel}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // Redirect non-admin users to their profile
@@ -1944,6 +2126,55 @@ function VisibilityBadge({
   );
 }
 
+// Payment/Reward badge component
+type RewardStatus = "not_sent" | "sent" | "delivered" | "failed";
+function PaymentBadge({
+  rewardStatus,
+  rewardTotalAmount,
+}: {
+  rewardStatus?: RewardStatus;
+  rewardTotalAmount?: number;
+}) {
+  if (!rewardStatus || rewardStatus === "not_sent") return null;
+
+  const config: Record<
+    Exclude<RewardStatus, "not_sent">,
+    { icon: React.ReactNode; label: string; className: string; tooltip: string }
+  > = {
+    sent: {
+      icon: <CurrencyCircleDollar size={14} weight="fill" />,
+      label: rewardTotalAmount ? `$${rewardTotalAmount}` : "Paid",
+      className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+      tooltip: rewardTotalAmount ? `Reward sent: $${rewardTotalAmount}` : "Reward sent",
+    },
+    delivered: {
+      icon: <CurrencyCircleDollar size={14} weight="fill" />,
+      label: rewardTotalAmount ? `$${rewardTotalAmount}` : "Delivered",
+      className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
+      tooltip: rewardTotalAmount ? `Reward delivered: $${rewardTotalAmount}` : "Reward delivered",
+    },
+    failed: {
+      icon: <CurrencyCircleDollar size={14} weight="bold" />,
+      label: "Failed",
+      className: "bg-red-500/10 text-red-600 border-red-500/20",
+      tooltip: "Reward failed to send",
+    },
+  };
+
+  const { icon, label, className, tooltip } = config[rewardStatus];
+
+  return (
+    <Tooltip content={tooltip}>
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${className}`}
+      >
+        {icon}
+        <span className="hidden sm:inline">{label}</span>
+      </span>
+    </Tooltip>
+  );
+}
+
 // Inline action buttons component (replaces dropdown)
 function InlineActions({
   packageId,
@@ -1965,6 +2196,9 @@ function InlineActions({
   lastRefreshedAt,
   refreshError,
   slug,
+  submitterEmail,
+  rewardStatus,
+  defaultRewardAmount,
 }: {
   packageId: Id<"packages">;
   currentStatus: ReviewStatus | undefined;
@@ -1985,9 +2219,19 @@ function InlineActions({
   lastRefreshedAt?: number;
   refreshError?: string;
   slug?: string;
+  submitterEmail?: string;
+  rewardStatus?: "not_sent" | "sent" | "delivered" | "failed";
+  defaultRewardAmount?: number;
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showRewardConfirm, setShowRewardConfirm] = useState(false);
+  const [showRewardHistory, setShowRewardHistory] = useState(false);
+  const [rewardAmount, setRewardAmount] = useState<string>(
+    (defaultRewardAmount ?? 25).toString()
+  );
+  const [rewardNote, setRewardNote] = useState("");
+  const [isSendingReward, setIsSendingReward] = useState(false);
   const [sortOrderInput, setSortOrderInput] = useState<string>(
     currentFeaturedSortOrder?.toString() ?? ""
   );
@@ -2003,6 +2247,10 @@ function InlineActions({
   const setFeaturedSortOrder = useMutation(api.packages.setFeaturedSortOrder);
   const toggleHideFromSubmissions = useMutation(api.packages.toggleHideFromSubmissions);
   const updateComponentDetails = useMutation(api.packages.updateComponentDetails);
+  const sendReward = useAction(api.payments.sendRewardManual);
+  const rewardPayments = useQuery(api.paymentsDb.getPaymentsForPackage, {
+    packageId,
+  });
   const autoFillAuthor = useMutation(api.packages.autoFillAuthorFromRepo);
   const regenerateSeo = useAction(api.seoContent.regenerateSeoContent);
   const refreshNpmData = useAction(api.packages.refreshNpmData);
@@ -2012,6 +2260,14 @@ function InlineActions({
   const visibility = currentVisibility || "visible";
   const featured = currentFeatured || false;
   const hideFromSubmissions = currentHideFromSubmissions || false;
+  const rewardHistoryCount = rewardPayments?.length ?? 0;
+  const rewardTotalSent =
+    rewardPayments?.reduce((total, payment) => {
+      if (payment.status === "sent" || payment.status === "delivered") {
+        return total + payment.amount;
+      }
+      return total;
+    }, 0) ?? 0;
 
   // Sync input when prop changes
   useEffect(() => {
@@ -2285,6 +2541,39 @@ function InlineActions({
     }
   };
 
+  // Send reward handler
+  const handleSendReward = async () => {
+    if (isSendingReward || !submitterEmail) return;
+    
+    const amount = parseFloat(rewardAmount);
+    if (isNaN(amount) || amount <= 0) {
+      toast.error("Please enter a valid amount");
+      return;
+    }
+    
+    setIsSendingReward(true);
+    try {
+      const result = await sendReward({
+        packageId,
+        amount,
+        sentBy: userEmail,
+        note: rewardNote || undefined,
+      });
+      
+      if (result.success) {
+        toast.success(`Reward of $${amount} sent to ${submitterEmail}`);
+        setShowRewardConfirm(false);
+        setRewardNote("");
+      } else {
+        toast.error(result.error || "Failed to send reward");
+      }
+    } catch (error) {
+      toast.error("Failed to send reward");
+    } finally {
+      setIsSendingReward(false);
+    }
+  };
+
   // Review status button configs
   const statusButtons: {
     value: ReviewStatus;
@@ -2522,6 +2811,63 @@ function InlineActions({
                 </button>
               </Tooltip>
             )}
+
+            {/* Send Reward Button */}
+            <Tooltip 
+              content={
+                !submitterEmail 
+                  ? "No submitter email on this package" 
+                  : rewardStatus === "sent" || rewardStatus === "delivered"
+                    ? "Reward already sent"
+                    : rewardStatus === "failed"
+                      ? "Previous reward failed - click to retry"
+                      : "Send reward to submitter"
+              }
+            >
+              <button
+                onClick={() => setShowRewardConfirm(true)}
+                disabled={isLoading || !submitterEmail || isSendingReward}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all disabled:opacity-50 ${
+                  rewardStatus === "sent" || rewardStatus === "delivered"
+                    ? "bg-green-600 text-white border-green-600"
+                    : rewardStatus === "failed"
+                      ? "bg-red-100 text-red-600 border-red-200 hover:bg-red-50"
+                      : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"
+                }`}
+              >
+                <CurrencyCircleDollar size={14} weight={rewardStatus === "sent" || rewardStatus === "delivered" ? "fill" : "bold"} />
+                <span className="hidden sm:inline">
+                  {rewardStatus === "sent" || rewardStatus === "delivered" 
+                    ? "Paid" 
+                    : rewardStatus === "failed" 
+                      ? "Retry" 
+                      : "Reward"}
+                </span>
+              </button>
+            </Tooltip>
+
+            {/* Reward History Button */}
+            <Tooltip
+              content={
+                rewardPayments === undefined
+                  ? "Loading reward history"
+                  : rewardHistoryCount === 0
+                    ? "No rewards recorded for this component yet"
+                    : `View reward history (${rewardHistoryCount})`
+              }
+            >
+              <button
+                onClick={() => setShowRewardHistory(true)}
+                disabled={rewardPayments === undefined}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-all disabled:opacity-50"
+              >
+                <ClockCounterClockwise size={14} weight="bold" />
+                <span className="hidden sm:inline">History</span>
+                <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-bg-hover px-1.5 py-0.5 text-[10px] text-text-primary">
+                  {rewardPayments === undefined ? "..." : rewardHistoryCount}
+                </span>
+              </button>
+            </Tooltip>
           </div>
         </div>
 
@@ -2700,6 +3046,212 @@ function InlineActions({
         cancelText="Cancel"
         type="danger"
       />
+
+      {/* Send Reward confirmation modal */}
+      {showRewardConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => !isSendingReward && setShowRewardConfirm(false)}
+          />
+          <div className="relative w-full max-w-md p-6 rounded-container bg-white border border-border shadow-lg">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="shrink-0 text-emerald-600">
+                <CurrencyCircleDollar size={24} weight="bold" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-normal text-text-primary">Send Reward</h3>
+                <p className="mt-1 text-sm text-text-secondary">
+                  Send a reward to <span className="font-medium">{submitterEmail}</span> for "{packageName}"
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1">
+                  Amount (USD)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">$</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={rewardAmount}
+                    onChange={(e) => setRewardAmount(e.target.value)}
+                    className="w-full pl-7 pr-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-button/50"
+                    placeholder="25"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1">
+                  Note (optional)
+                </label>
+                <textarea
+                  value={rewardNote}
+                  onChange={(e) => setRewardNote(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-button/50 resize-none"
+                  placeholder="Thank you for your contribution..."
+                  rows={2}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowRewardConfirm(false);
+                  setRewardNote("");
+                }}
+                disabled={isSendingReward}
+                className="px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendReward}
+                disabled={isSendingReward || !rewardAmount || parseFloat(rewardAmount) <= 0}
+                className="px-4 py-2 rounded-full text-sm font-normal bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {isSendingReward ? (
+                  <>
+                    <ArrowsClockwise size={14} className="animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <CurrencyCircleDollar size={14} weight="bold" />
+                    Send ${rewardAmount || "0"}
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reward history modal */}
+      {showRewardHistory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowRewardHistory(false)}
+          />
+          <div className="relative w-full max-w-2xl rounded-container bg-white border border-border shadow-lg">
+            <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
+              <div>
+                <h3 className="text-lg font-normal text-text-primary">
+                  Reward History
+                </h3>
+                <p className="mt-1 text-sm text-text-secondary">
+                  {packageName} has {rewardHistoryCount} reward
+                  {rewardHistoryCount === 1 ? "" : "s"} recorded.
+                </p>
+                <p className="mt-1 text-xs text-text-secondary">
+                  Total successfully sent: ${rewardTotalSent.toFixed(2)}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowRewardHistory(false)}
+                className="rounded-full p-1 text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="max-h-[60vh] overflow-y-auto px-6 py-5">
+              {!rewardPayments || rewardPayments.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border bg-bg-primary px-4 py-8 text-center">
+                  <p className="text-sm text-text-primary">No rewards yet</p>
+                  <p className="mt-1 text-xs text-text-secondary">
+                    This component has not recorded any reward attempts yet.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {rewardPayments.map((payment) => {
+                    const statusClassName =
+                      payment.status === "sent" || payment.status === "delivered"
+                        ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                        : payment.status === "failed"
+                          ? "bg-red-500/10 text-red-600 border-red-500/20"
+                          : "bg-yellow-500/10 text-yellow-700 border-yellow-500/20";
+
+                    return (
+                      <div
+                        key={payment._id}
+                        className="rounded-lg border border-border bg-bg-primary p-4"
+                      >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-medium text-text-primary">
+                                ${payment.amount.toFixed(2)} {payment.currencyCode}
+                              </span>
+                              <span
+                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${statusClassName}`}
+                              >
+                                <CurrencyCircleDollar size={12} weight="bold" />
+                                {payment.status}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-xs text-text-secondary">
+                              Sent to {payment.recipientEmail}
+                            </p>
+                            <p className="mt-1 text-xs text-text-secondary">
+                              {new Date(payment.sentAt).toLocaleString()} by {payment.sentBy}
+                            </p>
+                            {payment.note && (
+                              <p className="mt-2 text-xs text-text-secondary">
+                                Note: {payment.note}
+                              </p>
+                            )}
+                            {payment.error && (
+                              <p className="mt-2 text-xs text-red-600">
+                                Error: {payment.error}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex shrink-0 items-center gap-2">
+                            {payment.tremendousOrderId && (
+                              <span className="rounded-full bg-bg-hover px-2 py-1 text-[10px] text-text-secondary">
+                                Order {payment.tremendousOrderId}
+                              </span>
+                            )}
+                            {payment.tremendousRewardLink && (
+                              <a
+                                href={payment.tremendousRewardLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-1 text-[10px] text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                              >
+                                <ArrowSquareOut size={12} />
+                                Link
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end border-t border-border px-6 py-4">
+              <button
+                onClick={() => setShowRewardHistory(false)}
+                className="px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -3895,6 +4447,322 @@ function AdminSettingsPanel() {
                 }`}
               />
             </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Reward Settings Panel component (Tremendous integration)
+function RewardSettingsPanel() {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [defaultAmount, setDefaultAmount] = useState<string>("25");
+  const [isSaving, setIsSaving] = useState(false);
+  const [showTestRewardConfirm, setShowTestRewardConfirm] = useState(false);
+  const [testRewardAmount, setTestRewardAmount] = useState<string>("25");
+  const [testRewardNote, setTestRewardNote] = useState("");
+  const [isSendingTestReward, setIsSendingTestReward] = useState(false);
+
+  const settings = useQuery(api.packages.getAdminSettings);
+  const paymentStats = useQuery(api.paymentsDb.getPaymentStats);
+  const updateBoolSetting = useMutation(api.packages.updateAdminSetting);
+  const updateNumericSetting = useMutation(api.packages.updateAdminSettingNumeric);
+  const sendTestReward = useAction(api.payments.sendTestReward);
+
+  useEffect(() => {
+    if (settings?.defaultRewardAmount) {
+      setDefaultAmount(String(settings.defaultRewardAmount));
+      setTestRewardAmount(String(settings.defaultRewardAmount));
+    }
+  }, [settings?.defaultRewardAmount]);
+
+  const handleToggleAutoSend = async () => {
+    try {
+      await updateBoolSetting({
+        key: "autoSendRewardOnApprove",
+        value: !settings?.autoSendRewardOnApprove,
+      });
+      toast.success("Auto-send reward setting updated");
+    } catch (error) {
+      toast.error("Failed to update setting");
+    }
+  };
+
+  const handleSaveDefaultAmount = async () => {
+    const amount = parseFloat(defaultAmount);
+    if (isNaN(amount) || amount < 1) {
+      toast.error("Please enter a valid amount ($1 minimum)");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await updateNumericSetting({
+        key: "defaultRewardAmount",
+        value: amount,
+      });
+      toast.success("Default reward amount saved");
+    } catch (error) {
+      toast.error("Failed to save amount");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSendTestReward = async () => {
+    const amount = parseFloat(testRewardAmount);
+    if (isNaN(amount) || amount < 1) {
+      toast.error("Please enter a valid test amount ($1 minimum)");
+      return;
+    }
+
+    setIsSendingTestReward(true);
+    try {
+      const result = await sendTestReward({
+        amount,
+        sentBy: "admin-settings",
+        note: testRewardNote || undefined,
+      });
+
+      if (result.success) {
+        toast.success("Test reward sent and recorded");
+        setShowTestRewardConfirm(false);
+        setTestRewardNote("");
+      } else {
+        toast.error(result.error || "Failed to send test reward");
+      }
+    } catch (error) {
+      toast.error("Failed to send test reward");
+    } finally {
+      setIsSendingTestReward(false);
+    }
+  };
+
+  if (!settings) return null;
+
+  return (
+    <div className="mb-4 rounded-lg border border-border bg-bg-card overflow-hidden">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <CurrencyCircleDollar size={16} weight="bold" className="text-text-secondary" />
+          <span className="text-sm font-medium text-text-primary">
+            Reward Settings (Tremendous)
+          </span>
+        </div>
+        {isExpanded ? (
+          <CaretUp size={16} className="text-text-secondary" />
+        ) : (
+          <CaretDown size={16} className="text-text-secondary" />
+        )}
+      </button>
+
+      {isExpanded && (
+        <div className="p-4 border-t border-border space-y-4">
+          {/* Info section */}
+          <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary space-y-2">
+            <p className="font-medium text-text-primary">How Rewards Work</p>
+            <p>
+              When enabled, rewards are automatically sent to submitters via Tremendous when
+              their package is approved and visible. Submitters receive a gift card link via email.
+            </p>
+            <p className="text-yellow-600">
+              Environment variables required: TREMENDOUS_API_KEY, TREMENDOUS_CAMPAIGN_ID, TREMENDOUS_FUNDING_SOURCE_ID
+            </p>
+            <p>
+              Test rewards send to the fixed env email set in <code className="bg-bg-primary px-1 rounded">TREMENDOUS_TEST_RECIPIENT_EMAIL</code> and are recorded as test payments without updating any component reward state.
+            </p>
+          </div>
+
+          {/* Auto-send toggle */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-text-primary">
+                Auto-send reward on approve
+              </label>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Automatically send reward when a package becomes approved and visible
+              </p>
+            </div>
+            <button
+              onClick={handleToggleAutoSend}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                settings.autoSendRewardOnApprove ? "bg-green-600" : "bg-gray-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  settings.autoSendRewardOnApprove ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Default reward amount */}
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <label className="text-sm font-medium text-text-primary">
+                Default reward amount
+              </label>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Amount in USD for automatic rewards
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-text-secondary">$</span>
+              <input
+                type="number"
+                min="1"
+                step="5"
+                value={defaultAmount}
+                onChange={(e) => setDefaultAmount(e.target.value)}
+                className="w-20 px-2 py-1 text-sm border border-border rounded bg-bg-primary text-text-primary focus:outline-none focus:ring-1 focus:ring-button"
+              />
+              <button
+                onClick={handleSaveDefaultAmount}
+                disabled={isSaving}
+                className="px-3 py-1 text-xs bg-button text-white rounded hover:bg-button-hover disabled:opacity-50 transition-colors"
+              >
+                {isSaving ? "..." : "Save"}
+              </button>
+            </div>
+          </div>
+
+          {/* Test reward action */}
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <label className="text-sm font-medium text-text-primary">
+                Send test reward
+              </label>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Sends to the fixed Tremendous test recipient email from env and records a test payment only
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setTestRewardAmount(defaultAmount || "25");
+                setShowTestRewardConfirm(true);
+              }}
+              className="px-3 py-1.5 text-xs rounded-full border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-colors"
+            >
+              Send Test Reward
+            </button>
+          </div>
+
+          {/* Payment stats */}
+          {paymentStats && (
+            <div className="pt-3 border-t border-border">
+              <p className="text-xs font-medium text-text-primary mb-2">Payment Statistics</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                  <p className="text-xs text-text-secondary">Total Sent</p>
+                  <p className="text-lg font-light text-emerald-600">${paymentStats.totalAmountSent}</p>
+                </div>
+                <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                  <p className="text-xs text-text-secondary">Successful</p>
+                  <p className="text-lg font-light text-emerald-600">{paymentStats.sentCount + paymentStats.deliveredCount}</p>
+                </div>
+                <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                  <p className="text-xs text-text-secondary">Pending</p>
+                  <p className="text-lg font-light text-yellow-600">{paymentStats.pendingCount}</p>
+                </div>
+                <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                  <p className="text-xs text-text-secondary">Failed</p>
+                  <p className="text-lg font-light text-red-600">{paymentStats.failedCount}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {showTestRewardConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => !isSendingTestReward && setShowTestRewardConfirm(false)}
+          />
+          <div className="relative w-full max-w-md p-6 rounded-container bg-white border border-border shadow-lg">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="shrink-0 text-emerald-600">
+                <CurrencyCircleDollar size={24} weight="bold" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-normal text-text-primary">Send Test Reward</h3>
+                <p className="mt-1 text-sm text-text-secondary">
+                  This sends to the fixed env test recipient configured in Convex and records the payment as a test only.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1">
+                  Amount (USD)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">$</span>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={testRewardAmount}
+                    onChange={(e) => setTestRewardAmount(e.target.value)}
+                    className="w-full pl-7 pr-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-button/50"
+                    placeholder="25"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-text-secondary mb-1">
+                  Note (optional)
+                </label>
+                <textarea
+                  value={testRewardNote}
+                  onChange={(e) => setTestRewardNote(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-button/50 resize-none"
+                  placeholder="Sandbox or production verification test"
+                  rows={2}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowTestRewardConfirm(false);
+                  setTestRewardNote("");
+                }}
+                disabled={isSendingTestReward}
+                className="px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSendTestReward}
+                disabled={
+                  isSendingTestReward ||
+                  !testRewardAmount ||
+                  parseFloat(testRewardAmount) <= 0
+                }
+                className="px-4 py-2 rounded-full text-sm font-normal bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {isSendingTestReward ? (
+                  <>
+                    <ArrowsClockwise size={14} className="animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <CurrencyCircleDollar size={14} weight="bold" />
+                    Send Test ${testRewardAmount || "0"}
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -5732,6 +6600,10 @@ function AdminDashboard({
   searchTerm: string;
   setSearchTerm: (term: string) => void;
 }) {
+  // Admin settings for default reward amount
+  const adminSettings = useQuery(api.packages.getAdminSettings);
+  const defaultRewardAmount = adminSettings?.defaultRewardAmount ?? 25;
+  
   // Default to all to show complete overview first
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   // Pagination state - track current page for each filter
@@ -5768,12 +6640,58 @@ function AdminDashboard({
     | "featured";
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const [activeSettingsSection, setActiveSettingsSection] = useState<string>(
+    ADMIN_SETTINGS_SECTIONS[0].id,
+  );
   
   // Reset page to 1 when filter changes
   const handleFilterChange = (filter: FilterType) => {
     setActiveFilter(filter);
     setCurrentPage((prev) => ({ ...prev, [filter]: 1 }));
   };
+
+  useEffect(() => {
+    if (activeFilter !== "settings") return;
+
+    const sections = ADMIN_SETTINGS_SECTIONS.map((section) =>
+      document.getElementById(section.id),
+    ).filter((section): section is HTMLElement => section !== null);
+
+    if (sections.length === 0) return;
+
+    const updateActiveSection = () => {
+      let nextSection = sections[0].id;
+
+      for (const section of sections) {
+        if (section.getBoundingClientRect().top <= 180) {
+          nextSection = section.id;
+        }
+      }
+
+      setActiveSettingsSection((prev) =>
+        prev === nextSection ? prev : nextSection,
+      );
+    };
+
+    const observer = new IntersectionObserver(
+      () => {
+        updateActiveSection();
+      },
+      {
+        rootMargin: "-160px 0px -55% 0px",
+        threshold: [0, 0.1, 0.25, 0.5, 0.75, 1],
+      },
+    );
+
+    sections.forEach((section) => observer.observe(section));
+    updateActiveSection();
+    window.addEventListener("scroll", updateActiveSection, { passive: true });
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("scroll", updateActiveSection);
+    };
+  }, [activeFilter]);
   
   // Reset all pages to 1 when items per page changes
   const handleItemsPerPageChange = (value: ItemsPerPageOption) => {
@@ -6096,6 +7014,7 @@ function AdminDashboard({
                       </span>
                       <StatusBadge status={pkg.reviewStatus} />
                       <VisibilityBadge visibility={pkg.visibility} markedForDeletion={pkg.markedForDeletion} />
+                      <PaymentBadge rewardStatus={pkg.rewardStatus} rewardTotalAmount={pkg.rewardTotalAmount} />
                       <ComponentDetailQuickLink slug={pkg.slug} />
                     </div>
                     <div className="flex items-center gap-3 shrink-0 text-xs text-text-secondary">
@@ -6343,6 +7262,9 @@ function AdminDashboard({
                         lastRefreshedAt={pkg.lastRefreshedAt}
                         refreshError={pkg.refreshError}
                         slug={pkg.slug}
+                        submitterEmail={pkg.submitterEmail}
+                        rewardStatus={pkg.rewardStatus}
+                        defaultRewardAmount={defaultRewardAmount}
                       />
                     </div>
                   )}
@@ -6399,131 +7321,171 @@ function AdminDashboard({
       {/* Settings view: Categories, Auto-Refresh, AI Review, Stats */}
       {activeFilter === "settings" && (
         <>
-          {/* Category Management */}
-          <CategoryManagementPanel />
+          <AdminSettingsJumpNav
+            activeSection={activeSettingsSection}
+            onSelect={(sectionId) => {
+              setActiveSettingsSection(sectionId);
+              scrollToAdminSettingsSection(sectionId);
+            }}
+          />
 
-          {/* Auto-Refresh Settings */}
-          <AutoRefreshSettingsPanel />
+          <div className="2xl:grid 2xl:grid-cols-[minmax(0,1fr)_14rem] 2xl:items-start 2xl:gap-6">
+            <div className="min-w-0">
+              <div id="settings-categories" className="scroll-mt-28">
+                <CategoryManagementPanel />
+              </div>
 
-          {/* Submit listing defaults */}
-          <SubmitListingSettingsPanel />
+              <div id="settings-auto-refresh" className="scroll-mt-28">
+                <AutoRefreshSettingsPanel />
+              </div>
 
-          {/* AI Review Settings */}
-          <AdminSettingsPanel />
+              <div id="settings-submit-listing" className="scroll-mt-28">
+                <SubmitListingSettingsPanel />
+              </div>
 
-          {/* AI Provider Settings */}
-          <AiProviderSettingsPanel />
+              <div id="settings-ai-review" className="scroll-mt-28">
+                <AdminSettingsPanel />
+              </div>
 
-          {/* AI Review Prompt Settings */}
-          <AiPromptSettingsPanel />
+              <div id="settings-rewards" className="scroll-mt-28">
+                <RewardSettingsPanel />
+              </div>
 
-          {/* SEO + SKILL.md Prompt Settings */}
-          <SeoPromptSettingsPanel />
+              <div id="settings-ai-providers" className="scroll-mt-28">
+                <AiProviderSettingsPanel />
+              </div>
 
-          {/* Deletion Management */}
-          <DeletionManagementPanel />
+              <div id="settings-ai-prompt" className="scroll-mt-28">
+                <AiPromptSettingsPanel />
+              </div>
 
-          {/* Slug Migration */}
-          <SlugMigrationPanel />
+              <div id="settings-seo-prompt" className="scroll-mt-28">
+                <SeoPromptSettingsPanel />
+              </div>
 
-          {/* Thumbnail Template Management */}
-          <ThumbnailTemplatePanel />
+              <div id="settings-deletion" className="scroll-mt-28">
+                <DeletionManagementPanel />
+              </div>
 
-          {/* Stats section */}
-          <div className="rounded-lg border border-border bg-bg-card p-4">
-            <h3 className="text-sm font-medium text-text-primary mb-3">Stats</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-              <Tooltip content="Total packages (excluding archived)" position="top">
-                <div className="rounded-lg border border-border p-2 bg-bg-primary">
-                  <div className="flex items-center gap-1 text-text-secondary mb-1">
-                    <Package size={12} />
-                    <p className="text-xs">Total</p>
-                  </div>
-                  <p className="text-lg font-light text-text-primary">
-                    {counts.all}
-                  </p>
+              <div id="settings-slugs" className="scroll-mt-28">
+                <SlugMigrationPanel />
+              </div>
+
+              <div id="settings-templates" className="scroll-mt-28">
+                <ThumbnailTemplatePanel />
+              </div>
+
+              {/* Stats section */}
+              <div
+                id="settings-stats"
+                className="scroll-mt-28 rounded-lg border border-border bg-bg-card p-4"
+              >
+                <h3 className="text-sm font-medium text-text-primary mb-3">Stats</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+                  <Tooltip content="Total packages (excluding archived)" position="top">
+                    <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                      <div className="flex items-center gap-1 text-text-secondary mb-1">
+                        <Package size={12} />
+                        <p className="text-xs">Total</p>
+                      </div>
+                      <p className="text-lg font-light text-text-primary">
+                        {counts.all}
+                      </p>
+                    </div>
+                  </Tooltip>
+                  <Tooltip content="Packages awaiting review" position="top">
+                    <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                      <div className="flex items-center gap-1 text-text-secondary mb-1">
+                        <Hourglass size={12} />
+                        <p className="text-xs">Pending</p>
+                      </div>
+                      <p className="text-lg font-light text-yellow-600">
+                        {counts.pending}
+                      </p>
+                    </div>
+                  </Tooltip>
+                  <Tooltip content="Packages in review" position="top">
+                    <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                      <div className="flex items-center gap-1 text-text-secondary mb-1">
+                        <GitPullRequest size={12} />
+                        <p className="text-xs">Review</p>
+                      </div>
+                      <p className="text-lg font-light text-blue-600">
+                        {counts.in_review}
+                      </p>
+                    </div>
+                  </Tooltip>
+                  <Tooltip content="Approved packages" position="top">
+                    <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                      <div className="flex items-center gap-1 text-text-secondary mb-1">
+                        <CheckCircle size={12} />
+                        <p className="text-xs">Approved</p>
+                      </div>
+                      <p className="text-lg font-light text-green-600">
+                        {counts.approved}
+                      </p>
+                    </div>
+                  </Tooltip>
+                  <Tooltip content="Packages needing changes" position="top">
+                    <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                      <div className="flex items-center gap-1 text-text-secondary mb-1">
+                        <Warning size={12} />
+                        <p className="text-xs">Changes</p>
+                      </div>
+                      <p className="text-lg font-light text-orange-600">
+                        {counts.changes_requested}
+                      </p>
+                    </div>
+                  </Tooltip>
+                  <Tooltip content="Rejected packages" position="top">
+                    <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                      <div className="flex items-center gap-1 text-text-secondary mb-1">
+                        <Prohibit size={12} />
+                        <p className="text-xs">Rejected</p>
+                      </div>
+                      <p className="text-lg font-light text-red-600">
+                        {counts.rejected}
+                      </p>
+                    </div>
+                  </Tooltip>
+                  <Tooltip content="Archived packages" position="top">
+                    <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                      <div className="flex items-center gap-1 text-text-secondary mb-1">
+                        <Archive size={12} />
+                        <p className="text-xs">Archived</p>
+                      </div>
+                      <p className="text-lg font-light text-purple-600">
+                        {counts.archived}
+                      </p>
+                    </div>
+                  </Tooltip>
+                  <Tooltip content="Combined weekly downloads" position="top">
+                    <div className="rounded-lg border border-border p-2 bg-bg-primary">
+                      <div className="flex items-center gap-1 text-text-secondary mb-1">
+                        <DownloadSimple size={12} />
+                        <p className="text-xs">Downloads</p>
+                      </div>
+                      <p className="text-lg font-light text-text-primary">
+                        {nonArchivedPackages
+                          .reduce((sum, pkg) => sum + pkg.weeklyDownloads, 0)
+                          .toLocaleString()}
+                      </p>
+                    </div>
+                  </Tooltip>
                 </div>
-              </Tooltip>
-              <Tooltip content="Packages awaiting review" position="top">
-                <div className="rounded-lg border border-border p-2 bg-bg-primary">
-                  <div className="flex items-center gap-1 text-text-secondary mb-1">
-                    <Hourglass size={12} />
-                    <p className="text-xs">Pending</p>
-                  </div>
-                  <p className="text-lg font-light text-yellow-600">
-                    {counts.pending}
-                  </p>
-                </div>
-              </Tooltip>
-              <Tooltip content="Packages in review" position="top">
-                <div className="rounded-lg border border-border p-2 bg-bg-primary">
-                  <div className="flex items-center gap-1 text-text-secondary mb-1">
-                    <GitPullRequest size={12} />
-                    <p className="text-xs">Review</p>
-                  </div>
-                  <p className="text-lg font-light text-blue-600">
-                    {counts.in_review}
-                  </p>
-                </div>
-              </Tooltip>
-              <Tooltip content="Approved packages" position="top">
-                <div className="rounded-lg border border-border p-2 bg-bg-primary">
-                  <div className="flex items-center gap-1 text-text-secondary mb-1">
-                    <CheckCircle size={12} />
-                    <p className="text-xs">Approved</p>
-                  </div>
-                  <p className="text-lg font-light text-green-600">
-                    {counts.approved}
-                  </p>
-                </div>
-              </Tooltip>
-              <Tooltip content="Packages needing changes" position="top">
-                <div className="rounded-lg border border-border p-2 bg-bg-primary">
-                  <div className="flex items-center gap-1 text-text-secondary mb-1">
-                    <Warning size={12} />
-                    <p className="text-xs">Changes</p>
-                  </div>
-                  <p className="text-lg font-light text-orange-600">
-                    {counts.changes_requested}
-                  </p>
-                </div>
-              </Tooltip>
-              <Tooltip content="Rejected packages" position="top">
-                <div className="rounded-lg border border-border p-2 bg-bg-primary">
-                  <div className="flex items-center gap-1 text-text-secondary mb-1">
-                    <Prohibit size={12} />
-                    <p className="text-xs">Rejected</p>
-                  </div>
-                  <p className="text-lg font-light text-red-600">
-                    {counts.rejected}
-                  </p>
-                </div>
-              </Tooltip>
-              <Tooltip content="Archived packages" position="top">
-                <div className="rounded-lg border border-border p-2 bg-bg-primary">
-                  <div className="flex items-center gap-1 text-text-secondary mb-1">
-                    <Archive size={12} />
-                    <p className="text-xs">Archived</p>
-                  </div>
-                  <p className="text-lg font-light text-purple-600">
-                    {counts.archived}
-                  </p>
-                </div>
-              </Tooltip>
-              <Tooltip content="Combined weekly downloads" position="top">
-                <div className="rounded-lg border border-border p-2 bg-bg-primary">
-                  <div className="flex items-center gap-1 text-text-secondary mb-1">
-                    <DownloadSimple size={12} />
-                    <p className="text-xs">Downloads</p>
-                  </div>
-                  <p className="text-lg font-light text-text-primary">
-                    {nonArchivedPackages
-                      .reduce((sum, pkg) => sum + pkg.weeklyDownloads, 0)
-                      .toLocaleString()}
-                  </p>
-                </div>
-              </Tooltip>
+              </div>
             </div>
+
+            <aside className="hidden 2xl:block 2xl:self-start 2xl:sticky 2xl:top-28 2xl:h-fit">
+              <AdminSettingsJumpNav
+                desktop
+                activeSection={activeSettingsSection}
+                onSelect={(sectionId) => {
+                  setActiveSettingsSection(sectionId);
+                  scrollToAdminSettingsSection(sectionId);
+                }}
+              />
+            </aside>
           </div>
 
           {/* Status Legend */}
