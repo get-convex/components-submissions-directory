@@ -387,24 +387,33 @@ function SubmitterEmailEditor({
   packageId,
   submitterEmail,
   additionalEmails,
+  submitterName,
+  submitterDiscord,
 }: {
   packageId: Id<"packages">;
   submitterEmail?: string;
   additionalEmails?: string[];
+  submitterName?: string;
+  submitterDiscord?: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [email, setEmail] = useState(submitterEmail || "");
   const [addEmails, setAddEmails] = useState(additionalEmails?.join(", ") || "");
+  const [nameVal, setNameVal] = useState(submitterName || "");
+  const [discordVal, setDiscordVal] = useState(submitterDiscord || "");
   const [isSaving, setIsSaving] = useState(false);
 
   const updateSubmitterEmail = useMutation(api.packages.updateSubmitterEmail);
   const updateAdditionalEmails = useMutation(api.packages.updateAdditionalEmails);
+  const updateSubmitterInfo = useMutation(api.packages.updateSubmitterInfo);
 
   // Reset form when props change
   useEffect(() => {
     setEmail(submitterEmail || "");
     setAddEmails(additionalEmails?.join(", ") || "");
-  }, [submitterEmail, additionalEmails]);
+    setNameVal(submitterName || "");
+    setDiscordVal(submitterDiscord || "");
+  }, [submitterEmail, additionalEmails, submitterName, submitterDiscord]);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -419,6 +428,14 @@ function SubmitterEmailEditor({
         .map((e) => e.trim())
         .filter((e) => e && e.includes("@"));
       await updateAdditionalEmails({ packageId, additionalEmails: emailList });
+      // Update name and discord if changed
+      if (nameVal !== (submitterName || "") || discordVal !== (submitterDiscord || "")) {
+        await updateSubmitterInfo({
+          packageId,
+          submitterName: nameVal,
+          submitterDiscord: discordVal,
+        });
+      }
       toast.success("Submitter info updated");
       setIsEditing(false);
     } catch (err) {
@@ -431,50 +448,92 @@ function SubmitterEmailEditor({
 
   if (!isEditing) {
     return (
-      <div className="flex flex-wrap items-center gap-3 p-2 rounded-lg bg-bg-hover/50 text-xs">
-        <span className="flex items-center gap-1 text-text-secondary">
-          <Envelope size={12} />
-          <span className="font-medium">Primary:</span>
-          {submitterEmail ? (
-            <span className="flex items-center gap-1">
-              <a
-                href={`mailto:${submitterEmail}`}
-                className="hover:text-text-primary"
-                onClick={(e) => e.stopPropagation()}>
-                {submitterEmail}
-              </a>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigator.clipboard.writeText(submitterEmail);
-                  toast.success("Email copied to clipboard");
-                }}
-                className="p-0.5 rounded hover:bg-bg-hover hover:text-text-primary transition-colors"
-                title="Copy email">
-                <Copy size={12} />
-              </button>
-            </span>
-          ) : (
-            <span className="text-text-tertiary italic">Not set</span>
-          )}
-        </span>
-        {additionalEmails && additionalEmails.length > 0 && (
-          <span className="flex items-center gap-1 text-text-secondary">
-            <Plus size={10} />
-            <span className="font-medium">Additional:</span>
-            {additionalEmails.join(", ")}
-          </span>
+      <div className="space-y-1.5">
+        {/* Name and Discord row */}
+        {(submitterName || submitterDiscord) && (
+          <div className="flex flex-wrap items-center gap-3 p-2 rounded-lg bg-bg-hover/50 text-xs">
+            {submitterName && (
+              <span className="flex items-center gap-1 text-text-secondary">
+                <User size={12} />
+                {submitterName}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigator.clipboard.writeText(submitterName);
+                    toast.success("Name copied to clipboard");
+                  }}
+                  className="ml-0.5 p-0.5 rounded hover:bg-bg-hover hover:text-text-primary transition-colors"
+                  title="Copy name">
+                  <Copy size={12} />
+                </button>
+              </span>
+            )}
+            {submitterDiscord && (
+              <span className="flex items-center gap-1 text-text-secondary">
+                <DiscordLogo size={12} />
+                {submitterDiscord}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigator.clipboard.writeText(submitterDiscord);
+                    toast.success("Discord username copied to clipboard");
+                  }}
+                  className="ml-0.5 p-0.5 rounded hover:bg-bg-hover hover:text-text-primary transition-colors"
+                  title="Copy Discord username">
+                  <Copy size={12} />
+                </button>
+              </span>
+            )}
+          </div>
         )}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsEditing(true);
-          }}
-          className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded text-xs border border-border hover:bg-bg-hover transition-colors">
-          <PencilSimple size={12} />
-          Edit
-        </button>
+        {/* Email row */}
+        <div className="flex flex-wrap items-center gap-3 p-2 rounded-lg bg-bg-hover/50 text-xs">
+          <span className="flex items-center gap-1 text-text-secondary">
+            <Envelope size={12} />
+            <span className="font-medium">Primary:</span>
+            {submitterEmail ? (
+              <span className="flex items-center gap-1">
+                <a
+                  href={`mailto:${submitterEmail}`}
+                  className="hover:text-text-primary"
+                  onClick={(e) => e.stopPropagation()}>
+                  {submitterEmail}
+                </a>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigator.clipboard.writeText(submitterEmail);
+                    toast.success("Email copied to clipboard");
+                  }}
+                  className="p-0.5 rounded hover:bg-bg-hover hover:text-text-primary transition-colors"
+                  title="Copy email">
+                  <Copy size={12} />
+                </button>
+              </span>
+            ) : (
+              <span className="text-text-tertiary italic">Not set</span>
+            )}
+          </span>
+          {additionalEmails && additionalEmails.length > 0 && (
+            <span className="flex items-center gap-1 text-text-secondary">
+              <Plus size={10} />
+              <span className="font-medium">Additional:</span>
+              {additionalEmails.join(", ")}
+            </span>
+          )}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsEditing(true);
+            }}
+            className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded text-xs border border-border hover:bg-bg-hover transition-colors">
+            <PencilSimple size={12} />
+            Edit
+          </button>
+        </div>
       </div>
     );
   }
@@ -484,6 +543,28 @@ function SubmitterEmailEditor({
       className="p-3 rounded-lg bg-bg-hover/50 space-y-3"
       onClick={(e) => e.stopPropagation()}>
       <div className="text-xs font-medium text-text-primary">Edit Submitter Info</div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs text-text-secondary mb-1">Name</label>
+          <input
+            type="text"
+            value={nameVal}
+            onChange={(e) => setNameVal(e.target.value)}
+            placeholder="John Doe"
+            className="w-full px-2 py-1.5 text-xs rounded border border-border bg-bg-primary text-text-primary outline-none focus:border-button"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-text-secondary mb-1">Discord</label>
+          <input
+            type="text"
+            value={discordVal}
+            onChange={(e) => setDiscordVal(e.target.value)}
+            placeholder="username"
+            className="w-full px-2 py-1.5 text-xs rounded border border-border bg-bg-primary text-text-primary outline-none focus:border-button"
+          />
+        </div>
+      </div>
       <div>
         <label className="block text-xs text-text-secondary mb-1">
           Primary Email (links to user profile)
@@ -7527,64 +7608,14 @@ function AdminDashboard({
                             </p>
                           )}
 
-                          {/* Submitter Info */}
+                          {/* Submitter Info (name, discord, email all editable) */}
                           <div className="space-y-2 mb-3">
-                            {/* Name and Discord row */}
-                            {(pkg.submitterName || pkg.submitterDiscord) && (
-                              <div className="flex flex-wrap items-center gap-3 p-2 rounded-lg bg-bg-hover/50 text-xs">
-                                {pkg.submitterName && (
-                                  <Tooltip content="Submitter name">
-                                    <span className="flex items-center gap-1 text-text-secondary">
-                                      <User size={12} />
-                                      {pkg.submitterName}
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          navigator.clipboard.writeText(
-                                            pkg.submitterName || "",
-                                          );
-                                          toast.success(
-                                            "Name copied to clipboard",
-                                          );
-                                        }}
-                                        className="ml-1 p-0.5 rounded hover:bg-bg-hover hover:text-text-primary transition-colors"
-                                        title="Copy name"
-                                      >
-                                        <Copy size={12} />
-                                      </button>
-                                    </span>
-                                  </Tooltip>
-                                )}
-                                {pkg.submitterDiscord && (
-                                  <Tooltip content="Convex Discord username">
-                                    <span className="flex items-center gap-1 text-text-secondary">
-                                      <DiscordLogo size={12} />
-                                      {pkg.submitterDiscord}
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          navigator.clipboard.writeText(
-                                            pkg.submitterDiscord || "",
-                                          );
-                                          toast.success(
-                                            "Discord username copied to clipboard",
-                                          );
-                                        }}
-                                        className="ml-1 p-0.5 rounded hover:bg-bg-hover hover:text-text-primary transition-colors"
-                                        title="Copy Discord username"
-                                      >
-                                        <Copy size={12} />
-                                      </button>
-                                    </span>
-                                  </Tooltip>
-                                )}
-                              </div>
-                            )}
-                            {/* Editable email section */}
                             <SubmitterEmailEditor
                               packageId={pkg._id}
                               submitterEmail={pkg.submitterEmail}
                               additionalEmails={pkg.additionalEmails}
+                              submitterName={pkg.submitterName}
+                              submitterDiscord={pkg.submitterDiscord}
                             />
                           </div>
 

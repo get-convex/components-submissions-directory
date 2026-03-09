@@ -125,6 +125,8 @@ const publicPackageValidator = v.object({
   ),
   // AI-generated SKILL.md content for Claude agent skills
   skillMd: v.optional(v.string()),
+  // Discord username (displayed on detail page, links to Convex community)
+  submitterDiscord: v.optional(v.string()),
 });
 
 // ============ SECURITY: Admin package fields ============
@@ -413,6 +415,7 @@ function toPublicPackage(pkg: any) {
     seoGeneratedAt: pkg.seoGeneratedAt,
     seoGenerationStatus: pkg.seoGenerationStatus,
     skillMd: pkg.skillMd,
+    submitterDiscord: pkg.submitterDiscord,
   };
 }
 
@@ -813,6 +816,7 @@ export const submitPackage = action({
       videoUrl: args.videoUrl,
       authorUsername,
       authorAvatar,
+      communitySubmitted: true,
     });
 
     // Auto AI review moves eligible submissions into in_review and
@@ -872,6 +876,7 @@ export const addPackage = mutation({
     videoUrl: v.optional(v.string()),
     authorUsername: v.optional(v.string()),
     authorAvatar: v.optional(v.string()),
+    communitySubmitted: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     // Create denormalized maintainer names string for search
@@ -945,6 +950,7 @@ export const addPackage = mutation({
       videoUrl: args.videoUrl,
       authorUsername: args.authorUsername,
       authorAvatar: args.authorAvatar,
+      communitySubmitted: args.communitySubmitted,
     });
   },
 });
@@ -4423,6 +4429,54 @@ export const listCategories = query({
   },
 });
 
+// Public query: Get a single category by slug for category landing pages
+export const getCategoryBySlug = query({
+  args: { slug: v.string() },
+  returns: v.union(
+    v.null(),
+    v.object({
+      slug: v.string(),
+      label: v.string(),
+      description: v.string(),
+      count: v.number(),
+      verifiedCount: v.number(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const category = await ctx.db
+      .query("categories")
+      .withIndex("by_slug", (q) => q.eq("slug", args.slug))
+      .first();
+
+    if (!category || !category.enabled) {
+      return null;
+    }
+
+    // Count packages in this category
+    const packages = await ctx.db
+      .query("packages")
+      .withIndex("by_category", (q) => q.eq("category", args.slug))
+      .collect();
+
+    const visible = packages.filter(
+      (pkg) =>
+        pkg.reviewStatus === "approved" &&
+        (!pkg.visibility || pkg.visibility === "visible") &&
+        !pkg.markedForDeletion,
+    );
+
+    const verifiedCount = visible.filter((pkg) => pkg.convexVerified).length;
+
+    return {
+      slug: category.slug,
+      label: category.label,
+      description: category.description,
+      count: visible.length,
+      verifiedCount,
+    };
+  },
+});
+
 // Public query: Get featured+approved+visible components
 export const getFeaturedComponents = query({
   args: {},
@@ -4618,7 +4672,7 @@ export const updateComponentDetails = mutation({
   handler: async (ctx, args) => {
     await requireAdminIdentity(ctx);
 
-    const { packageId, clearThumbnail, clearCategory, slug, ...updates } = args;
+    const { packageId, clearThumbnail, clearCategory, slug, category, ...updates } = args;
 
     // Build patch object with only defined fields
     const patch: Record<string, unknown> = {};
@@ -4638,6 +4692,23 @@ export const updateComponentDetails = mutation({
           throw new Error(`Slug "${slug}" is already in use by another component.`);
         }
         patch.slug = slug;
+      }
+    }
+
+    // Normalize and validate category slugs against admin-managed categories.
+    if (category !== undefined) {
+      const normalizedCategory = category.trim().toLowerCase();
+      if (normalizedCategory === "") {
+        patch.category = undefined;
+      } else {
+        const existingCategory = await ctx.db
+          .query("categories")
+          .withIndex("by_slug", (q) => q.eq("slug", normalizedCategory))
+          .first();
+        if (!existingCategory) {
+          throw new Error(`Category "${normalizedCategory}" does not exist.`);
+        }
+        patch.category = normalizedCategory;
       }
     }
 
@@ -4719,6 +4790,31 @@ export const updateSubmitterEmail = mutation({
     }
 
     await ctx.db.patch(args.packageId, { submitterEmail: email });
+    return null;
+  },
+});
+
+// Admin mutation: Update submitter name and discord for a package
+export const updateSubmitterInfo = mutation({
+  args: {
+    packageId: v.id("packages"),
+    submitterName: v.optional(v.string()),
+    submitterDiscord: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
+    const patch: Record<string, string | undefined> = {};
+    if (args.submitterName !== undefined) {
+      patch.submitterName = args.submitterName.trim() || undefined;
+    }
+    if (args.submitterDiscord !== undefined) {
+      patch.submitterDiscord = args.submitterDiscord.trim() || undefined;
+    }
+    if (Object.keys(patch).length > 0) {
+      await ctx.db.patch(args.packageId, patch);
+    }
     return null;
   },
 });
@@ -4992,6 +5088,8 @@ export const listAllDirectoryCategories = query({
     }),
   ),
   handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
+
     return await ctx.db
       .query("categories")
       .withIndex("by_sort_order")
@@ -5011,18 +5109,51 @@ export const upsertCategory = mutation({
   },
   returns: v.id("categories"),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
+    const normalizedSlug = args.slug.trim().toLowerCase();
+    const conflictingCategory = await ctx.db
+      .query("categories")
+      .withIndex("by_slug", (q) => q.eq("slug", normalizedSlug))
+      .first();
+
+    if (conflictingCategory && conflictingCategory._id !== args.id) {
+      throw new Error(`Category slug "${normalizedSlug}" is already in use.`);
+    }
+
     if (args.id) {
-      await ctx.db.patch("categories", args.id, {
-        slug: args.slug,
+      const existingCategory = await ctx.db.get(args.id);
+      if (!existingCategory) {
+        throw new Error("Category not found.");
+      }
+
+      await ctx.db.patch(args.id, {
+        slug: normalizedSlug,
         label: args.label,
         description: args.description,
         sortOrder: args.sortOrder,
         enabled: args.enabled,
       });
+
+      if (existingCategory.slug !== normalizedSlug) {
+        const relatedPackages = await ctx.db
+          .query("packages")
+          .withIndex("by_category", (q) => q.eq("category", existingCategory.slug))
+          .collect();
+
+        await Promise.all(
+          relatedPackages.map((pkg) =>
+            ctx.db.patch(pkg._id, {
+              category: normalizedSlug,
+            }),
+          ),
+        );
+      }
+
       return args.id;
     }
     return await ctx.db.insert("categories", {
-      slug: args.slug,
+      slug: normalizedSlug,
       label: args.label,
       description: args.description,
       sortOrder: args.sortOrder,
@@ -5036,7 +5167,27 @@ export const deleteCategory = mutation({
   args: { id: v.id("categories") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await ctx.db.delete("categories", args.id);
+    await requireAdminIdentity(ctx);
+
+    const existingCategory = await ctx.db.get(args.id);
+    if (!existingCategory) {
+      return null;
+    }
+
+    const relatedPackages = await ctx.db
+      .query("packages")
+      .withIndex("by_category", (q) => q.eq("category", existingCategory.slug))
+      .collect();
+
+    await Promise.all(
+      relatedPackages.map((pkg) =>
+        ctx.db.patch(pkg._id, {
+          category: undefined,
+        }),
+      ),
+    );
+
+    await ctx.db.delete(args.id);
     return null;
   },
 });
@@ -5046,6 +5197,8 @@ export const seedCategories = mutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
+
     const existing = await ctx.db.query("categories").first();
     if (existing) return null;
 

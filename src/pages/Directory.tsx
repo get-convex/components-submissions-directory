@@ -13,6 +13,8 @@ import { CaretSortIcon, ChevronDownIcon } from "@radix-ui/react-icons";
 
 type SortBy = "newest" | "downloads" | "updated" | "rating" | "verified";
 
+const DIRECTORY_ROOT_HREF = "/components/";
+
 const getGridColumnCount = (): number => {
   if (typeof window === "undefined") return 4;
   if (window.innerWidth < 640) return 1;
@@ -22,7 +24,6 @@ const getGridColumnCount = (): number => {
 };
 
 export default function Directory() {
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortBy>("downloads");
   const [sortOpen, setSortOpen] = useState(false);
@@ -30,9 +31,7 @@ export default function Directory() {
   const [visibleBySection, setVisibleBySection] = useState<Record<string, number>>({});
   const desktopSortRef = useRef<HTMLDivElement>(null);
   const mobileSortRef = useRef<HTMLDivElement>(null);
-  const directoryTopRef = useRef<HTMLDivElement>(null);
-  const shouldScrollToTopRef = useRef(false);
-  const groupedCardsPerLoad = gridColumns * 3;
+  const groupedCardsPerLoad = 12;
   const flatCardsPerLoad = gridColumns * 3;
   const featuredFirstRowCount = 3;
   const featuredExtraPerLoad = 8;
@@ -62,34 +61,10 @@ export default function Directory() {
   // Reset section paging when major directory controls change.
   useEffect(() => {
     setVisibleBySection({});
-  }, [selectedCategory, searchTerm, sortBy, gridColumns]);
-
-  useEffect(() => {
-    if (!shouldScrollToTopRef.current) {
-      return;
-    }
-
-    shouldScrollToTopRef.current = false;
-
-    if (!directoryTopRef.current) {
-      return;
-    }
-
-    const stickyHeaderOffset = 96;
-    const nextTop =
-      directoryTopRef.current.getBoundingClientRect().top +
-      window.scrollY -
-      stickyHeaderOffset;
-
-    window.scrollTo({
-      top: Math.max(nextTop, 0),
-      behavior: "smooth",
-    });
-  }, [selectedCategory]);
+  }, [searchTerm, sortBy, gridColumns]);
 
   // Fetch data from Convex
   const components = useQuery(api.packages.listApprovedComponents, {
-    category: selectedCategory ?? undefined,
     sortBy,
   });
   const categories = useQuery(api.packages.listCategories);
@@ -135,17 +110,10 @@ export default function Directory() {
     }));
   };
 
-  const handleSelectCategory = (category: string | null) => {
-    shouldScrollToTopRef.current = true;
-    setSelectedCategory(category);
-  };
-
-  // Show featured only when no category and no search
-  const showFeatured = !selectedCategory && !searchTerm.trim() && featured && featured.length > 0;
+  const showFeatured = !searchTerm.trim() && featured && featured.length > 0;
   const directoryCardHoverClass = "hover:bg-[rgb(246_238_219/var(--tw-bg-opacity,1))]";
   const clearFilters = () => {
     setSearchTerm("");
-    setSelectedCategory(null);
   };
 
   return (
@@ -155,7 +123,7 @@ export default function Directory() {
 
       {/* Page header */}
       <header>
-        <div ref={directoryTopRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
           <h1 className="text-2xl font-semibold text-text-primary mb-1">Components</h1>
           <p className="text-sm text-text-secondary">
             Open-source building blocks for your Convex app
@@ -251,8 +219,9 @@ export default function Directory() {
                 {categories && (
                   <CategorySidebar
                     categories={categories}
-                    selectedCategory={selectedCategory}
-                    onSelectCategory={handleSelectCategory}
+                    selectedCategory={null}
+                    onSelectCategory={() => {}}
+                    linkMode={true}
                   />
                 )}
               </div>
@@ -320,26 +289,18 @@ export default function Directory() {
 
             {/* Mobile category pills */}
             <div className="lg:hidden flex gap-2 overflow-x-auto pb-4 mb-4 -mx-1 px-1">
-              <button
-                onClick={() => handleSelectCategory(null)}
-                className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                  selectedCategory === null
-                    ? "bg-text-primary text-white"
-                    : "bg-bg-secondary text-text-secondary"
-                }`}>
+              <a
+                href={DIRECTORY_ROOT_HREF}
+                className="shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors bg-text-primary text-white">
                 All
-              </button>
+              </a>
               {categories?.map((cat) => (
-                <button
+                <a
                   key={cat.category}
-                  onClick={() => handleSelectCategory(cat.category)}
-                  className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    selectedCategory === cat.category
-                      ? "bg-text-primary text-white"
-                      : "bg-bg-secondary text-text-secondary"
-                  }`}>
-                  {cat.category} ({cat.count})
-                </button>
+                  href={`/components/categories/${cat.category}`}
+                  className="shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors bg-bg-secondary text-text-secondary hover:bg-bg-hover">
+                  {cat.label} ({cat.count})
+                </a>
               ))}
             </div>
 
@@ -434,9 +395,7 @@ export default function Directory() {
               <div className="text-center py-16 text-text-secondary">
                 <p className="text-lg mb-1">No components found</p>
                 <p className="text-sm">
-                  {searchTerm
-                    ? "Try a different search term"
-                    : "No approved components in this category yet"}
+                  {searchTerm ? "Try a different search term" : "No approved components found yet"}
                 </p>
                 {searchTerm.trim() && (
                   <button
@@ -452,7 +411,6 @@ export default function Directory() {
             {/* Grouped by category when no search/filter, otherwise flat grid */}
             {components &&
             displayComponents.length > 0 &&
-            !selectedCategory &&
             !searchTerm.trim() ? (
               <>
                 {categoryItems.map((cat) => {
@@ -494,11 +452,11 @@ export default function Directory() {
                       </div>
                       {hasMore && (
                         <div className="mt-5 flex justify-center">
-                          <button
-                            onClick={() => loadMoreSection(sectionKey, groupedCardsPerLoad)}
+                          <a
+                            href={`/components/categories/${cat.category}`}
                             className="inline-flex items-center rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-secondary">
-                            Load more
-                          </button>
+                            View all {cat.label}
+                          </a>
                         </div>
                       )}
                     </section>

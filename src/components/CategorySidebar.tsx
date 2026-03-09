@@ -11,15 +11,30 @@ interface CategorySidebarProps {
   }>;
   selectedCategory: string | null;
   onSelectCategory: (category: string | null) => void;
+  linkMode?: boolean;
 }
+
+const DIRECTORY_ROOT_HREF = "/components/";
 
 export function CategorySidebar({
   categories,
   selectedCategory,
   onSelectCategory,
+  linkMode = false,
 }: CategorySidebarProps) {
-  // Total count across all categories for "All" option
   const totalCount = categories.reduce((sum, c) => sum + c.count, 0);
+
+  const handleCategoryClick = (category: string | null) => {
+    if (linkMode) {
+      if (category === null) {
+        window.location.href = DIRECTORY_ROOT_HREF;
+      } else {
+        window.location.href = `/components/categories/${category}`;
+      }
+    } else {
+      onSelectCategory(category);
+    }
+  };
 
   return (
     <nav className="w-full">
@@ -27,38 +42,68 @@ export function CategorySidebar({
         Categories
       </h2>
       <ul className="space-y-0.5">
-        {/* All category */}
         <li>
-          <button
-            onClick={() => onSelectCategory(null)}
-            className={`w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors ${
-              selectedCategory === null
-                ? "bg-text-primary text-white font-medium"
-                : "text-text-secondary hover:bg-bg-secondary hover:text-text-primary"
-            }`}
-          >
-            <span className="flex items-center justify-between">
-              <span>All</span>
-              <span className="text-xs opacity-60">{totalCount}</span>
-            </span>
-          </button>
-        </li>
-        {/* Category items from admin-managed table */}
-        {categories.map((cat) => (
-          <li key={cat.category}>
-            <button
-              onClick={() => onSelectCategory(cat.category)}
-              className={`w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors ${
-                selectedCategory === cat.category
+          {linkMode ? (
+            <a
+              href={DIRECTORY_ROOT_HREF}
+              className={`block w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors ${
+                selectedCategory === null
                   ? "bg-text-primary text-white font-medium"
                   : "text-text-secondary hover:bg-bg-secondary hover:text-text-primary"
               }`}
             >
               <span className="flex items-center justify-between">
-                <span>{cat.label}</span>
-                <span className="text-xs opacity-60">{cat.count}</span>
+                <span>All</span>
+                <span className="text-xs opacity-60">{totalCount}</span>
+              </span>
+            </a>
+          ) : (
+            <button
+              onClick={() => handleCategoryClick(null)}
+              className={`w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors ${
+                selectedCategory === null
+                  ? "bg-text-primary text-white font-medium"
+                  : "text-text-secondary hover:bg-bg-secondary hover:text-text-primary"
+              }`}
+            >
+              <span className="flex items-center justify-between">
+                <span>All</span>
+                <span className="text-xs opacity-60">{totalCount}</span>
               </span>
             </button>
+          )}
+        </li>
+        {categories.map((cat) => (
+          <li key={cat.category}>
+            {linkMode ? (
+              <a
+                href={`/components/categories/${cat.category}`}
+                className={`block w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors ${
+                  selectedCategory === cat.category
+                    ? "bg-text-primary text-white font-medium"
+                    : "text-text-secondary hover:bg-bg-secondary hover:text-text-primary"
+                }`}
+              >
+                <span className="flex items-center justify-between">
+                  <span>{cat.label}</span>
+                  <span className="text-xs opacity-60">{cat.count}</span>
+                </span>
+              </a>
+            ) : (
+              <button
+                onClick={() => handleCategoryClick(cat.category)}
+                className={`w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors ${
+                  selectedCategory === cat.category
+                    ? "bg-text-primary text-white font-medium"
+                    : "text-text-secondary hover:bg-bg-secondary hover:text-text-primary"
+                }`}
+              >
+                <span className="flex items-center justify-between">
+                  <span>{cat.label}</span>
+                  <span className="text-xs opacity-60">{cat.count}</span>
+                </span>
+              </button>
+            )}
           </li>
         ))}
       </ul>

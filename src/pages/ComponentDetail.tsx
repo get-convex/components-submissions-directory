@@ -7,7 +7,7 @@ import { InstallCommand } from "../components/InstallCommand";
 import { VerifiedBadge } from "../components/VerifiedBadge";
 import { CommunityBadge } from "../components/CommunityBadge";
 import Header from "../components/Header";
-import { useDirectoryCategories, getCategoryLabel } from "../lib/categories";
+import { useDirectoryCategories } from "../lib/categories";
 import { buildComponentClientUrls } from "../../shared/componentUrls";
 import {
   setComponentSeoTags,
@@ -29,7 +29,7 @@ import {
   EyeOpenIcon,
 } from "@radix-ui/react-icons";
 import { AgentInstallSection } from "../components/AgentInstallSection";
-import { FileArrowDown, ClipboardText } from "@phosphor-icons/react";
+import { FileArrowDown, ClipboardText, DiscordLogo } from "@phosphor-icons/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -74,6 +74,7 @@ function buildMarkdownDoc(c: {
   weeklyDownloads: number;
   authorUsername?: string;
   category?: string;
+  categoryLabel?: string;
   tags?: string[];
   seoValueProp?: string;
   seoBenefits?: string[];
@@ -99,7 +100,7 @@ function buildMarkdownDoc(c: {
   lines.push("");
 
   if (c.authorUsername) lines.push(`**Author:** ${c.authorUsername}\n`);
-  if (c.category) lines.push(`**Category:** ${getCategoryLabel(c.category)}\n`);
+  if (c.categoryLabel || c.category) lines.push(`**Category:** ${c.categoryLabel || c.category}\n`);
   lines.push(`**Version:** ${c.version}  `);
   lines.push(`**Weekly downloads:** ${c.weeklyDownloads.toLocaleString()}\n`);
 
@@ -428,9 +429,19 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
   const authorGitHubUrl = component?.authorUsername
     ? `https://github.com/${component.authorUsername}`
     : null;
+  const resolvedCategory = component?.category
+    ? dynamicCategories.find((category) => category.id === component.category) ?? null
+    : null;
+  const categoryHref =
+    component?.category && resolvedCategory ? `${basePath}categories/${component.category}` : null;
 
   // Generate full markdown doc
-  const markdownDoc = component ? buildMarkdownDoc(component) : "";
+  const markdownDoc = component
+    ? buildMarkdownDoc({
+        ...component,
+        categoryLabel: resolvedCategory?.label,
+      })
+    : "";
   const componentLinks = component?.slug
     ? buildComponentClientUrls(
         component.slug,
@@ -554,6 +565,18 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               <span className="block text-base font-bold text-text-primary">{component.name}</span>
             )}
 
+            {/* Discord username (links to Convex community Discord) */}
+            {component.submitterDiscord && (
+              <a
+                href="https://www.convex.dev/community/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors">
+                <DiscordLogo size={16} weight="bold" />
+                {component.submitterDiscord}
+              </a>
+            )}
+
             {/* Verified */}
             {component.convexVerified && <VerifiedBadge size="md" />}
 
@@ -616,9 +639,18 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
             {component.category && (
               <div>
                 <p className="text-xs font-medium text-text-primary mb-1.5">Category</p>
-                <span className="inline-block text-xs font-mono uppercase tracking-wider px-3 py-1.5 rounded-lg border border-border bg-bg-secondary text-text-primary hover:bg-bg-hover hover:border-text-secondary transition-colors cursor-default">
-                  {getDynamicCategoryLabel(component.category)}
-                </span>
+                {categoryHref ? (
+                  <a
+                    href={categoryHref}
+                    className="inline-block text-xs font-mono uppercase tracking-wider px-3 py-1.5 rounded-lg border border-border bg-bg-secondary text-text-primary hover:bg-bg-hover hover:border-text-secondary transition-colors"
+                  >
+                    {resolvedCategory?.label || getDynamicCategoryLabel(component.category)}
+                  </a>
+                ) : (
+                  <span className="inline-block text-xs font-mono uppercase tracking-wider px-3 py-1.5 rounded-lg border border-border bg-bg-secondary text-text-primary cursor-default">
+                    {resolvedCategory?.label || getDynamicCategoryLabel(component.category)}
+                  </span>
+                )}
               </div>
             )}
 

@@ -2,7 +2,25 @@
 
 ## to do
 
-Session updates complete on 2026-03-09 06:45 UTC.
+Session updates complete on 2026-03-09 05:51 UTC.
+
+- [x] link component detail categories to category pages and sync admin category slug lifecycle (`prds/category-detail-link-and-admin-sync.md`) (2026-03-09 05:19 UTC)
+  - Linked the detail sidebar category pill to `/components/categories/:slug` only when the category still maps to an enabled public category
+  - Synced detail markdown export to the same resolved admin-managed category label used in the UI
+  - Migrated `packages.category` values on category slug edits and cleared them on category deletes in `convex/packages.ts`
+  - Added admin identity checks to category admin queries and mutations and verified with Convex typecheck, lint, and `npm run build`
+
+- [x] fix category page pagination and root directory links (`prds/category-page-pagination-and-root-links.md`) (2026-03-09 05:11 UTC)
+  - Increased category page pagination from 12 to 24 items before `Page X of Y` appears
+  - Normalized breadcrumb, back links, sidebar root links, and mobile "All" links to `/components/`
+  - Updated `src/main.tsx`, `files.md`, and `changelog.md` to keep routing behavior and docs in sync
+
+- [x] Add Discord username to component detail sidebar and admin editable submitter info (2026-03-09 21:55 UTC)
+  - Added `submitterDiscord` to `publicPackageValidator` and `toPublicPackage()` so the detail page can display it
+  - Added Discord row in `ComponentDetail.tsx` sidebar with Phosphor `DiscordLogo` icon linking to Convex community Discord
+  - Expanded `SubmitterEmailEditor` in `Admin.tsx` to include editable Name and Discord fields with copy buttons
+  - Added `updateSubmitterInfo` admin mutation in `convex/packages.ts`
+  - Verified with `npm run build`
 
 - [x] update AI review prompt to v4 to prevent false failures on internal functions (2026-03-09 06:45 UTC)
   - Criterion 5 now explicitly exempts `internalQuery`, `internalMutation`, and `internalAction` from the validator check
@@ -440,6 +458,11 @@ Acceptance checks:
 - [ ] - [ ] add payments api
 
 ## completed
+
+- [x] default submit form packages to Community in Admin (`prds/submitted-components-default-community.md`) (2026-03-09 05:51 UTC)
+  - Public submissions now create packages with `communitySubmitted: true` in `convex/packages.ts`
+  - Existing Admin Actions and `ComponentDetailsEditor` state now load Community as enabled for newly submitted packages without extra UI logic
+  - Verified with `npx convex codegen` and `npm run build`
 
 - [x] implement review-state detail page gating (`prds/review-state-detail-page-gating.md`) (2026-03-09 01:58 UTC)
   - Added review-state robots behavior in `src/pages/ComponentDetail.tsx` so only approved pages are indexable while pending, in review, changes requested, and rejected stay `noindex, nofollow`

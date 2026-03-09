@@ -5,6 +5,7 @@ import { useConvexAuth } from "convex/react";
 import { ConvexProviderWithAuthKit } from "@convex-dev/workos";
 import "./index.css";
 import Directory from "./pages/Directory";
+import CategoryPage from "./pages/CategoryPage";
 import Submit from "./pages/Submit";
 import SubmitForm from "./pages/SubmitForm";
 import SubmitCheck from "./pages/SubmitCheck";
@@ -19,6 +20,8 @@ import CookieBanner from "./components/CookieBanner";
 import { isReservedRoute, parseSlugFromPath } from "./lib/slugs";
 import { ConnectAuthProvider, useConnectAuth } from "./lib/connectAuth";
 import { CookiesProvider } from "react-cookie";
+
+const DIRECTORY_ROOT_HREF = "/components/";
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string, {
   verbose: true,
@@ -35,7 +38,7 @@ function Router() {
 
   // Redirect paths that don't start with /components to the prefixed version
   if (!path.startsWith(basePath)) {
-    const redirectPath = basePath + (path === "/" ? "" : path);
+    const redirectPath = DIRECTORY_ROOT_HREF + (path === "/" ? "" : path.replace(/^\//, ""));
     window.location.replace(redirectPath);
     return null;
   }
@@ -91,6 +94,16 @@ function Router() {
   // Badge routes are handled server-side (Convex HTTP), never reach here
   if (segments[0] === "badge") {
     return <NotFound />;
+  }
+
+  // Category pages: /components/categories/:slug
+  if (segments[0] === "categories") {
+    if (segments.length === 2) {
+      return <CategoryPage categorySlug={segments[1]} />;
+    }
+    // /components/categories without a slug redirects to directory
+    window.location.replace(DIRECTORY_ROOT_HREF);
+    return null;
   }
 
   // Everything else is a slug lookup (single or two-segment)

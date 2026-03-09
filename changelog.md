@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Discord username display on component detail pages (2026-03-09 21:55 UTC)
+  - When a submitter provides a Discord username, it now appears in the sidebar below the repo link and above the Verified/Community badges
+  - Displays the Phosphor `DiscordLogo` icon and links to the Convex community Discord at `https://www.convex.dev/community/`
+  - Added `submitterDiscord` to `publicPackageValidator` and `toPublicPackage()` in `convex/packages.ts`
+
+- Admin editable submitter name and Discord in Submitter Info section (2026-03-09 21:55 UTC)
+  - `SubmitterEmailEditor` in `src/pages/Admin.tsx` now includes Name and Discord fields alongside email editing
+  - Name and Discord display with copy buttons in the non-editing view, consolidated into the same editable section
+  - Added `updateSubmitterInfo` admin mutation in `convex/packages.ts` for patching `submitterName` and `submitterDiscord`
+
 - Public preflight checker for validating component repos before submission (2026-03-08 22:30 UTC)
   - New page at `/components/submit/check` where developers can test their GitHub repo against review criteria
   - Requires authentication (auto-redirects to sign in if not authenticated)
@@ -32,6 +42,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Applied identically to both `convex/aiReview.ts` (inline fallback prompt and `REVIEW_CRITERIA` array) and `convex/aiSettings.ts` (`DEFAULT_REVIEW_PROMPT` constant)
 
 ### Fixed
+
+- Submit form packages now default to Community in Admin (2026-03-09 05:51 UTC)
+  - `convex/packages.ts` now passes `communitySubmitted: true` from `submitPackage` into `addPackage` for public submissions
+  - Newly submitted packages now load with the Community toggle enabled in the Admin Actions row and `ComponentDetailsEditor` without extra UI-only defaults
+  - Verified with `npx convex codegen` and `npm run build`
+
+- Component detail category links and admin category slug lifecycle now stay in sync with category pages (2026-03-09 05:19 UTC)
+  - `src/pages/ComponentDetail.tsx` now links the sidebar category pill to `/components/categories/:slug` only when the package category still maps to an enabled public category
+  - Detail page markdown export now uses the same resolved admin-managed category label shown in the UI
+  - `convex/packages.ts` now validates admin category updates, migrates related package category slugs on category slug edits, and clears related package category values on delete to avoid orphaned category routes
+  - Hardened category admin APIs so `listAllDirectoryCategories`, `upsertCategory`, `deleteCategory`, and `seedCategories` require admin identity
+
+- Category pages now show 24 components before pagination and return to the correct `/components/` root (2026-03-09 05:11 UTC)
+  - Increased `src/pages/CategoryPage.tsx` pagination from 12 to 24 items per page
+  - Normalized breadcrumb, back links, mobile "All" chips, shared category sidebar root links, and router redirects to `/components/`
+  - Kept category detail routes on `/components/categories/:slug`
+
+- Directory categories now open category landing pages instead of falling back to the old filtered load more view (2026-03-09 05:02 UTC)
+  - `src/pages/Directory.tsx` now uses direct category links in the desktop sidebar and mobile category pills
+  - The main `/components` overview keeps the 12 card preview plus `View all` behavior for grouped category sections
+  - `Load more` remains only for featured and search driven flat result views
 
 - Review-state detail pages now stay shareable without exposing full agent UI or indexable metadata before approval (2026-03-09 01:58 UTC)
   - `src/pages/ComponentDetail.tsx` now sets `noindex, nofollow` for `pending`, `in_review`, `changes_requested`, and `rejected`, while only `approved` keeps indexable robots behavior and JSON-LD injection

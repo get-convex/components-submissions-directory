@@ -24,11 +24,13 @@ function extractSlug(pathname: string): string | null {
     "submissions",
     "documentation",
     "badge",
+    "categories",
   ];
   if (
     reserved.includes(slug) ||
     slug.startsWith("submissions/") ||
-    slug.startsWith("badge/")
+    slug.startsWith("badge/") ||
+    slug.startsWith("categories/")
   ) {
     return null;
   }
