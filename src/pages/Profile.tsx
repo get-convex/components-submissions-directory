@@ -442,6 +442,9 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
   const submission = useQuery(api.packages.getMySubmissionForEdit, { packageId });
   const categories = useQuery(api.packages.listCategories);
   const updateSubmission = useMutation(api.packages.updateMySubmission);
+  const generateUploadUrl = useMutation(api.packages.generateUploadUrl);
+  const saveLogo = useMutation(api.packages.saveLogo);
+  const clearLogo = useMutation(api.packages.clearLogo);
 
   const [componentName, setComponentName] = useState("");
   const [shortDescription, setShortDescription] = useState("");
@@ -450,6 +453,9 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
   const [tags, setTags] = useState("");
   const [demoUrl, setDemoUrl] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [currentLogoUrl, setCurrentLogoUrl] = useState("");
+  const [clearExistingLogo, setClearExistingLogo] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Populate form when data loads
@@ -462,6 +468,9 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
       setTags(submission.tags?.join(", ") || "");
       setDemoUrl(submission.demoUrl || "");
       setVideoUrl(submission.videoUrl || "");
+      setCurrentLogoUrl(submission.logoUrl || "");
+      setLogoFile(null);
+      setClearExistingLogo(false);
     }
   }, [submission]);
 
@@ -484,6 +493,27 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
         demoUrl: demoUrl || undefined,
         videoUrl: videoUrl || undefined,
       });
+
+      if (clearExistingLogo && currentLogoUrl && !logoFile) {
+        await clearLogo({ packageId });
+      }
+
+      if (logoFile) {
+        const uploadUrl = await generateUploadUrl();
+        const uploadRes = await fetch(uploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": logoFile.type },
+          body: logoFile,
+        });
+
+        if (!uploadRes.ok) {
+          throw new Error("Logo upload failed");
+        }
+
+        const { storageId } = await uploadRes.json();
+        await saveLogo({ packageId, storageId });
+      }
+
       toast.success("Submission updated");
       onClose();
     } catch (err) {
@@ -612,6 +642,69 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
               placeholder="https://youtube.com/watch?v=..."
               className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-button focus:ring-2 focus:ring-button/20"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">Logo</label>
+            <div className="rounded-lg border border-border bg-bg-primary p-3 space-y-3">
+              {currentLogoUrl && !clearExistingLogo && !logoFile && (
+                <div className="flex items-center gap-3">
+                  <img
+                    src={currentLogoUrl}
+                    alt={`${submission.name} logo`}
+                    className="h-14 w-14 rounded border border-border bg-white object-contain p-2"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLogoFile(null);
+                      setClearExistingLogo(true);
+                    }}
+                    disabled={isSubmitting}
+                    className="px-3 py-1.5 rounded-full text-xs font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors disabled:opacity-50">
+                    Remove current logo
+                  </button>
+                </div>
+              )}
+
+              {clearExistingLogo && !logoFile && (
+                <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-white px-3 py-2">
+                  <p className="text-xs text-text-secondary">Current logo will be removed when you save.</p>
+                  <button
+                    type="button"
+                    onClick={() => setClearExistingLogo(false)}
+                    disabled={isSubmitting}
+                    className="px-3 py-1.5 rounded-full text-xs font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors disabled:opacity-50">
+                    Keep logo
+                  </button>
+                </div>
+              )}
+
+              <input
+                type="file"
+                accept="image/png,image/webp,image/svg+xml"
+                onChange={(e) => {
+                  const nextFile = e.target.files?.[0] || null;
+                  setLogoFile(nextFile);
+                  if (nextFile) {
+                    setClearExistingLogo(false);
+                  }
+                }}
+                disabled={isSubmitting}
+                className="w-full text-sm text-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-medium file:bg-bg-secondary file:text-text-primary hover:file:bg-bg-hover"
+              />
+
+              {logoFile && (
+                <p className="text-xs text-text-secondary">
+                  Selected logo: <span className="text-text-primary">{logoFile.name}</span>
+                </p>
+              )}
+
+              <p className="text-xs text-text-tertiary">
+                PNG, WebP, or SVG. Saving will replace the current logo and can regenerate the
+                thumbnail if that admin setting is enabled.
+              </p>
+            </div>
           </div>
 
           <div className="flex gap-2 pt-2">

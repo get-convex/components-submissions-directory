@@ -645,7 +645,7 @@ export const runAiReview = action({
     const reviewCreatedAt = Date.now();
 
     // Set status to reviewing
-    await ctx.runMutation(api.packages.updateAiReviewStatus, {
+    await ctx.runMutation(internal.packages._updateAiReviewStatus, {
       packageId: args.packageId,
       status: "reviewing",
     });
@@ -670,7 +670,7 @@ export const runAiReview = action({
           notes: "Unable to check: No repository URL provided",
         }));
 
-        await ctx.runMutation(api.packages.updateAiReviewResult, {
+        await ctx.runMutation(internal.packages._updateAiReviewResult, {
           packageId: args.packageId,
           status: "partial",
           summary,
@@ -708,7 +708,7 @@ export const runAiReview = action({
       );
 
       // Store review results
-      await ctx.runMutation(api.packages.updateAiReviewResult, {
+      await ctx.runMutation(internal.packages._updateAiReviewResult, {
         packageId: args.packageId,
         status: result.status,
         summary: result.summary,
@@ -731,14 +731,14 @@ export const runAiReview = action({
       const settings = await ctx.runQuery(api.packages.getAdminSettings);
       if (settings.autoAiReview) {
         if (result.status === "passed" && settings.autoApproveOnPass) {
-          await ctx.runMutation(api.packages.updateReviewStatus, {
+          await ctx.runMutation(internal.packages._updateReviewStatus, {
             packageId: args.packageId,
             reviewStatus: "approved",
             reviewedBy: "AI",
             reviewNotes: "Auto-approved after AI review passed all critical checks",
           });
         } else if (result.status === "failed" && settings.autoRejectOnFail) {
-          await ctx.runMutation(api.packages.updateReviewStatus, {
+          await ctx.runMutation(internal.packages._updateReviewStatus, {
             packageId: args.packageId,
             reviewStatus: "rejected",
             reviewedBy: "AI",
@@ -753,7 +753,7 @@ export const runAiReview = action({
       const summary = "AI review encountered an error";
 
       // Store error
-      await ctx.runMutation(api.packages.updateAiReviewResult, {
+      await ctx.runMutation(internal.packages._updateAiReviewResult, {
         packageId: args.packageId,
         status: "error",
         summary,

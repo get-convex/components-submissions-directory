@@ -43,6 +43,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Profile submissions can now add or replace logos after the initial submit without losing owner-only protections (2026-03-09 06:25 UTC)
+  - Added logo upload, replace, and clear controls to the edit modal in `src/pages/Profile.tsx`
+  - Extended `getMySubmissionForEdit` in `convex/packages.ts` to return the current `logoUrl` so the profile editor can reflect saved state
+  - Reused the existing Convex upload URL flow so user edits match the initial submit experience
+
+- Package write authorization is now enforced on the backend instead of relying on frontend routes alone (2026-03-09 06:25 UTC)
+  - Hardened admin-only package mutations in `convex/packages.ts`, including review status, visibility, featured controls, submit listing visibility, thumbnail save, and manual refresh actions
+  - Shared logo writes now require package ownership or admin access, which preserves Admin capabilities while blocking cross-package edits from non-admin users
+  - Moved submit, refresh, and AI review system writes onto internal mutations and derived submission ownership from the authenticated email in `submitPackage`
+  - Verified with `npx convex codegen` and `npm run build`
+
 - Submit form packages now default to Community in Admin (2026-03-09 05:51 UTC)
   - `convex/packages.ts` now passes `communitySubmitted: true` from `submitPackage` into `addPackage` for public submissions
   - Newly submitted packages now load with the Community toggle enabled in the Admin Actions row and `ComponentDetailsEditor` without extra UI-only defaults

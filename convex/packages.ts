@@ -27,6 +27,32 @@ function userOwnsPackage(pkg: Doc<"packages">, userEmail: string): boolean {
   return false;
 }
 
+async function requirePackageOwnerOrAdmin(
+  ctx: MutationCtx,
+  packageId: Id<"packages">,
+): Promise<Doc<"packages">> {
+  const pkg = await ctx.db.get(packageId);
+  if (!pkg) {
+    throw new Error("Package not found");
+  }
+
+  const adminIdentity = await getAdminIdentity(ctx);
+  if (adminIdentity) {
+    return pkg;
+  }
+
+  const userEmail = await getCurrentUserEmail(ctx);
+  if (!userEmail) {
+    throw new Error("Authentication required");
+  }
+
+  if (!userOwnsPackage(pkg, userEmail)) {
+    throw new Error("You can only modify your own submissions");
+  }
+
+  return pkg;
+}
+
 // ============ SECURITY: Public-safe package fields ============
 // These fields are safe to expose to the public frontend
 // Sensitive fields like submitterEmail, submitterName, submitterDiscord,
@@ -654,6 +680,8 @@ export const refreshNpmData = action({
   args: { packageId: v.id("packages") },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
+    await requireAdminIdentity(ctx);
+
     // SECURITY: Use internal query to get full package data
     const pkg = await ctx.runQuery(internal.packages._getPackage, {
       packageId: args.packageId,
@@ -680,7 +708,7 @@ export const refreshNpmData = action({
       const homepageUrl = pkg.homepageUrl || packageData.homepageUrl;
 
       // Update the package with fresh npm data (preserves submitter info, review status, etc.)
-      await ctx.runMutation(api.packages.updateNpmData, {
+      await ctx.runMutation(internal.packages._updateNpmData, {
         packageId: args.packageId,
         description: packageData.description,
         version: packageData.version,
@@ -735,6 +763,11 @@ export const submitPackage = action({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Authentication required to submit a package. Please sign in first.");
+    }
+
+    const submitterEmail = identity.email?.trim();
+    if (!submitterEmail) {
+      throw new Error("Your account is missing an email address.");
     }
 
     const repositoryUrl = args.repositoryUrl.trim();
@@ -800,11 +833,11 @@ export const submitPackage = action({
     }
 
     // Insert into database with submitter info and new directory fields
-    const packageId = await ctx.runMutation(api.packages.addPackage, {
+    const packageId = await ctx.runMutation(internal.packages._addPackage, {
       ...packageData,
       repositoryUrl,
       submitterName: args.submitterName,
-      submitterEmail: args.submitterEmail,
+      submitterEmail,
       submitterDiscord: args.submitterDiscord,
       demoUrl,
       slug,
@@ -825,7 +858,7 @@ export const submitPackage = action({
     const autoAiReviewEnabled = settings.autoAiReview || false;
 
     if (autoAiReviewEnabled && args.repositoryUrl) {
-      const _: null = await ctx.runMutation(api.packages.updateReviewStatus, {
+      const _: null = await ctx.runMutation(internal.packages._updateReviewStatus, {
         packageId,
         reviewStatus: "in_review",
         reviewedBy: "AI",
@@ -840,7 +873,7 @@ export const submitPackage = action({
   },
 });
 
-export const addPackage = mutation({
+export const _addPackage = internalMutation({
   args: {
     name: v.string(),
     description: v.string(),
@@ -878,6 +911,7 @@ export const addPackage = mutation({
     authorAvatar: v.optional(v.string()),
     communitySubmitted: v.optional(v.boolean()),
   },
+  returns: v.id("packages"),
   handler: async (ctx, args) => {
     // Create denormalized maintainer names string for search
     const maintainerNames = args.collaborators.map((c) => c.name).join(" ");
@@ -956,7 +990,7 @@ export const addPackage = mutation({
 });
 
 // Admin mutation: Update npm data for a package (preserves submitter info, review status, etc.)
-export const updateNpmData = mutation({
+export const _updateNpmData = internalMutation({
   args: {
     packageId: v.id("packages"),
     description: v.string(),
@@ -995,6 +1029,33 @@ export const updateNpmData = mutation({
       maintainerNames,
     });
 
+    return null;
+  },
+});
+
+export const updateNpmData = mutation({
+  args: {
+    packageId: v.id("packages"),
+    description: v.string(),
+    version: v.string(),
+    license: v.string(),
+    repositoryUrl: v.optional(v.string()),
+    homepageUrl: v.optional(v.string()),
+    unpackedSize: v.number(),
+    totalFiles: v.number(),
+    lastPublish: v.string(),
+    weeklyDownloads: v.number(),
+    collaborators: v.array(
+      v.object({
+        name: v.string(),
+        avatar: v.string(),
+      }),
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+    const _: null = await ctx.runMutation(internal.packages._updateNpmData, args);
     return null;
   },
 });
@@ -1406,8 +1467,8 @@ export const getPackageByName = query({
   },
 });
 
-// Admin mutation: Update review status
-export const updateReviewStatus = mutation({
+// Internal mutation: Update review status
+export const _updateReviewStatus = internalMutation({
   args: {
     packageId: v.id("packages"),
     reviewStatus: v.union(
@@ -1498,6 +1559,28 @@ export const updateReviewStatus = mutation({
   },
 });
 
+// Admin mutation: Update review status
+export const updateReviewStatus = mutation({
+  args: {
+    packageId: v.id("packages"),
+    reviewStatus: v.union(
+      v.literal("pending"),
+      v.literal("in_review"),
+      v.literal("approved"),
+      v.literal("changes_requested"),
+      v.literal("rejected"),
+    ),
+    reviewNotes: v.optional(v.string()),
+    reviewedBy: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+    const _: null = await ctx.runMutation(internal.packages._updateReviewStatus, args);
+    return null;
+  },
+});
+
 // Admin mutation: Update visibility (hide, show, archive)
 export const updateVisibility = mutation({
   args: {
@@ -1510,6 +1593,7 @@ export const updateVisibility = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
     await ctx.db.patch("packages", args.packageId, {
       visibility: args.visibility,
     });
@@ -1524,6 +1608,7 @@ export const deletePackage = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
     await ctx.db.delete("packages", args.packageId);
     return null;
   },
@@ -1536,6 +1621,8 @@ export const toggleFeatured = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
     // Get the package to check its current state
     const pkg = await ctx.db.get("packages", args.packageId);
     if (!pkg) {
@@ -1563,6 +1650,7 @@ export const setFeaturedSortOrder = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
     // Patch directly - will throw if package doesn't exist
     await ctx.db.patch(args.packageId, {
       featuredSortOrder: args.sortOrder ?? undefined,
@@ -1579,6 +1667,7 @@ export const toggleHideFromSubmissions = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
     const pkg = await ctx.db.get(args.packageId);
     if (!pkg) {
       throw new Error("Package not found");
@@ -2033,7 +2122,7 @@ export const backfillPackageReliabilityFields = mutation({
 // ============ AI REVIEW FUNCTIONS ============
 
 // Update AI review status only (for "reviewing" state)
-export const updateAiReviewStatus = mutation({
+export const _updateAiReviewStatus = internalMutation({
   args: {
     packageId: v.id("packages"),
     status: v.union(
@@ -2055,8 +2144,28 @@ export const updateAiReviewStatus = mutation({
   },
 });
 
+export const updateAiReviewStatus = mutation({
+  args: {
+    packageId: v.id("packages"),
+    status: v.union(
+      v.literal("not_reviewed"),
+      v.literal("reviewing"),
+      v.literal("passed"),
+      v.literal("failed"),
+      v.literal("partial"),
+      v.literal("error"),
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+    const _: null = await ctx.runMutation(internal.packages._updateAiReviewStatus, args);
+    return null;
+  },
+});
+
 // Update AI review result (after review completes)
-export const updateAiReviewResult = mutation({
+export const _updateAiReviewResult = internalMutation({
   args: {
     packageId: v.id("packages"),
     status: v.union(
@@ -2085,6 +2194,33 @@ export const updateAiReviewResult = mutation({
       aiReviewedAt: Date.now(),
       aiReviewError: args.error,
     });
+    return null;
+  },
+});
+
+export const updateAiReviewResult = mutation({
+  args: {
+    packageId: v.id("packages"),
+    status: v.union(
+      v.literal("passed"),
+      v.literal("failed"),
+      v.literal("partial"),
+      v.literal("error"),
+    ),
+    summary: v.string(),
+    criteria: v.array(
+      v.object({
+        name: v.string(),
+        passed: v.boolean(),
+        notes: v.string(),
+      }),
+    ),
+    error: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+    const _: null = await ctx.runMutation(internal.packages._updateAiReviewResult, args);
     return null;
   },
 });
@@ -2302,7 +2438,7 @@ export const updateAdminSetting = mutation({
 
       await Promise.all(
         packagesToQueue.map(async (pkg) => {
-          const _: null = await ctx.runMutation(api.packages.updateReviewStatus, {
+          const _: null = await ctx.runMutation(internal.packages._updateReviewStatus, {
             packageId: pkg._id,
             reviewStatus: "in_review",
             reviewedBy: "AI",
@@ -2997,7 +3133,7 @@ export const _refreshPackageBatch = internalAction({
         const homepageUrl = existingPkg?.homepageUrl || packageData.homepageUrl;
 
         // Update the package with fresh npm data (preserving URLs)
-        await ctx.runMutation(api.packages.updateNpmData, {
+        await ctx.runMutation(internal.packages._updateNpmData, {
           packageId: pkg._id,
           description: packageData.description,
           version: packageData.version,
@@ -3168,6 +3304,8 @@ export const triggerManualRefreshAll = action({
   handler: async (
     ctx,
   ): Promise<{ packagesQueued: number; logId: Id<"refreshLogs"> | null }> => {
+    await requireAdminIdentity(ctx);
+
     // Get all approved packages (max 100)
     const packages: { _id: Id<"packages">; name: string }[] =
       await ctx.runQuery(internal.packages._getAllApprovedPackages, {
@@ -3228,6 +3366,8 @@ export const triggerManualRefreshAllPackages = action({
   handler: async (
     ctx,
   ): Promise<{ packagesQueued: number; logId: Id<"refreshLogs"> | null }> => {
+    await requireAdminIdentity(ctx);
+
     // Get all packages regardless of status (max 100)
     const packages: { _id: Id<"packages">; name: string }[] =
       await ctx.runQuery(internal.packages._getAllPackagesForRefresh, {
@@ -4303,6 +4443,7 @@ export const getMySubmissionForEdit = query({
       tags: v.optional(v.array(v.string())),
       demoUrl: v.optional(v.string()),
       videoUrl: v.optional(v.string()),
+      logoUrl: v.optional(v.string()),
       repositoryUrl: v.optional(v.string()),
       npmUrl: v.string(),
     }),
@@ -4329,6 +4470,7 @@ export const getMySubmissionForEdit = query({
       tags: pkg.tags,
       demoUrl: pkg.demoUrl,
       videoUrl: pkg.videoUrl,
+      logoUrl: pkg.logoUrl,
       repositoryUrl: pkg.repositoryUrl,
       npmUrl: pkg.npmUrl,
     };
@@ -4536,6 +4678,10 @@ export const generateUploadUrl = mutation({
   args: {},
   returns: v.string(),
   handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Authentication required");
+    }
     return await ctx.storage.generateUploadUrl();
   },
 });
@@ -4549,6 +4695,7 @@ export const saveThumbnail = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
     // Resolve the storage URL for display
     const url = await ctx.storage.getUrl(args.storageId);
     // Patch directly without reading first
@@ -4570,6 +4717,8 @@ export const saveLogo = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requirePackageOwnerOrAdmin(ctx, args.packageId);
+
     // Resolve the storage URL for admin display
     const url = await ctx.storage.getUrl(args.storageId);
     // Patch directly without reading first
@@ -4605,6 +4754,7 @@ export const clearLogo = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requirePackageOwnerOrAdmin(ctx, args.packageId);
     await ctx.db.patch(args.packageId, {
       logoStorageId: undefined,
       logoUrl: undefined,
@@ -4624,6 +4774,7 @@ export const autoFillAuthorFromRepo = mutation({
     v.object({ authorUsername: v.string(), authorAvatar: v.string() }),
   ),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
     const pkg = await ctx.db.get("packages", args.packageId);
     if (!pkg) return null;
 

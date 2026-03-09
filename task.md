@@ -2,7 +2,7 @@
 
 ## to do
 
-Session updates complete on 2026-03-09 05:51 UTC.
+Session updates complete on 2026-03-09 06:25 UTC.
 
 - [x] link component detail categories to category pages and sync admin category slug lifecycle (`prds/category-detail-link-and-admin-sync.md`) (2026-03-09 05:19 UTC)
   - Linked the detail sidebar category pill to `/components/categories/:slug` only when the category still maps to an enabled public category
@@ -458,6 +458,14 @@ Acceptance checks:
 - [ ] - [ ] add payments api
 
 ## completed
+
+- [x] harden package write auth and add profile logo upload (`prds/profile-logo-upload-and-package-write-auth.md`) (2026-03-09 06:25 UTC)
+  - Hardened package write APIs in `convex/packages.ts` so admin-only mutations require admin identity and shared logo writes now require package ownership or admin access
+  - Moved system-only package writes for submit, refresh, and AI review flows onto internal mutations so background jobs still work without exposing unsafe public write paths
+  - `submitPackage` now derives submission ownership from the authenticated email before creating a package
+  - Added logo upload, replace, and clear controls to the edit modal in `src/pages/Profile.tsx`
+  - Extended `getMySubmissionForEdit` to return `logoUrl` for the profile editor
+  - Verified with `npx convex codegen` and `npm run build`
 
 - [x] default submit form packages to Community in Admin (`prds/submitted-components-default-community.md`) (2026-03-09 05:51 UTC)
   - Public submissions now create packages with `communitySubmitted: true` in `convex/packages.ts`
