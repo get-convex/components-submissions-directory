@@ -662,12 +662,11 @@ Rules:
 
 // ============ AI REVIEW PROMPT ============
 
-// Default review prompt v3 (updated 2026-03-08)
-// Changes from v2:
-// - Reframes the review around GitHub repo scanning, not npm tarball inspection
-// - Separates critical pass criteria from advisory notes
-// - Adds component-specific import checks for ./_generated/server
-// - Treats advisory misses as improvement notes instead of hard failures
+// Default review prompt v4 (updated 2026-03-08)
+// Changes from v3:
+// - Exempts internalQuery/internalMutation/internalAction from criterion 5 (validators)
+// - Adds explicit IMPORTANT bullet preventing false failures on internal functions
+// - Updates JSON response template notes for criterion 5 to clarify exemptions
 const DEFAULT_REVIEW_PROMPT = `You are reviewing a Convex component package against official Convex component specifications.
 
 OFFICIAL CONVEX COMPONENT DOCUMENTATION REFERENCES:
@@ -717,7 +716,7 @@ CRITICAL PASS CRITERIA:
 2. Has component functions
 3. Component functions import builders from ./_generated/server
 4. Functions use object-style syntax
-5. Public component functions have validators
+5. Public component functions have validators (internalQuery/internalMutation/internalAction are exempt)
 6. Uses v.null() for void returns
 7. Does not use ctx.auth in component code
 8. Cross-boundary visibility uses public vs internal correctly
@@ -740,6 +739,7 @@ IMPORTANT:
 - Criteria 1-8 are the actual pass/fail gate for whether the repo passes as a Convex component
 - Criteria 9-12 are advisory only and should NOT by themselves cause the repository to fail
 - Do NOT flag regular helper functions for missing validators
+- Do NOT fail criterion 5 for missing validators on internalQuery, internalMutation, or internalAction functions. Only public query/mutation/action functions that cross the component boundary require explicit args and returns validators for this review.
 - Do NOT flag public API functions for not using internal* (they are intentionally public across the component boundary)
 - For criterion 11, if auth is not relevant, mark it passed and say it is not applicable
 - For criterion 12, if packaging details are not visible in the repository, treat it as advisory and explain the uncertainty rather than failing the repo on that basis
@@ -752,7 +752,7 @@ Respond in this exact JSON format:
     {"name": "Has component functions", "passed": true/false, "notes": "Your note"},
     {"name": "Component functions import builders from ./_generated/server", "passed": true/false, "notes": "Your note"},
     {"name": "Functions use object-style syntax", "passed": true/false, "notes": "Your note"},
-    {"name": "Public component functions have validators", "passed": true/false, "notes": "Your note - only check exported public query/mutation/action functions, not helper functions"},
+    {"name": "Public component functions have validators", "passed": true/false, "notes": "Your note - only check exported public query/mutation/action functions. Internal functions (internalQuery, internalMutation, internalAction) and regular helper functions are exempt from this requirement."},
     {"name": "Uses v.null() for void returns", "passed": true/false, "notes": "Your note"},
     {"name": "Does not use ctx.auth in component code", "passed": true/false, "notes": "Your note - components should receive auth-derived identifiers from the app instead"},
     {"name": "Cross-boundary visibility uses public vs internal correctly", "passed": true/false, "notes": "Your note - functions called by apps or wrapper classes across the component boundary must remain public"},

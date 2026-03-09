@@ -4,6 +4,13 @@ const SITE_NAME = "Convex Components";
 const SITE_ORIGIN = "https://www.convex.dev";
 const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/components/og-preview.png`;
 
+type ReviewStatus =
+  | "pending"
+  | "in_review"
+  | "approved"
+  | "changes_requested"
+  | "rejected";
+
 function extractSlug(pathname: string): string | null {
   const match = pathname.match(/^\/components\/([^/.]+(?:\/[^/.]+)*)$/);
   if (!match) return null;
@@ -44,6 +51,11 @@ interface ComponentData {
   seoValueProp?: string;
   thumbnailUrl?: string;
   slug?: string;
+  reviewStatus?: ReviewStatus;
+}
+
+function getRobotsContent(reviewStatus?: ReviewStatus): string {
+  return reviewStatus === "approved" ? "index, follow" : "noindex, nofollow";
 }
 
 async function fetchComponent(slug: string): Promise<ComponentData | null> {
@@ -86,6 +98,7 @@ function injectMetaTags(html: string, component: ComponentData): string {
   );
   const url = escapeAttr(`${SITE_ORIGIN}/components/${component.slug || ""}`);
   const image = escapeAttr(component.thumbnailUrl || DEFAULT_OG_IMAGE);
+  const robots = escapeAttr(getRobotsContent(component.reviewStatus));
 
   // Replacement pairs: attribute identifier -> new full tag
   // Ordered with more specific identifiers first to avoid partial matches
@@ -93,6 +106,7 @@ function injectMetaTags(html: string, component: ComponentData): string {
   const replacements: Array<[string, string]> = [
     ['name="title"', `<meta name="title" content="${fullTitle}" />`],
     ['name="description"', `<meta name="description" content="${description}" />`],
+    ['name="robots"', `<meta name="robots" content="${robots}" />`],
     ['property="og:url"', `<meta property="og:url" content="${url}" />`],
     ['property="og:title"', `<meta property="og:title" content="${title}" />`],
     ['property="og:description"', `<meta property="og:description" content="${description}" />`],
@@ -120,6 +134,13 @@ function injectMetaTags(html: string, component: ComponentData): string {
 
   // Replace <title>
   html = html.replace(/<title>[^<]*<\/title>/, `<title>${fullTitle}</title>`);
+
+  if (!html.includes('name="robots"')) {
+    html = html.replace(
+      "</head>",
+      `  <meta name="robots" content="${robots}" />\n</head>`
+    );
+  }
 
   return html;
 }

@@ -2,7 +2,13 @@
 
 ## to do
 
-Session updates complete on 2026-03-08 22:13 UTC.
+Session updates complete on 2026-03-09 06:45 UTC.
+
+- [x] update AI review prompt to v4 to prevent false failures on internal functions (2026-03-09 06:45 UTC)
+  - Criterion 5 now explicitly exempts `internalQuery`, `internalMutation`, and `internalAction` from the validator check
+  - Added IMPORTANT bullet and updated JSON response template notes in the system prompt
+  - Applied to both `convex/aiReview.ts` and `convex/aiSettings.ts`
+  - Verified with TypeScript check and `npm run build`
 
 - [x] fix admin category save perception and large category visibility (`prds/category-save-and-large-category-visibility.md`) (2026-03-08 23:25 UTC)
   - Synced `ComponentDetailsEditor` state with reactive backend props and kept explicit category clearing support in the admin save flow
@@ -432,6 +438,14 @@ Acceptance checks:
 - [ ] tailwind css form github
 - [ ] iimport exiting compons
 - [ ] - [ ] add payments api
+
+## completed
+
+- [x] implement review-state detail page gating (`prds/review-state-detail-page-gating.md`) (2026-03-09 01:58 UTC)
+  - Added review-state robots behavior in `src/pages/ComponentDetail.tsx` so only approved pages are indexable while pending, in review, changes requested, and rejected stay `noindex, nofollow`
+  - Gated `For Agents`, `AgentInstallSection`, download skill actions, and `SKILL.md` rendering to `in_review` and `approved`
+  - Updated `netlify/edge-functions/og-meta.ts` so crawler-visible HTML gets the same robots directive as the client without changing badge or markdown route handling
+  - Added small SEO helpers in `src/lib/seo.ts`, created `prds/review-state-detail-page-gating.md`, confirmed sitemap still points at approved packages only, and verified with `npm run build`
 
 ## Recent updates
 

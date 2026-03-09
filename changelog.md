@@ -23,7 +23,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Security: Returns only status, summary, criteria, and suggestions. Does not expose provider names, model names, or raw LLM output. Stores only hashed IPs. Requires valid auth token.
   - PRD: `prds/public-preflight-checker.md`
 
+### Changed
+
+- AI review prompt updated to v4 to prevent false failures on internal functions (2026-03-09 06:45 UTC)
+  - Criterion 5 (public component functions have validators) now explicitly exempts `internalQuery`, `internalMutation`, and `internalAction` from the validator requirement
+  - Added new IMPORTANT bullet in system prompt clarifying only public `query`/`mutation`/`action` functions that cross the component boundary require explicit args and returns validators
+  - Updated JSON response template notes for criterion 5 to document the exemption
+  - Applied identically to both `convex/aiReview.ts` (inline fallback prompt and `REVIEW_CRITERIA` array) and `convex/aiSettings.ts` (`DEFAULT_REVIEW_PROMPT` constant)
+
 ### Fixed
+
+- Review-state detail pages now stay shareable without exposing full agent UI or indexable metadata before approval (2026-03-09 01:58 UTC)
+  - `src/pages/ComponentDetail.tsx` now sets `noindex, nofollow` for `pending`, `in_review`, `changes_requested`, and `rejected`, while only `approved` keeps indexable robots behavior and JSON-LD injection
+  - `For Agents`, `Use with agents and CLI`, SKILL download actions, and the `SKILL.md` block now render only for `in_review` and `approved`
+  - `netlify/edge-functions/og-meta.ts` now injects matching robots meta into crawler-visible HTML so Netlify edge output stays in sync with the SPA
+  - Verified `npm run build` passes and confirmed the sitemap still lists approved packages only
 
 - Admin category saves now stay visible in crowded categories on localhost (2026-03-08 23:25 UTC)
   - Kept the admin editor in sync with reactive package detail updates and preserved explicit clear category handling in the save flow

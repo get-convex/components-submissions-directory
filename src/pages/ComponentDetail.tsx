@@ -9,7 +9,13 @@ import { CommunityBadge } from "../components/CommunityBadge";
 import Header from "../components/Header";
 import { useDirectoryCategories, getCategoryLabel } from "../lib/categories";
 import { buildComponentClientUrls } from "../../shared/componentUrls";
-import { setComponentSeoTags, injectJsonLd, buildComponentJsonLd } from "../lib/seo";
+import {
+  setComponentSeoTags,
+  setRobotsTag,
+  injectJsonLd,
+  removeJsonLd,
+  buildComponentJsonLd,
+} from "../lib/seo";
 import {
   ArrowLeftIcon,
   GitHubLogoIcon,
@@ -32,6 +38,25 @@ const AI_READ_PROMPT = "Read this URL and summarize it:";
 
 interface ComponentDetailProps {
   slug: string;
+}
+
+type ReviewStatus =
+  | "pending"
+  | "in_review"
+  | "approved"
+  | "changes_requested"
+  | "rejected";
+
+function getReviewStatus(reviewStatus?: string): ReviewStatus {
+  switch (reviewStatus) {
+    case "in_review":
+    case "approved":
+    case "changes_requested":
+    case "rejected":
+      return reviewStatus;
+    default:
+      return "pending";
+  }
 }
 
 // Build a full markdown document from component data (includes AI SEO content)
@@ -228,6 +253,9 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
   const dynamicCategories = useDirectoryCategories();
   const getDynamicCategoryLabel = (id: string) =>
     dynamicCategories.find((c) => c.id === id)?.label || id;
+  const reviewStatus = getReviewStatus(component?.reviewStatus);
+  const isApprovedForIndexing = reviewStatus === "approved";
+  const showAgentContent = reviewStatus === "approved" || reviewStatus === "in_review";
   const [badgeCopied, setBadgeCopied] = useState(false);
   const [showMarkdown, setShowMarkdown] = useState(false);
   const [copyMenuOpen, setCopyMenuOpen] = useState(false);
@@ -274,23 +302,33 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
         url: canonicalUrl,
         image: component.thumbnailUrl,
       });
+      setRobotsTag(isApprovedForIndexing ? "index, follow" : "noindex, nofollow");
 
       // Inject dual JSON-LD: SoftwareSourceCode + FAQPage (if FAQ exists)
-      const jsonLd = buildComponentJsonLd({
-        name: displayName,
-        description: metaDesc,
-        url: canonicalUrl,
-        repositoryUrl: component.repositoryUrl,
-        npmUrl: component.npmUrl,
-        version: component.version,
-        license: component.license,
-        authorName: component.authorUsername,
-        installCommand: component.installCommand,
-        faq: component.seoFaq,
-      });
-      injectJsonLd(jsonLd);
+      if (isApprovedForIndexing) {
+        const jsonLd = buildComponentJsonLd({
+          name: displayName,
+          description: metaDesc,
+          url: canonicalUrl,
+          repositoryUrl: component.repositoryUrl,
+          npmUrl: component.npmUrl,
+          version: component.version,
+          license: component.license,
+          authorName: component.authorUsername,
+          installCommand: component.installCommand,
+          faq: component.seoFaq,
+        });
+        injectJsonLd(jsonLd);
+      } else {
+        removeJsonLd();
+      }
+
+      return () => {
+        setRobotsTag("index, follow");
+        removeJsonLd();
+      };
     }
-  }, [component]);
+  }, [component, isApprovedForIndexing]);
 
   // Refresh GitHub issue counts once per page load (if stale or missing)
   useEffect(() => {
@@ -710,7 +748,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               </div>
 
               {/* Download Skill button - only shows if SKILL.md has been generated */}
-              {component.skillMd && (
+              {showAgentContent && component.skillMd && (
                 <>
                   <span className="text-text-secondary/40">|</span>
                   <button
@@ -723,13 +761,17 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               )}
 
               {/* Agent install anchor link */}
-              <span className="text-text-secondary/40">|</span>
-              <a
-                href="#agent-install"
-                className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors">
-                <ClipboardText className="w-3.5 h-3.5" weight="bold" />
-                For Agents
-              </a>
+              {showAgentContent && (
+                <>
+                  <span className="text-text-secondary/40">|</span>
+                  <a
+                    href="#agent-install"
+                    className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors">
+                    <ClipboardText className="w-3.5 h-3.5" weight="bold" />
+                    For Agents
+                  </a>
+                </>
+              )}
 
               {/* GitHub issues badge - commented out
               {component.repositoryUrl && (
@@ -1094,12 +1136,14 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
             )}
 
             {/* Use with agents and CLI section */}
-            <div id="agent-install" className="mb-6 scroll-mt-20">
-              <AgentInstallSection component={component} />
-            </div>
+            {showAgentContent && (
+              <div id="agent-install" className="mb-6 scroll-mt-20">
+                <AgentInstallSection component={component} />
+              </div>
+            )}
 
             {/* SKILL.md for Claude agents */}
-            {component.skillMd && (
+            {showAgentContent && component.skillMd && (
               <div className="mb-6">
                 <h3 className="text-sm font-semibold text-text-primary mb-2">
                   Agent Skill (SKILL.md)

@@ -23,6 +23,10 @@ export function setPageDescription(description: string) {
   setMetaTag("description", description);
 }
 
+export function setRobotsTag(content: string) {
+  setMetaTag("robots", content);
+}
+
 // Set Open Graph tags for social sharing
 export function setOgTags(opts: {
   title: string;
@@ -107,6 +111,10 @@ export function injectJsonLd(data: Record<string, unknown>) {
   // Strip undefined values before serializing
   const cleaned = JSON.parse(JSON.stringify(data));
   script.textContent = JSON.stringify(cleaned);
+}
+
+export function removeJsonLd() {
+  document.getElementById("convex-components-jsonld")?.remove();
 }
 
 // Build a combined JSON-LD @graph with SoftwareSourceCode + optional FAQPage
