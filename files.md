@@ -414,7 +414,8 @@ Public submissions directory at `/submissions`. Table-based UI showing submitted
 - Search and sort controls with white background search input
 - Pagination with default page size loaded from admin setting (20, 40, or 60)
 - Page navigation controls with range display and previous/next actions
-- Expandable package rows with install command, license, size, files, maintainers
+- Desktop table keeps `Maintainer`, `Downloads`, `Submitted`, and `Status` in equal-width metadata columns while package publish dates now live in the expanded details panel instead of the collapsed row
+- Expandable package rows with install command, license, size, files, published date, submitted date, and maintainers
 - npm/Repo/Website/Demo action buttons per package
 - Status badges (pending, in review, approved, changes requested, rejected)
 - Badge snippet with README markdown, copy button, and live preview for packages with slugs
@@ -685,6 +686,7 @@ Product requirements documents:
 - `admin-auto-ai-review-and-logo-thumbnail-gating.md`: Documents the switch from auto approve or reject to a single auto AI review workflow and records the logo-gated thumbnail automation clarification
 - `public-preflight-checker.md`: Public preflight checker allowing developers to validate their GitHub repo against review criteria before submitting
 - `profile-logo-upload-and-package-write-auth.md`: Documents backend package write auth hardening and the Profile page logo management flow
+- `submit-table-published-column-and-alignment.md`: Documents the Submit page table cleanup that removes the collapsed Published column, moves publish dates into expanded details, and rebalances the desktop metadata columns
 - `admin-ai-review-history.md`: Implementation PRD for persistent AI review run logging and the admin-side review history drawer
 - `category-save-and-large-category-visibility.md`: Documents the admin category save investigation and the fix that shows full result sets when a specific directory category is selected
 - `review-state-detail-page-gating.md`: Documents the safe rollout for keeping review-state detail pages live while gating agent UI and search indexing

@@ -2,7 +2,7 @@
 
 ## to do
 
-Session updates complete on 2026-03-09 06:25 UTC.
+Session updates complete on 2026-03-09 08:03 UTC.
 
 - [x] link component detail categories to category pages and sync admin category slug lifecycle (`prds/category-detail-link-and-admin-sync.md`) (2026-03-09 05:19 UTC)
   - Linked the detail sidebar category pill to `/components/categories/:slug` only when the category still maps to an enabled public category
@@ -458,6 +458,12 @@ Acceptance checks:
 - [ ] - [ ] add payments api
 
 ## completed
+
+- [x] rebalance submit table columns and move published date into expanded submission details (`prds/submit-table-published-column-and-alignment.md`) (2026-03-09 08:03 UTC)
+  - Removed the desktop `Published` column from `src/pages/Submit.tsx`
+  - Rebalanced the desktop metadata columns so `Maintainer`, `Downloads`, `Submitted`, and `Status` use equal widths
+  - Moved published date visibility into the expanded submission details panel
+  - Verified with `npm run build`
 
 - [x] harden package write auth and add profile logo upload (`prds/profile-logo-upload-and-package-write-auth.md`) (2026-03-09 06:25 UTC)
   - Hardened package write APIs in `convex/packages.ts` so admin-only mutations require admin identity and shared logo writes now require package ownership or admin access

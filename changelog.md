@@ -35,6 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Submit page table now hides the desktop `Published` column and shows publish dates inside expanded submission details (2026-03-09 08:03 UTC)
+  - Rebalanced the collapsed desktop table so `Maintainer`, `Downloads`, `Submitted`, and `Status` use equal-width columns in `src/pages/Submit.tsx`
+  - Kept publish metadata available by moving it into the expanded details grid when a user opens a submission row
+  - Verified with `npm run build`
+
 - AI review prompt updated to v4 to prevent false failures on internal functions (2026-03-09 06:45 UTC)
   - Criterion 5 (public component functions have validators) now explicitly exempts `internalQuery`, `internalMutation`, and `internalAction` from the validator requirement
   - Added new IMPORTANT bullet in system prompt clarifying only public `query`/`mutation`/`action` functions that cross the component boundary require explicit args and returns validators

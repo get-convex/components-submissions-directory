@@ -1817,13 +1817,12 @@ function Content({
       {/* Packages table/list */}
       <div className="rounded-lg border border-border bg-light overflow-hidden shadow-sm">
         {/* Table header for desktop */}
-        <div className="hidden md:grid md:grid-cols-12 gap-3 px-4 py-3 bg-bg-card text-xs font-medium text-text-secondary uppercase tracking-wide border-b border-border">
-          <div className="col-span-5">Package</div>
-          <div className="col-span-2">Maintainer</div>
-          <div className="col-span-1">Downloads</div>
-          <div className="col-span-1">Published</div>
-          <div className="col-span-2">Submitted</div>
-          <div className="col-span-1 -ml-4">Status</div>
+        <div className="hidden md:grid md:grid-cols-[minmax(0,2.4fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.1fr)] gap-3 px-4 py-3 bg-bg-card text-xs font-medium text-text-secondary uppercase tracking-wide border-b border-border">
+          <div>Package</div>
+          <div>Maintainer</div>
+          <div>Downloads</div>
+          <div>Submitted</div>
+          <div>Status</div>
         </div>
 
         {/* Package rows */}
@@ -1948,6 +1947,8 @@ function PackageRow({
   const firstMaintainer = pkg.collaborators?.[0];
   const basePath = window.location.pathname.startsWith("/components") ? "/components" : "";
   const detailUrl = pkg.slug ? `${basePath}/${pkg.slug}` : undefined;
+  const publishedDate = pkg.lastPublish ? new Date(pkg.lastPublish) : null;
+  const submittedDate = new Date(pkg.submittedAt);
 
   return (
     <div className="hover:bg-bg-card/50">
@@ -2001,8 +2002,8 @@ function PackageRow({
         </div>
 
         {/* Desktop table layout */}
-        <div className="hidden md:grid md:grid-cols-12 gap-3 items-center">
-          <div className="col-span-5">
+        <div className="hidden md:grid md:grid-cols-[minmax(0,2.4fr)_minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,1.1fr)] gap-3 items-center">
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-0.5">
               {pkg.featured && (
                 <Tooltip content="Featured on convex.dev/components">
@@ -2021,7 +2022,7 @@ function PackageRow({
             </div>
             <p className="text-xs text-text-secondary line-clamp-1">{pkg.description}</p>
           </div>
-          <div className="col-span-2">
+          <div className="min-w-0">
             {firstMaintainer ? (
               <Tooltip content={`Maintainer: ${firstMaintainer.name}`} position="top">
                 <span className="text-sm text-text-primary truncate block">
@@ -2032,32 +2033,23 @@ function PackageRow({
               <span className="text-sm text-text-secondary">—</span>
             )}
           </div>
-          <div className="col-span-1">
+          <div>
             <Tooltip content="Weekly downloads from npm" position="top">
               <span className="text-sm text-text-primary">
                 {formatDownloads(pkg.weeklyDownloads)}
               </span>
             </Tooltip>
           </div>
-          <div className="col-span-1">
+          <div>
             <Tooltip
-              content={`Last published on npm: ${new Date(pkg.lastPublish).toLocaleDateString()}`}
+              content={`Submitted to app: ${submittedDate.toLocaleDateString()}`}
               position="top">
               <span className="text-sm text-text-primary">
-                {formatRelativeTime(pkg.lastPublish)}
+                {formatRelativeTime(submittedDate.toISOString())}
               </span>
             </Tooltip>
           </div>
-          <div className="col-span-2">
-            <Tooltip
-              content={`Submitted to app: ${new Date(pkg.submittedAt).toLocaleDateString()}`}
-              position="top">
-              <span className="text-sm text-text-primary">
-                {formatRelativeTime(new Date(pkg.submittedAt).toISOString())}
-              </span>
-            </Tooltip>
-          </div>
-          <div className="col-span-1 -ml-4">
+          <div>
             <span className="inline-flex items-center gap-1.5">
               <ReviewStatusBadge status={pkg.reviewStatus} />
               <ApprovedDetailQuickLink status={pkg.reviewStatus} detailUrl={detailUrl} />
@@ -2089,7 +2081,7 @@ function PackageRow({
           </div>
 
           {/* Details grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-sm mb-4">
             <Tooltip content="Package license type">
               <div>
                 <span className="block text-xs text-text-secondary mb-0.5">License</span>
@@ -2108,12 +2100,23 @@ function PackageRow({
                 <span className="text-text-primary">{pkg.totalFiles.toLocaleString()}</span>
               </div>
             </Tooltip>
+            <Tooltip
+              content={
+                publishedDate
+                  ? `Last published on npm: ${publishedDate.toLocaleDateString()}`
+                  : "No npm publish date available"
+              }>
+              <div>
+                <span className="block text-xs text-text-secondary mb-0.5">Published</span>
+                <span className="text-text-primary">
+                  {publishedDate ? publishedDate.toLocaleDateString() : "—"}
+                </span>
+              </div>
+            </Tooltip>
             <Tooltip content="When this package was submitted to the directory">
               <div>
                 <span className="block text-xs text-text-secondary mb-0.5">Submitted</span>
-                <span className="text-text-primary">
-                  {new Date(pkg.submittedAt).toLocaleDateString()}
-                </span>
+                <span className="text-text-primary">{submittedDate.toLocaleDateString()}</span>
               </div>
             </Tooltip>
           </div>
