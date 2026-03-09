@@ -147,25 +147,54 @@ function injectMetaTags(html: string, component: ComponentData): string {
   return html;
 }
 
+function getConvexSiteUrl(): string {
+  return (
+    Deno.env.get("VITE_CONVEX_URL")?.replace(".convex.cloud", ".convex.site") ||
+    defaultConvexCloudUrl.replace(".convex.cloud", ".convex.site")
+  );
+}
+
 export default async (
   request: Request,
   context: { next: () => Promise<Response> }
 ) => {
   const url = new URL(request.url);
+  const siteUrl = getConvexSiteUrl();
 
   // Proxy sitemap.xml directly to Convex (redirects don't fire after edge fns)
   if (url.pathname === "/components/sitemap.xml") {
-    const siteUrl =
-      Deno.env
-        .get("VITE_CONVEX_URL")
-        ?.replace(".convex.cloud", ".convex.site") ||
-      defaultConvexCloudUrl.replace(".convex.cloud", ".convex.site");
     const res = await fetch(`${siteUrl}/api/sitemap.xml`);
     return new Response(res.body, {
       status: res.status,
       headers: {
         "Content-Type": "application/xml; charset=utf-8",
         "Cache-Control": "public, max-age=3600, s-maxage=3600",
+      },
+    });
+  }
+
+  // Proxy llms.txt to Convex (redirects don't fire after edge fns)
+  if (url.pathname === "/components/llms.txt") {
+    const res = await fetch(`${siteUrl}/api/llms.txt`);
+    return new Response(res.body, {
+      status: res.status,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "public, max-age=300, s-maxage=600",
+      },
+    });
+  }
+  const llmsMatch = url.pathname.match(/^\/components\/(.+)\/llms\.txt$/);
+  if (llmsMatch) {
+    const slug = llmsMatch[1];
+    const res = await fetch(
+      `${siteUrl}/api/component-llms?slug=${encodeURIComponent(slug)}`
+    );
+    return new Response(res.body, {
+      status: res.status,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "public, max-age=300, s-maxage=600",
       },
     });
   }
