@@ -8,7 +8,7 @@ type ReviewStatus =
   | "pending"
   | "in_review"
   | "approved"
-  | "changes_requested"
+| "changes_requested"
   | "rejected";
 
 function extractSlug(pathname: string): string | null {

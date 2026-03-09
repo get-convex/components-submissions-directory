@@ -2,7 +2,7 @@
 
 ## to do
 
-Session updates complete on 2026-03-09 08:03 UTC.
+Session updates complete on 2026-03-09 21:26 UTC.
 
 - [x] link component detail categories to category pages and sync admin category slug lifecycle (`prds/category-detail-link-and-admin-sync.md`) (2026-03-09 05:19 UTC)
   - Linked the detail sidebar category pill to `/components/categories/:slug` only when the category still maps to an enabled public category
@@ -458,6 +458,19 @@ Acceptance checks:
 - [ ] - [ ] add payments api
 
 ## completed
+
+- [x] update AI review prompt to v5 with component source detection and split validator criteria (`prds/ai-review-prompt-v5.md`) (2026-03-09 21:16 UTC)
+  - Updated `convex/aiReview.ts` so repo discovery prefers `defineComponent()` configs over consumer apps that only use `defineApp()`
+  - Updated the default review prompt in both `convex/aiReview.ts` and `convex/aiSettings.ts` to v5 with component source discovery guidance and the split args-versus-returns validator criteria
+  - Updated the AI Review Settings help copy in `src/pages/Admin.tsx` to match the new 8 critical plus 5 advisory review model
+  - Verified with `npx tsc -p convex/tsconfig.json --noEmit --pretty false` and `npm run build`, which matches the Netlify build command in `netlify.toml`
+  - Added shared prompt metadata in `shared/aiReviewPromptMeta.ts` so `aiReview.ts`, `aiSettings.ts`, and the Admin prompt UI all show the same review version label and updated date
+
+- [x] fix Tremendous reward custom recipient messages (`prds/tremendous-custom-message-delivery.md`) (2026-03-09 20:58 UTC)
+  - Forwarded the optional reward note from `convex/payments.ts` into Tremendous `delivery.meta.message` so recipient emails and landing pages can show custom copy
+  - Kept the existing reward payload shape, payment recording flow, and no-note behavior unchanged by only sending the message when a trimmed note exists
+  - Updated the Admin reward and test reward modal labels in `src/pages/Admin.tsx` to clarify the field is recipient-facing
+  - Verified with `npm run build`
 
 - [x] rebalance submit table columns and move published date into expanded submission details (`prds/submit-table-published-column-and-alignment.md`) (2026-03-09 08:03 UTC)
   - Removed the desktop `Published` column from `src/pages/Submit.tsx`

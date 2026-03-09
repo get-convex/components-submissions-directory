@@ -7,6 +7,11 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { buildProviderCandidates, executeWithProviderFallback, ProviderSettingsForFallback, AiProvider, AiProviderSource } from "./aiProviderFallback";
+export {
+  AI_REVIEW_PROMPT_STATUS_LABEL as AI_REVIEW_PROMPT_STATUS,
+  AI_REVIEW_PROMPT_UPDATED_AT,
+  AI_REVIEW_PROMPT_VERSION,
+} from "../shared/aiReviewPromptMeta";
 
 // Helper function to call different AI providers
 export async function callAiProvider(
@@ -61,16 +66,30 @@ export async function callAiProvider(
   }
 }
 
-// Convex component review criteria (v4 - updated 2026-03-08)
+type RepoConfigKind = "component" | "app" | "unknown";
+
+function classifyConvexConfig(content: string): RepoConfigKind {
+  if (/defineComponent\s*\(/.test(content)) {
+    return "component";
+  }
+  if (/defineApp\s*\(/.test(content)) {
+    return "app";
+  }
+  return "unknown";
+}
+
+// Shared AI review prompt status is exported above for Admin and settings UI.
 export const REVIEW_CRITERIA = [
   {
     name: "Has convex.config.ts with defineComponent()",
-    check: "Check for convex.config.ts in root with defineComponent() export",
+    check:
+      "Check for a convex.config.ts file in the identified component source directory that exports defineComponent()",
     critical: true,
   },
   {
     name: "Has component functions",
-    check: "Check for TypeScript files with queries, mutations, or actions in component/ or root",
+    check:
+      "Check for TypeScript component source files with queries, mutations, or actions in the identified component source directory",
     critical: true,
   },
   {
@@ -86,14 +105,15 @@ export const REVIEW_CRITERIA = [
     critical: true,
   },
   {
-    name: "Public component functions have validators",
+    name: "Public component functions have args validators",
     check:
-      "Check that exported public query, mutation, and action functions have explicit args and returns validators. Regular TypeScript helper functions do NOT need function-level validators.",
+      "Check that exported public query, mutation, and action functions have explicit args validators. Missing returns validators are advisory only and tracked separately.",
     critical: true,
   },
   {
     name: "Uses v.null() for void returns",
-    check: "Functions returning nothing use v.null() rather than undefined",
+    check:
+      "If a function declares a returns validator for a void result, it should use v.null() rather than undefined. Missing returns validators belong in criterion 13, not here.",
     critical: true,
   },
   {
@@ -129,6 +149,12 @@ export const REVIEW_CRITERIA = [
     name: "Package exports or client helpers look publish-ready",
     check:
       "When visible in the repo, package.json exports, client helpers, and component entry points should look ready for apps to consume. If packaging details are not present, treat this as advisory and explain the uncertainty.",
+    critical: false,
+  },
+  {
+    name: "Public component functions have returns validators",
+    check:
+      "Check whether exported public query, mutation, and action functions include returns validators for type safety. This is advisory only and should not fail the review.",
     critical: false,
   },
 ];
@@ -181,6 +207,7 @@ export async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
   }
 
   const files: Array<{ name: string; content: string }> = [];
+  const foundConfigs: Array<{ path: string; content: string; kind: RepoConfigKind }> = [];
 
   // Helper to fetch file content
   async function fetchFileContent(path: string): Promise<{ found: boolean; content: string }> {
@@ -257,19 +284,20 @@ export async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
     "lib/convex.config.ts",
   ];
 
-  let foundConfigPath = "";
-
-  // Find convex.config.ts
+  // Find all visible convex.config.ts files so we can distinguish
+  // component source from consuming apps before selecting a directory.
   for (const configPath of configPaths) {
     const result = await fetchFileContent(configPath);
     if (result.found) {
-      foundConfigPath = configPath;
-      files.push({ name: configPath, content: result.content });
-      break;
+      foundConfigs.push({
+        path: configPath,
+        content: result.content,
+        kind: classifyConvexConfig(result.content),
+      });
     }
   }
 
-  if (!foundConfigPath) {
+  if (foundConfigs.length === 0) {
     console.log(
       "No convex.config.ts found in repo",
       owner,
@@ -278,14 +306,42 @@ export async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
       "- checked paths:",
       configPaths
     );
-    return { exists: false, files: [], isComponent: false };
+    return {
+      exists: false,
+      files: [],
+      isComponent: false,
+      componentSourceDir: undefined,
+      foundConfigPaths: [],
+    };
   }
 
-  console.log("Found convex.config.ts at:", foundConfigPath);
+  for (const config of foundConfigs) {
+    files.push({ name: config.path, content: config.content });
+  }
+
+  const componentConfig = foundConfigs.find((config) => config.kind === "component");
+
+  if (!componentConfig) {
+    console.log(
+      "Found convex.config.ts files but none use defineComponent():",
+      foundConfigs.map((config) => `${config.path} (${config.kind})`)
+    );
+    return {
+      exists: true,
+      files,
+      isComponent: false,
+      componentSourceDir: undefined,
+      foundConfigPaths: foundConfigs.map((config) => config.path),
+    };
+  }
+
+  const foundConfigPath = componentConfig.path;
+  console.log("Found component convex.config.ts at:", foundConfigPath);
 
   // Determine component directory based on config location
   // Extract the directory containing convex.config.ts
   const configDir = foundConfigPath.replace("/convex.config.ts", "");
+  const componentSourceDir = configDir || "root";
   const componentDirPaths: string[] = [];
 
   if (foundConfigPath.includes("/src/component/")) {
@@ -337,7 +393,9 @@ export async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
   return {
     exists: true,
     files,
-    isComponent: files.length > 0,
+    isComponent: true,
+    componentSourceDir,
+    foundConfigPaths: foundConfigs.map((config) => config.path),
   };
 }
 
@@ -346,11 +404,15 @@ export function buildReviewPrompt(
   repoFiles: Array<{ name: string; content: string }>,
   packageName: string,
   version: string,
-  customPromptContent?: string
+  customPromptContent?: string,
+  componentSourceDir?: string,
+  foundConfigPaths: string[] = []
 ): string {
   const filesContext = repoFiles
     .map((f) => `File: ${f.name}\n\`\`\`typescript\n${f.content}\n\`\`\``)
     .join("\n\n");
+  const configPathsList =
+    foundConfigPaths.length > 0 ? foundConfigPaths.map((path) => `- ${path}`).join("\n") : "- none found";
 
   const criteriaList = REVIEW_CRITERIA.map(
     (c, i) => `${i + 1}. ${c.name}: ${c.check}${c.critical ? " (CRITICAL)" : ""}`
@@ -375,7 +437,7 @@ KEY REQUIREMENTS FROM DOCS:
 2. Component structure: convex.config.ts at root or src/component/, with functions in the component's own code
 3. Component functions should import query/mutation/action/internal* builders from the component's own ./_generated/server
 4. Functions must use object-style syntax, e.g. query({ args: {}, returns: v.string(), handler: async (ctx, args) => {} })
-5. Public component functions should have explicit args and returns validators
+5. Public component functions must have explicit args validators (security-critical)
 6. Functions returning nothing must use v.null() as the return validator, not undefined
 7. Components do NOT have access to ctx.auth. Authentication must be done in the app, with identifiers or tokens passed into the component.
 8. Component function visibility differs from regular Convex apps. Public component functions are not browser-client-accessible, but they ARE callable across the component boundary via ctx.runQuery, ctx.runMutation, or ctx.runAction from the app or wrapper code. Internal functions are hidden even from the parent app.
@@ -390,6 +452,27 @@ REVIEW SCOPE:
 - This review starts from a stored package record, but the actual component validity check is based on the linked GitHub repository contents included below.
 - Do NOT assume the published npm tarball was scanned.
 - Judge whether the repository passes as a valid Convex component. Use npm/package-level details only when they are visible in the repository.
+- CRITICAL: Before evaluating ANY criteria, first locate the component source code using the LOCATING THE COMPONENT SOURCE CODE steps below. Do not review example/demo app code as if it were the component itself.
+
+LOCATING THE COMPONENT SOURCE CODE:
+- The component's own code is identified by its convex.config.ts file containing defineComponent().
+- Do NOT confuse the component source with an example/demo app that CONSUMES the component. A consuming app will have convex.config.ts with defineApp() and app.use(...).
+- Common component source locations:
+  1. src/component/ - component code ships from src/, examples live separately
+  2. Root-level convex/ that contains defineComponent() - single-package repo
+  3. A dedicated package directory in a monorepo (e.g., packages/component-name/)
+- Common CONSUMER/EXAMPLE locations (these are NOT the component source):
+  1. example/ or example-react/ or example-svelte/
+  2. A top-level convex/ directory that imports the component via npm package name and uses defineApp() + app.use(...)
+- DISCOVERY STEPS (follow in order):
+  1. Search the ENTIRE repository for files named convex.config.ts
+  2. For each one, check whether it calls defineComponent() or defineApp()
+  3. The file calling defineComponent() marks the component source directory
+  4. The file calling defineApp() marks a consuming app (example/demo). Do NOT review this as the component
+  5. Review ONLY the component source directory and its sibling files for criteria 1-8
+  6. If no defineComponent() is found anywhere in the repo, THEN fail criterion 1
+- If the repo has both a component source and example apps, base ALL critical criteria (1-8) on the component source. Example app code is irrelevant to the component review except as evidence of usage patterns.
+- IMPORTANT: State which directory you identified as the component source in your summary so the reviewer can verify.
 
 IMPORTANT DISTINCTIONS:
 - Public component functions become internal references at the app level and are called across the component boundary with ctx.runQuery, ctx.runMutation, or ctx.runAction
@@ -413,7 +496,7 @@ CRITICAL PASS CRITERIA:
 2. Has component functions
 3. Component functions import builders from ./_generated/server
 4. Functions use object-style syntax
-5. Public component functions have validators (internalQuery/internalMutation/internalAction are exempt)
+5. Public component functions have args validators
 6. Uses v.null() for void returns
 7. Does not use ctx.auth in component code
 8. Cross-boundary visibility uses public vs internal correctly
@@ -423,9 +506,10 @@ ADVISORY NOTES:
 10. Has clear TypeScript types and validator-driven shapes
 11. Uses auth callback or app-side auth wrapper when needed
 12. Package exports or client helpers look publish-ready
+13. Public component functions have returns validators for type safety
 
 Analyze this code and provide a structured review with:
-1. Overall summary (2-3 sentences answering whether the repository PASSES the critical component checks. Mention advisory improvements separately.)
+1. Overall summary (2-3 sentences answering whether the repository PASSES the critical component checks. Mention advisory improvements separately. STATE WHICH DIRECTORY YOU IDENTIFIED AS THE COMPONENT SOURCE.)
 2. For each criterion IN THE EXACT ORDER LISTED ABOVE, indicate PASS or FAIL with a brief note
 3. Suggestions for improvement based on the OFFICIAL DOCUMENTATION REFERENCES above
 
@@ -434,29 +518,30 @@ IMPORTANT:
 - Base all suggestions on the official Convex documentation links provided
 - For any failed criterion, reference the specific documentation URL that explains the correct approach
 - Criteria 1-8 are the actual pass/fail gate for whether the repo passes as a Convex component
-- Criteria 9-12 are advisory only and should NOT by themselves cause the repository to fail
+- Criteria 9-13 are advisory only and should NOT by themselves cause the repository to fail
 - Do NOT flag regular helper functions for missing validators
-- Do NOT fail criterion 5 for missing validators on internalQuery, internalMutation, or internalAction functions. Only public query/mutation/action functions that cross the component boundary require explicit args and returns validators for this review.
+- Criterion 5 only checks args validators on public query/mutation/action functions. Missing returns validators are advisory (criterion 13), not a failure. Internal functions (internalQuery, internalMutation, internalAction) and regular helper functions are exempt from both checks.
 - Do NOT flag public API functions for not using internal* (they are intentionally public across the component boundary)
 - For criterion 11, if auth is not relevant, mark it passed and say it is not applicable
 - For criterion 12, if packaging details are not visible in the repository, treat it as advisory and explain the uncertainty rather than failing the repo on that basis
 
 Respond in this exact JSON format:
 {
-  "summary": "Your 2-3 sentence summary here",
+  "summary": "Your 2-3 sentence summary here. STATE THE COMPONENT SOURCE DIRECTORY (e.g., 'Component source identified at src/component/').",
   "criteria": [
     {"name": "Has convex.config.ts with defineComponent()", "passed": true/false, "notes": "Your note"},
     {"name": "Has component functions", "passed": true/false, "notes": "Your note"},
     {"name": "Component functions import builders from ./_generated/server", "passed": true/false, "notes": "Your note"},
     {"name": "Functions use object-style syntax", "passed": true/false, "notes": "Your note"},
-    {"name": "Public component functions have validators", "passed": true/false, "notes": "Your note - only check exported public query/mutation/action functions. Internal functions (internalQuery, internalMutation, internalAction) and regular helper functions are exempt from this requirement."},
-    {"name": "Uses v.null() for void returns", "passed": true/false, "notes": "Your note"},
+    {"name": "Public component functions have args validators", "passed": true/false, "notes": "Your note - only check args on exported public query/mutation/action functions. Missing returns validators are tracked separately as advisory. Internal functions are exempt."},
+    {"name": "Uses v.null() for void returns", "passed": true/false, "notes": "Your note - only fail this when a returns validator is present but uses the wrong type for a void return. If no returns validator exists at all, track that under criterion 13 instead."},
     {"name": "Does not use ctx.auth in component code", "passed": true/false, "notes": "Your note - components should receive auth-derived identifiers from the app instead"},
     {"name": "Cross-boundary visibility uses public vs internal correctly", "passed": true/false, "notes": "Your note - functions called by apps or wrapper classes across the component boundary must remain public"},
     {"name": "Queries prefer withIndex() over filter()", "passed": true/false, "notes": "Your note - advisory only"},
     {"name": "Has clear TypeScript types and validator-driven shapes", "passed": true/false, "notes": "Your note - advisory only"},
     {"name": "Uses auth callback or app-side auth wrapper when needed", "passed": true/false, "notes": "Your note - advisory only; if auth is not relevant, say not applicable"},
-    {"name": "Package exports or client helpers look publish-ready", "passed": true/false, "notes": "Your note - advisory only; if packaging details are not visible in the repository, explain the uncertainty"}
+    {"name": "Package exports or client helpers look publish-ready", "passed": true/false, "notes": "Your note - advisory only; if packaging details are not visible in the repository, explain the uncertainty"},
+    {"name": "Public component functions have returns validators", "passed": true/false, "notes": "Your note - advisory only. The Convex docs recommend returns validators for type safety but do not require them. Missing returns should not fail the review."}
   ],
   "suggestions": "Improvement suggestions with references to official docs (e.g., 'See https://docs.convex.dev/components/authoring for...')"
 }`;
@@ -466,6 +551,9 @@ Respond in this exact JSON format:
 
 PACKAGE: ${packageName}
 VERSION: ${version}
+IDENTIFIED COMPONENT SOURCE DIRECTORY: ${componentSourceDir ?? "unknown"}
+DISCOVERED CONVEX CONFIG FILES:
+${configPathsList}
 
 CRITERIA TO CHECK (in order, marking critical ones):
 ${criteriaList}
@@ -523,7 +611,7 @@ export async function runReviewOnRepo(
   const githubToken = process.env.GITHUB_TOKEN;
   const repoData = await fetchGitHubRepo(repoUrl, githubToken);
 
-  if (!repoData.exists || !repoData.isComponent || repoData.files.length === 0) {
+  if (!repoData.exists) {
     return {
       status: "failed",
       summary:
@@ -539,7 +627,30 @@ export async function runReviewOnRepo(
     };
   }
 
-  const prompt = buildReviewPrompt(repoData.files, packageName, version, customPromptContent);
+  if (!repoData.isComponent) {
+    return {
+      status: "failed",
+      summary:
+        "Review failed: Found convex.config.ts files, but none define a Convex component with defineComponent(). This repository appears to contain only consuming app or example code, not a publishable Convex component source.",
+      criteria: REVIEW_CRITERIA.map((c) => ({
+        name: c.name,
+        passed: false,
+        notes:
+          c.name === "Has convex.config.ts with defineComponent()"
+            ? "Failed: Found convex.config.ts files, but none use defineComponent()"
+            : "Unable to check: No component source directory was identified",
+      })),
+    };
+  }
+
+  const prompt = buildReviewPrompt(
+    repoData.files,
+    packageName,
+    version,
+    customPromptContent,
+    repoData.componentSourceDir,
+    repoData.foundConfigPaths
+  );
 
   const candidates = buildProviderCandidates({
     adminProviders: providerSettings ?? [],

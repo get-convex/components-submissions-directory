@@ -62,6 +62,7 @@ import {
 import {
   ExternalLinkIcon as RadixExternalLinkIcon,
 } from "@radix-ui/react-icons";
+import { AI_REVIEW_PROMPT_STATUS_LABEL } from "../../shared/aiReviewPromptMeta";
 
 // Review status type
 type ReviewStatus =
@@ -3592,7 +3593,7 @@ function InlineActions({
 
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1">
-                  Note (optional)
+                  Message to recipient (optional)
                 </label>
                 <textarea
                   value={rewardNote}
@@ -4607,10 +4608,21 @@ function AdminSettingsPanel() {
                 >
                   Convex component specifications
                 </a>
-                . The default v3 review uses 8 critical pass criteria and 4
-                advisory notes. AI review results update the AI review panel,
-                and you can choose whether the final approval decision stays
-                manual or auto-updates on pass or fail.
+                . The default review status is{" "}
+                <code className="bg-bg-primary px-1 rounded">
+                  {AI_REVIEW_PROMPT_STATUS_LABEL}
+                </code>
+                . It uses 8 critical pass criteria and 5 advisory notes. It
+                first looks across the repo for the
+                component source directory that uses{" "}
+                <code className="bg-bg-primary px-1 rounded">
+                  defineComponent()
+                </code>{" "}
+                so example apps using{" "}
+                <code className="bg-bg-primary px-1 rounded">defineApp()</code>{" "}
+                do not get reviewed as the component. AI review results update
+                the AI review panel, and you can choose whether the final
+                approval decision stays manual or auto-updates on pass or fail.
               </p>
             </div>
 
@@ -4618,26 +4630,28 @@ function AdminSettingsPanel() {
               <p className="font-medium text-text-primary">Files Checked</p>
               <ul className="list-disc list-inside space-y-1 ml-1 mt-1">
                 <li>
+                  All discovered{" "}
                   <code className="bg-bg-primary px-1 rounded">
                     convex.config.ts
                   </code>{" "}
-                  in{" "}
+                  files are checked to find the one that uses{" "}
                   <code className="bg-bg-primary px-1 rounded">
-                    src/component/
+                    defineComponent()
                   </code>
-                  , <code className="bg-bg-primary px-1 rounded">src/</code>, or
-                  root (required)
                 </li>
                 <li>
-                  Component files in{" "}
+                  Component files in the selected source directory such as{" "}
                   <code className="bg-bg-primary px-1 rounded">
                     src/component/
                   </code>{" "}
-                  or{" "}
-                  <code className="bg-bg-primary px-1 rounded">component/</code>{" "}
-                  directory
+                  , <code className="bg-bg-primary px-1 rounded">convex/</code>,
+                  or a monorepo package directory
                 </li>
-                <li>Root TypeScript files (fallback if no component dir)</li>
+                <li>
+                  Consumer app configs that use{" "}
+                  <code className="bg-bg-primary px-1 rounded">defineApp()</code>{" "}
+                  are treated as examples, not the component source
+                </li>
               </ul>
             </div>
 
@@ -4670,9 +4684,9 @@ function AdminSettingsPanel() {
                   </code>
                 </li>
                 <li>
-                  Exported functions have{" "}
-                  <code className="bg-bg-primary px-1 rounded">returns:</code>{" "}
-                  validator (helper functions do not need this)
+                  Public functions have explicit{" "}
+                  <code className="bg-bg-primary px-1 rounded">args:</code>{" "}
+                  validators
                 </li>
                 <li>
                   Uses{" "}
@@ -4716,6 +4730,11 @@ function AdminSettingsPanel() {
                   so token-based or auth callback patterns are used)
                 </li>
                 <li>Package exports or client helpers look publish ready</li>
+                <li>
+                  Public functions have{" "}
+                  <code className="bg-bg-primary px-1 rounded">returns:</code>{" "}
+                  validators for type safety
+                </li>
               </ul>
             </div>
 
@@ -5286,7 +5305,7 @@ function RewardSettingsPanel() {
 
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1">
-                  Note (optional)
+                  Message to recipient (optional)
                 </label>
                 <textarea
                   value={testRewardNote}
@@ -5722,7 +5741,7 @@ function AiPromptSettingsPanel() {
   }, [activePrompt, isEditing]);
 
   const handleStartEditing = () => {
-    setEditedPrompt(activePrompt?.content || defaultPrompt || "");
+    setEditedPrompt(activePrompt?.content || defaultPrompt?.content || "");
     setIsEditing(true);
   };
 
@@ -5782,6 +5801,9 @@ function AiPromptSettingsPanel() {
           <span className="text-sm font-medium text-text-primary">
             AI Review Prompt
           </span>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-bg-hover text-text-secondary">
+            {activePrompt.version}
+          </span>
           {!activePrompt.isDefault && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
               Custom
@@ -5800,8 +5822,12 @@ function AiPromptSettingsPanel() {
           <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary">
             <p>
               View and customize the AI review prompt. The default prompt
-              analyzes components against Convex component specifications.
-              Custom prompts are versioned for history tracking.
+              analyzes components against Convex component specifications. Current
+              default status:{" "}
+              <span className="font-medium text-text-primary">
+                {activePrompt.statusLabel}
+              </span>
+              . Custom prompts are versioned for history tracking.
             </p>
           </div>
 
@@ -5870,15 +5896,25 @@ function AiPromptSettingsPanel() {
           ) : (
             <div className="p-3 rounded-lg border border-border bg-bg-primary">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-text-secondary">
-                  {activePrompt.isDefault ? "Default Prompt" : "Custom Prompt"}
-                </span>
-                {activePrompt.createdAt && (
-                  <span className="text-xs text-text-secondary">
-                    Last updated:{" "}
-                    {new Date(activePrompt.createdAt).toLocaleDateString()}
-                  </span>
-                )}
+                <div>
+                  <div className="text-xs text-text-secondary">
+                    {activePrompt.isDefault ? "Default Prompt" : "Custom Prompt"}
+                  </div>
+                  <div className="text-xs text-text-secondary mt-1">
+                    {activePrompt.statusLabel}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-text-secondary">
+                    Prompt updated: {activePrompt.promptUpdatedAt}
+                  </div>
+                  {activePrompt.createdAt && (
+                    <div className="text-xs text-text-secondary mt-1">
+                      Last updated:{" "}
+                      {new Date(activePrompt.createdAt).toLocaleDateString()}
+                    </div>
+                  )}
+                </div>
               </div>
               <pre className="text-xs font-mono text-text-primary whitespace-pre-wrap max-h-64 overflow-y-auto">
                 {activePrompt.content}

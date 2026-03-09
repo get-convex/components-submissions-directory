@@ -1,5 +1,10 @@
 import { v } from "convex/values";
 import { query, mutation, internalQuery } from "./_generated/server";
+import {
+  AI_REVIEW_PROMPT_STATUS_LABEL,
+  AI_REVIEW_PROMPT_UPDATED_AT,
+  AI_REVIEW_PROMPT_VERSION,
+} from "../shared/aiReviewPromptMeta";
 
 // Provider types
 const providerValidator = v.union(
@@ -161,9 +166,19 @@ export const clearProviderSettings = mutation({
 // Get the default prompt from aiReview.ts (hardcoded)
 export const getDefaultPrompt = query({
   args: {},
-  returns: v.string(),
+  returns: v.object({
+    content: v.string(),
+    statusLabel: v.string(),
+    version: v.string(),
+    updatedAt: v.string(),
+  }),
   handler: async () => {
-    return DEFAULT_REVIEW_PROMPT;
+    return {
+      content: DEFAULT_REVIEW_PROMPT,
+      statusLabel: AI_REVIEW_PROMPT_STATUS_LABEL,
+      version: AI_REVIEW_PROMPT_VERSION,
+      updatedAt: AI_REVIEW_PROMPT_UPDATED_AT,
+    };
   },
 });
 
@@ -176,6 +191,9 @@ export const getActivePrompt = query({
     versionId: v.optional(v.id("aiPromptVersions")),
     createdAt: v.optional(v.number()),
     createdBy: v.optional(v.string()),
+    statusLabel: v.string(),
+    version: v.string(),
+    promptUpdatedAt: v.string(),
   }),
   handler: async (ctx) => {
     const activeVersion = await ctx.db
@@ -190,6 +208,9 @@ export const getActivePrompt = query({
         versionId: activeVersion._id,
         createdAt: activeVersion.createdAt,
         createdBy: activeVersion.createdBy,
+        statusLabel: AI_REVIEW_PROMPT_STATUS_LABEL,
+        version: AI_REVIEW_PROMPT_VERSION,
+        promptUpdatedAt: AI_REVIEW_PROMPT_UPDATED_AT,
       };
     }
 
@@ -199,6 +220,9 @@ export const getActivePrompt = query({
       versionId: undefined,
       createdAt: undefined,
       createdBy: undefined,
+      statusLabel: AI_REVIEW_PROMPT_STATUS_LABEL,
+      version: AI_REVIEW_PROMPT_VERSION,
+      promptUpdatedAt: AI_REVIEW_PROMPT_UPDATED_AT,
     };
   },
 });
@@ -662,11 +686,11 @@ Rules:
 
 // ============ AI REVIEW PROMPT ============
 
-// Default review prompt v4 (updated 2026-03-08)
-// Changes from v3:
-// - Exempts internalQuery/internalMutation/internalAction from criterion 5 (validators)
-// - Adds explicit IMPORTANT bullet preventing false failures on internal functions
-// - Updates JSON response template notes for criterion 5 to clarify exemptions
+// Default review prompt v5 (updated 2026-03-09)
+// Changes from v4:
+// - Adds component source discovery guidance so defineComponent() source wins over defineApp() examples
+// - Splits criterion 5 so args validators stay critical and returns validators become advisory criterion 13
+// - Clarifies criterion 6 only applies when a returns validator exists but uses the wrong void type
 const DEFAULT_REVIEW_PROMPT = `You are reviewing a Convex component package against official Convex component specifications.
 
 OFFICIAL CONVEX COMPONENT DOCUMENTATION REFERENCES:
@@ -683,7 +707,7 @@ KEY REQUIREMENTS FROM DOCS:
 2. Component structure: convex.config.ts at root or src/component/, with functions in the component's own code
 3. Component functions should import query/mutation/action/internal* builders from the component's own ./_generated/server
 4. Functions must use object-style syntax, e.g. query({ args: {}, returns: v.string(), handler: async (ctx, args) => {} })
-5. Public component functions should have explicit args and returns validators
+5. Public component functions must have explicit args validators (security-critical)
 6. Functions returning nothing must use v.null() as the return validator, not undefined
 7. Components do NOT have access to ctx.auth. Authentication must be done in the app, with identifiers or tokens passed into the component.
 8. Component function visibility differs from regular Convex apps. Public component functions are not browser-client-accessible, but they ARE callable across the component boundary via ctx.runQuery, ctx.runMutation, or ctx.runAction from the app or wrapper code. Internal functions are hidden even from the parent app.
@@ -693,6 +717,27 @@ REVIEW SCOPE:
 - This review starts from a stored package record, but the actual component validity check is based on the linked GitHub repository contents included below.
 - Do NOT assume the published npm tarball was scanned.
 - Judge whether the repository passes as a valid Convex component. Use npm/package-level details only when they are visible in the repository.
+- CRITICAL: Before evaluating ANY criteria, first locate the component source code using the LOCATING THE COMPONENT SOURCE CODE steps below. Do not review example/demo app code as if it were the component itself.
+
+LOCATING THE COMPONENT SOURCE CODE:
+- The component's own code is identified by its convex.config.ts file containing defineComponent().
+- Do NOT confuse the component source with an example/demo app that CONSUMES the component. A consuming app will have convex.config.ts with defineApp() and app.use(...).
+- Common component source locations:
+  1. src/component/ - component code ships from src/, examples live separately
+  2. Root-level convex/ that contains defineComponent() - single-package repo
+  3. A dedicated package directory in a monorepo (e.g., packages/component-name/)
+- Common CONSUMER/EXAMPLE locations (these are NOT the component source):
+  1. example/ or example-react/ or example-svelte/
+  2. A top-level convex/ directory that imports the component via npm package name and uses defineApp() + app.use(...)
+- DISCOVERY STEPS (follow in order):
+  1. Search the ENTIRE repository for files named convex.config.ts
+  2. For each one, check whether it calls defineComponent() or defineApp()
+  3. The file calling defineComponent() marks the component source directory
+  4. The file calling defineApp() marks a consuming app (example/demo). Do NOT review this as the component
+  5. Review ONLY the component source directory and its sibling files for criteria 1-8
+  6. If no defineComponent() is found anywhere in the repo, THEN fail criterion 1
+- If the repo has both a component source and example apps, base ALL critical criteria (1-8) on the component source. Example app code is irrelevant to the component review except as evidence of usage patterns.
+- IMPORTANT: State which directory you identified as the component source in your summary so the reviewer can verify.
 
 IMPORTANT DISTINCTIONS:
 - Public component functions become internal references at the app level and are called across the component boundary with ctx.runQuery, ctx.runMutation, or ctx.runAction
@@ -716,7 +761,7 @@ CRITICAL PASS CRITERIA:
 2. Has component functions
 3. Component functions import builders from ./_generated/server
 4. Functions use object-style syntax
-5. Public component functions have validators (internalQuery/internalMutation/internalAction are exempt)
+5. Public component functions have args validators
 6. Uses v.null() for void returns
 7. Does not use ctx.auth in component code
 8. Cross-boundary visibility uses public vs internal correctly
@@ -726,9 +771,10 @@ ADVISORY NOTES:
 10. Has clear TypeScript types and validator-driven shapes
 11. Uses auth callback or app-side auth wrapper when needed
 12. Package exports or client helpers look publish-ready
+13. Public component functions have returns validators for type safety
 
 Analyze this code and provide a structured review with:
-1. Overall summary (2-3 sentences answering whether the repository PASSES the critical component checks. Mention advisory improvements separately.)
+1. Overall summary (2-3 sentences answering whether the repository PASSES the critical component checks. Mention advisory improvements separately. STATE WHICH DIRECTORY YOU IDENTIFIED AS THE COMPONENT SOURCE.)
 2. For each criterion IN THE EXACT ORDER LISTED ABOVE, indicate PASS or FAIL with a brief note
 3. Suggestions for improvement based on the OFFICIAL DOCUMENTATION REFERENCES above
 
@@ -737,29 +783,30 @@ IMPORTANT:
 - Base all suggestions on the official Convex documentation links provided
 - For any failed criterion, reference the specific documentation URL that explains the correct approach
 - Criteria 1-8 are the actual pass/fail gate for whether the repo passes as a Convex component
-- Criteria 9-12 are advisory only and should NOT by themselves cause the repository to fail
+- Criteria 9-13 are advisory only and should NOT by themselves cause the repository to fail
 - Do NOT flag regular helper functions for missing validators
-- Do NOT fail criterion 5 for missing validators on internalQuery, internalMutation, or internalAction functions. Only public query/mutation/action functions that cross the component boundary require explicit args and returns validators for this review.
+- Criterion 5 only checks args validators on public query/mutation/action functions. Missing returns validators are advisory (criterion 13), not a failure. Internal functions (internalQuery, internalMutation, internalAction) and regular helper functions are exempt from both checks.
 - Do NOT flag public API functions for not using internal* (they are intentionally public across the component boundary)
 - For criterion 11, if auth is not relevant, mark it passed and say it is not applicable
 - For criterion 12, if packaging details are not visible in the repository, treat it as advisory and explain the uncertainty rather than failing the repo on that basis
 
 Respond in this exact JSON format:
 {
-  "summary": "Your 2-3 sentence summary here",
+  "summary": "Your 2-3 sentence summary here. STATE THE COMPONENT SOURCE DIRECTORY (e.g., 'Component source identified at src/component/').",
   "criteria": [
     {"name": "Has convex.config.ts with defineComponent()", "passed": true/false, "notes": "Your note"},
     {"name": "Has component functions", "passed": true/false, "notes": "Your note"},
     {"name": "Component functions import builders from ./_generated/server", "passed": true/false, "notes": "Your note"},
     {"name": "Functions use object-style syntax", "passed": true/false, "notes": "Your note"},
-    {"name": "Public component functions have validators", "passed": true/false, "notes": "Your note - only check exported public query/mutation/action functions. Internal functions (internalQuery, internalMutation, internalAction) and regular helper functions are exempt from this requirement."},
-    {"name": "Uses v.null() for void returns", "passed": true/false, "notes": "Your note"},
+    {"name": "Public component functions have args validators", "passed": true/false, "notes": "Your note - only check args on exported public query/mutation/action functions. Missing returns validators are tracked separately as advisory. Internal functions are exempt."},
+    {"name": "Uses v.null() for void returns", "passed": true/false, "notes": "Your note - only fail this when a returns validator is present but uses the wrong type for a void return. If no returns validator exists at all, track that under criterion 13 instead."},
     {"name": "Does not use ctx.auth in component code", "passed": true/false, "notes": "Your note - components should receive auth-derived identifiers from the app instead"},
     {"name": "Cross-boundary visibility uses public vs internal correctly", "passed": true/false, "notes": "Your note - functions called by apps or wrapper classes across the component boundary must remain public"},
     {"name": "Queries prefer withIndex() over filter()", "passed": true/false, "notes": "Your note - advisory only"},
     {"name": "Has clear TypeScript types and validator-driven shapes", "passed": true/false, "notes": "Your note - advisory only"},
     {"name": "Uses auth callback or app-side auth wrapper when needed", "passed": true/false, "notes": "Your note - advisory only; if auth is not relevant, say not applicable"},
-    {"name": "Package exports or client helpers look publish-ready", "passed": true/false, "notes": "Your note - advisory only; if packaging details are not visible in the repository, explain the uncertainty"}
+    {"name": "Package exports or client helpers look publish-ready", "passed": true/false, "notes": "Your note - advisory only; if packaging details are not visible in the repository, explain the uncertainty"},
+    {"name": "Public component functions have returns validators", "passed": true/false, "notes": "Your note - advisory only. The Convex docs recommend returns validators for type safety but do not require them. Missing returns should not fail the review."}
   ],
   "suggestions": "Improvement suggestions with references to official docs (e.g., 'See https://docs.convex.dev/components/authoring for...')"
 }`;

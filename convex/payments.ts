@@ -70,6 +70,7 @@ async function sendRewardThroughTremendous(
 
   const campaignId = process.env.TREMENDOUS_CAMPAIGN_ID?.trim();
   const externalId = `${params.externalIdPrefix}-${Date.now()}`;
+  const deliveryMessage = params.note?.trim();
 
   const requestBody = {
     external_id: externalId,
@@ -84,6 +85,11 @@ async function sendRewardThroughTremendous(
         },
         delivery: {
           method: "EMAIL",
+          ...(deliveryMessage && {
+            meta: {
+              message: deliveryMessage,
+            },
+          }),
         },
         recipient: {
           email: params.recipientEmail,
@@ -143,7 +149,7 @@ async function sendRewardThroughTremendous(
       error: undefined,
       isTest: params.isTest,
       sentBy: params.sentBy,
-      note: params.note,
+      note: deliveryMessage,
     });
 
     return { success: true };
@@ -161,7 +167,7 @@ async function sendRewardThroughTremendous(
       error: errorMessage,
       isTest: params.isTest,
       sentBy: params.sentBy,
-      note: params.note,
+      note: deliveryMessage,
     });
 
     return { success: false, error: errorMessage };

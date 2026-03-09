@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Shareable Netlify `llms.txt` redirect checklist for dev handoff (2026-03-09 17:53 UTC)
+  - Added `prds/netlify-llms-redirect-checklist.md` with a concise "What to fix" summary, dashboard checks, redeploy steps, and verification commands for the stale redirect issue
+  - Documents why markdown and badge routes can still work while `llms.txt` fails, and when to replace the redirect with an edge-function proxy
+
 - Discord username display on component detail pages (2026-03-09 21:55 UTC)
   - When a submitter provides a Discord username, it now appears in the sidebar below the repo link and above the Verified/Community badges
   - Displays the Phosphor `DiscordLogo` icon and links to the Convex community Discord at `https://www.convex.dev/community/`
@@ -35,6 +39,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- AI review prompt moved to v5 with component source detection and split validator criteria (2026-03-09 21:16 UTC)
+  - Updated `convex/aiReview.ts` so repository discovery checks all visible `convex.config.ts` files and prefers the config that uses `defineComponent()` over consumer apps that only use `defineApp()`
+  - Updated the default review prompt in both `convex/aiReview.ts` and `convex/aiSettings.ts` to add component source discovery guidance, keep 8 critical pass criteria, and expand advisory notes from 4 to 5 by splitting args validators from returns validators
+  - Clarified that missing public `returns` validators are advisory only, while missing public `args` validators remain a critical failure
+  - Updated the Admin AI Review Settings help text in `src/pages/Admin.tsx` to match the v5 review model
+  - Added shared prompt metadata in `shared/aiReviewPromptMeta.ts` so the review version label and updated date stay in sync across backend prompt files and the Admin prompt panel
+  - Verified with `npx tsc -p convex/tsconfig.json --noEmit --pretty false` and `npm run build`, which is the build command configured in `netlify.toml`
+
 - Submit page table now hides the desktop `Published` column and shows publish dates inside expanded submission details (2026-03-09 08:03 UTC)
   - Rebalanced the collapsed desktop table so `Maintainer`, `Downloads`, `Submitted`, and `Status` use equal-width columns in `src/pages/Submit.tsx`
   - Kept publish metadata available by moving it into the expanded details grid when a user opens a submission row
@@ -47,6 +59,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Applied identically to both `convex/aiReview.ts` (inline fallback prompt and `REVIEW_CRITERIA` array) and `convex/aiSettings.ts` (`DEFAULT_REVIEW_PROMPT` constant)
 
 ### Fixed
+
+- Tremendous reward notes now reach recipients as custom message copy instead of staying local to payment history only (2026-03-09 20:58 UTC)
+  - `convex/payments.ts` now forwards the optional note to Tremendous `delivery.meta.message` so the message appears in the reward email and landing page when provided
+  - The reward payload stays unchanged for sends without a note, which preserves existing package rewards and test reward behavior
+  - Updated reward and test reward modal labels in `src/pages/Admin.tsx` to clarify the field is a recipient-facing message
+  - Verified with `npm run build`
 
 - Profile submissions can now add or replace logos after the initial submit without losing owner-only protections (2026-03-09 06:25 UTC)
   - Added logo upload, replace, and clear controls to the edit modal in `src/pages/Profile.tsx`
