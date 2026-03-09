@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Admin category saves now stay visible in crowded categories on localhost (2026-03-08 23:25 UTC)
+  - Kept the admin editor in sync with reactive package detail updates and preserved explicit clear category handling in the save flow
+  - Added a remount key in `src/pages/Admin.tsx` so saved package detail props reset the editor instance cleanly
+  - Restored pagination for all Directory views including selected categories (12 cards initially, "Load more" for additional items) (2026-03-09 06:15 UTC)
+
 - Directory category selection now scrolls back to the top of the page so filtered results are visible immediately (2026-03-08 22:13 UTC)
   - Updated `src/pages/Directory.tsx` to route category changes through a shared selection handler
   - Added a smooth scroll reset to the directory header when users choose a sidebar category or mobile category pill

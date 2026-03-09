@@ -135,6 +135,34 @@ export function ComponentDetailsEditor({
 
   // Keep local state synced with reactive backend updates.
   useEffect(() => {
+    setComponentName(initialComponentName || "");
+  }, [initialComponentName]);
+
+  useEffect(() => {
+    setCategory(initialCategory || "");
+  }, [initialCategory]);
+
+  useEffect(() => {
+    setTags((initialTags || []).join(", "));
+  }, [initialTags]);
+
+  useEffect(() => {
+    setShortDescription(initialShortDesc || "");
+  }, [initialShortDesc]);
+
+  useEffect(() => {
+    setLongDescription(initialLongDesc || "");
+  }, [initialLongDesc]);
+
+  useEffect(() => {
+    setVideoUrl(initialVideoUrl || "");
+  }, [initialVideoUrl]);
+
+  useEffect(() => {
+    setDemoUrl(initialDemoUrl || "");
+  }, [initialDemoUrl]);
+
+  useEffect(() => {
     setSlug(initialSlug || "");
   }, [initialSlug]);
 
@@ -195,6 +223,7 @@ export function ComponentDetailsEditor({
         packageId: Id<"packages">;
         componentName?: string;
         category?: string;
+        clearCategory?: boolean;
         tags?: string[];
         shortDescription?: string;
         longDescription?: string;
@@ -212,6 +241,7 @@ export function ComponentDetailsEditor({
         packageId,
         componentName: componentName || undefined,
         category: category || undefined,
+        clearCategory: !category && initialCategory ? true : undefined,
         tags: parsedTags.length > 0 ? parsedTags : undefined,
         shortDescription: shortDescription || undefined,
         longDescription: longDescription || undefined,

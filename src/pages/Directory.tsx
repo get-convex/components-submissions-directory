@@ -125,6 +125,9 @@ export default function Directory() {
     return filteredComponents;
   }, [filteredComponents]);
 
+  const flatVisibleCount = visibleBySection["flat"] ?? flatCardsPerLoad;
+  const hasMoreFlatResults = displayComponents.length > flatVisibleCount;
+
   const loadMoreSection = (sectionKey: string, batchSize: number) => {
     setVisibleBySection((current) => ({
       ...current,
@@ -560,9 +563,7 @@ export default function Directory() {
             ) : components && displayComponents.length > 0 ? (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                  {displayComponents
-                    .slice(0, visibleBySection["flat"] ?? flatCardsPerLoad)
-                    .map((comp) => (
+                  {displayComponents.slice(0, flatVisibleCount).map((comp) => (
                       <ComponentCard
                         key={comp._id}
                         name={comp.name}
@@ -585,7 +586,7 @@ export default function Directory() {
                       />
                     ))}
                 </div>
-                {displayComponents.length > (visibleBySection["flat"] ?? flatCardsPerLoad) && (
+                {hasMoreFlatResults && (
                   <div className="mt-5 flex justify-center">
                     <button
                       onClick={() => loadMoreSection("flat", flatCardsPerLoad)}

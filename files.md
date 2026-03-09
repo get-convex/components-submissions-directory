@@ -365,7 +365,7 @@ Main package submission interface. Compact toolbar, package submission form, sea
 
 ### `src/pages/Directory.tsx`
 
-Component directory listing page at `/components/`. Features shared Header component, search, sort (newest, downloads, updated, rating, and verified), category sidebar, featured section, component cards grid, submit link, ChallengeBanner (above FAQ), and FAQSection at the bottom. No auth required to view. Sidebar uses `sticky top-20` positioning so Submit button remains visible below the header when scrolling. Category sections show 3 rows of cards initially before displaying "Load more" button (responsive: 12 cards on 4-column desktop, 9 on 3-column, etc.). Selecting a category from the desktop sidebar or mobile pills now smoothly scrolls the page back to the top of the directory header so the filtered results are immediately visible.
+Component directory listing page at `/components/`. Features shared Header component, search, sort (newest, downloads, updated, rating, and verified), category sidebar, featured section, component cards grid, submit link, ChallengeBanner (above FAQ), and FAQSection at the bottom. No auth required to view. Sidebar uses `sticky top-20` positioning so Submit button remains visible below the header when scrolling. All views (grouped categories, flat/search, and single selected category) show 12 cards initially (4 columns x 3 rows on desktop) with "Load more" button for additional items. Selecting a category from the desktop sidebar or mobile pills now smoothly scrolls the page back to the top of the directory header so the filtered results are immediately visible.
 
 
 ### `src/pages/SubmitForm.tsx`
@@ -669,6 +669,7 @@ Product requirements documents:
 - `admin-auto-ai-review-and-logo-thumbnail-gating.md`: Documents the switch from auto approve or reject to a single auto AI review workflow and records the logo-gated thumbnail automation clarification
 - `public-preflight-checker.md`: Public preflight checker allowing developers to validate their GitHub repo against review criteria before submitting
 - `admin-ai-review-history.md`: Implementation PRD for persistent AI review run logging and the admin-side review history drawer
+- `category-save-and-large-category-visibility.md`: Documents the admin category save investigation and the fix that shows full result sets when a specific directory category is selected
 - `mcp-streamable-http-migration.md`: Migration from dead `@anthropic-ai/mcp-server-fetch` npm proxy to Streamable HTTP transport. All MCP install configs now use direct URL with no npm dependency. Covers Cursor, Claude Desktop, and ChatGPT.
 
 All PRDs in this folder now include metadata headers (`Created`, `Last Updated`, `Status`) and a `Task completion log` section for agent session traceability.

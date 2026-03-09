@@ -4599,6 +4599,7 @@ export const updateComponentDetails = mutation({
     componentName: v.optional(v.string()),
     slug: v.optional(v.string()),
     category: v.optional(v.string()),
+    clearCategory: v.optional(v.boolean()),
     tags: v.optional(v.array(v.string())),
     shortDescription: v.optional(v.string()),
     longDescription: v.optional(v.string()),
@@ -4617,7 +4618,7 @@ export const updateComponentDetails = mutation({
   handler: async (ctx, args) => {
     await requireAdminIdentity(ctx);
 
-    const { packageId, clearThumbnail, slug, ...updates } = args;
+    const { packageId, clearThumbnail, clearCategory, slug, ...updates } = args;
 
     // Build patch object with only defined fields
     const patch: Record<string, unknown> = {};
@@ -4638,6 +4639,11 @@ export const updateComponentDetails = mutation({
         }
         patch.slug = slug;
       }
+    }
+
+    // Explicitly clear category when admin selects "None"
+    if (clearCategory) {
+      patch.category = undefined;
     }
 
     // Explicitly clear both URL and storage ID when requested from the editor.

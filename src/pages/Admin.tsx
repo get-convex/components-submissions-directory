@@ -350,6 +350,7 @@ function PackageComponentDetailsEditor({
 
       {isOpen && (
         <ComponentDetailsEditor
+          key={`${packageId}:${slug || ""}:${category || ""}:${componentName || ""}`}
           packageId={packageId}
           componentName={componentName}
           slug={slug}

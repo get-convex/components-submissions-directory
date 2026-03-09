@@ -4,6 +4,13 @@
 
 Session updates complete on 2026-03-08 22:13 UTC.
 
+- [x] fix admin category save perception and large category visibility (`prds/category-save-and-large-category-visibility.md`) (2026-03-08 23:25 UTC)
+  - Synced `ComponentDetailsEditor` state with reactive backend props and kept explicit category clearing support in the admin save flow
+  - Added a remount key in `src/pages/Admin.tsx` so saved package detail props reset the editor cleanly
+  - Updated `src/pages/Directory.tsx` to restore pagination for all views including selected categories
+  - Pagination shows 12 cards initially (4 columns x 3 rows on desktop) with "Load more" for additional items
+  - Verified with Convex mutation success logs, lint checks, and `npm run build`
+
 - [x] fix directory category selection scroll position (2026-03-08 22:13 UTC)
   - Updated `src/pages/Directory.tsx` so category selection runs through a shared handler for desktop and mobile filters
   - Added smooth scroll reset to the top of the directory header after a category change so the new results are visible immediately
