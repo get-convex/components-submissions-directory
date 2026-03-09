@@ -2,7 +2,7 @@
 
 ## to do
 
-Session updates complete on 2026-03-09 21:26 UTC.
+Session updates complete on 2026-03-09 22:22 UTC.
 
 - [x] link component detail categories to category pages and sync admin category slug lifecycle (`prds/category-detail-link-and-admin-sync.md`) (2026-03-09 05:19 UTC)
   - Linked the detail sidebar category pill to `/components/categories/:slug` only when the category still maps to an enabled public category
@@ -458,6 +458,11 @@ Acceptance checks:
 - [ ] - [ ] add payments api
 
 ## completed
+
+- [x] add component detail help modal (`prds/component-detail-help-modal.md`) (2026-03-09 22:22 UTC)
+  - Added a small `How to get help` trigger below the rating block in `src/pages/ComponentDetail.tsx`
+  - Added a lightweight help modal with author support guidance, Convex community link, and a muted third party component notice
+  - Matched the existing overlay, close button, backdrop click, and `Escape` behavior used by other app modals
 
 - [x] update AI review prompt to v5 with component source detection and split validator criteria (`prds/ai-review-prompt-v5.md`) (2026-03-09 21:16 UTC)
   - Updated `convex/aiReview.ts` so repo discovery prefers `defineComponent()` configs over consumer apps that only use `defineApp()`

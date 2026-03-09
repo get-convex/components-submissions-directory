@@ -27,6 +27,8 @@ import {
   FileTextIcon,
   ClipboardIcon,
   EyeOpenIcon,
+  QuestionMarkCircledIcon,
+  Cross2Icon,
 } from "@radix-ui/react-icons";
 import { AgentInstallSection } from "../components/AgentInstallSection";
 import { FileArrowDown, ClipboardText, DiscordLogo } from "@phosphor-icons/react";
@@ -233,6 +235,134 @@ function StarRating({ packageId }: { packageId: string }) {
   );
 }
 
+function ComponentHelpModal({
+  onClose,
+  repositoryUrl,
+}: {
+  onClose: () => void;
+  repositoryUrl?: string;
+}) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  const githubIssuesUrl = repositoryUrl ? `${repositoryUrl.replace(/\/$/, "")}/issues` : null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center pt-8 sm:pt-12 p-4 overflow-y-auto"
+      aria-modal="true"
+      role="dialog"
+    >
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-container bg-white border border-border shadow-lg p-6">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
+          aria-label="Close help modal"
+        >
+          <Cross2Icon className="w-4 h-4" />
+        </button>
+
+        <div className="mb-5 pr-8">
+          <h2 className="text-lg font-medium text-text-primary">How to get help</h2>
+          <p className="mt-1 text-sm text-text-secondary">
+            Package support usually starts with the author, then the Convex community.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <section>
+            <h3 className="text-xs font-medium uppercase tracking-wider text-text-primary mb-1.5">
+              Contact the component author
+            </h3>
+            <p className="text-sm text-text-secondary leading-relaxed">
+              For package specific bugs, install issues, and feature requests, contact the component
+              author through the GitHub repository or its Issues page.
+            </p>
+            {githubIssuesUrl ? (
+              <a
+                href={githubIssuesUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1.5 text-sm text-text-primary hover:underline"
+              >
+                <GitHubLogoIcon className="w-4 h-4" />
+                Open GitHub Issues
+                <ExternalLinkIcon className="w-3 h-3 text-text-secondary" />
+              </a>
+            ) : repositoryUrl ? (
+              <a
+                href={repositoryUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1.5 text-sm text-text-primary hover:underline"
+              >
+                <GitHubLogoIcon className="w-4 h-4" />
+                View repository
+                <ExternalLinkIcon className="w-3 h-3 text-text-secondary" />
+              </a>
+            ) : (
+              <p className="mt-2 text-xs text-text-secondary">
+                If no repository link is listed here, use the package links provided by the author.
+              </p>
+            )}
+          </section>
+
+          <section>
+            <h3 className="text-xs font-medium uppercase tracking-wider text-text-primary mb-1.5">
+              Community support
+            </h3>
+            <p className="text-sm text-text-secondary leading-relaxed">
+              For general community help, ask in the Convex Community Discord in the components
+              channel.
+            </p>
+            <a
+              href="https://convex.dev/community"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex items-center gap-1.5 text-sm text-text-primary hover:underline"
+            >
+              <DiscordLogo size={16} weight="bold" />
+              Open Convex community
+              <ExternalLinkIcon className="w-3 h-3 text-text-secondary" />
+            </a>
+          </section>
+
+          <section className="rounded-lg border border-border bg-bg-secondary px-3 py-3">
+            <h3 className="text-xs font-medium uppercase tracking-wider text-text-primary mb-1.5">
+              Third party component notice
+            </h3>
+            <p className="text-xs text-text-secondary leading-relaxed">
+              Community and third party components are provided by their authors. Convex does not
+              review, maintain, support, warrant, or assume responsibility for third party
+              components, including their code, security, licensing, behavior, or ongoing
+              availability. Review the source, license, and documentation before installing or using
+              any community component.
+            </p>
+          </section>
+        </div>
+
+        <div className="mt-5 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // GitHub issue shape (matches backend validator)
 interface GitHubIssue {
   number: number;
@@ -260,6 +390,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
   const [badgeCopied, setBadgeCopied] = useState(false);
   const [showMarkdown, setShowMarkdown] = useState(false);
   const [copyMenuOpen, setCopyMenuOpen] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   const [pageCopied, setPageCopied] = useState(false);
   const [mdCopied, setMdCopied] = useState(false);
   const [skillCopied, setSkillCopied] = useState(false);
@@ -656,6 +787,16 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
 
             {/* Rating stars */}
             <StarRating packageId={component._id} />
+
+            <div>
+              <button
+                onClick={() => setShowHelpModal(true)}
+                className="inline-flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary transition-colors"
+              >
+                <QuestionMarkCircledIcon className="w-3.5 h-3.5" />
+                How to get help
+              </button>
+            </div>
 
             {/* Back to Components (bottom of sidebar) */}
             <a
@@ -1362,6 +1503,12 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
           </main>
         </div>
       </div>
+      {showHelpModal && (
+        <ComponentHelpModal
+          onClose={() => setShowHelpModal(false)}
+          repositoryUrl={component.repositoryUrl}
+        />
+      )}
     </div>
   );
 }

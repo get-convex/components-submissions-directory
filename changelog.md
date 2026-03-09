@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Component detail help modal for support and install guidance (2026-03-09 22:22 UTC)
+  - Added a small `How to get help` trigger below the rating block in `src/pages/ComponentDetail.tsx`
+  - The new modal points users to the component author's GitHub Issues page when a repository URL is available
+  - Added a Convex community support link plus a smaller third party component notice for community installs
+
 - Shareable Netlify `llms.txt` redirect checklist for dev handoff (2026-03-09 17:53 UTC)
   - Added `prds/netlify-llms-redirect-checklist.md` with a concise "What to fix" summary, dashboard checks, redeploy steps, and verification commands for the stale redirect issue
   - Documents why markdown and badge routes can still work while `llms.txt` fails, and when to replace the redirect with an edge-function proxy
