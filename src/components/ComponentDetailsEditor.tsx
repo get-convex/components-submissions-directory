@@ -378,13 +378,16 @@ export function ComponentDetailsEditor({
   const handleGenerateThumbnail = async () => {
     setGeneratingThumb(true);
     try {
-      await generateThumbnail({
-        packageId,
-        templateId: selectedGenTemplate
-          ? (selectedGenTemplate as Id<"thumbnailTemplates">)
-          : undefined,
-      });
-      toast.success("Thumbnail generated");
+      const args: {
+        packageId: Id<"packages">;
+        templateId?: Id<"thumbnailTemplates">;
+      } = { packageId };
+      if (selectedGenTemplate) {
+        args.templateId = selectedGenTemplate as Id<"thumbnailTemplates">;
+      }
+
+      await generateThumbnail(args);
+      toast.success("Thumbnail generation started");
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Generation failed";
       toast.error(msg);

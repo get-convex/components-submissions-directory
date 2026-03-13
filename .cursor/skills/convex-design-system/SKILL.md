@@ -1,155 +1,256 @@
 ---
 name: convex-design-system
-description: Convex website design system components and patterns from the official Storybook. Use when building UI components, pages, or layouts that follow the Convex design language. Applies when working with React components, buttons, forms, banners, or cards.
+description: Convex UI component patterns from the live Storybook preview. Use when building React components, forms, modals, navigation, feedback states, or app layouts that should match the current Convex design system. Applies to both shared primitives and dashboard style product UI.
 ---
 
 # Convex Design System
 
-Reference for the Convex website component library. Source: https://website-storybook.previews.convex.dev/
+Use the live Storybook as the source of truth: `https://storybook.previews.convex.dev/`
 
-## Design tokens
+The current Storybook is broader than the older website only library. It now includes:
 
-Source: `@convex-dev/design-system` npm package + https://convex.dev/brand
+- primitives such as `Button`, `Callout`, `Checkbox`, `Combobox`, `Menu`, `Modal`, `MultiSelectCombobox`, `ProgressBar`, `Spinner`, and `TextInput`
+- shared `elements/*` building blocks such as `Avatar`, `Card`, `CopyButton`, `PaginationControls`, `Sidebar`, `Snippet`, and `ToastContainer`
+- product level `components/*`, `features/*`, and `lib/*` stories used across the Convex dashboard
 
-### Brand colors
-- **Red**: `#EE342F` (rgb 238, 52, 47)
-- **Yellow**: `#F3B01C` (rgb 243, 176, 28)
-- **Purple**: `#8D2676` (rgb 141, 38, 118)
+## How to use this skill
 
-### Theme colors (light mode)
-- **Background brand**: `rgb(249, 247, 238)` (warm cream)
-- **Background primary**: `rgb(243, 240, 237)` (warm light gray)
-- **Background secondary**: `rgb(253, 252, 250)` (near white)
-- **Background tertiary**: `rgb(240, 238, 235)`
-- **Content primary**: `rgb(42, 40, 37)` (near black)
-- **Content secondary**: `rgb(120, 118, 113)` (warm gray)
-- **Content link**: blue-700 `rgb(33, 34, 181)`
-- **Border transparent**: `rgba(33, 34, 30, 0.14)`
+When asked to build Convex style UI:
 
-### Theme colors (dark mode)
-- **Background primary**: `rgb(30, 28, 26)`
-- **Background secondary**: `rgb(42, 40, 37)`
-- **Background tertiary**: `rgb(60, 58, 65)`
-- **Content primary**: `rgb(255, 255, 255)`
-- **Content secondary**: `rgb(185, 177, 170)`
+1. Start with the smallest reusable primitive that matches the job.
+2. Reach for `elements/*` when the UI needs a shared layout or display pattern.
+3. Reuse `components/*` or `features/*` only when the request matches an existing dashboard pattern closely.
+4. Prefer composition over custom styling. Build from existing pieces before inventing a new wrapper.
+5. Do not rely on old website Storybook URLs or old token lists unless you verify them again.
 
-### Neutral scale (1-12)
-- n1: `rgb(222, 226, 234)` through n12: `rgb(24, 25, 28)`
+## Current Storybook map
 
-### Typography
-- **Display font**: "GT America", "Inter Variable", system sans-serif stack
-- **h1**: text-2xl
-- **h2**: text-xl
-- **h3**: text-lg font-semibold
-- **h4**: text-base font-semibold
-- **h5**: text-sm font-semibold
-- **Logo typeface**: Kanit (lambda hidden in the "x")
+### Primitives
 
-### Utility colors
-- **Accent**: `rgb(63, 82, 149)`
-- **Info**: `rgb(7, 191, 232)` (cyan)
-- **Success**: green-500 `rgb(79, 176, 20)`
-- **Warning**: yellow-500 `rgb(243, 176, 28)`
-- **Error/Danger**: red-500 `rgb(238, 52, 47)`
+Use these first for new UI:
 
-## Component quick reference
+- `Button`
+- `Callout`
+- `Checkbox`
+- `Combobox`
+- `KeyboardShortcut`
+- `Menu`
+- `Modal`
+- `MultiSelectCombobox`
+- `ProgressBar`
+- `Spinner`
+- `TextInput`
 
-### Components
+### Shared elements
 
-| Component | Purpose | Key Props |
-|-----------|---------|-----------|
-| Banner | Status messages (info, success, error) | `variant*`, `children*`, `className` |
-| Card | Clickable card linking to a page | `href*`, `children*`, `className` |
-| Code | Display code with copy button | `code*`, `className`, `buttonClassName` |
-| FeatureBanner | Promote a page with dark CTA banner | `title*`, `description*`, `href*`, `className` |
-| Markdown | Render styled markdown content | Supports headings, lists, code, links |
-| Placeholder | Placeholder/skeleton content | (see reference) |
+These cover reusable display and layout patterns:
 
-### Buttons
+- `elements/Avatar`
+- `elements/AvatarGrid`
+- `elements/Card`
+- `elements/CopyButton`
+- `elements/DetailPanel`
+- `elements/PaginationControls`
+- `elements/ReadonlyCode`
+- `elements/ReadonlyCodeDiff`
+- `elements/Sidebar`
+- `elements/Snippet`
+- `elements/ToastContainer`
+- `elements/UsagePeriodSelector`
 
-| Component | Purpose | Key Props |
-|-----------|---------|-----------|
-| Button | Standard button with variants | `children`, `size` (default "md"), `color` (default "yellow"), `disabled`, `onClick` |
-| GlowButton | CTA button with glow effect | `text*`, `href*`, `onClick`, `trackingEvent` |
+### Product and dashboard references
+
+These are useful as implementation references when the user asks for admin or dashboard UI:
+
+- `components/header/NavBar`
+- `components/header/Breadcrumbs`
+- `components/header/UsageBanner`
+- `components/billing/*`
+- `components/teamSettings/*`
+- `components/projectSettings/*`
+- `features/data/components/*`
+- `features/functions/components/*`
+- `features/health/components/*`
+- `features/logs/components/*`
+- `features/settings/components/*`
+- `lib/ConvexStatusBadge`
+- `lib/ConvexStatusWidget`
+
+## Verified primitive patterns
+
+These details were confirmed from the live Storybook controls.
+
+### Button
+
+Use for primary actions, neutral actions, destructive actions, and unstyled inline actions.
+
+- variants: `primary`, `danger`, `neutral`, `unstyled`
+- sizes: `xs`, `sm`, `md`, `lg`
+- supports: `icon`, `inline`, `focused`, `disabled`, `loading`, `tip`
+
+```tsx
+<Button variant="primary" size="md">
+  Save changes
+</Button>
+
+<Button variant="danger" size="sm" disabled>
+  Delete project
+</Button>
+```
+
+### Callout
+
+Use for inline page feedback and guidance blocks.
+
+- variants seen in controls: `instructions`, `error`, `hint`, `localDevUpsell`, `success`
+- accepts `children`
+
+```tsx
+<Callout variant="instructions">
+  Review the settings before continuing.
+</Callout>
+```
+
+### TextInput
+
+Use for standard form fields and search style inputs.
+
+- required in stories: `id`
+- supports: `label`, `labelHidden`, `description`, `error`
+- input types seen in controls: `text`, `search`, `email`, `time`, `password`, `number`
+- sizes: `sm`, `md`
+- supports addons and icons: `leftAddon`, `rightAddon`, `Icon`, `SearchIcon`
+- supports `isSearchLoading`
+
+```tsx
+<TextInput
+  id="project-name"
+  label="Project name"
+  type="text"
+  size="md"
+/>
+```
+
+### Checkbox
+
+Use for boolean settings and bulk selection states.
+
+- required in stories: `checked`, `onChange`
+- supports `disabled`
+- includes checked, unchecked, and indeterminate states
+
+```tsx
+<Checkbox
+  id="email-notifications"
+  checked={enabled}
+  onChange={setEnabled}
+/>
+```
+
+### Combobox
+
+Use for searchable single selection inputs.
+
+- required in stories: `label`, `options`, `setSelectedOption`
+- option shape: `{ label, value }`
+- supports `selectedOption`, `placeholder`, `searchPlaceholder`
+- supports `disableSearch`, `allowCustomValue`, `disabled`
+- sizes: `sm`, `md`
+
+```tsx
+<Combobox
+  label="Team"
+  options={teams}
+  selectedOption={teamId}
+  setSelectedOption={setTeamId}
+/>
+```
+
+### MultiSelectCombobox
+
+Use for searchable multi select inputs with count based labels.
+
+- required in stories: `options`, `unit`, `unitPlural`, `label`, `selectedOptions`
+- supports `labelHidden` and `disableSearch`
+
+```tsx
+<MultiSelectCombobox
+  label="Regions"
+  options={regions}
+  unit="region"
+  unitPlural="regions"
+  selectedOptions={selectedRegions}
+  setSelectedOptions={setSelectedRegions}
+/>
+```
+
+### Modal
+
+Use for focused workflows, confirmations, and settings flows.
+
+- required in stories: `title`, `onClose`, `children`
+- supports optional `description`
+- sizes: `sm`, `md`, `lg`
+
+```tsx
+<Modal
+  title="Invite team member"
+  description="Send access to a new teammate."
+  onClose={closeModal}
+  size="md"
+>
+  <InviteMemberForm />
+</Modal>
+```
+
+### ProgressBar and Spinner
+
+Use for loading and background work feedback.
+
+- `ProgressBar` stories include `indeterminate`, `empty`, `half`, `full`, `animated value`, and `solid`
+- `Spinner` has a default loading state story
+
+## Composition guidance
 
 ### Forms
 
-| Component | Purpose | Key Props |
-|-----------|---------|-----------|
-| Field | Label + input wrapper | `label`, `type` |
-| Fieldset | Group of fields | (see reference) |
-| SelectInput | Dropdown select | `options*` (`{label, value}[]`), `error`, `placeholder`, `defaultValue`, `disabled` |
-| TextInput | Single-line text input | `error`, `value`, `placeholder`, `disabled` |
-| TextareaInput | Multi-line text input | (see reference) |
+Build forms from:
 
-## Usage patterns
+- `TextInput`
+- `Checkbox`
+- `Combobox`
+- `MultiSelectCombobox`
+- `Button`
+- `Callout` for validation or setup guidance
 
-### Banner variants
+### Feedback states
 
-```tsx
-<Banner variant="info">This is an informational message.</Banner>
-<Banner variant="success">Operation completed.</Banner>
-<Banner variant="error">Something went wrong.</Banner>
-```
+Use:
 
-### Button variants
+- `Callout` for inline information, errors, and success states
+- `ProgressBar` for long running progress
+- `Spinner` for short blocking waits
+- `elements/ToastContainer` for transient feedback
 
-```tsx
-// Default yellow CTA
-<Button color="yellow" size="md">Click me</Button>
+### App layout
 
-// Disabled state
-<Button disabled>Cannot click</Button>
+Use these as references for admin style product UI:
 
-// Link style button
-<Button>Link text</Button>
+- `components/header/NavBar`
+- `components/header/Breadcrumbs`
+- `elements/Sidebar`
+- `elements/Card`
+- `elements/DetailPanel`
 
-// Glow CTA button (dark with glow effect)
-<GlowButton text="Start building" href="/docs" />
-```
+## Decision rules
 
-### Form inputs
-
-```tsx
-// Text input with states
-<TextInput placeholder="Enter text" />
-<TextInput error={true} />
-<TextInput disabled />
-
-// Select input
-<SelectInput
-  options={[
-    { label: "Option 1", value: "1" },
-    { label: "Option 2", value: "2" },
-  ]}
-  placeholder="Select an option..."
-/>
-
-// Field with label
-<Field label="First Name" type="text" />
-```
-
-### Card component
-
-```tsx
-// Basic card (used as basis for ImageCard and TemplateCard)
-<Card href="/page">Card content here</Card>
-```
-
-### Feature banner
-
-```tsx
-<FeatureBanner
-  title="Feature Banner"
-  description="This is the default feature banner."
-  href="/learn-more"
-/>
-```
+- If the request is a new button, input, modal, or filter control, use a primitive first.
+- If the request is a dashboard panel, code display, snippet, toast, or navigation shell, inspect `elements/*` next.
+- If the request matches billing, team settings, logs, data browser, or deployment settings, inspect the related `components/*` or `features/*` stories before building from scratch.
+- If a prop or state is unclear, check the live Storybook controls instead of guessing.
 
 ## Additional resources
 
-- For detailed component prop tables, see [reference.md](reference.md)
-- For complete color palette and CSS variables, see [tokens.md](tokens.md)
-- Live Storybook: https://website-storybook.previews.convex.dev/
-- Brand guidelines: https://convex.dev/brand
-- Design system package: `@convex-dev/design-system` on npm
+- Live Storybook: `https://storybook.previews.convex.dev/`
+- Brand guide: `https://convex.dev/brand`
+- Storybook index: `https://storybook.previews.convex.dev/index.json`

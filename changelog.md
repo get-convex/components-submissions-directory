@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Video support in long description markdown rendering on component detail pages (2026-03-12 22:45 UTC)
+  - Added `img` component override to `ReactMarkdown` in `src/pages/ComponentDetail.tsx` that renders native `<video>` elements for `.mp4`, `.webm`, and `.mov` source URLs instead of broken `<img>` tags
+  - Added `a` component override that does the same for links pointing to video files (GitHub sometimes wraps video references in anchor tags)
+  - Both video elements include `controls` and `playsInline` for playback on desktop and mobile
+  - Fixes gray box issue where GitHub README videos (like `SelfHosting.mp4` on `get-convex/static-hosting`) were rendered as unsupported image tags
+  - Non-video images continue to render normally with lazy loading
+
+- Shareable WorkOS admin auth feedback PRD for team review (2026-03-10 01:04 UTC)
+  - Added `prds/workos-admin-feedback-request.md` with the current admin access rule, WorkOS claim dependency, and a short question list for WorkOS best practice feedback
+  - Documents that admin access comes from `identity.email` in Convex and currently allows authenticated `@convex.dev` accounts
+
 - Component detail help modal for support and install guidance (2026-03-09 22:22 UTC)
   - Added a small `How to get help` trigger below the rating block in `src/pages/ComponentDetail.tsx`
   - The new modal points users to the component author's GitHub Issues page when a repository URL is available
@@ -44,6 +55,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- AI review prompt moved to v6 with package entry point checks and wrapper-aware component guidance (2026-03-13 04:39 UTC)
+  - Updated `convex/aiReview.ts` review criteria and prompt text to add a critical `package.json` entry point check for `./convex.config.js` and `./_generated/component.js`, while calling out `/test` support explicitly
+  - Reframed component source discovery so a top-level `convex/` directory is no longer treated as a normal packaged component pattern unless surrounding package evidence supports it
+  - Clarified that React hooks, classes, and helper APIs may be exported by a component package even though component functions remain server-only across the boundary
+  - Expanded GitHub repo snapshots in `convex/aiReview.ts` to include `package.json` plus visible client and test entry files so entry point and wrapper checks are based on visible evidence
+  - Mirrored the same v6 default review prompt in `convex/aiSettings.ts`, bumped `shared/aiReviewPromptMeta.ts`, and added PRD `prds/ai-review-prompt-v6.md`
+
 - AI review prompt moved to v5 with component source detection and split validator criteria (2026-03-09 21:16 UTC)
   - Updated `convex/aiReview.ts` so repository discovery checks all visible `convex.config.ts` files and prefers the config that uses `defineComponent()` over consumer apps that only use `defineApp()`
   - Updated the default review prompt in both `convex/aiReview.ts` and `convex/aiSettings.ts` to add component source discovery guidance, keep 8 critical pass criteria, and expand advisory notes from 4 to 5 by splitting args validators from returns validators
@@ -64,6 +82,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Applied identically to both `convex/aiReview.ts` (inline fallback prompt and `REVIEW_CRITERIA` array) and `convex/aiSettings.ts` (`DEFAULT_REVIEW_PROMPT` constant)
 
 ### Fixed
+
+- Submit success modal action buttons now use the standard rounded button shape instead of pill styling (2026-03-12 17:06 UTC)
+  - Updated `src/pages/SubmitForm.tsx` so `View My Submissions` and `Back to Directory` use `rounded-lg`, which matches the modal's surrounding shape language more closely
+  - Synced `task.md`, `changelog.md`, and `files.md` and rechecked the Netlify build with `npm run build`
+
+- Thumbnail generation from the admin component editor now queues through a public Convex wrapper action instead of calling the worker path directly (2026-03-12 17:05 UTC)
+  - Updated `convex/thumbnailGenerator.ts` so `generateThumbnailForPackage` verifies admin access and schedules new internal worker `_generateThumbnailForPackage`
+  - Keeps the real image composition work on the private worker path, which avoids the runtime `Called by client` failure seen from `src/components/ComponentDetailsEditor.tsx`
+  - Updated the editor success toast to reflect queued behavior with `Thumbnail generation started`
+  - Verified Convex sync passes with `npx convex dev --once --typecheck disable`
 
 - Tremendous reward notes now reach recipients as custom message copy instead of staying local to payment history only (2026-03-09 20:58 UTC)
   - `convex/payments.ts` now forwards the optional note to Tremendous `delivery.meta.message` so the message appears in the reward email and landing page when provided

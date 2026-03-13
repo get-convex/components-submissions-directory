@@ -2,7 +2,25 @@
 
 ## to do
 
-Session updates complete on 2026-03-09 22:22 UTC.
+Session updates complete on 2026-03-12 22:45 UTC.
+
+- [x] add video support in long description markdown rendering (2026-03-12 22:45 UTC)
+  - Added `img` and `a` component overrides to `ReactMarkdown` in `src/pages/ComponentDetail.tsx`
+  - URLs ending in `.mp4`, `.webm`, or `.mov` now render as native `<video>` elements with controls instead of broken `<img>` tags or gray boxes
+  - Fixes the issue where GitHub README videos (like `SelfHosting.mp4`) showed as unplayable content on component detail pages
+  - Verified with `npm run build`
+
+- [x] update AI review prompt to v6 with package entry point checks and wrapper guidance (`prds/ai-review-prompt-v6.md`) (2026-03-13 04:39 UTC)
+  - Added a new critical criterion for required package entry points in `package.json`, including `./convex.config.js` and `./_generated/component.js`
+  - Reframed component source discovery so top-level `convex/` is not treated as a normal packaged component pattern without supporting package evidence
+  - Clarified that hooks, classes, and helper APIs may be exported by the package while component functions remain server-only across the boundary
+  - Expanded `convex/aiReview.ts` GitHub repo snapshots to include `package.json` plus visible client and test entry files
+  - Mirrored the same v6 prompt in `convex/aiSettings.ts` and bumped shared metadata in `shared/aiReviewPromptMeta.ts`
+
+- [x] add shareable WorkOS admin auth feedback PRD (`prds/workos-admin-feedback-request.md`) (2026-03-10 01:04 UTC)
+  - Summarized how this app grants admin access from WorkOS claims in `convex/auth.ts`
+  - Documented that admin access is domain based on `identity.email` ending with `@convex.dev`, not a single hardcoded email
+  - Added a short WorkOS feedback question list covering admin claims, roles, and JWT template best practices
 
 - [x] link component detail categories to category pages and sync admin category slug lifecycle (`prds/category-detail-link-and-admin-sync.md`) (2026-03-09 05:19 UTC)
   - Linked the detail sidebar category pill to `/components/categories/:slug` only when the category still maps to an enabled public category
@@ -458,6 +476,17 @@ Acceptance checks:
 - [ ] - [ ] add payments api
 
 ## completed
+
+- [x] fix submit success modal button roundness and sync session docs (2026-03-12 17:06 UTC)
+  - Updated `src/pages/SubmitForm.tsx` so `View My Submissions` and `Back to Directory` use `rounded-lg` instead of pill styling in the success modal
+  - Synced `task.md`, `changelog.md`, and `files.md` for this session change
+  - Verified with `npm run build`
+
+- [x] fix admin thumbnail generation client error (2026-03-12 17:05 UTC)
+  - Updated `convex/thumbnailGenerator.ts` so the public admin action now verifies access and queues internal worker `_generateThumbnailForPackage`
+  - Kept image composition on the private worker path to avoid the Convex runtime `Called by client` error from `ComponentDetailsEditor`
+  - Updated `src/components/ComponentDetailsEditor.tsx` to send only defined action args and show `Thumbnail generation started`
+  - Verified with `npx convex dev --once --typecheck disable` and `npm run build`
 
 - [x] add component detail help modal (`prds/component-detail-help-modal.md`) (2026-03-09 22:22 UTC)
   - Added a small `How to get help` trigger below the rating block in `src/pages/ComponentDetail.tsx`

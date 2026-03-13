@@ -6,6 +6,7 @@ import { v } from "convex/values";
 import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
+import { requireAdminIdentity } from "./auth";
 import { Jimp } from "jimp";
 
 // Canvas dimensions for 16:9 thumbnail
@@ -18,6 +19,26 @@ const LOGO_MAX_RATIO = 0.6;
 
 // Generate a thumbnail for a single package
 export const generateThumbnailForPackage = action({
+  args: {
+    packageId: v.id("packages"),
+    templateId: v.optional(v.id("thumbnailTemplates")),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
+    await ctx.scheduler.runAfter(
+      0,
+      internal.thumbnailGenerator._generateThumbnailForPackage,
+      args,
+    );
+
+    return null;
+  },
+});
+
+// Internal worker used by the public admin action.
+export const _generateThumbnailForPackage = internalAction({
   args: {
     packageId: v.id("packages"),
     templateId: v.optional(v.id("thumbnailTemplates")),

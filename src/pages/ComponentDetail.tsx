@@ -1165,7 +1165,41 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                             {children}
                           </p>
                         ),
+                        img: ({ src, alt }) => {
+                          if (src && /\.(mp4|webm|mov)(\?.*)?$/i.test(src)) {
+                            return (
+                              <video
+                                src={src}
+                                controls
+                                playsInline
+                                className="w-full rounded-lg my-4"
+                                title={alt || "Video"}>
+                                Your browser does not support the video tag.
+                              </video>
+                            );
+                          }
+                          return (
+                            <img
+                              src={src}
+                              alt={alt || ""}
+                              className="max-w-full rounded-lg"
+                              loading="lazy"
+                            />
+                          );
+                        },
                         a: ({ href, children }) => {
+                          if (href && /\.(mp4|webm|mov)(\?.*)?$/i.test(href)) {
+                            return (
+                              <video
+                                src={href}
+                                controls
+                                playsInline
+                                className="w-full rounded-lg my-4"
+                                title={typeof children === "string" ? children : "Video"}>
+                                Your browser does not support the video tag.
+                              </video>
+                            );
+                          }
                           const isExternal = Boolean(href?.startsWith("http"));
                           return (
                             <a

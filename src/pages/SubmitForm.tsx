@@ -44,12 +44,12 @@ function SuccessModal({ onClose }: { onClose: () => void }) {
             <div className="mt-4 flex flex-row gap-3">
               <a
                 href={`${basePath}/profile`}
-                className="inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-medium bg-button text-white hover:bg-button-hover transition-colors">
+                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-button text-white hover:bg-button-hover transition-colors">
                 View My Submissions
               </a>
               <a
                 href={`${basePath}/`}
-                className="inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors">
+                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors">
                 Back to Directory
               </a>
             </div>
