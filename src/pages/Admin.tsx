@@ -331,7 +331,18 @@ function PackageComponentDetailsEditor({
 
   return (
     <div className="mt-4 p-3 rounded-lg bg-bg-hover/30 border border-border">
-      <div className="flex items-center justify-between gap-3">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setIsOpen((prev) => !prev)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setIsOpen((prev) => !prev);
+          }
+        }}
+        className="flex items-center justify-between gap-3 cursor-pointer select-none"
+      >
         <div>
           <h4 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
             Component Details
@@ -340,13 +351,9 @@ function PackageComponentDetailsEditor({
             Edit submitter provided component details.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setIsOpen((prev) => !prev)}
-          className="px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors"
-        >
+        <span className="px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors">
           {isOpen ? "Hide editor" : "Edit details"}
-        </button>
+        </span>
       </div>
 
       {isOpen && (
@@ -611,6 +618,63 @@ function SubmitterEmailEditor({
   );
 }
 
+function AuthorToggleSection({
+  packageId,
+  submitterEmail,
+  additionalEmails,
+  submitterName,
+  submitterDiscord,
+}: {
+  packageId: Id<"packages">;
+  submitterEmail?: string;
+  additionalEmails?: string[];
+  submitterName?: string;
+  submitterDiscord?: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="mb-3 p-3 rounded-lg bg-bg-hover/30 border border-border">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setIsOpen((prev) => !prev)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setIsOpen((prev) => !prev);
+          }
+        }}
+        className="flex items-center justify-between gap-3 cursor-pointer select-none"
+      >
+        <div>
+          <h4 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
+            Component Author
+          </h4>
+          <p className="text-xs text-text-secondary mt-1">
+            Submitter name, email, and contact info.
+          </p>
+        </div>
+        <span className="px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors">
+          {isOpen ? "Hide author" : "Show author"}
+        </span>
+      </div>
+
+      {isOpen && (
+        <div className="mt-3">
+          <SubmitterEmailEditor
+            packageId={packageId}
+            submitterEmail={submitterEmail}
+            additionalEmails={additionalEmails}
+            submitterName={submitterName}
+            submitterDiscord={submitterDiscord}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PackageMetadataEditor({
   packageId,
   initialName,
@@ -688,7 +752,18 @@ function PackageMetadataEditor({
 
   return (
     <div className="mt-3 p-3 rounded-lg bg-bg-hover/30 border border-border">
-      <div className="flex items-center justify-between gap-3">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => setIsOpen((prev) => !prev)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setIsOpen((prev) => !prev);
+          }
+        }}
+        className="flex items-center justify-between gap-3 cursor-pointer select-none"
+      >
         <div>
           <h4 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
             Package Metadata
@@ -697,13 +772,9 @@ function PackageMetadataEditor({
             Manual override for npm and repository sourced fields.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setIsOpen((prev) => !prev)}
-          className="px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors"
-        >
+        <span className="px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors">
           {isOpen ? "Hide editor" : "Edit metadata"}
-        </button>
+        </span>
       </div>
 
       {isOpen && (
@@ -2017,11 +2088,13 @@ function AiReviewHistoryPanel({
   packageName,
   isOpen,
   onClose,
+  reviewedBy,
 }: {
   packageId: Id<"packages">;
   packageName: string;
   isOpen: boolean;
   onClose: () => void;
+  reviewedBy?: string;
 }) {
   const reviewRuns = useQuery(api.packages.getAiReviewRunsForPackage, { packageId });
   const deleteAiReviewRun = useMutation(api.packages.deleteAiReviewRun);
@@ -2251,6 +2324,12 @@ function AiReviewHistoryPanel({
                       </button>
                     )}
                   </div>
+
+                  {reviewedBy && (
+                    <p className="mt-3 text-xs text-text-secondary">
+                      Reviewed by {reviewedBy}
+                    </p>
+                  )}
 
                   <div className="mt-4 grid gap-2 text-xs text-text-secondary sm:grid-cols-2 xl:grid-cols-4">
                     <div className="rounded-lg border border-border bg-bg-primary px-3 py-2">
@@ -2678,6 +2757,7 @@ function InlineActions({
   submitterEmail,
   rewardStatus,
   defaultRewardAmount,
+  reviewedBy,
 }: {
   packageId: Id<"packages">;
   currentStatus: ReviewStatus | undefined;
@@ -2701,6 +2781,7 @@ function InlineActions({
   submitterEmail?: string;
   rewardStatus?: "not_sent" | "sent" | "delivered" | "failed";
   defaultRewardAmount?: number;
+  reviewedBy?: string;
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -3025,9 +3106,17 @@ function InlineActions({
     }
   };
 
+  const rewardAllowedStatuses: ReviewStatus[] = ["in_review", "approved"];
+  const canSendReward = rewardAllowedStatuses.includes(status as ReviewStatus);
+
   // Send reward handler
   const handleSendReward = async () => {
     if (isSendingReward || !submitterEmail) return;
+
+    if (!canSendReward) {
+      toast.error(`Rewards can only be sent for packages in review or approved status. Current: ${status}`);
+      return;
+    }
     
     const amount = parseFloat(rewardAmount);
     if (isNaN(amount) || amount <= 0) {
@@ -3301,16 +3390,18 @@ function InlineActions({
               content={
                 !submitterEmail 
                   ? "No submitter email on this package" 
-                  : rewardStatus === "sent" || rewardStatus === "delivered"
-                    ? "Reward already sent"
-                    : rewardStatus === "failed"
-                      ? "Previous reward failed - click to retry"
-                      : "Send reward to submitter"
+                  : !canSendReward
+                    ? `Rewards require in review or approved status (current: ${status})`
+                    : rewardStatus === "sent" || rewardStatus === "delivered"
+                      ? "Reward already sent"
+                      : rewardStatus === "failed"
+                        ? "Previous reward failed - click to retry"
+                        : "Send reward to submitter"
               }
             >
               <button
                 onClick={() => setShowRewardConfirm(true)}
-                disabled={isLoading || !submitterEmail || isSendingReward}
+                disabled={isLoading || !submitterEmail || isSendingReward || !canSendReward}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all disabled:opacity-50 ${
                   rewardStatus === "sent" || rewardStatus === "delivered"
                     ? "bg-green-600 text-white border-green-600"
@@ -3763,6 +3854,7 @@ function InlineActions({
         packageName={packageName}
         isOpen={showAiReviewHistory}
         onClose={() => setShowAiReviewHistory(false)}
+        reviewedBy={reviewedBy}
       />
     </>
   );
@@ -7638,22 +7730,15 @@ function AdminDashboard({
                           <p className="text-sm text-text-secondary mb-3 line-clamp-2">
                             {pkg.description}
                           </p>
-                          {pkg.reviewedBy && (
-                            <p className="text-xs text-text-secondary mb-3">
-                              Reviewed by {pkg.reviewedBy}
-                            </p>
-                          )}
 
                           {/* Submitter Info (name, discord, email all editable) */}
-                          <div className="space-y-2 mb-3">
-                            <SubmitterEmailEditor
-                              packageId={pkg._id}
-                              submitterEmail={pkg.submitterEmail}
-                              additionalEmails={pkg.additionalEmails}
-                              submitterName={pkg.submitterName}
-                              submitterDiscord={pkg.submitterDiscord}
-                            />
-                          </div>
+                          <AuthorToggleSection
+                            packageId={pkg._id}
+                            submitterEmail={pkg.submitterEmail}
+                            additionalEmails={pkg.additionalEmails}
+                            submitterName={pkg.submitterName}
+                            submitterDiscord={pkg.submitterDiscord}
+                          />
 
                           {/* AI Review Results */}
                           <AiReviewResultsPanel
@@ -7819,6 +7904,7 @@ function AdminDashboard({
                         submitterEmail={pkg.submitterEmail}
                         rewardStatus={pkg.rewardStatus}
                         defaultRewardAmount={defaultRewardAmount}
+                        reviewedBy={pkg.reviewedBy}
                       />
                     </div>
                   )}

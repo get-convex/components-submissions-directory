@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Admin package cards no longer duplicate the `Reviewed by` label outside AI review history (2026-03-13 21:40 UTC)
+  - Removed the inline `Reviewed by` line from the expanded package card in `src/pages/Admin.tsx`
+  - Kept the same reviewer attribution visible in the AI Review History drawer detail pane so the metadata still appears during run inspection
+
+- Reward sending now gated by package reviewStatus (2026-03-13 20:00 UTC)
+  - Rewards can only be sent for packages with `in_review` or `approved` status, preventing payouts for pending or rejected submissions
+  - Backend guard in `convex/payments.ts` returns descriptive error if status is wrong
+  - Admin UI disables the Send Reward button with tooltip when status does not qualify
+  - Added `backfillRewardStatusFromPayments` mutation to reconcile packages where Tremendous succeeded but `rewardStatus`/`rewardTotalAmount` fell out of sync
+
+### Changed
+
+- Admin collapsible toggle boxes now expand on full row click (2026-03-13 21:30 UTC)
+  - Component Author, Component Details, and Package Metadata sections all use the same click-anywhere-to-expand pattern
+  - Replaced inner `<button>` elements with clickable `<div>` wrappers with keyboard accessibility (`Enter`/`Space`)
+  - Pill label on the right still visually indicates the toggle state
+
+- Collapsed author info behind a toggle in admin package cards (2026-03-13 20:15 UTC)
+  - New `AuthorToggleSection` component in `src/pages/Admin.tsx` wraps submitter email, name, and Discord fields behind a show/hide button
+  - Styled to match Component Details and Package Metadata boxes (rounded border, bg-bg-hover/30, uppercase header, subtitle)
+  - Defaults to hidden, reducing card clutter and protecting PII at a glance
+
 ### Added
 
 - Video support in long description markdown rendering on component detail pages (2026-03-12 22:45 UTC)

@@ -184,7 +184,6 @@ export const sendReward = internalAction({
     note: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<RewardSendResult> => {
-    // Get package data
     const pkg = await ctx.runQuery(internal.paymentsDb._getPackageForReward, {
       packageId: args.packageId,
     });
@@ -195,6 +194,14 @@ export const sendReward = internalAction({
 
     if (!pkg.submitterEmail) {
       return { success: false, error: "No submitter email on this package" };
+    }
+
+    const allowedStatuses = ["in_review", "approved"];
+    if (!pkg.reviewStatus || !allowedStatuses.includes(pkg.reviewStatus)) {
+      return {
+        success: false,
+        error: `Rewards can only be sent for packages in review or approved status. Current status: ${pkg.reviewStatus ?? "pending"}`,
+      };
     }
 
     return await sendRewardThroughTremendous(ctx, {

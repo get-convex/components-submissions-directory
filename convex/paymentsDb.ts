@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalMutation, internalQuery, query } from "./_generated/server";
+import { mutation, internalMutation, internalQuery, query } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 
 // Internal query to get package data for reward
 export const _getPackageForReward = internalQuery({
@@ -128,6 +129,84 @@ export const getPaymentsForPackage = query({
       .order("desc")
       .collect();
     return payments;
+  },
+});
+
+// Backfill: reconcile package rewardStatus/rewardTotalAmount from actual payment records.
+// Useful when a payment went through Tremendous but the package fields are out of sync.
+export const backfillRewardStatusFromPayments = mutation({
+  args: {},
+  returns: v.object({
+    packagesUpdated: v.number(),
+    details: v.array(
+      v.object({
+        packageId: v.string(),
+        packageName: v.string(),
+        oldRewardStatus: v.optional(v.string()),
+        newRewardStatus: v.string(),
+        oldTotal: v.number(),
+        newTotal: v.number(),
+      }),
+    ),
+  }),
+  handler: async (ctx) => {
+    const allPayments = await ctx.db.query("payments").collect();
+
+    // Group successful non-test payments by packageId
+    const packagePayments: Record<string, { total: number; hasSent: boolean; hasDelivered: boolean }> = {};
+
+    for (const payment of allPayments) {
+      if (payment.isTest || !payment.packageId) continue;
+      if (payment.status !== "sent" && payment.status !== "delivered") continue;
+
+      const key = payment.packageId as string;
+      if (!packagePayments[key]) {
+        packagePayments[key] = { total: 0, hasSent: false, hasDelivered: false };
+      }
+      packagePayments[key].total += payment.amount;
+      if (payment.status === "delivered") {
+        packagePayments[key].hasDelivered = true;
+      } else {
+        packagePayments[key].hasSent = true;
+      }
+    }
+
+    const details: Array<{
+      packageId: string;
+      packageName: string;
+      oldRewardStatus: string | undefined;
+      newRewardStatus: string;
+      oldTotal: number;
+      newTotal: number;
+    }> = [];
+
+    for (const [pkgIdStr, data] of Object.entries(packagePayments)) {
+      const pkgId = pkgIdStr as Id<"packages">;
+      const pkg = await ctx.db.get(pkgId);
+      if (!pkg) continue;
+
+      const newRewardStatus = data.hasDelivered ? "delivered" : "sent";
+      const oldTotal = pkg.rewardTotalAmount ?? 0;
+      const oldStatus = pkg.rewardStatus;
+
+      if (oldStatus !== newRewardStatus || Math.abs(oldTotal - data.total) > 0.001) {
+        await ctx.db.patch(pkgId, {
+          rewardStatus: newRewardStatus,
+          rewardTotalAmount: data.total,
+        });
+
+        details.push({
+          packageId: pkgIdStr,
+          packageName: pkg.name ?? "Unknown",
+          oldRewardStatus: oldStatus,
+          newRewardStatus,
+          oldTotal,
+          newTotal: data.total,
+        });
+      }
+    }
+
+    return { packagesUpdated: details.length, details };
   },
 });
 
