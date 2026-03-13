@@ -7333,7 +7333,8 @@ function AdminDashboard({
     | "downloads"
     | "verified"
     | "community"
-    | "featured";
+    | "featured"
+    | "approved_at";
   const [sortBy, setSortBy] = useState<SortOption>("newest");
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [activeSettingsSection, setActiveSettingsSection] = useState<string>(
@@ -7413,6 +7414,7 @@ function AdminDashboard({
     { value: "name_asc", label: "Name A-Z" },
     { value: "name_desc", label: "Name Z-A" },
     { value: "downloads", label: "Most downloads" },
+    { value: "approved_at", label: "Recently approved" },
     { value: "verified", label: "Verified first" },
     { value: "community", label: "Community first" },
     { value: "featured", label: "Featured first" },
@@ -7489,6 +7491,10 @@ function AdminDashboard({
           return b.name.localeCompare(a.name);
         case "downloads":
           return b.weeklyDownloads - a.weeklyDownloads;
+        case "approved_at": {
+          const approvedSort = (b.approvedAt ?? 0) - (a.approvedAt ?? 0);
+          return approvedSort !== 0 ? approvedSort : b.submittedAt - a.submittedAt;
+        }
         case "verified": {
           const verifiedSort = Number(Boolean(b.convexVerified))
             - Number(Boolean(a.convexVerified));
@@ -7516,6 +7522,20 @@ function AdminDashboard({
       month: "short",
       day: "numeric",
     });
+  };
+
+  const getSubmissionDateMeta = (pkg: { submittedAt: number; approvedAt?: number }) => {
+    if (sortBy === "approved_at" && pkg.approvedAt) {
+      return {
+        label: "Approved",
+        timestamp: pkg.approvedAt,
+      };
+    }
+
+    return {
+      label: "Submitted",
+      timestamp: pkg.submittedAt,
+    };
   };
 
   return (
@@ -7668,6 +7688,7 @@ function AdminDashboard({
               )
               .map((pkg) => {
               const isExpanded = expandedPackages.has(pkg._id);
+              const dateMeta = getSubmissionDateMeta(pkg);
               return (
                 <div
                   key={pkg._id}
@@ -7717,7 +7738,7 @@ function AdminDashboard({
                       <span className="hidden sm:inline">
                         {pkg.weeklyDownloads.toLocaleString()}/wk
                       </span>
-                      <span>{formatDate(pkg.submittedAt)}</span>
+                      <span>{formatDate(dateMeta.timestamp)}</span>
                     </div>
                   </button>
 
@@ -7809,11 +7830,11 @@ function AdminDashboard({
                               </div>
                             </Tooltip>
                             <Tooltip
-                              content={`Submitted: ${formatDate(pkg.submittedAt)}`}
+                              content={`${dateMeta.label}: ${formatDate(dateMeta.timestamp)}`}
                             >
                               <div className="flex items-center gap-1">
                                 <CalendarBlank size={14} />
-                                <span>{formatDate(pkg.submittedAt)}</span>
+                                <span>{formatDate(dateMeta.timestamp)}</span>
                               </div>
                             </Tooltip>
                           </div>

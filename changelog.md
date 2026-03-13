@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Admin submissions can now be viewed by approval date from the sort dropdown (2026-03-13 22:33 UTC)
+  - Added a `Recently approved` sort option in `src/pages/Admin.tsx` backed by the existing `approvedAt` field
+  - When selected, package cards show the approval date in the row summary and expanded calendar tooltip instead of the submitted date
+  - Verified the Netlify production build with `npm run build` (2026-03-13 22:35 UTC)
+
 - Admin package cards no longer duplicate the `Reviewed by` label outside AI review history (2026-03-13 21:40 UTC)
   - Removed the inline `Reviewed by` line from the expanded package card in `src/pages/Admin.tsx`
   - Kept the same reviewer attribution visible in the AI Review History drawer detail pane so the metadata still appears during run inspection

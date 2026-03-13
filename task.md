@@ -2,7 +2,14 @@
 
 ## to do
 
-Session updates complete on 2026-03-13 21:40 UTC.
+Session updates complete on 2026-03-13 22:35 UTC.
+
+- [x] add approved date sort view to admin submissions (2026-03-13 22:33 UTC)
+  - Added a `Recently approved` option to the Package Submissions sort dropdown in `src/pages/Admin.tsx`
+  - Sort now uses existing `approvedAt` data with submitted date fallback for items that do not have an approval timestamp
+  - When that sort is active, the row date and expanded calendar tooltip show the approval date instead of the submission date
+  - Verified with a lint pass on `src/pages/Admin.tsx`
+  - Verified Netlify production build with `npm run build` (2026-03-13 22:35 UTC)
 
 - [x] finish admin review history reviewed by placement and sync session docs (2026-03-13 21:40 UTC)
   - Removed the duplicate `Reviewed by` line from the expanded package card in `src/pages/Admin.tsx`
