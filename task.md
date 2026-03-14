@@ -2,7 +2,15 @@
 
 ## to do
 
-Session updates complete on 2026-03-13 22:35 UTC.
+Session updates complete on 2026-03-14 UTC.
+
+- [x] add editable SEO content fields to admin Component Details editor (2026-03-14 UTC)
+  - Created `updateSeoContent` public admin mutation in `convex/seoContentDb.ts` that patches SEO fields directly without AI regeneration
+  - Extracted `SeoContentSection` component in `src/components/ComponentDetailsEditor.tsx` with inline editing for all SEO fields (value prop, benefits, use cases, FAQ, resource links, SKILL.md)
+  - All textarea fields use `resize-y` so admins can drag to expand
+  - Passed `seoBenefits`, `seoUseCases`, `seoFaq`, `seoResourceLinks` from `src/pages/Admin.tsx` through to the editor
+  - Confirmed AI SEO only triggers from Regenerate button or auto-generate admin setting
+  - Verified with `npx tsc --noEmit` and `npm run build` (Netlify build passes)
 
 - [x] add approved date sort view to admin submissions (2026-03-13 22:33 UTC)
   - Added a `Recently approved` option to the Package Submissions sort dropdown in `src/pages/Admin.tsx`

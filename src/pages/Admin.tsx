@@ -298,6 +298,10 @@ function PackageComponentDetailsEditor({
   seoGeneratedAt,
   seoGenerationError,
   seoValueProp,
+  seoBenefits,
+  seoUseCases,
+  seoFaq,
+  seoResourceLinks,
   skillMd,
   npmDescription,
 }: {
@@ -324,6 +328,10 @@ function PackageComponentDetailsEditor({
   seoGeneratedAt?: number;
   seoGenerationError?: string;
   seoValueProp?: string;
+  seoBenefits?: string[];
+  seoUseCases?: { query: string; answer: string }[];
+  seoFaq?: { question: string; answer: string }[];
+  seoResourceLinks?: { label: string; url: string }[];
   skillMd?: string;
   npmDescription?: string;
 }) {
@@ -382,6 +390,10 @@ function PackageComponentDetailsEditor({
           seoGeneratedAt={seoGeneratedAt}
           seoGenerationError={seoGenerationError}
           seoValueProp={seoValueProp}
+          seoBenefits={seoBenefits}
+          seoUseCases={seoUseCases}
+          seoFaq={seoFaq}
+          seoResourceLinks={seoResourceLinks}
           skillMd={skillMd}
           npmDescription={npmDescription}
         />
@@ -7798,6 +7810,10 @@ function AdminDashboard({
                             seoGeneratedAt={pkg.seoGeneratedAt}
                             seoGenerationError={pkg.seoGenerationError}
                             seoValueProp={pkg.seoValueProp}
+                            seoBenefits={pkg.seoBenefits}
+                            seoUseCases={pkg.seoUseCases}
+                            seoFaq={pkg.seoFaq}
+                            seoResourceLinks={pkg.seoResourceLinks}
                             skillMd={pkg.skillMd}
                             npmDescription={pkg.description}
                           />

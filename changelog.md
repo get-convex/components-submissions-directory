@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Editable AI SEO content fields in admin Component Details editor (2026-03-14 UTC)
+  - New `updateSeoContent` admin mutation in `convex/seoContentDb.ts` for directly patching SEO fields without regenerating via AI
+  - New `SeoContentSection` component in `src/components/ComponentDetailsEditor.tsx` with inline editing for value prop, benefits, use cases, FAQ, resource links, and SKILL.md
+  - All SEO text fields use `resize-y` textareas so admins can drag to expand any field
+  - Edit button appears next to generated SEO content header; Save and Cancel controls at the bottom
+  - Local edit state syncs with backend on regeneration so fresh AI output flows through when not editing
+  - Passed `seoBenefits`, `seoUseCases`, `seoFaq`, and `seoResourceLinks` from admin query through `PackageComponentDetailsEditor` to the editor component
+  - Read-only summary shows value prop preview, benefit bullets, use case and FAQ counts, and SKILL.md status
+  - AI SEO generation still only triggers from the Regenerate button or the auto-generate admin setting; manual edits never call the AI
+
 ### Fixed
 
 - Admin submissions can now be viewed by approval date from the sort dropdown (2026-03-13 22:33 UTC)

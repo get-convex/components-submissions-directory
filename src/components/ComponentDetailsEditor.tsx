@@ -4,7 +4,7 @@ import { useMutation, useAction, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
-import { CaretDown, DownloadSimple, Image, ArrowsClockwise } from "@phosphor-icons/react";
+import { CaretDown, DownloadSimple, Image, ArrowsClockwise, PencilSimple, Plus, Trash } from "@phosphor-icons/react";
 import { useDirectoryCategories } from "../lib/categories";
 
 // Max file size: 3MB
@@ -38,6 +38,10 @@ interface ComponentDetailsEditorProps {
   seoGeneratedAt?: number;
   seoGenerationError?: string;
   seoValueProp?: string;
+  seoBenefits?: string[];
+  seoUseCases?: { query: string; answer: string }[];
+  seoFaq?: { question: string; answer: string }[];
+  seoResourceLinks?: { label: string; url: string }[];
   // SKILL.md generation
   skillMd?: string;
   mode?: "full" | "submission";
@@ -69,6 +73,10 @@ export function ComponentDetailsEditor({
   seoGeneratedAt,
   seoGenerationError,
   seoValueProp,
+  seoBenefits,
+  seoUseCases,
+  seoFaq,
+  seoResourceLinks,
   skillMd,
   mode = "full",
   npmDescription,
@@ -851,59 +859,30 @@ export function ComponentDetailsEditor({
       )}
 
       {!isSubmissionMode && (
-        <div className="pt-2 border-t border-border">
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-[10px] uppercase tracking-wider text-text-secondary">
-              AI SEO Content + SKILL.md
-            </label>
-            {seoGenerationStatus === "completed" && seoGeneratedAt && (
-              <span className="text-[10px] text-text-secondary">
-                Generated {new Date(seoGeneratedAt).toLocaleDateString()}
-              </span>
-            )}
-          </div>
-
-          {seoGenerationStatus === "generating" && (
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-3 h-3 border-2 border-text-secondary/30 border-t-text-primary rounded-full animate-spin" />
-              <span className="text-xs text-text-secondary">Generating content...</span>
-            </div>
-          )}
-          {seoGenerationStatus === "error" && seoGenerationError && (
-            <p className="text-xs text-red-600 mb-2">{seoGenerationError}</p>
-          )}
-          {seoGenerationStatus === "completed" && seoValueProp && (
-            <p className="text-xs text-text-secondary italic mb-2 line-clamp-2">
-              {seoValueProp}
-            </p>
-          )}
-          {seoGenerationStatus === "completed" && skillMd && (
-            <p className="text-[10px] text-green-600 mb-2">
-              SKILL.md generated
-            </p>
-          )}
-
-          <button
-            onClick={async () => {
-              setGeneratingSeo(true);
-              try {
-                await regenerateSeo({ packageId });
-                toast.success("SEO content + SKILL.md generation started");
-              } catch {
-                toast.error("Failed to start generation");
-              } finally {
-                setGeneratingSeo(false);
-              }
-            }}
-            disabled={generatingSeo || seoGenerationStatus === "generating"}
-            className="text-xs px-3 py-1.5 rounded bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50">
-            {seoGenerationStatus === "generating"
-              ? "Generating..."
-              : seoGenerationStatus === "completed"
-                ? "Regenerate SEO + Skill"
-                : "Generate SEO + Skill"}
-          </button>
-        </div>
+        <SeoContentSection
+          packageId={packageId}
+          seoGenerationStatus={seoGenerationStatus}
+          seoGeneratedAt={seoGeneratedAt}
+          seoGenerationError={seoGenerationError}
+          seoValueProp={seoValueProp}
+          seoBenefits={seoBenefits}
+          seoUseCases={seoUseCases}
+          seoFaq={seoFaq}
+          seoResourceLinks={seoResourceLinks}
+          skillMd={skillMd}
+          generatingSeo={generatingSeo}
+          onRegenerate={async () => {
+            setGeneratingSeo(true);
+            try {
+              await regenerateSeo({ packageId });
+              toast.success("SEO content + SKILL.md generation started");
+            } catch {
+              toast.error("Failed to start generation");
+            } finally {
+              setGeneratingSeo(false);
+            }
+          }}
+        />
       )}
 
       {!isSubmissionMode && badgeSnippet && (
@@ -927,6 +906,415 @@ export function ComponentDetailsEditor({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Editable SEO content section within the component details editor
+function SeoContentSection({
+  packageId,
+  seoGenerationStatus,
+  seoGeneratedAt,
+  seoGenerationError,
+  seoValueProp,
+  seoBenefits,
+  seoUseCases,
+  seoFaq,
+  seoResourceLinks,
+  skillMd,
+  generatingSeo,
+  onRegenerate,
+}: {
+  packageId: Id<"packages">;
+  seoGenerationStatus?: string;
+  seoGeneratedAt?: number;
+  seoGenerationError?: string;
+  seoValueProp?: string;
+  seoBenefits?: string[];
+  seoUseCases?: { query: string; answer: string }[];
+  seoFaq?: { question: string; answer: string }[];
+  seoResourceLinks?: { label: string; url: string }[];
+  skillMd?: string;
+  generatingSeo: boolean;
+  onRegenerate: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [savingSeo, setSavingSeo] = useState(false);
+
+  // Local edit state
+  const [editValueProp, setEditValueProp] = useState(seoValueProp || "");
+  const [editBenefits, setEditBenefits] = useState<string[]>(seoBenefits || []);
+  const [editUseCases, setEditUseCases] = useState<{ query: string; answer: string }[]>(seoUseCases || []);
+  const [editFaq, setEditFaq] = useState<{ question: string; answer: string }[]>(seoFaq || []);
+  const [editResourceLinks, setEditResourceLinks] = useState<{ label: string; url: string }[]>(seoResourceLinks || []);
+  const [editSkillMd, setEditSkillMd] = useState(skillMd || "");
+  const [showSkillMd, setShowSkillMd] = useState(false);
+
+  const updateSeoContent = useMutation(api.seoContentDb.updateSeoContent);
+
+  // Sync local state when backend data updates (e.g. after regeneration)
+  useEffect(() => {
+    if (!editing) {
+      setEditValueProp(seoValueProp || "");
+      setEditBenefits(seoBenefits || []);
+      setEditUseCases(seoUseCases || []);
+      setEditFaq(seoFaq || []);
+      setEditResourceLinks(seoResourceLinks || []);
+      setEditSkillMd(skillMd || "");
+    }
+  }, [seoValueProp, seoBenefits, seoUseCases, seoFaq, seoResourceLinks, skillMd, editing]);
+
+  const handleSaveSeo = async () => {
+    setSavingSeo(true);
+    try {
+      await updateSeoContent({
+        packageId,
+        seoValueProp: editValueProp || undefined,
+        seoBenefits: editBenefits.length > 0 ? editBenefits : undefined,
+        seoUseCases: editUseCases.length > 0 ? editUseCases : undefined,
+        seoFaq: editFaq.length > 0 ? editFaq : undefined,
+        seoResourceLinks: editResourceLinks.length > 0 ? editResourceLinks : undefined,
+        skillMd: editSkillMd || undefined,
+      });
+      toast.success("SEO content saved");
+      setEditing(false);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Save failed";
+      toast.error(msg);
+    } finally {
+      setSavingSeo(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditValueProp(seoValueProp || "");
+    setEditBenefits(seoBenefits || []);
+    setEditUseCases(seoUseCases || []);
+    setEditFaq(seoFaq || []);
+    setEditResourceLinks(seoResourceLinks || []);
+    setEditSkillMd(skillMd || "");
+    setEditing(false);
+  };
+
+  const hasContent = seoGenerationStatus === "completed" && seoValueProp;
+
+  return (
+    <div className="pt-2 border-t border-border">
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-[10px] uppercase tracking-wider text-text-secondary">
+          AI SEO Content + SKILL.md
+        </label>
+        <div className="flex items-center gap-2">
+          {seoGenerationStatus === "completed" && seoGeneratedAt && (
+            <span className="text-[10px] text-text-secondary">
+              Generated {new Date(seoGeneratedAt).toLocaleDateString()}
+            </span>
+          )}
+          {hasContent && !editing && (
+            <button
+              onClick={() => setEditing(true)}
+              className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded border border-border text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
+            >
+              <PencilSimple size={10} weight="bold" />
+              Edit
+            </button>
+          )}
+        </div>
+      </div>
+
+      {seoGenerationStatus === "generating" && (
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-3 h-3 border-2 border-text-secondary/30 border-t-text-primary rounded-full animate-spin" />
+          <span className="text-xs text-text-secondary">Generating content...</span>
+        </div>
+      )}
+      {seoGenerationStatus === "error" && seoGenerationError && (
+        <p className="text-xs text-red-600 mb-2">{seoGenerationError}</p>
+      )}
+
+      {/* Editing mode */}
+      {editing && (
+        <div className="space-y-3 mb-3">
+          {/* Value Prop */}
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+              Value Prop ({editValueProp.length}/160)
+            </label>
+            <textarea
+              value={editValueProp}
+              onChange={(e) => setEditValueProp(e.target.value.slice(0, 160))}
+              rows={2}
+              className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary resize-y outline-none focus:ring-1 focus:ring-button"
+              placeholder="One-sentence value proposition"
+            />
+          </div>
+
+          {/* Benefits */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10px] uppercase tracking-wider text-text-secondary">
+                Benefits ({editBenefits.length})
+              </label>
+              {editBenefits.length < 4 && (
+                <button
+                  onClick={() => setEditBenefits([...editBenefits, ""])}
+                  className="flex items-center gap-0.5 text-[10px] text-text-secondary hover:text-text-primary transition-colors"
+                >
+                  <Plus size={10} weight="bold" /> Add
+                </button>
+              )}
+            </div>
+            {editBenefits.map((b, i) => (
+              <div key={i} className="flex items-start gap-1 mb-1">
+                <textarea
+                  value={b}
+                  onChange={(e) => {
+                    const next = [...editBenefits];
+                    next[i] = e.target.value;
+                    setEditBenefits(next);
+                  }}
+                  rows={1}
+                  className="flex-1 text-xs px-2 py-1 rounded bg-bg-primary text-text-primary resize-y outline-none focus:ring-1 focus:ring-button"
+                  placeholder="Benefit description"
+                />
+                <button
+                  onClick={() => setEditBenefits(editBenefits.filter((_, idx) => idx !== i))}
+                  className="p-1 text-text-secondary hover:text-red-500 transition-colors mt-0.5"
+                >
+                  <Trash size={10} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Use Cases */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10px] uppercase tracking-wider text-text-secondary">
+                Use Cases ({editUseCases.length})
+              </label>
+              {editUseCases.length < 4 && (
+                <button
+                  onClick={() => setEditUseCases([...editUseCases, { query: "", answer: "" }])}
+                  className="flex items-center gap-0.5 text-[10px] text-text-secondary hover:text-text-primary transition-colors"
+                >
+                  <Plus size={10} weight="bold" /> Add
+                </button>
+              )}
+            </div>
+            {editUseCases.map((uc, i) => (
+              <div key={i} className="mb-2 p-2 rounded bg-bg-primary/50 border border-border/50">
+                <div className="flex items-start justify-between gap-1 mb-1">
+                  <textarea
+                    value={uc.query}
+                    onChange={(e) => {
+                      const next = [...editUseCases];
+                      next[i] = { ...next[i], query: e.target.value };
+                      setEditUseCases(next);
+                    }}
+                    rows={1}
+                    className="flex-1 text-xs px-2 py-1 rounded bg-bg-primary text-text-primary resize-y outline-none focus:ring-1 focus:ring-button"
+                    placeholder="Search query"
+                  />
+                  <button
+                    onClick={() => setEditUseCases(editUseCases.filter((_, idx) => idx !== i))}
+                    className="p-1 text-text-secondary hover:text-red-500 transition-colors shrink-0 mt-0.5"
+                  >
+                    <Trash size={10} />
+                  </button>
+                </div>
+                <textarea
+                  value={uc.answer}
+                  onChange={(e) => {
+                    const next = [...editUseCases];
+                    next[i] = { ...next[i], answer: e.target.value };
+                    setEditUseCases(next);
+                  }}
+                  rows={2}
+                  className="w-full text-xs px-2 py-1 rounded bg-bg-primary text-text-primary resize-y outline-none focus:ring-1 focus:ring-button"
+                  placeholder="Answer"
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* FAQ */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10px] uppercase tracking-wider text-text-secondary">
+                FAQ ({editFaq.length})
+              </label>
+              {editFaq.length < 5 && (
+                <button
+                  onClick={() => setEditFaq([...editFaq, { question: "", answer: "" }])}
+                  className="flex items-center gap-0.5 text-[10px] text-text-secondary hover:text-text-primary transition-colors"
+                >
+                  <Plus size={10} weight="bold" /> Add
+                </button>
+              )}
+            </div>
+            {editFaq.map((f, i) => (
+              <div key={i} className="mb-2 p-2 rounded bg-bg-primary/50 border border-border/50">
+                <div className="flex items-start justify-between gap-1 mb-1">
+                  <textarea
+                    value={f.question}
+                    onChange={(e) => {
+                      const next = [...editFaq];
+                      next[i] = { ...next[i], question: e.target.value };
+                      setEditFaq(next);
+                    }}
+                    rows={1}
+                    className="flex-1 text-xs px-2 py-1 rounded bg-bg-primary text-text-primary resize-y outline-none focus:ring-1 focus:ring-button"
+                    placeholder="Question"
+                  />
+                  <button
+                    onClick={() => setEditFaq(editFaq.filter((_, idx) => idx !== i))}
+                    className="p-1 text-text-secondary hover:text-red-500 transition-colors shrink-0 mt-0.5"
+                  >
+                    <Trash size={10} />
+                  </button>
+                </div>
+                <textarea
+                  value={f.answer}
+                  onChange={(e) => {
+                    const next = [...editFaq];
+                    next[i] = { ...next[i], answer: e.target.value };
+                    setEditFaq(next);
+                  }}
+                  rows={2}
+                  className="w-full text-xs px-2 py-1 rounded bg-bg-primary text-text-primary resize-y outline-none focus:ring-1 focus:ring-button"
+                  placeholder="Answer"
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Resource Links */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10px] uppercase tracking-wider text-text-secondary">
+                Resource Links ({editResourceLinks.length})
+              </label>
+              <button
+                onClick={() => setEditResourceLinks([...editResourceLinks, { label: "", url: "" }])}
+                className="flex items-center gap-0.5 text-[10px] text-text-secondary hover:text-text-primary transition-colors"
+              >
+                <Plus size={10} weight="bold" /> Add
+              </button>
+            </div>
+            {editResourceLinks.map((link, i) => (
+              <div key={i} className="flex items-center gap-1 mb-1">
+                <input
+                  type="text"
+                  value={link.label}
+                  onChange={(e) => {
+                    const next = [...editResourceLinks];
+                    next[i] = { ...next[i], label: e.target.value };
+                    setEditResourceLinks(next);
+                  }}
+                  className="w-1/3 text-xs px-2 py-1 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+                  placeholder="Label"
+                />
+                <input
+                  type="text"
+                  value={link.url}
+                  onChange={(e) => {
+                    const next = [...editResourceLinks];
+                    next[i] = { ...next[i], url: e.target.value };
+                    setEditResourceLinks(next);
+                  }}
+                  className="flex-1 text-xs px-2 py-1 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+                  placeholder="https://..."
+                />
+                <button
+                  onClick={() => setEditResourceLinks(editResourceLinks.filter((_, idx) => idx !== i))}
+                  className="p-1 text-text-secondary hover:text-red-500 transition-colors"
+                >
+                  <Trash size={10} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* SKILL.md */}
+          <div>
+            <button
+              onClick={() => setShowSkillMd(!showSkillMd)}
+              className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-text-secondary hover:text-text-primary transition-colors mb-1"
+            >
+              <CaretDown size={10} className={showSkillMd ? "rotate-180 transition-transform" : "transition-transform"} />
+              SKILL.md
+            </button>
+            {showSkillMd && (
+              <textarea
+                value={editSkillMd}
+                onChange={(e) => setEditSkillMd(e.target.value)}
+                rows={8}
+                className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary font-mono resize-y outline-none focus:ring-1 focus:ring-button"
+                placeholder="SKILL.md content"
+              />
+            )}
+          </div>
+
+          {/* Save / Cancel */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSaveSeo}
+              disabled={savingSeo}
+              className="text-xs px-3 py-1.5 rounded-full bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50"
+            >
+              {savingSeo ? "Saving..." : "Save SEO Content"}
+            </button>
+            <button
+              onClick={handleCancelEdit}
+              disabled={savingSeo}
+              className="text-xs px-3 py-1.5 rounded text-text-secondary hover:text-text-primary transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Read-only display when not editing */}
+      {!editing && hasContent && (
+        <div className="space-y-2 mb-3">
+          <p className="text-xs text-text-secondary italic line-clamp-2">
+            {seoValueProp}
+          </p>
+          {seoBenefits && seoBenefits.length > 0 && (
+            <div>
+              <span className="text-[10px] text-text-secondary">Benefits:</span>
+              <ul className="mt-0.5 space-y-0.5">
+                {seoBenefits.map((b, i) => (
+                  <li key={i} className="text-[10px] text-text-secondary pl-2 before:content-['·'] before:mr-1">{b}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {seoUseCases && seoUseCases.length > 0 && (
+            <span className="text-[10px] text-text-secondary">{seoUseCases.length} use case{seoUseCases.length !== 1 ? "s" : ""}</span>
+          )}
+          {seoFaq && seoFaq.length > 0 && (
+            <span className="text-[10px] text-text-secondary ml-2">{seoFaq.length} FAQ{seoFaq.length !== 1 ? "s" : ""}</span>
+          )}
+          {skillMd && (
+            <p className="text-[10px] text-green-600">SKILL.md generated</p>
+          )}
+        </div>
+      )}
+
+      <button
+        onClick={onRegenerate}
+        disabled={generatingSeo || seoGenerationStatus === "generating"}
+        className="text-xs px-3 py-1.5 rounded bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
+      >
+        {seoGenerationStatus === "generating"
+          ? "Generating..."
+          : seoGenerationStatus === "completed"
+            ? "Regenerate SEO + Skill"
+            : "Generate SEO + Skill"}
+      </button>
     </div>
   );
 }
