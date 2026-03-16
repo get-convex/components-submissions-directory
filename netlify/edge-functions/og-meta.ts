@@ -2,13 +2,16 @@ const defaultConvexCloudUrl = "https://giant-grouse-674.convex.cloud";
 
 const SITE_NAME = "Convex Components";
 const SITE_ORIGIN = "https://www.convex.dev";
-const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/components/og-preview.png`;
+
+function getOgImageUrl(title: string): string {
+  return `https://www.convex.dev/api/og?title=${encodeURIComponent(title)}`;
+}
 
 type ReviewStatus =
   | "pending"
   | "in_review"
   | "approved"
-| "changes_requested"
+  | "changes_requested"
   | "rejected";
 
 function extractSlug(pathname: string): string | null {
@@ -99,7 +102,10 @@ function injectMetaTags(html: string, component: ComponentData): string {
       ""
   );
   const url = escapeAttr(`${SITE_ORIGIN}/components/${component.slug || ""}`);
-  const image = escapeAttr(component.thumbnailUrl || DEFAULT_OG_IMAGE);
+  const componentName = component.componentName || component.name;
+  const image = escapeAttr(
+    component.thumbnailUrl || getOgImageUrl(componentName)
+  );
   const robots = escapeAttr(getRobotsContent(component.reviewStatus));
 
   // Replacement pairs: attribute identifier -> new full tag
@@ -107,16 +113,34 @@ function injectMetaTags(html: string, component: ComponentData): string {
   // (e.g. twitter:image:alt must come before twitter:image)
   const replacements: Array<[string, string]> = [
     ['name="title"', `<meta name="title" content="${fullTitle}" />`],
-    ['name="description"', `<meta name="description" content="${description}" />`],
+    [
+      'name="description"',
+      `<meta name="description" content="${description}" />`,
+    ],
     ['name="robots"', `<meta name="robots" content="${robots}" />`],
     ['property="og:url"', `<meta property="og:url" content="${url}" />`],
     ['property="og:title"', `<meta property="og:title" content="${title}" />`],
-    ['property="og:description"', `<meta property="og:description" content="${description}" />`],
+    [
+      'property="og:description"',
+      `<meta property="og:description" content="${description}" />`,
+    ],
     ['property="og:image"', `<meta property="og:image" content="${image}" />`],
-    ['name="twitter:title"', `<meta name="twitter:title" content="${title}" />`],
-    ['name="twitter:description"', `<meta name="twitter:description" content="${description}" />`],
-    ['name="twitter:image:alt"', `<meta name="twitter:image:alt" content="${title}" />`],
-    ['name="twitter:image"', `<meta name="twitter:image" content="${image}" />`],
+    [
+      'name="twitter:title"',
+      `<meta name="twitter:title" content="${title}" />`,
+    ],
+    [
+      'name="twitter:description"',
+      `<meta name="twitter:description" content="${description}" />`,
+    ],
+    [
+      'name="twitter:image:alt"',
+      `<meta name="twitter:image:alt" content="${title}" />`,
+    ],
+    [
+      'name="twitter:image"',
+      `<meta name="twitter:image" content="${image}" />`,
+    ],
   ];
 
   // Match all meta tags including multiline ones.
