@@ -2,7 +2,12 @@
 
 ## to do
 
-Session updates complete on 2026-03-16 21:47 UTC.
+Session updates complete on 2026-03-16 22:49 UTC.
+
+- [x] hide the component detail `llms.txt` link when SEO visibility is hidden (2026-03-16 22:49 UTC)
+  - Updated `src/pages/ComponentDetail.tsx` so the standalone `View llms.txt` link uses the same hidden SEO visibility gate as the generated SEO and SKILL sections
+  - Kept the change scoped to detail page rendering only
+  - Verified with `npm run build` and confirmed the Netlify production build passes
 
 - [x] capitalize visible component detail description heading and sync session docs (2026-03-16 21:47 UTC)
   - Added `capitalizeHeadingText()` in `src/pages/ComponentDetail.tsx` so the visible `{Component Name} Description` heading uses capitalized component text

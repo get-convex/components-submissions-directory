@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Hiding detail page SEO visibility now also hides the `llms.txt` link on component detail pages (2026-03-16 22:49 UTC)
+  - Updated `src/pages/ComponentDetail.tsx` so the standalone `View llms.txt` link respects the same `hideSeoAndSkillContentOnDetailPage` flag as the visible SEO and SKILL sections
+  - Verified with `npm run build` and confirmed the Netlify production build passes
+
 - Component detail long description heading now capitalizes the visible component name instead of using raw package casing (2026-03-16 21:47 UTC)
   - Added `capitalizeHeadingText()` in `src/pages/ComponentDetail.tsx` and applied it only to the visible `{Component Name} Description` heading
   - Left AI generated SEO content unchanged

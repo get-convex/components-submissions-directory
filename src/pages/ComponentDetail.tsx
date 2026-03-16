@@ -1414,7 +1414,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
             )}
 
             {/* llms.txt link */}
-            {componentLinks && (
+            {componentLinks && !hideSeoAndSkillContent && (
               <div className="mb-6">
                 <a
                   href={componentLinks.llmsUrl}
