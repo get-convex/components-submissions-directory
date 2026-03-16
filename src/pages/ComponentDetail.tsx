@@ -61,6 +61,10 @@ function getReviewStatus(reviewStatus?: string): ReviewStatus {
   }
 }
 
+function capitalizeHeadingText(value: string): string {
+  return value.replace(/\b([a-z])/g, (match) => match.toUpperCase());
+}
+
 // Build a full markdown document from component data (includes AI SEO content)
 function buildMarkdownDoc(c: {
   name: string;
@@ -386,7 +390,11 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
     dynamicCategories.find((c) => c.id === id)?.label || id;
   const reviewStatus = getReviewStatus(component?.reviewStatus);
   const isApprovedForIndexing = reviewStatus === "approved";
-  const showAgentContent = reviewStatus === "approved" || reviewStatus === "in_review";
+  const hideSeoAndSkillContent = component?.hideSeoAndSkillContentOnDetailPage === true;
+  const showDetailSeoContent =
+    component?.seoGenerationStatus === "completed" && !hideSeoAndSkillContent;
+  const showAgentContent =
+    (reviewStatus === "approved" || reviewStatus === "in_review") && !hideSeoAndSkillContent;
   const [badgeCopied, setBadgeCopied] = useState(false);
   const [showMarkdown, setShowMarkdown] = useState(false);
   const [copyMenuOpen, setCopyMenuOpen] = useState(false);
@@ -425,7 +433,10 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
       const canonicalUrl = `https://www.convex.dev/components/${component.slug || ""}`;
       // Prefer AI-generated value prop for meta description
       const metaDesc =
-        component.seoValueProp || component.shortDescription || component.description || "";
+        (!hideSeoAndSkillContent ? component.seoValueProp : undefined) ||
+        component.shortDescription ||
+        component.description ||
+        "";
 
       // Set all SEO tags: title, description, OG, Twitter cards, canonical URL
       setComponentSeoTags({
@@ -448,7 +459,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
           license: component.license,
           authorName: component.authorUsername,
           installCommand: component.installCommand,
-          faq: component.seoFaq,
+          faq: !hideSeoAndSkillContent ? component.seoFaq : undefined,
         });
         injectJsonLd(jsonLd);
       } else {
@@ -460,7 +471,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
         removeJsonLd();
       };
     }
-  }, [component, isApprovedForIndexing]);
+  }, [component, hideSeoAndSkillContent, isApprovedForIndexing]);
 
   // Refresh GitHub issue counts once per page load (if stale or missing)
   useEffect(() => {
@@ -1119,7 +1130,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
             {/* Long description title (below install command) */}
             {component.longDescription && (
               <h2 className="text-lg font-semibold text-text-primary mb-3">
-                {component.componentName || component.name} Description
+                {capitalizeHeadingText(component.componentName || component.name)} Description
               </h2>
             )}
 
@@ -1218,12 +1229,12 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 )}
 
                 {/* Divider before AI SEO content */}
-                {component.seoGenerationStatus === "completed" && (
+                {showDetailSeoContent && (
                   <hr className="border-border mb-6" />
                 )}
 
                 {/* AI-generated SEO/AEO/GEO structured content (visible for search engines) */}
-                {component.seoGenerationStatus === "completed" && (
+                {showDetailSeoContent && (
                   <div className="mb-6 space-y-6">
                     {/* Value prop highlight */}
                     {component.seoValueProp && (

@@ -21,6 +21,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Component detail long description heading now capitalizes the visible component name instead of using raw package casing (2026-03-16 21:47 UTC)
+  - Added `capitalizeHeadingText()` in `src/pages/ComponentDetail.tsx` and applied it only to the visible `{Component Name} Description` heading
+  - Left AI generated SEO content unchanged
+  - Verified with `npm run build` and confirmed the Netlify production build passes
+
+- Admin can now hide generated SEO and SKILL content from the public detail page without deleting it (2026-03-16 21:37 UTC)
+  - Added a new Actions row toggle in `src/pages/Admin.tsx` to hide or show generated SEO and SKILL content on `src/pages/ComponentDetail.tsx`
+  - Added `hideSeoAndSkillContentOnDetailPage` to package data in `convex/schema.ts` and `convex/packages.ts`
+  - `src/pages/ComponentDetail.tsx` now hides the visible SEO blocks, `For Agents` link, `AgentInstallSection`, SKILL download action, and `SKILL.md` block when the toggle is enabled
+  - Detail-page meta description and FAQ JSON-LD now respect the same hidden state so draft SEO changes stay off the public page
+  - Verified with `npx convex codegen`, `npx tsc --noEmit`, and `npm run build` (2026-03-16 21:37 UTC)
+
 - Submit form category dropdown now saves the selected admin-managed category correctly (2026-03-16 17:27 UTC)
   - Updated `src/pages/SubmitForm.tsx` to use category `id` values from `useDirectoryCategories()` for label lookup, option keys, and selection state
   - Brings the public submit flow back in sync with the admin category editor and backend category storage

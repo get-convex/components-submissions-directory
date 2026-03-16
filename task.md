@@ -2,7 +2,13 @@
 
 ## to do
 
-Session updates complete on 2026-03-16 17:27 UTC.
+Session updates complete on 2026-03-16 21:47 UTC.
+
+- [x] capitalize visible component detail description heading and sync session docs (2026-03-16 21:47 UTC)
+  - Added `capitalizeHeadingText()` in `src/pages/ComponentDetail.tsx` so the visible `{Component Name} Description` heading uses capitalized component text
+  - Left AI generated SEO content unchanged and scoped the change to the visible long description `h2`
+  - Updated `task.md`, `changelog.md`, and `files.md` for this session
+  - Verified with `npm run build` and confirmed the Netlify production build passes
 
 - [x] add editable SEO content fields to admin Component Details editor (2026-03-14 UTC)
   - Created `updateSeoContent` public admin mutation in `convex/seoContentDb.ts` that patches SEO fields directly without AI regeneration
@@ -514,6 +520,14 @@ Acceptance checks:
 - [ ] - [ ] add payments api
 
 ## completed
+
+- [x] add admin toggle to hide detail page SEO and SKILL sections (`prds/detail-page-seo-visibility-toggle.md`) (2026-03-16 21:37 UTC)
+  - Added `hideSeoAndSkillContentOnDetailPage` to package data in `convex/schema.ts` and exposed it through the public and admin package shapes in `convex/packages.ts`
+  - Updated `updateComponentDetails` so the existing admin editor mutation can toggle the new visibility flag
+  - Added a new `Hide SEO` or `SEO Hidden` toggle to the Actions row in `src/pages/Admin.tsx`
+  - Updated `src/pages/ComponentDetail.tsx` to hide generated SEO blocks, SKILL download actions, the `For Agents` link, `AgentInstallSection`, and the `SKILL.md` block when the flag is enabled
+  - Gated detail-page meta description and FAQ JSON-LD to the same visibility flag so hidden drafts stay out of the public SEO layer
+  - Verified with `npx convex codegen`, `npx tsc --noEmit`, and `npm run build`
 
 - [x] fix submit form category dropdown sync with admin-managed categories (`prds/submit-form-category-sync.md`) (2026-03-16 17:27 UTC)
   - Updated `src/pages/SubmitForm.tsx` to use category `id` values from `useDirectoryCategories()` instead of a non-existent `slug` field

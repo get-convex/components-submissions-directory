@@ -2759,6 +2759,7 @@ function InlineActions({
   isArchivedView,
   convexVerified,
   communitySubmitted,
+  hideSeoAndSkillContentOnDetailPage,
   seoGenerationStatus,
   npmDescription,
   hideThumbnailInCategory,
@@ -2783,6 +2784,7 @@ function InlineActions({
   isArchivedView?: boolean;
   convexVerified?: boolean;
   communitySubmitted?: boolean;
+  hideSeoAndSkillContentOnDetailPage?: boolean;
   seoGenerationStatus?: string;
   npmDescription?: string;
   hideThumbnailInCategory?: boolean;
@@ -3005,6 +3007,26 @@ function InlineActions({
       toast.success(hideThumbnailInCategory ? "Thumbnail shown in category listings" : "Thumbnail hidden in category listings (shows in Featured only)");
     } catch (error) {
       toast.error("Failed to update thumbnail visibility");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleToggleHideSeoAndSkillContent = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
+    try {
+      await updateComponentDetails({
+        packageId,
+        hideSeoAndSkillContentOnDetailPage: !hideSeoAndSkillContentOnDetailPage,
+      });
+      toast.success(
+        hideSeoAndSkillContentOnDetailPage
+          ? "SEO + Skill content shown on detail page"
+          : "SEO + Skill content hidden from detail page",
+      );
+    } catch (error) {
+      toast.error("Failed to update SEO visibility");
     } finally {
       setIsLoading(false);
     }
@@ -3296,6 +3318,31 @@ function InlineActions({
                 <ArrowsClockwise size={14} weight="bold" className={isSeoGenerating ? "animate-spin" : ""} />
                 <span className="hidden sm:inline">
                   {isSeoGenerating ? "Generating..." : "Regenerate SEO + Skill"}
+                </span>
+              </button>
+            </Tooltip>
+
+            <Tooltip
+              content={
+                hideSeoAndSkillContentOnDetailPage
+                  ? "Show generated SEO and SKILL content on the detail page"
+                  : "Hide generated SEO and SKILL content from the detail page"
+              }>
+              <button
+                onClick={handleToggleHideSeoAndSkillContent}
+                disabled={isLoading}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all disabled:opacity-50 ${
+                  hideSeoAndSkillContentOnDetailPage
+                    ? "bg-gray-700 text-white border-gray-700"
+                    : "border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                }`}>
+                {hideSeoAndSkillContentOnDetailPage ? (
+                  <EyeSlash size={14} weight="bold" />
+                ) : (
+                  <Eye size={14} weight="bold" />
+                )}
+                <span className="hidden sm:inline">
+                  {hideSeoAndSkillContentOnDetailPage ? "SEO Hidden" : "Hide SEO"}
                 </span>
               </button>
             </Tooltip>
@@ -7931,6 +7978,9 @@ function AdminDashboard({
                         isArchivedView={activeFilter === "archived"}
                         convexVerified={pkg.convexVerified}
                         communitySubmitted={pkg.communitySubmitted}
+                        hideSeoAndSkillContentOnDetailPage={
+                          pkg.hideSeoAndSkillContentOnDetailPage
+                        }
                         seoGenerationStatus={pkg.seoGenerationStatus}
                         npmDescription={pkg.description}
                         hideThumbnailInCategory={pkg.hideThumbnailInCategory}

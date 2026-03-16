@@ -149,6 +149,7 @@ const publicPackageValidator = v.object({
       v.literal("error"),
     ),
   ),
+  hideSeoAndSkillContentOnDetailPage: v.optional(v.boolean()),
   // AI-generated SKILL.md content for Claude agent skills
   skillMd: v.optional(v.string()),
   // Discord username (displayed on detail page, links to Convex community)
@@ -279,6 +280,7 @@ const adminPackageValidator = v.object({
     ),
   ),
   seoGenerationError: v.optional(v.string()),
+  hideSeoAndSkillContentOnDetailPage: v.optional(v.boolean()),
   // Deletion fields
   markedForDeletion: v.optional(v.boolean()),
   markedForDeletionAt: v.optional(v.number()),
@@ -440,6 +442,7 @@ function toPublicPackage(pkg: any) {
     seoResourceLinks: pkg.seoResourceLinks,
     seoGeneratedAt: pkg.seoGeneratedAt,
     seoGenerationStatus: pkg.seoGenerationStatus,
+    hideSeoAndSkillContentOnDetailPage: pkg.hideSeoAndSkillContentOnDetailPage,
     skillMd: pkg.skillMd,
     submitterDiscord: pkg.submitterDiscord,
   };
@@ -523,6 +526,7 @@ function toAdminPackage(pkg: any) {
     seoGeneratedAt: pkg.seoGeneratedAt,
     seoGenerationStatus: pkg.seoGenerationStatus,
     seoGenerationError: pkg.seoGenerationError,
+    hideSeoAndSkillContentOnDetailPage: pkg.hideSeoAndSkillContentOnDetailPage,
     // Deletion fields
     markedForDeletion: pkg.markedForDeletion,
     markedForDeletionAt: pkg.markedForDeletionAt,
@@ -4815,6 +4819,7 @@ export const updateComponentDetails = mutation({
     hideThumbnailInCategory: v.optional(v.boolean()),
     convexVerified: v.optional(v.boolean()),
     communitySubmitted: v.optional(v.boolean()),
+    hideSeoAndSkillContentOnDetailPage: v.optional(v.boolean()),
     authorUsername: v.optional(v.string()),
     authorAvatar: v.optional(v.string()),
     relatedComponentIds: v.optional(v.array(v.id("packages"))),

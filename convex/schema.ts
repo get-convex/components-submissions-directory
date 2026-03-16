@@ -184,6 +184,8 @@ const applicationTables = {
     ),
     // Error message if generation fails
     seoGenerationError: v.optional(v.string()),
+    // Hide generated SEO and SKILL-related content from the public detail page
+    hideSeoAndSkillContentOnDetailPage: v.optional(v.boolean()),
     // AI-generated SKILL.md content for Claude agent skills
     skillMd: v.optional(v.string()),
     // Reward tracking (denormalized for quick badge rendering)
