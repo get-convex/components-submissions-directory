@@ -2,7 +2,7 @@
 
 ## to do
 
-Session updates complete on 2026-03-14 UTC.
+Session updates complete on 2026-03-16 17:27 UTC.
 
 - [x] add editable SEO content fields to admin Component Details editor (2026-03-14 UTC)
   - Created `updateSeoContent` public admin mutation in `convex/seoContentDb.ts` that patches SEO fields directly without AI regeneration
@@ -514,6 +514,11 @@ Acceptance checks:
 - [ ] - [ ] add payments api
 
 ## completed
+
+- [x] fix submit form category dropdown sync with admin-managed categories (`prds/submit-form-category-sync.md`) (2026-03-16 17:27 UTC)
+  - Updated `src/pages/SubmitForm.tsx` to use category `id` values from `useDirectoryCategories()` instead of a non-existent `slug` field
+  - Keeps submit-time category selection aligned with `src/components/ComponentDetailsEditor.tsx` and the admin category source of truth
+  - Verified with `npm run build`
 
 - [x] fix submit success modal button roundness and sync session docs (2026-03-12 17:06 UTC)
   - Updated `src/pages/SubmitForm.tsx` so `View My Submissions` and `Back to Directory` use `rounded-lg` instead of pill styling in the success modal

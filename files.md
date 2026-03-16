@@ -102,7 +102,7 @@ Preflight checker page at `/components/submit/check`. Allows developers to valid
 
 ### `src/pages/SubmitForm.tsx`
 
-Public component submission form. Collects package name, npm URL, category, short description, long description (markdown with 500 char limit and live preview), tags, video URL), and creates new packages through the authenticated `submitPackage` action with the Community flag enabled by default for public submissions:
+Public component submission form. Collects package name, npm URL, category, short description, long description (markdown with 500 char limit and live preview), tags, video URL), and creates new packages through the authenticated `submitPackage` action with the Community flag enabled by default for public submissions. The category dropdown now uses the same admin-managed category `id` values as the admin editor so saved submissions stay in sync with `Admin.tsx`:
 - Markdown preview supports headings, bullet/numbered lists, line breaks, and links (purple `#8D2676` hover underline)
 - Character counter shows `{n}/500 characters`
 - Preview conditionally renders only when content is entered
@@ -401,6 +401,7 @@ Dedicated component submission form page at `/submit`. Features:
   - FAQSection component below form
   - Terms of Service and Privacy Policy links at bottom
 - Form collects: component name, GitHub repo, npm URL, demo URL, category, descriptions, tags, video URL, logo upload, submitter info
+- Category dropdown uses `useDirectoryCategories()` ids, matching the admin category source of truth and backend stored category values
 - Long Description field supports safe markdown authoring (headings, lists, links, line breaks) with a live mini preview rendered via `react-markdown` + `remark-gfm` + `remark-breaks`
 - Tags sent as comma-separated string (matching `submitPackage` validator `v.optional(v.string())`)
 - Preflight check link below header: prominent card with icon directing users to `/components/submit/check` to validate their repo before submission
@@ -699,6 +700,7 @@ Product requirements documents:
 - `submit-table-published-column-and-alignment.md`: Documents the Submit page table cleanup that removes the collapsed Published column, moves publish dates into expanded details, and rebalances the desktop metadata columns
 - `admin-ai-review-history.md`: Implementation PRD for persistent AI review run logging and the admin-side review history drawer
 - `category-save-and-large-category-visibility.md`: Documents the admin category save investigation and the fix that shows full result sets when a specific directory category is selected
+- `submit-form-category-sync.md`: Documents the submit form category dropdown bug where `slug` drifted from the shared category `id` contract, and the fix that keeps public submissions in sync with `Admin.tsx`
 - `review-state-detail-page-gating.md`: Documents the safe rollout for keeping review-state detail pages live while gating agent UI and search indexing
 - `mcp-streamable-http-migration.md`: Migration from dead `@anthropic-ai/mcp-server-fetch` npm proxy to Streamable HTTP transport. All MCP install configs now use direct URL with no npm dependency. Covers Cursor, Claude Desktop, and ChatGPT.
 - `ai-review-prompt-v5.md`: Documents the v5 AI review update that detects the real component source directory and splits args validators from advisory returns validators

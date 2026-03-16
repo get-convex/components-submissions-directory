@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Submit form category dropdown now saves the selected admin-managed category correctly (2026-03-16 17:27 UTC)
+  - Updated `src/pages/SubmitForm.tsx` to use category `id` values from `useDirectoryCategories()` for label lookup, option keys, and selection state
+  - Brings the public submit flow back in sync with the admin category editor and backend category storage
+  - Verified with `npm run build`
+
 - Admin submissions can now be viewed by approval date from the sort dropdown (2026-03-13 22:33 UTC)
   - Added a `Recently approved` sort option in `src/pages/Admin.tsx` backed by the existing `approvedAt` field
   - When selected, package cards show the approval date in the row summary and expanded calendar tooltip instead of the submitted date
