@@ -8,6 +8,7 @@
 import { useState, useMemo } from "react";
 import { CheckIcon, CopyIcon, ExternalLinkIcon } from "@radix-ui/react-icons";
 import { generateClaudePrompt } from "../lib/promptComposer";
+import CodeBlock from "./CodeBlock";
 import {
   isMcpReady,
   generateGlobalCursorInstallLink,
@@ -53,7 +54,6 @@ interface AgentInstallSectionProps {
 }
 
 export function AgentInstallSection({ component }: AgentInstallSectionProps) {
-  const [copied, setCopied] = useState(false);
   const [mcpCopied, setMcpCopied] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<McpPlatform>("cursor");
 
@@ -83,17 +83,6 @@ export function AgentInstallSection({ component }: AgentInstallSectionProps) {
     () => generateChatGPTConnectorConfig(component as Parameters<typeof generateChatGPTConnectorConfig>[0]),
     [component]
   );
-
-  // Copy helper
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(agentPrompt);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Silent fail
-    }
-  };
 
   // Copy MCP config helper (platform-aware)
   const handleCopyMcpConfig = async () => {
@@ -140,30 +129,10 @@ export function AgentInstallSection({ component }: AgentInstallSectionProps) {
       <div className="px-4 pb-4 pt-4 space-y-4">
         {/* Copy prompt section */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-medium text-text-secondary capitalize tracking-wider">
-              Copy prompt
-            </span>
-            <button
-              onClick={handleCopy}
-              className="flex items-center gap-1.5 px-2 py-1 rounded text-xs hover:bg-bg-hover transition-colors"
-              title={copied ? "Copied" : "Copy to clipboard"}>
-              {copied ? (
-                <>
-                  <CheckIcon className="w-3.5 h-3.5 text-green-600" />
-                  <span className="text-green-600">Copied</span>
-                </>
-              ) : (
-                <>
-                  <CopyIcon className="w-3.5 h-3.5 text-text-secondary" />
-                  <span className="text-text-secondary">Copy</span>
-                </>
-              )}
-            </button>
-          </div>
-          <pre className="px-3 py-2 text-[11px] font-mono whitespace-pre-wrap rounded-lg border border-border bg-[#1a1a1a] text-gray-200 max-h-32 overflow-y-auto">
-            {agentPrompt}
-          </pre>
+          <span className="text-xs font-medium text-text-secondary capitalize tracking-wider">
+            Copy prompt
+          </span>
+          <CodeBlock code={agentPrompt} language="markdown" filename="agent-prompt.md" />
         </div>
 
         {/* Multi-Platform MCP Install Section - temporarily disabled

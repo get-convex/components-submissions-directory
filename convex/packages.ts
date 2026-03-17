@@ -12,6 +12,7 @@ import {
 import { getAdminIdentity, requireAdminIdentity } from "./auth";
 import { api, internal } from "./_generated/api";
 import { Id, Doc } from "./_generated/dataModel";
+import { buildSkillMdFromContent } from "../shared/buildSkillMd";
 
 // ============ HELPER: Get current user's email from identity claims ============
 async function getCurrentUserEmail(ctx: QueryCtx | MutationCtx): Promise<string | null> {
@@ -154,6 +155,24 @@ const publicPackageValidator = v.object({
   skillMd: v.optional(v.string()),
   // Discord username (displayed on detail page, links to Convex community)
   submitterDiscord: v.optional(v.string()),
+  // --- V2 generated content model ---
+  generatedDescription: v.optional(v.string()),
+  generatedUseCases: v.optional(v.string()),
+  generatedHowItWorks: v.optional(v.string()),
+  readmeIncludedMarkdown: v.optional(v.string()),
+  readmeIncludeSource: v.optional(
+    v.union(v.literal("markers"), v.literal("full")),
+  ),
+  contentGenerationStatus: v.optional(
+    v.union(
+      v.literal("pending"),
+      v.literal("generating"),
+      v.literal("completed"),
+      v.literal("error"),
+    ),
+  ),
+  contentGeneratedAt: v.optional(v.number()),
+  contentModelVersion: v.optional(v.number()),
 });
 
 // ============ SECURITY: Admin package fields ============
@@ -281,6 +300,25 @@ const adminPackageValidator = v.object({
   ),
   seoGenerationError: v.optional(v.string()),
   hideSeoAndSkillContentOnDetailPage: v.optional(v.boolean()),
+  // --- V2 generated content model ---
+  generatedDescription: v.optional(v.string()),
+  generatedUseCases: v.optional(v.string()),
+  generatedHowItWorks: v.optional(v.string()),
+  readmeIncludedMarkdown: v.optional(v.string()),
+  readmeIncludeSource: v.optional(
+    v.union(v.literal("markers"), v.literal("full")),
+  ),
+  contentGenerationStatus: v.optional(
+    v.union(
+      v.literal("pending"),
+      v.literal("generating"),
+      v.literal("completed"),
+      v.literal("error"),
+    ),
+  ),
+  contentGenerationError: v.optional(v.string()),
+  contentGeneratedAt: v.optional(v.number()),
+  contentModelVersion: v.optional(v.number()),
   // Deletion fields
   markedForDeletion: v.optional(v.boolean()),
   markedForDeletionAt: v.optional(v.number()),
@@ -445,6 +483,15 @@ function toPublicPackage(pkg: any) {
     hideSeoAndSkillContentOnDetailPage: pkg.hideSeoAndSkillContentOnDetailPage,
     skillMd: pkg.skillMd,
     submitterDiscord: pkg.submitterDiscord,
+    // V2 content model
+    generatedDescription: pkg.generatedDescription,
+    generatedUseCases: pkg.generatedUseCases,
+    generatedHowItWorks: pkg.generatedHowItWorks,
+    readmeIncludedMarkdown: pkg.readmeIncludedMarkdown,
+    readmeIncludeSource: pkg.readmeIncludeSource,
+    contentGenerationStatus: pkg.contentGenerationStatus,
+    contentGeneratedAt: pkg.contentGeneratedAt,
+    contentModelVersion: pkg.contentModelVersion,
   };
 }
 
@@ -527,6 +574,16 @@ function toAdminPackage(pkg: any) {
     seoGenerationStatus: pkg.seoGenerationStatus,
     seoGenerationError: pkg.seoGenerationError,
     hideSeoAndSkillContentOnDetailPage: pkg.hideSeoAndSkillContentOnDetailPage,
+    // V2 content model
+    generatedDescription: pkg.generatedDescription,
+    generatedUseCases: pkg.generatedUseCases,
+    generatedHowItWorks: pkg.generatedHowItWorks,
+    readmeIncludedMarkdown: pkg.readmeIncludedMarkdown,
+    readmeIncludeSource: pkg.readmeIncludeSource,
+    contentGenerationStatus: pkg.contentGenerationStatus,
+    contentGenerationError: pkg.contentGenerationError,
+    contentGeneratedAt: pkg.contentGeneratedAt,
+    contentModelVersion: pkg.contentModelVersion,
     // Deletion fields
     markedForDeletion: pkg.markedForDeletion,
     markedForDeletionAt: pkg.markedForDeletionAt,
@@ -758,12 +815,19 @@ export const submitPackage = action({
     componentName: v.string(),
     category: v.optional(v.string()),
     shortDescription: v.string(),
-    longDescription: v.string(),
-    tags: v.optional(v.string()), // Comma-separated string, split on backend
+    longDescription: v.optional(v.string()),
+    tags: v.optional(v.string()),
     videoUrl: v.optional(v.string()),
+    // V2 generated content fields (from preview)
+    generatedDescription: v.optional(v.string()),
+    generatedUseCases: v.optional(v.string()),
+    generatedHowItWorks: v.optional(v.string()),
+    readmeIncludedMarkdown: v.optional(v.string()),
+    readmeIncludeSource: v.optional(
+      v.union(v.literal("markers"), v.literal("full")),
+    ),
   },
   handler: async (ctx, args): Promise<any> => {
-    // Require authentication to submit packages
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Authentication required to submit a package. Please sign in first.");
@@ -778,10 +842,10 @@ export const submitPackage = action({
     const npmUrl = args.npmUrl.trim();
     const componentName = args.componentName.trim();
     const shortDescription = args.shortDescription.trim();
-    const longDescription = args.longDescription.trim();
+    const longDescription = args.longDescription?.trim() || "";
     const demoUrl = args.demoUrl.trim();
 
-    if (!componentName || !shortDescription || !longDescription || !demoUrl) {
+    if (!componentName || !shortDescription || !demoUrl) {
       throw new Error("Please fill in all required fields.");
     }
 
@@ -836,6 +900,29 @@ export const submitPackage = action({
       authorAvatar = `https://avatars.githubusercontent.com/${parsedRepo.owner}`;
     }
 
+    // Build SKILL.md when v2 content is present so Download Skill works immediately
+    let skillMd: string | undefined;
+    if (args.generatedDescription && args.generatedUseCases && args.generatedHowItWorks) {
+      skillMd = buildSkillMdFromContent(
+        {
+          name: packageName,
+          componentName,
+          shortDescription,
+          description: packageData.description,
+          repositoryUrl,
+          npmUrl,
+          demoUrl,
+          installCommand: packageData.installCommand,
+          slug,
+        },
+        {
+          description: args.generatedDescription,
+          useCases: args.generatedUseCases,
+          howItWorks: args.generatedHowItWorks,
+        },
+      );
+    }
+
     // Insert into database with submitter info and new directory fields
     const packageId = await ctx.runMutation(internal.packages._addPackage, {
       ...packageData,
@@ -848,12 +935,20 @@ export const submitPackage = action({
       componentName,
       category: args.category,
       shortDescription,
-      longDescription,
+      longDescription: longDescription || undefined,
       tags: parsedTags,
       videoUrl: args.videoUrl,
       authorUsername,
       authorAvatar,
       communitySubmitted: true,
+      // V2 generated content (if submitted with preview)
+      generatedDescription: args.generatedDescription,
+      generatedUseCases: args.generatedUseCases,
+      generatedHowItWorks: args.generatedHowItWorks,
+      readmeIncludedMarkdown: args.readmeIncludedMarkdown,
+      readmeIncludeSource: args.readmeIncludeSource,
+      contentModelVersion: args.generatedDescription ? 2 : undefined,
+      skillMd,
     });
 
     // Auto AI review moves eligible submissions into in_review and
@@ -914,6 +1009,16 @@ export const _addPackage = internalMutation({
     authorUsername: v.optional(v.string()),
     authorAvatar: v.optional(v.string()),
     communitySubmitted: v.optional(v.boolean()),
+    // V2 generated content fields
+    generatedDescription: v.optional(v.string()),
+    generatedUseCases: v.optional(v.string()),
+    generatedHowItWorks: v.optional(v.string()),
+    readmeIncludedMarkdown: v.optional(v.string()),
+    readmeIncludeSource: v.optional(
+      v.union(v.literal("markers"), v.literal("full")),
+    ),
+    contentModelVersion: v.optional(v.number()),
+    skillMd: v.optional(v.string()),
   },
   returns: v.id("packages"),
   handler: async (ctx, args) => {
@@ -989,6 +1094,14 @@ export const _addPackage = internalMutation({
       authorUsername: args.authorUsername,
       authorAvatar: args.authorAvatar,
       communitySubmitted: args.communitySubmitted,
+      // V2 generated content
+      generatedDescription: args.generatedDescription,
+      generatedUseCases: args.generatedUseCases,
+      generatedHowItWorks: args.generatedHowItWorks,
+      readmeIncludedMarkdown: args.readmeIncludedMarkdown,
+      readmeIncludeSource: args.readmeIncludeSource,
+      contentModelVersion: args.contentModelVersion,
+      skillMd: args.skillMd,
     });
   },
 });
@@ -3719,6 +3832,8 @@ const userSubmissionValidator = v.object({
   unreadAdminReplies: v.number(),
   markedForDeletion: v.optional(v.boolean()),
   markedForDeletionAt: v.optional(v.number()),
+  submittedShortDescription: v.optional(v.string()),
+  submittedLongDescription: v.optional(v.string()),
 });
 
 // Public query: Get submissions by the authenticated user's email
@@ -3793,6 +3908,8 @@ export const getMySubmissions = query({
           unreadAdminReplies: unreadCount,
           markedForDeletion: pkg.markedForDeletion,
           markedForDeletionAt: pkg.markedForDeletionAt,
+          submittedShortDescription: pkg.submittedShortDescription,
+          submittedLongDescription: pkg.submittedLongDescription,
         };
       }),
     );
@@ -4398,6 +4515,13 @@ export const updateMySubmission = mutation({
     tags: v.optional(v.array(v.string())),
     demoUrl: v.optional(v.string()),
     videoUrl: v.optional(v.string()),
+    generatedDescription: v.optional(v.string()),
+    generatedUseCases: v.optional(v.string()),
+    generatedHowItWorks: v.optional(v.string()),
+    readmeIncludedMarkdown: v.optional(v.string()),
+    readmeIncludeSource: v.optional(
+      v.union(v.literal("markers"), v.literal("full")),
+    ),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -4406,7 +4530,6 @@ export const updateMySubmission = mutation({
       throw new Error("Authentication required");
     }
 
-    // Verify package belongs to user
     const pkg = await ctx.db.get(args.packageId);
     if (!pkg) {
       throw new Error("Package not found");
@@ -4415,8 +4538,7 @@ export const updateMySubmission = mutation({
       throw new Error("You can only edit your own submissions");
     }
 
-    // Build update object with only provided fields
-    const updates: Record<string, string | string[] | undefined> = {};
+    const updates: Record<string, string | string[] | number | undefined> = {};
     if (args.componentName !== undefined) updates.componentName = args.componentName;
     if (args.shortDescription !== undefined) updates.shortDescription = args.shortDescription;
     if (args.longDescription !== undefined) updates.longDescription = args.longDescription;
@@ -4424,6 +4546,42 @@ export const updateMySubmission = mutation({
     if (args.tags !== undefined) updates.tags = args.tags;
     if (args.demoUrl !== undefined) updates.demoUrl = args.demoUrl;
     if (args.videoUrl !== undefined) updates.videoUrl = args.videoUrl;
+    if (args.generatedDescription !== undefined) updates.generatedDescription = args.generatedDescription;
+    if (args.generatedUseCases !== undefined) updates.generatedUseCases = args.generatedUseCases;
+    if (args.generatedHowItWorks !== undefined) updates.generatedHowItWorks = args.generatedHowItWorks;
+    if (args.readmeIncludedMarkdown !== undefined) updates.readmeIncludedMarkdown = args.readmeIncludedMarkdown;
+    if (args.readmeIncludeSource !== undefined) updates.readmeIncludeSource = args.readmeIncludeSource;
+
+    // If user is saving v2 content fields for the first time, set model version
+    if (
+      (args.generatedDescription || args.generatedUseCases || args.generatedHowItWorks) &&
+      !pkg.contentModelVersion
+    ) {
+      updates.contentModelVersion = 2;
+      updates.contentGeneratedAt = Date.now();
+      updates.contentGenerationStatus = "completed";
+    }
+
+    // Build skillMd when all three v2 content fields are present (new or existing)
+    const desc = (args.generatedDescription ?? pkg.generatedDescription) || "";
+    const useCases = (args.generatedUseCases ?? pkg.generatedUseCases) || "";
+    const howItWorks = (args.generatedHowItWorks ?? pkg.generatedHowItWorks) || "";
+    if (desc && useCases && howItWorks) {
+      updates.skillMd = buildSkillMdFromContent(
+        {
+          name: pkg.name,
+          componentName: (args.componentName ?? pkg.componentName) || undefined,
+          shortDescription: (args.shortDescription ?? pkg.shortDescription) || undefined,
+          description: pkg.description,
+          repositoryUrl: pkg.repositoryUrl || undefined,
+          npmUrl: pkg.npmUrl,
+          demoUrl: (args.demoUrl ?? pkg.demoUrl) || undefined,
+          installCommand: pkg.installCommand,
+          slug: pkg.slug || undefined,
+        },
+        { description: desc, useCases, howItWorks },
+      );
+    }
 
     if (Object.keys(updates).length > 0) {
       await ctx.db.patch(args.packageId, updates);
@@ -4450,6 +4608,16 @@ export const getMySubmissionForEdit = query({
       logoUrl: v.optional(v.string()),
       repositoryUrl: v.optional(v.string()),
       npmUrl: v.string(),
+      generatedDescription: v.optional(v.string()),
+      generatedUseCases: v.optional(v.string()),
+      generatedHowItWorks: v.optional(v.string()),
+      readmeIncludedMarkdown: v.optional(v.string()),
+      readmeIncludeSource: v.optional(
+        v.union(v.literal("markers"), v.literal("full")),
+      ),
+      contentModelVersion: v.optional(v.number()),
+      submittedShortDescription: v.optional(v.string()),
+      submittedLongDescription: v.optional(v.string()),
     }),
     v.null(),
   ),
@@ -4477,6 +4645,14 @@ export const getMySubmissionForEdit = query({
       logoUrl: pkg.logoUrl,
       repositoryUrl: pkg.repositoryUrl,
       npmUrl: pkg.npmUrl,
+      generatedDescription: pkg.generatedDescription,
+      generatedUseCases: pkg.generatedUseCases,
+      generatedHowItWorks: pkg.generatedHowItWorks,
+      readmeIncludedMarkdown: pkg.readmeIncludedMarkdown,
+      readmeIncludeSource: pkg.readmeIncludeSource,
+      contentModelVersion: pkg.contentModelVersion,
+      submittedShortDescription: pkg.submittedShortDescription,
+      submittedLongDescription: pkg.submittedLongDescription,
     };
   },
 });

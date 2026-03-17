@@ -208,6 +208,250 @@
   }
 }
 
+/* GitHub-style markdown body for README rendering */
+@layer components {
+  .markdown-body {
+    color: #1a1a1a;
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    word-wrap: break-word;
+  }
+
+  .markdown-body > *:first-child {
+    margin-top: 0;
+  }
+
+  .markdown-body > *:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Headings with GitHub-style bottom borders on h1/h2 */
+  .markdown-body h1 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.3;
+    margin-top: 1.75rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid #DDD4C4;
+    color: #1a1a1a;
+  }
+
+  .markdown-body h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    line-height: 1.3;
+    margin-top: 1.5rem;
+    margin-bottom: 0.625rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid #DDD4C4;
+    color: #1a1a1a;
+  }
+
+  .markdown-body h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    line-height: 1.35;
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+    color: #1a1a1a;
+  }
+
+  .markdown-body h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.35;
+    margin-top: 1rem;
+    margin-bottom: 0.375rem;
+    color: #1a1a1a;
+  }
+
+  .markdown-body h5 {
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-top: 1rem;
+    margin-bottom: 0.375rem;
+    color: #1a1a1a;
+  }
+
+  .markdown-body h6 {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    margin-top: 1rem;
+    margin-bottom: 0.375rem;
+    color: #6b6b6b;
+  }
+
+  /* Paragraphs */
+  .markdown-body p {
+    margin-bottom: 0.875rem;
+    color: #3d3d3d;
+  }
+
+  /* Links */
+  .markdown-body a {
+    color: #8D2676;
+    text-decoration: none;
+  }
+
+  .markdown-body a:hover {
+    text-decoration: underline;
+  }
+
+  /* Bold and italic */
+  .markdown-body strong {
+    font-weight: 600;
+    color: #1a1a1a;
+  }
+
+  .markdown-body em {
+    font-style: italic;
+  }
+
+  /* Lists */
+  .markdown-body ul {
+    list-style-type: disc;
+    padding-left: 1.5rem;
+    margin-top: 0.375rem;
+    margin-bottom: 0.875rem;
+  }
+
+  .markdown-body ol {
+    list-style-type: decimal;
+    padding-left: 1.5rem;
+    margin-top: 0.375rem;
+    margin-bottom: 0.875rem;
+  }
+
+  .markdown-body li {
+    margin-bottom: 0.25rem;
+    color: #3d3d3d;
+  }
+
+  .markdown-body li > p {
+    margin-bottom: 0.375rem;
+  }
+
+  /* Nested lists */
+  .markdown-body ul ul,
+  .markdown-body ol ul {
+    list-style-type: circle;
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .markdown-body ul ul ul,
+  .markdown-body ol ul ul {
+    list-style-type: square;
+  }
+
+  .markdown-body ul ol,
+  .markdown-body ol ol {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+  }
+
+  /* Task lists (GFM checkboxes) */
+  .markdown-body li input[type="checkbox"] {
+    margin-right: 0.375rem;
+    vertical-align: middle;
+  }
+
+  .markdown-body ul.contains-task-list {
+    list-style: none;
+    padding-left: 0;
+  }
+
+  /* Inline code */
+  .markdown-body code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.8125rem;
+    background-color: rgba(175, 162, 137, 0.15);
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    color: #1a1a1a;
+  }
+
+  /* Code blocks are handled by Pierre Diffs CodeBlock component */
+  .markdown-body pre code {
+    background: none;
+    padding: 0;
+    border-radius: 0;
+    font-size: inherit;
+  }
+
+  /* Blockquotes */
+  .markdown-body blockquote {
+    border-left: 3px solid #DDD4C4;
+    padding-left: 1rem;
+    margin: 0.75rem 0;
+    color: #6b6b6b;
+  }
+
+  .markdown-body blockquote p {
+    color: #6b6b6b;
+  }
+
+  /* Horizontal rules */
+  .markdown-body hr {
+    border: none;
+    border-top: 1px solid #DDD4C4;
+    margin: 1.5rem 0;
+  }
+
+  /* Tables (GFM) */
+  .markdown-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.8125rem;
+    overflow-x: auto;
+    display: block;
+  }
+
+  .markdown-body thead {
+    background-color: rgba(175, 162, 137, 0.1);
+  }
+
+  .markdown-body th {
+    border: 1px solid #DDD4C4;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: #1a1a1a;
+  }
+
+  .markdown-body td {
+    border: 1px solid #DDD4C4;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    color: #3d3d3d;
+  }
+
+  .markdown-body tr:nth-child(even) {
+    background-color: rgba(175, 162, 137, 0.05);
+  }
+
+  /* Images */
+  .markdown-body img {
+    max-width: 100%;
+    border-radius: 8px;
+    margin: 0.75rem 0;
+  }
+
+  /* Details/summary */
+  .markdown-body details {
+    margin: 0.75rem 0;
+  }
+
+  .markdown-body summary {
+    cursor: pointer;
+    font-weight: 500;
+    color: #1a1a1a;
+  }
+}
+
 /* Component Classes */
 @layer components {
   /* only use this to update the style of the auth input fields. use a different class for all other input fields */

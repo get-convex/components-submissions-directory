@@ -12,6 +12,7 @@ import type * as aiProviderFallback from "../aiProviderFallback.js";
 import type * as aiReview from "../aiReview.js";
 import type * as aiSettings from "../aiSettings.js";
 import type * as auth from "../auth.js";
+import type * as contentGenerationLimits from "../contentGenerationLimits.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as packages from "../packages.js";
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   aiReview: typeof aiReview;
   aiSettings: typeof aiSettings;
   auth: typeof auth;
+  contentGenerationLimits: typeof contentGenerationLimits;
   crons: typeof crons;
   http: typeof http;
   packages: typeof packages;

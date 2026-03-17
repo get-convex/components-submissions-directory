@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useAuth } from "../lib/auth";
 import { Toaster, toast } from "sonner";
 import { Id } from "../../convex/_generated/dataModel";
 import { ComponentDetailsEditor } from "../components/ComponentDetailsEditor";
+import { CONTENT_PROMPT_PLACEHOLDERS } from "../../shared/seoPromptTemplate";
 import Header from "../components/Header";
 import {
   Eye,
@@ -62,6 +63,7 @@ import {
 import {
   ExternalLinkIcon as RadixExternalLinkIcon,
 } from "@radix-ui/react-icons";
+import AiLoadingDots from "../components/AiLoadingDots";
 import { AI_REVIEW_PROMPT_STATUS_LABEL } from "../../shared/aiReviewPromptMeta";
 
 // Review status type
@@ -302,8 +304,21 @@ function PackageComponentDetailsEditor({
   seoUseCases,
   seoFaq,
   seoResourceLinks,
+  contentModelVersion,
+  contentGenerationStatus,
+  contentGeneratedAt,
+  contentGenerationError,
+  generatedDescription,
+  generatedUseCases,
+  generatedHowItWorks,
+  readmeIncludedMarkdown,
+  readmeIncludeSource,
   skillMd,
   npmDescription,
+  repositoryUrl,
+  npmUrl,
+  submittedShortDescription,
+  submittedLongDescription,
 }: {
   packageId: Id<"packages">;
   componentName?: string;
@@ -332,8 +347,21 @@ function PackageComponentDetailsEditor({
   seoUseCases?: { query: string; answer: string }[];
   seoFaq?: { question: string; answer: string }[];
   seoResourceLinks?: { label: string; url: string }[];
+  contentModelVersion?: number;
+  contentGenerationStatus?: string;
+  contentGeneratedAt?: number;
+  contentGenerationError?: string;
+  generatedDescription?: string;
+  generatedUseCases?: string;
+  generatedHowItWorks?: string;
+  readmeIncludedMarkdown?: string;
+  readmeIncludeSource?: "markers" | "full";
   skillMd?: string;
   npmDescription?: string;
+  repositoryUrl?: string;
+  npmUrl?: string;
+  submittedShortDescription?: string;
+  submittedLongDescription?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -394,8 +422,21 @@ function PackageComponentDetailsEditor({
           seoUseCases={seoUseCases}
           seoFaq={seoFaq}
           seoResourceLinks={seoResourceLinks}
+          contentModelVersion={contentModelVersion}
+          contentGenerationStatus={contentGenerationStatus}
+          contentGeneratedAt={contentGeneratedAt}
+          contentGenerationError={contentGenerationError}
+          generatedDescription={generatedDescription}
+          generatedUseCases={generatedUseCases}
+          generatedHowItWorks={generatedHowItWorks}
+          readmeIncludedMarkdown={readmeIncludedMarkdown}
+          readmeIncludeSource={readmeIncludeSource}
           skillMd={skillMd}
           npmDescription={npmDescription}
+          repositoryUrl={repositoryUrl}
+          npmUrl={npmUrl}
+          submittedShortDescription={submittedShortDescription}
+          submittedLongDescription={submittedLongDescription}
         />
       )}
     </div>
@@ -2830,7 +2871,7 @@ function InlineActions({
     packageId,
   });
   const autoFillAuthor = useMutation(api.packages.autoFillAuthorFromRepo);
-  const regenerateSeo = useAction(api.seoContent.regenerateSeoContent);
+  const regenerateSeo = useAction(api.seoContent.regenerateDirectoryContent);
   const refreshNpmData = useAction(api.packages.refreshNpmData);
   const generateSlug = useMutation(api.packages.generateSlugForPackage);
 
@@ -3032,15 +3073,15 @@ function InlineActions({
     }
   };
 
-  // Regenerate SEO + SKILL.md content
+  // Regenerate Component Directory Content + SKILL.md
   const handleRegenerateSeo = async () => {
     if (isRegeneratingSeo || seoGenerationStatus === "generating") return;
     setIsRegeneratingSeo(true);
     try {
       await regenerateSeo({ packageId });
-      toast.success("SEO + Skill generation started");
+      toast.success("Component directory content generation started");
     } catch (error) {
-      toast.error("Failed to start SEO generation");
+      toast.error("Failed to start content generation");
     } finally {
       setIsRegeneratingSeo(false);
     }
@@ -3304,8 +3345,8 @@ function InlineActions({
               </button>
             </Tooltip>
 
-            {/* Regenerate SEO + Skill Button */}
-            <Tooltip content={isSeoGenerating ? "Generating..." : "Generate AI SEO content and SKILL.md"}>
+            {/* Generate Component Directory Content Button */}
+            <Tooltip content={isSeoGenerating ? "AI is working..." : "Generate component directory content and SKILL.md"}>
               <button
                 onClick={handleRegenerateSeo}
                 disabled={isLoading || isSeoGenerating}
@@ -3315,10 +3356,14 @@ function InlineActions({
                     : "border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                 }`}
               >
-                <ArrowsClockwise size={14} weight="bold" className={isSeoGenerating ? "animate-spin" : ""} />
-                <span className="hidden sm:inline">
-                  {isSeoGenerating ? "Generating..." : "Regenerate SEO + Skill"}
-                </span>
+                {isSeoGenerating ? (
+                  <AiLoadingDots size={14} />
+                ) : (
+                  <>
+                    <ArrowsClockwise size={14} weight="bold" />
+                    <span className="hidden sm:inline">Generate Content</span>
+                  </>
+                )}
               </button>
             </Tooltip>
 
@@ -6172,11 +6217,11 @@ function SeoPromptSettingsPanel() {
         content: editedPrompt,
         notes: notes || undefined,
       });
-      toast.success("SEO prompt saved");
+      toast.success("Content prompt saved");
       setIsEditing(false);
       setNotes("");
     } catch (error) {
-      toast.error("Failed to save SEO prompt");
+      toast.error("Failed to save content prompt");
     } finally {
       setIsSaving(false);
     }
@@ -6214,7 +6259,7 @@ function SeoPromptSettingsPanel() {
         <div className="flex items-center gap-2">
           <Robot size={16} weight="bold" className="text-text-secondary" />
           <span className="text-sm font-medium text-text-primary">
-            SEO + SKILL.md Prompt
+            Component Directory Content Prompt
           </span>
           {!activePrompt.isDefault && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
@@ -6233,14 +6278,17 @@ function SeoPromptSettingsPanel() {
         <div className="p-4 border-t border-border space-y-4">
           <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary space-y-2">
             <p>
-              View and customize the AI SEO content generation prompt. This prompt
-              generates value propositions, benefits, use cases, FAQs, and SKILL.md
-              files for each component. Uses placeholders like {"{{displayName}}"}, {"{{packageName}}"}, etc.
+              This prompt controls how AI generates component directory content (description,
+              use cases, how it works) and SKILL.md. The same prompt is used by the admin
+              Generate Content button, the submission form, and the profile edit flow.
+              Generation reads the GitHub README as the primary source, uses the component
+              name and short description as secondary context, and grounds Convex terminology
+              against `llms.txt`.
             </p>
             <p className="text-text-tertiary">
-              <strong>SKILL.md format:</strong> Generated skills follow Anthropic skill creator guidelines with
-              "pushy" description fields (trigger contexts from category, tags, and use cases),
-              imperative instructions, and a "When NOT to use" section to prevent over-triggering.
+              <strong>SKILL.md:</strong> Generated skills follow Anthropic skill creator guidelines with
+              trigger context from category, tags, and use cases. Custom edits override the
+              default prompt for all three surfaces.
             </p>
           </div>
 
@@ -6292,7 +6340,7 @@ function SeoPromptSettingsPanel() {
           <div className="p-2 rounded border border-border bg-bg-primary">
             <p className="text-xs font-medium text-text-primary mb-1">Available Placeholders:</p>
             <p className="text-xs text-text-secondary font-mono">
-              {"{{displayName}}"} {"{{packageName}}"} {"{{category}}"} {"{{tags}}"} {"{{shortDesc}}"} {"{{longDesc}}"} {"{{repoUrl}}"} {"{{installCmd}}"} {"{{npmUrl}}"} {"{{demoUrl}}"}
+              {CONTENT_PROMPT_PLACEHOLDERS.join(" ")}
             </p>
           </div>
 
@@ -6304,7 +6352,7 @@ function SeoPromptSettingsPanel() {
                 onChange={(e) => setEditedPrompt(e.target.value)}
                 rows={20}
                 className="w-full px-3 py-2 text-xs font-mono rounded border border-border bg-bg-primary text-text-primary resize-y"
-                placeholder="Enter your custom SEO prompt..."
+                placeholder="Enter your custom component directory content prompt..."
               />
               <input
                 type="text"
@@ -6737,6 +6785,159 @@ function SlugMigrationPanel() {
               <p className="text-sm text-green-600 text-center py-4 flex items-center justify-center gap-2">
                 <CheckCircle size={16} />
                 All packages have slugs. No migration needed.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============ CONTENT MODEL MIGRATION PANEL ============
+
+function ContentMigrationPanel() {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const allPackages = useQuery(api.packages.getAllPackages);
+  const regenerateContent = useAction(api.seoContent.regenerateDirectoryContent);
+  const migrateToContent = useMutation(api.seoContentDb.migrateToContentModel);
+  const [generatingId, setGeneratingId] = useState<string | null>(null);
+  const [migratingId, setMigratingId] = useState<string | null>(null);
+
+  const v1Packages = useMemo(
+    () =>
+      (allPackages ?? []).filter(
+        (pkg: any) =>
+          pkg.contentModelVersion !== 2 &&
+          pkg.reviewStatus === "approved" &&
+          pkg.visibility === "visible",
+      ),
+    [allPackages],
+  );
+
+  const v2Packages = useMemo(
+    () => (allPackages ?? []).filter((pkg: any) => pkg.contentModelVersion === 2),
+    [allPackages],
+  );
+
+  const handleGenerate = async (packageId: Id<"packages">) => {
+    setGeneratingId(packageId);
+    try {
+      await regenerateContent({ packageId });
+      toast.success("Content generation started. It will complete in the background.");
+    } catch {
+      toast.error("Failed to start content generation.");
+    } finally {
+      setGeneratingId(null);
+    }
+  };
+
+  const handleMigrate = async (packageId: Id<"packages">) => {
+    setMigratingId(packageId);
+    try {
+      await migrateToContent({ packageId });
+      toast.success("Package migrated to v2 content model.");
+    } catch {
+      toast.error("Failed to migrate.");
+    } finally {
+      setMigratingId(null);
+    }
+  };
+
+  return (
+    <div className="mb-4 rounded-lg border border-border bg-bg-card overflow-hidden">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Lightning size={16} weight="bold" className="text-blue-500" />
+          <span className="text-sm font-medium text-text-primary">
+            Content Model Migration
+          </span>
+          {v1Packages.length > 0 && (
+            <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 rounded">
+              {v1Packages.length} on v1
+            </span>
+          )}
+          {v2Packages.length > 0 && (
+            <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-100 text-green-700 rounded">
+              {v2Packages.length} on v2
+            </span>
+          )}
+        </div>
+        {isExpanded ? (
+          <CaretUp size={16} className="text-text-secondary" />
+        ) : (
+          <CaretDown size={16} className="text-text-secondary" />
+        )}
+      </button>
+
+      {isExpanded && (
+        <div className="p-4 border-t border-border space-y-4">
+          <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary">
+            <p>
+              Migrate approved packages from the old SEO content model (v1) to the new generated
+              content model (v2: Description, Use Cases, How it Works). First generate content,
+              then migrate to make v2 the active model for a package.
+            </p>
+          </div>
+
+          {v1Packages.length > 0 ? (
+            <div>
+              <h4 className="text-sm font-medium text-text-primary mb-3">
+                V1 Packages ({v1Packages.length})
+              </h4>
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {v1Packages.map((pkg: any) => (
+                  <div
+                    key={pkg._id}
+                    className="flex items-center justify-between gap-3 p-3 rounded-lg border border-border bg-bg-primary"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-text-primary truncate">
+                        {pkg.componentName || pkg.name}
+                      </p>
+                      <p className="text-xs text-text-secondary">
+                        {pkg.contentGenerationStatus === "completed"
+                          ? "Content generated, ready to migrate"
+                          : (generatingId === pkg._id || pkg.contentGenerationStatus === "generating")
+                            ? ""
+                            : pkg.contentGenerationStatus === "error"
+                              ? "Generation failed"
+                              : "No v2 content yet"}
+                        {(generatingId === pkg._id || pkg.contentGenerationStatus === "generating") && (
+                          <AiLoadingDots size={12} />
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => handleGenerate(pkg._id)}
+                        disabled={generatingId === pkg._id || pkg.contentGenerationStatus === "generating"}
+                        className="px-3 py-1 text-xs font-medium rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors disabled:opacity-50"
+                      >
+                        {generatingId === pkg._id ? <AiLoadingDots size={12} /> : "Generate"}
+                      </button>
+                      {pkg.contentGenerationStatus === "completed" && (
+                        <button
+                          onClick={() => handleMigrate(pkg._id)}
+                          disabled={migratingId === pkg._id}
+                          className="px-3 py-1 text-xs font-medium rounded bg-green-100 text-green-700 hover:bg-green-200 transition-colors disabled:opacity-50"
+                        >
+                          {migratingId === pkg._id ? "..." : "Migrate"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="py-4 text-center">
+              <p className="text-sm text-green-600 flex items-center justify-center gap-2">
+                <CheckCircle size={16} />
+                All approved packages are on the v2 content model.
               </p>
             </div>
           )}
@@ -7861,8 +8062,21 @@ function AdminDashboard({
                             seoUseCases={pkg.seoUseCases}
                             seoFaq={pkg.seoFaq}
                             seoResourceLinks={pkg.seoResourceLinks}
+                            contentModelVersion={pkg.contentModelVersion}
+                            contentGenerationStatus={pkg.contentGenerationStatus}
+                            contentGeneratedAt={pkg.contentGeneratedAt}
+                            contentGenerationError={pkg.contentGenerationError}
+                            generatedDescription={pkg.generatedDescription}
+                            generatedUseCases={pkg.generatedUseCases}
+                            generatedHowItWorks={pkg.generatedHowItWorks}
+                            readmeIncludedMarkdown={pkg.readmeIncludedMarkdown}
+                            readmeIncludeSource={pkg.readmeIncludeSource}
                             skillMd={pkg.skillMd}
                             npmDescription={pkg.description}
+                            repositoryUrl={pkg.repositoryUrl}
+                            npmUrl={pkg.npmUrl}
+                            submittedShortDescription={pkg.submittedShortDescription}
+                            submittedLongDescription={pkg.submittedLongDescription}
                           />
                           <PackageMetadataEditor
                             packageId={pkg._id}
@@ -8096,6 +8310,10 @@ function AdminDashboard({
 
               <div id="settings-slugs" className="scroll-mt-28">
                 <SlugMigrationPanel />
+              </div>
+
+              <div id="settings-content-migration" className="scroll-mt-28">
+                <ContentMigrationPanel />
               </div>
 
               <div id="settings-templates" className="scroll-mt-28">

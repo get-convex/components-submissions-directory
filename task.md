@@ -2,7 +2,83 @@
 
 ## to do
 
-Session updates complete on 2026-03-16 22:49 UTC.
+Session updates complete on 2026-03-17 18:45 UTC.
+
+- [x] fix SKILL.md (Download Skill) not generated during submit, profile edit, or content model migration (2026-03-17 18:45 UTC)
+  - Extracted `buildSkillMdFromContent` to `shared/buildSkillMd.ts` so it can be imported by both "use node" action files and mutation files
+  - `submitPackage` in `convex/packages.ts` now builds `skillMd` when v2 content fields are present at submission time
+  - `updateMySubmission` in `convex/packages.ts` now rebuilds `skillMd` when v2 content is saved via profile edit
+  - `migrateToContentModel` in `convex/seoContentDb.ts` now backfills `skillMd` for packages that have v2 content but no skill file
+  - `updateGeneratedContent` (admin edit) in `convex/seoContentDb.ts` now auto-rebuilds `skillMd` when content fields change
+  - `_addPackage` accepts optional `skillMd` arg and saves it on insert
+  - Verified with `npm run build` and `npx convex typecheck`
+
+- [x] refactor detail page markdown rendering to use unified markdown-body CSS class (2026-03-17 17:53 UTC)
+  - Added `.markdown-body` class in `src/index.css` with GitHub-style heading hierarchy (h1/h2 with bottom borders, proper size progression), nested list bullet types, inline code, blockquote, GFM table, and task list checkbox styles
+  - Replaced 4 duplicated inline Tailwind `[&_*]` overrides in `src/pages/ComponentDetail.tsx` with single `markdown-body` wrapper
+  - Fixed broken heading hierarchy where v1 long description forced h1/h2 to tiny uppercase text
+  - Simplified `src/components/markdownComponents.tsx` by removing heading/paragraph/list overrides (handled by CSS) and adding shared img component with video detection
+  - Verified with `npm run build`
+- [x] add side-by-side editor and preview layout to ProfileEditSubmission content section (2026-03-17 15:25 UTC)
+  - Description, Use Cases, and How it Works sections now render as two-column grid on desktop (editor left, preview right) and stack on mobile
+  - Added live markdown preview to Description (previously had none)
+  - Preview panes scroll independently with min/max height constraints
+  - README preview stays full-width since it is read-only
+- [x] make Package, Repo, and npm values clickable links in ProfileEditSubmission info box (2026-03-17 15:28 UTC)
+  - Package links to the component detail page
+  - Repo and npm open in new tabs with `target="_blank"`
+
+- [x] unify admin, submit, and profile content generation to use the same v2 prompt and flow (2026-03-17 06:44 UTC)
+  - Admin action bar "Regenerate SEO + Skill" button now calls `regenerateDirectoryContent` (v2) instead of `regenerateSeoContent` (v1), renamed to "Generate Content"
+  - `buildContentPrompt` in `convex/seoContent.ts` now accepts an optional `customTemplate` parameter so admin custom prompts apply to all three surfaces
+  - Both `generateDirectoryContent` and `previewDirectoryContent` now load the admin custom prompt via `_getSeoActivePromptContent`
+  - Admin prompt settings panel renamed from "SEO + SKILL.md Prompt" to "Component Directory Content Prompt" with updated description and v2 placeholders
+  - Default prompt in `convex/aiSettings.ts` switched from `DEFAULT_SEO_PROMPT_TEMPLATE` to `DEFAULT_CONTENT_PROMPT_TEMPLATE`
+  - Verified with `npm run build` and `npx convex typecheck`
+
+- [x] change user rate limit from 1/hour to 5/hour, admin stays exempt (2026-03-17 06:44 UTC)
+  - Updated `MAX_CONTENT_GENERATIONS_PER_WINDOW` from 1 to 5 in `convex/contentGenerationLimits.ts`
+  - Warning modal text in `src/pages/SubmitForm.tsx` and `src/pages/ProfileEditSubmission.tsx` updated to say "5 times per hour"
+  - Admin remains exempt since it uses internal action scheduling
+
+- [x] add GitHub-style markdown rendering with table support and vertical rhythm (2026-03-17 06:26 UTC)
+  - Created shared `src/components/markdownComponents.tsx` with component overrides for code blocks, tables, headings, lists, blockquotes, and horizontal rules
+  - All `ReactMarkdown` instances in `src/pages/SubmitForm.tsx`, `src/pages/ProfileEditSubmission.tsx`, and `src/pages/ComponentDetail.tsx` now use the shared components
+  - Tables render with borders, header backgrounds, cell padding, alternating row shading, and horizontal scroll
+  - Headings get proper top margin (`mt-6` for h1/h2, `mt-4` for h3, `mt-3` for h4) so README sections do not collide
+  - Removed duplicate inline code/pre component definitions from all three pages
+  - Verified with `npm run build`
+
+- [x] add "From the README.md" heading and hr separator on detail page (2026-03-17 06:15 UTC)
+  - Added `<hr>` and `<h3>From the README.md</h3>` above the README markdown section in `src/pages/ComponentDetail.tsx`
+  - Also added the heading to the `buildComponentMarkdown` export so llms.txt output stays consistent
+  - Removed extra wrapper div that was left from the old `border-t` approach
+  - Verified with `npm run build`
+
+- [x] add pulsing AI loading indicator to all generation surfaces (2026-03-17 06:08 UTC)
+  - Created shared `src/components/AiLoadingDots.tsx` using Phosphor `DotsNine` with `animate-pulse` and "AI is working" label
+  - Swapped into `src/pages/SubmitForm.tsx` generate button and warning modal confirm button
+  - Swapped into `src/pages/ProfileEditSubmission.tsx` generate button and warning modal confirm button
+  - Swapped into `src/pages/Admin.tsx` Regenerate SEO + Skill button and content migration Generate button and status text
+  - Verified with `npm run build`
+
+- [x] fix stored README markdown containing prompt prefix text (2026-03-17 06:04 UTC)
+  - `fetchGitHubReadme` in `convex/seoContent.ts` now returns both `content` (prefixed, for the AI prompt) and `rawContent` (clean, for storage)
+  - Both `extractReadmeIncludeBlock` call sites now use `rawContent` so saved `readmeIncludedMarkdown` no longer starts with "From the README.md"
+  - Existing records will be clean after next regeneration
+  - Verified with Convex typecheck
+
+- [x] fix React hooks order error in ProfileEditSubmission (2026-03-17 06:00 UTC)
+  - Moved `canGenerate` and `handleOpenGenerateWarning` above all early returns so hooks run unconditionally
+  - `canGenerate` now guards against null `submission` since it runs before the loading/null checks
+  - Admin SEO actions confirmed exempt from the rate limit since they use separate internal action paths
+  - Verified with TypeScript check
+
+- [x] add content generation cooldown and warning modal to submit and profile edit (2026-03-17 05:53 UTC)
+  - Added a backend `once per hour per signed-in account` limit for the generated content preview action used by both submit and profile edit flows
+  - Added warning modals in `src/pages/SubmitForm.tsx` and `src/pages/ProfileEditSubmission.tsx` that ask users to only regenerate when really needed
+  - Updated the shared preview action call sites to pass source metadata and surface the backend rate-limit message cleanly
+  - Verified with `npm run lint`
 
 - [x] hide the component detail `llms.txt` link when SEO visibility is hidden (2026-03-16 22:49 UTC)
   - Updated `src/pages/ComponentDetail.tsx` so the standalone `View llms.txt` link uses the same hidden SEO visibility gate as the generated SEO and SKILL sections
@@ -525,6 +601,33 @@ Acceptance checks:
 - [ ] - [ ] add payments api
 
 ## completed
+
+- [x] polish layout and imported README behavior for submit, profile edit, and detail surfaces (`prds/layout-and-readme-link-polish.md`) (2026-03-17 05:43 UTC)
+  - Matched `src/pages/SubmitForm.tsx`, `src/pages/Profile.tsx`, and `src/pages/ProfileEditSubmission.tsx` to the `max-w-7xl` page shell used by `src/pages/Submit.tsx`
+  - Made the generated-content textareas in submit and profile edit vertically resizable so users can drag them taller while editing
+  - Updated `src/components/ReadmePreviewNotice.tsx` with Phosphor toggle icons so the README source helper reads like an expandable control
+  - Upgraded `src/components/CodeBlock.tsx` with a built-in copy button and reused it in `src/components/AgentInstallSection.tsx` for the visible agent prompt block
+  - Fixed imported README relative links in `src/pages/ComponentDetail.tsx` so paths like `CONTRIBUTING.md` resolve against the GitHub repository instead of the local app
+  - Verified with `npx tsc --noEmit`, `ReadLints`, and `npm run build`
+
+- [x] align detail, submit, admin, and profile editing with the v2 content model (`prds/v2-content-editor-and-profile-edit-page.md`) (2026-03-17 05:21 UTC)
+  - Updated `src/pages/ComponentDetail.tsx` to move `View llms.txt` into the badge section and switched README source phrasing to read more naturally via `convex/seoContent.ts`
+  - Widened `src/pages/SubmitForm.tsx` to `1200px` and replaced the flat README preview note with a shared marker-status helper linked to the official component template
+  - Updated `src/components/ComponentDetailsEditor.tsx`, `src/pages/Admin.tsx`, and `convex/seoContentDb.ts` so migrated packages edit the v2 generated content model instead of the old AI SEO section
+  - Added routed full-page profile editing in `src/pages/ProfileEditSubmission.tsx` and `src/main.tsx`, and updated `src/pages/Profile.tsx` to use the new page flow at the wider layout
+  - Verified with `npx tsc --noEmit`, `ReadLints`, and `npm run build`
+
+- [x] fix migrated README rendering and remove legacy Resources from v2 detail output (`prds/content-model-migration-readme-rendering-fixes.md`) (2026-03-17 03:50 UTC)
+  - Fixed `src/components/CodeBlock.tsx` to pass Pierre Diffs the expected `name` field instead of `filename`, which stops README code blocks from crashing during migrated detail-page rendering
+  - Updated `src/pages/ComponentDetail.tsx` so legacy SEO sections only render for the old content model and removed the old visible Resources block
+  - Removed obsolete Resources output from the legacy markdown builders in `convex/http.ts` and `convex/router.ts` so exported markdown stays aligned with the new content model
+  - Verified with `npx tsc --noEmit` and `ReadLints`
+
+- [x] prioritize GitHub README and Convex docs grounding for AI SEO generation (`prds/seo-readme-and-convex-docs-grounding.md`) (2026-03-16 23:05 UTC)
+  - Added shared SEO prompt template in `shared/seoPromptTemplate.ts` so admin and runtime fallback prompts stay aligned
+  - Updated `convex/seoContent.ts` to fetch GitHub README content on demand, support common GitHub `blob` and `tree` README paths, and add best effort Convex docs grounding from `https://docs.convex.dev/llms.txt` plus `https://docs.convex.dev/`
+  - Updated `src/pages/Admin.tsx` SEO prompt help text and placeholder list to reflect README first grounding and Convex docs context
+  - Verified with `npm run build`
 
 - [x] add admin toggle to hide detail page SEO and SKILL sections (`prds/detail-page-seo-visibility-toggle.md`) (2026-03-16 21:37 UTC)
   - Added `hideSeoAndSkillContentOnDetailPage` to package data in `convex/schema.ts` and exposed it through the public and admin package shapes in `convex/packages.ts`

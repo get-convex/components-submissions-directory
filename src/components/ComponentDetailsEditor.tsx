@@ -1,11 +1,16 @@
 // Admin component for editing directory-specific fields on a package
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { useMutation, useAction, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { CaretDown, DownloadSimple, Image, ArrowsClockwise, PencilSimple, Plus, Trash } from "@phosphor-icons/react";
 import { useDirectoryCategories } from "../lib/categories";
+import CodeBlock from "./CodeBlock";
+import ReadmePreviewNotice from "./ReadmePreviewNotice";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 
 // Max file size: 3MB
 const MAX_FILE_SIZE = 3 * 1024 * 1024;
@@ -42,11 +47,25 @@ interface ComponentDetailsEditorProps {
   seoUseCases?: { query: string; answer: string }[];
   seoFaq?: { question: string; answer: string }[];
   seoResourceLinks?: { label: string; url: string }[];
+  contentModelVersion?: number;
+  contentGenerationStatus?: string;
+  contentGeneratedAt?: number;
+  contentGenerationError?: string;
+  generatedDescription?: string;
+  generatedUseCases?: string;
+  generatedHowItWorks?: string;
+  readmeIncludedMarkdown?: string;
+  readmeIncludeSource?: "markers" | "full";
   // SKILL.md generation
   skillMd?: string;
   mode?: "full" | "submission";
   // Package metadata for auto-fill
   npmDescription?: string;
+  repositoryUrl?: string;
+  npmUrl?: string;
+  // Snapshot of original user-submitted descriptions (pre-migration)
+  submittedShortDescription?: string;
+  submittedLongDescription?: string;
 }
 
 export function ComponentDetailsEditor({
@@ -77,9 +96,22 @@ export function ComponentDetailsEditor({
   seoUseCases,
   seoFaq,
   seoResourceLinks,
+  contentModelVersion,
+  contentGenerationStatus,
+  contentGeneratedAt,
+  contentGenerationError,
+  generatedDescription,
+  generatedUseCases,
+  generatedHowItWorks,
+  readmeIncludedMarkdown,
+  readmeIncludeSource,
   skillMd,
   mode = "full",
   npmDescription,
+  repositoryUrl,
+  npmUrl,
+  submittedShortDescription,
+  submittedLongDescription,
 }: ComponentDetailsEditorProps) {
   const isSubmissionMode = mode === "submission";
   const [componentName, setComponentName] = useState(initialComponentName || "");
@@ -124,6 +156,7 @@ export function ComponentDetailsEditor({
   );
   const [fillingAuthor, setFillingAuthor] = useState(false);
   const [generatingSeo, setGeneratingSeo] = useState(false);
+  const [showOriginalText, setShowOriginalText] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -215,9 +248,32 @@ export function ComponentDetailsEditor({
   const clearLogo = useMutation(api.packages.clearLogo);
   const autoFillAuthor = useMutation(api.packages.autoFillAuthorFromRepo);
   const regenerateSeo = useAction(api.seoContent.regenerateSeoContent);
+  const regenerateDirectoryContent = useAction(api.seoContent.regenerateDirectoryContent);
   const generateThumbnail = useAction(api.thumbnailGenerator.generateThumbnailForPackage);
   // Fetch active templates for picker
   const activeTemplates = useQuery(api.thumbnails.listActiveTemplates);
+
+  const markdownCodeComponents = {
+    code({
+      className,
+      children,
+      ...rest
+    }: { className?: string; children?: ReactNode; [key: string]: unknown }) {
+      const match = /language-(\w+)/.exec(className || "");
+      const code = String(children).replace(/\n$/, "");
+      if (match || code.includes("\n")) {
+        return <CodeBlock code={code} language={match?.[1]} />;
+      }
+      return (
+        <code className={className} {...rest}>
+          {children}
+        </code>
+      );
+    },
+    pre({ children }: { children?: ReactNode }) {
+      return <>{children}</>;
+    },
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -428,6 +484,7 @@ export function ComponentDetailsEditor({
   const badgeSnippet = slug
     ? `[![Convex Component](https://www.convex.dev/components/badge/${slug})](https://www.convex.dev/components/${slug})`
     : "";
+  const isV2ContentModel = contentModelVersion === 2;
 
   return (
     <div className="mt-4 p-3 rounded-lg bg-bg-hover/30 space-y-3">
@@ -823,6 +880,46 @@ export function ComponentDetailsEditor({
         />
       </div>
 
+      {/* Original submitted text (read-only reference) */}
+      {(submittedShortDescription || submittedLongDescription) && (
+        <div className="pt-2 border-t border-border/50">
+          <button
+            onClick={() => setShowOriginalText(!showOriginalText)}
+            className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-text-secondary hover:text-text-primary transition-colors"
+          >
+            <CaretDown
+              size={10}
+              className={`transition-transform ${showOriginalText ? "rotate-180" : ""}`}
+            />
+            Original Submitted Text
+          </button>
+          {showOriginalText && (
+            <div className="mt-2 space-y-2 p-3 rounded-lg bg-bg-secondary/30 border border-border/50">
+              {submittedShortDescription && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-0.5">
+                    Short Description
+                  </p>
+                  <p className="text-xs text-text-secondary">
+                    {submittedShortDescription}
+                  </p>
+                </div>
+              )}
+              {submittedLongDescription && (
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-0.5">
+                    Long Description
+                  </p>
+                  <p className="text-xs text-text-secondary whitespace-pre-wrap">
+                    {submittedLongDescription}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {!isSubmissionMode && (
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
@@ -858,32 +955,63 @@ export function ComponentDetailsEditor({
         </div>
       )}
 
-      {!isSubmissionMode && (
-        <SeoContentSection
-          packageId={packageId}
-          seoGenerationStatus={seoGenerationStatus}
-          seoGeneratedAt={seoGeneratedAt}
-          seoGenerationError={seoGenerationError}
-          seoValueProp={seoValueProp}
-          seoBenefits={seoBenefits}
-          seoUseCases={seoUseCases}
-          seoFaq={seoFaq}
-          seoResourceLinks={seoResourceLinks}
-          skillMd={skillMd}
-          generatingSeo={generatingSeo}
-          onRegenerate={async () => {
-            setGeneratingSeo(true);
-            try {
-              await regenerateSeo({ packageId });
-              toast.success("SEO content + SKILL.md generation started");
-            } catch {
-              toast.error("Failed to start generation");
-            } finally {
-              setGeneratingSeo(false);
-            }
-          }}
-        />
-      )}
+      {!isSubmissionMode &&
+        (isV2ContentModel ? (
+          <GeneratedContentSection
+            packageId={packageId}
+            repositoryUrl={repositoryUrl}
+            npmUrl={npmUrl}
+            componentName={componentName}
+            shortDescription={shortDescription}
+            contentGenerationStatus={contentGenerationStatus}
+            contentGeneratedAt={contentGeneratedAt}
+            contentGenerationError={contentGenerationError}
+            generatedDescription={generatedDescription}
+            generatedUseCases={generatedUseCases}
+            generatedHowItWorks={generatedHowItWorks}
+            readmeIncludedMarkdown={readmeIncludedMarkdown}
+            readmeIncludeSource={readmeIncludeSource}
+            skillMd={skillMd}
+            generatingContent={generatingSeo}
+            markdownCodeComponents={markdownCodeComponents}
+            onRegenerate={async () => {
+              setGeneratingSeo(true);
+              try {
+                await regenerateDirectoryContent({ packageId });
+                toast.success("Component directory content generation started");
+              } catch {
+                toast.error("Failed to start content generation");
+              } finally {
+                setGeneratingSeo(false);
+              }
+            }}
+          />
+        ) : (
+          <SeoContentSection
+            packageId={packageId}
+            seoGenerationStatus={seoGenerationStatus}
+            seoGeneratedAt={seoGeneratedAt}
+            seoGenerationError={seoGenerationError}
+            seoValueProp={seoValueProp}
+            seoBenefits={seoBenefits}
+            seoUseCases={seoUseCases}
+            seoFaq={seoFaq}
+            seoResourceLinks={seoResourceLinks}
+            skillMd={skillMd}
+            generatingSeo={generatingSeo}
+            onRegenerate={async () => {
+              setGeneratingSeo(true);
+              try {
+                await regenerateSeo({ packageId });
+                toast.success("SEO content + SKILL.md generation started");
+              } catch {
+                toast.error("Failed to start generation");
+              } finally {
+                setGeneratingSeo(false);
+              }
+            }}
+          />
+        ))}
 
       {!isSubmissionMode && badgeSnippet && (
         <div className="pt-2">
@@ -906,6 +1034,327 @@ export function ComponentDetailsEditor({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function GeneratedContentSection({
+  packageId,
+  repositoryUrl,
+  npmUrl,
+  componentName,
+  shortDescription,
+  contentGenerationStatus,
+  contentGeneratedAt,
+  contentGenerationError,
+  generatedDescription,
+  generatedUseCases,
+  generatedHowItWorks,
+  readmeIncludedMarkdown,
+  readmeIncludeSource,
+  skillMd,
+  generatingContent,
+  markdownCodeComponents,
+  onRegenerate,
+}: {
+  packageId: Id<"packages">;
+  repositoryUrl?: string;
+  npmUrl?: string;
+  componentName?: string;
+  shortDescription?: string;
+  contentGenerationStatus?: string;
+  contentGeneratedAt?: number;
+  contentGenerationError?: string;
+  generatedDescription?: string;
+  generatedUseCases?: string;
+  generatedHowItWorks?: string;
+  readmeIncludedMarkdown?: string;
+  readmeIncludeSource?: "markers" | "full";
+  skillMd?: string;
+  generatingContent: boolean;
+  markdownCodeComponents: {
+    code: ({
+      className,
+      children,
+      ...rest
+    }: {
+      className?: string;
+      children?: ReactNode;
+      [key: string]: unknown;
+    }) => JSX.Element;
+    pre: ({ children }: { children?: ReactNode }) => JSX.Element;
+  };
+  onRegenerate: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [savingContent, setSavingContent] = useState(false);
+  const [showSkillMd, setShowSkillMd] = useState(false);
+  const [editDescription, setEditDescription] = useState(generatedDescription || "");
+  const [editUseCases, setEditUseCases] = useState(generatedUseCases || "");
+  const [editHowItWorks, setEditHowItWorks] = useState(generatedHowItWorks || "");
+  const [editReadmeIncludedMarkdown, setEditReadmeIncludedMarkdown] = useState(
+    readmeIncludedMarkdown || "",
+  );
+  const [editReadmeIncludeSource, setEditReadmeIncludeSource] = useState<
+    "markers" | "full" | ""
+  >(readmeIncludeSource || "");
+  const [editSkillMd, setEditSkillMd] = useState(skillMd || "");
+  const updateGeneratedContent = useMutation(api.seoContentDb.updateGeneratedContent);
+
+  useEffect(() => {
+    if (!editing) {
+      setEditDescription(generatedDescription || "");
+      setEditUseCases(generatedUseCases || "");
+      setEditHowItWorks(generatedHowItWorks || "");
+      setEditReadmeIncludedMarkdown(readmeIncludedMarkdown || "");
+      setEditReadmeIncludeSource(readmeIncludeSource || "");
+      setEditSkillMd(skillMd || "");
+    }
+  }, [
+    editing,
+    generatedDescription,
+    generatedUseCases,
+    generatedHowItWorks,
+    readmeIncludedMarkdown,
+    readmeIncludeSource,
+    skillMd,
+  ]);
+
+  const canGenerate = Boolean(
+    repositoryUrl && npmUrl && componentName?.trim() && shortDescription?.trim(),
+  );
+  const hasContent = Boolean(
+    generatedDescription || generatedUseCases || generatedHowItWorks || readmeIncludedMarkdown,
+  );
+
+  const handleSaveGeneratedContent = async () => {
+    setSavingContent(true);
+    try {
+      await updateGeneratedContent({
+        packageId,
+        generatedDescription: editDescription || undefined,
+        generatedUseCases: editUseCases || undefined,
+        generatedHowItWorks: editHowItWorks || undefined,
+        readmeIncludedMarkdown: editReadmeIncludedMarkdown || undefined,
+        readmeIncludeSource:
+          editReadmeIncludeSource === "" ? undefined : editReadmeIncludeSource,
+        skillMd: editSkillMd || undefined,
+      });
+      toast.success("Generated content saved");
+      setEditing(false);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Save failed";
+      toast.error(msg);
+    } finally {
+      setSavingContent(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditDescription(generatedDescription || "");
+    setEditUseCases(generatedUseCases || "");
+    setEditHowItWorks(generatedHowItWorks || "");
+    setEditReadmeIncludedMarkdown(readmeIncludedMarkdown || "");
+    setEditReadmeIncludeSource(readmeIncludeSource || "");
+    setEditSkillMd(skillMd || "");
+    setEditing(false);
+  };
+
+  return (
+    <div className="pt-2 border-t border-border">
+      <div className="flex items-center justify-between mb-2">
+        <label className="text-[10px] uppercase tracking-wider text-text-secondary">
+          Generated Content + SKILL.md
+        </label>
+        <div className="flex items-center gap-1.5">
+          {contentGenerationStatus === "completed" && contentGeneratedAt && (
+            <span className="text-[10px] px-2 py-0.5 rounded border border-border bg-bg-primary text-text-secondary">
+              Generated {new Date(contentGeneratedAt).toLocaleDateString()}
+            </span>
+          )}
+          {hasContent && !editing && (
+            <button
+              onClick={() => setEditing(true)}
+              className="text-[10px] px-2 py-0.5 rounded border border-border bg-bg-primary text-text-secondary hover:text-text-primary hover:border-button transition-colors"
+            >
+              Edit
+            </button>
+          )}
+        </div>
+      </div>
+
+      {contentGenerationStatus === "generating" && (
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-3 h-3 border-2 border-text-secondary/30 border-t-text-primary rounded-full animate-spin" />
+          <span className="text-xs text-text-secondary">Generating content...</span>
+        </div>
+      )}
+      {contentGenerationStatus === "error" && contentGenerationError && (
+        <p className="text-xs text-red-600 mb-2">{contentGenerationError}</p>
+      )}
+
+      {editing && (
+        <div className="space-y-3 mb-3">
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+              Description
+            </label>
+            <textarea
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              rows={3}
+              className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary resize-y outline-none focus:ring-1 focus:ring-button"
+              placeholder="Generated description"
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+              Use cases
+            </label>
+            <textarea
+              value={editUseCases}
+              onChange={(e) => setEditUseCases(e.target.value)}
+              rows={5}
+              className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary resize-y outline-none focus:ring-1 focus:ring-button"
+              placeholder="Markdown supported"
+            />
+            {editUseCases && (
+              <div className="mt-1 rounded border border-border bg-bg-primary p-2">
+                <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
+                  Preview
+                </p>
+                <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                    components={markdownCodeComponents}
+                  >
+                    {editUseCases}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+              How it works
+            </label>
+            <textarea
+              value={editHowItWorks}
+              onChange={(e) => setEditHowItWorks(e.target.value)}
+              rows={5}
+              className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary resize-y outline-none focus:ring-1 focus:ring-button"
+              placeholder="Markdown supported"
+            />
+            {editHowItWorks && (
+              <div className="mt-1 rounded border border-border bg-bg-primary p-2">
+                <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
+                  Preview
+                </p>
+                <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                    components={markdownCodeComponents}
+                  >
+                    {editHowItWorks}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
+              README preview
+            </label>
+            <ReadmePreviewNotice readmeIncludeSource={editReadmeIncludeSource} />
+            <textarea
+              value={editReadmeIncludedMarkdown}
+              onChange={(e) => setEditReadmeIncludedMarkdown(e.target.value)}
+              rows={8}
+              className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary resize-y outline-none focus:ring-1 focus:ring-button"
+              placeholder="README excerpt"
+            />
+          </div>
+
+          <div>
+            <button
+              onClick={() => setShowSkillMd(!showSkillMd)}
+              className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-text-secondary hover:text-text-primary transition-colors mb-1"
+            >
+              <CaretDown
+                size={10}
+                className={showSkillMd ? "rotate-180 transition-transform" : "transition-transform"}
+              />
+              SKILL.md
+            </button>
+            {showSkillMd && (
+              <textarea
+                value={editSkillMd}
+                onChange={(e) => setEditSkillMd(e.target.value)}
+                rows={8}
+                className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary font-mono resize-y outline-none focus:ring-1 focus:ring-button"
+                placeholder="SKILL.md content"
+              />
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSaveGeneratedContent}
+              disabled={savingContent}
+              className="text-xs px-3 py-1.5 rounded-full bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50"
+            >
+              {savingContent ? "Saving..." : "Save Generated Content"}
+            </button>
+            <button
+              onClick={handleCancelEdit}
+              disabled={savingContent}
+              className="text-xs px-3 py-1.5 rounded text-text-secondary hover:text-text-primary transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!editing && hasContent && (
+        <div className="space-y-2 mb-3">
+          {generatedDescription && (
+            <p className="text-xs text-text-secondary line-clamp-3">{generatedDescription}</p>
+          )}
+          {generatedUseCases && (
+            <span className="text-[10px] text-text-secondary">Use cases ready</span>
+          )}
+          {generatedHowItWorks && (
+            <span className="text-[10px] text-text-secondary ml-2">How it works ready</span>
+          )}
+          {skillMd && <p className="text-[10px] text-green-600">SKILL.md generated</p>}
+        </div>
+      )}
+
+      {!canGenerate && (
+        <p className="mb-2 text-[10px] text-text-secondary">
+          Requires repository URL, npm URL, component name, and short description.
+        </p>
+      )}
+
+      <button
+        onClick={onRegenerate}
+        disabled={
+          !canGenerate ||
+          generatingContent ||
+          contentGenerationStatus === "generating"
+        }
+        className="text-xs px-3 py-1.5 rounded bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
+      >
+        {contentGenerationStatus === "generating"
+          ? "Generating..."
+          : hasContent
+            ? "Regenerate Component Directory Content"
+            : "Generate Component Directory Content"}
+      </button>
     </div>
   );
 }

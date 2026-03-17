@@ -5,6 +5,7 @@ import {
   AI_REVIEW_PROMPT_UPDATED_AT,
   AI_REVIEW_PROMPT_VERSION,
 } from "../shared/aiReviewPromptMeta";
+import { DEFAULT_SEO_PROMPT_TEMPLATE, DEFAULT_CONTENT_PROMPT_TEMPLATE } from "../shared/seoPromptTemplate";
 
 // Provider types
 const providerValidator = v.union(
@@ -643,46 +644,8 @@ export const _getSeoActivePromptContent = internalQuery({
   },
 });
 
-// Default SEO prompt template (with placeholders for package data)
-const DEFAULT_SEO_PROMPT = `You are writing structured content for a Convex developer component page. This content will be used for SEO (Google), AEO (answer engine optimization for AI search), and GEO (generative engine optimization for LLMs).
-
-COMPONENT DATA:
-- Display name: {{displayName}}
-- npm package: {{packageName}}
-- Category: {{category}}
-- Tags: {{tags}}
-- Short description: {{shortDesc}}
-- Full description: {{longDesc}}
-- Repository: {{repoUrl}}
-- Install command: {{installCmd}}
-- npm URL: {{npmUrl}}
-- Demo URL: {{demoUrl}}
-
-Generate the following as valid JSON (no markdown fences, just raw JSON):
-
-{
-  "valueProp": "A single sentence under 155 characters that explains what this component does and why a developer would use it. This becomes the meta description and the sentence AI search engines cite. Be specific and technical, not generic.",
-
-  "benefits": ["Array of 3-4 strings. Each is an outcome-focused benefit starting with a verb. Focus on what developers get: faster development, fewer bugs, specific capabilities. No filler words."],
-
-  "useCases": [{"query": "A real search phrase a developer would type, like 'how to add retry logic to Convex mutations'", "answer": "2-3 sentences explaining how this component solves the problem. Be specific about the API and what it enables."}],
-
-  "faq": [{"question": "A question developers actually ask about this type of component", "answer": "A self-contained answer that makes sense without any other context. 2-4 sentences. Include the component name so AI engines can cite it directly."}],
-
-  "resourceLinks": [{"label": "Display text", "url": "Full URL"}]
-}
-
-Rules:
-- valueProp must be under 155 characters
-- benefits: exactly 3-4 items
-- useCases: 2-4 items, queries should match real search intent
-- faq: 3-5 items, answers must be self-contained (no "as mentioned above")
-- resourceLinks: include npm, GitHub repo, and Convex docs links where available
-- Write for senior developers who dislike hype
-- Be specific and technical
-- No em dashes
-- No emojis
-- Output valid JSON only`;
+// Default content prompt template (v2 component directory content model)
+const DEFAULT_SEO_PROMPT = DEFAULT_CONTENT_PROMPT_TEMPLATE;
 
 // ============ AI REVIEW PROMPT ============
 

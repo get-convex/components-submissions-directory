@@ -11,6 +11,7 @@ import SubmitForm from "./pages/SubmitForm";
 import SubmitCheck from "./pages/SubmitCheck";
 import Admin from "./pages/Admin";
 import Profile from "./pages/Profile";
+import ProfileEditSubmission from "./pages/ProfileEditSubmission";
 import ComponentDetail from "./pages/ComponentDetail";
 import Documentation from "./pages/Documentation";
 import NotFound from "./pages/NotFound";
@@ -82,6 +83,9 @@ function Router() {
 
   // Profile page for managing user submissions
   if (segments[0] === "profile") {
+    if (segments.length === 3 && segments[1] === "edit") {
+      return <ProfileEditSubmission packageId={segments[2]} />;
+    }
     return <Profile />;
   }
 

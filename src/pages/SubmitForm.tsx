@@ -3,9 +3,12 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { useAuth } from "../lib/auth";
 import { api } from "../../convex/_generated/api";
 import { Toaster, toast } from "sonner";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useDirectoryCategories } from "../lib/categories";
 import Header from "../components/Header";
+import { markdownComponents } from "../components/markdownComponents";
+import ReadmePreviewNotice from "../components/ReadmePreviewNotice";
+import AiLoadingDots from "../components/AiLoadingDots";
 import { FAQSection } from "../components/FAQSection";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -16,6 +19,9 @@ import {
   X,
   Checks,
   ArrowRight,
+  Lightning,
+  PencilSimple,
+  SpinnerGap,
 } from "@phosphor-icons/react";
 
 // Get base path for links (always /components)
@@ -80,6 +86,62 @@ function ErrorModal({ message, onClose }: { message: string; onClose: () => void
   );
 }
 
+function GenerateWarningModal({
+  onClose,
+  onConfirm,
+  isLoading,
+}: {
+  onClose: () => void;
+  onConfirm: () => void;
+  isLoading: boolean;
+}) {
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex: 2147483647 }}>
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md p-6 rounded-lg bg-white border border-border shadow-lg">
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 p-1 rounded-full text-text-secondary hover:bg-bg-hover">
+          <X size={16} />
+        </button>
+        <div className="flex items-start gap-3">
+          <div className="shrink-0 text-amber-600">
+            <Lightning size={22} weight="fill" />
+          </div>
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-lg font-medium text-text-primary">Generate content</h3>
+              <p className="mt-1 text-sm text-text-secondary">
+                This uses shared AI generation and is limited to 5 times per hour per account.
+                Please only regenerate when you really need a fresh draft and edit the current
+                content when you can.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onConfirm}
+                disabled={isLoading}
+                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                {isLoading ? <AiLoadingDots size={14} /> : "Continue"}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isLoading}
+                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SubmitForm() {
   const basePath = useBasePath();
   const { isAuthenticated, isLoading: authLoading, signIn } = useAuth();
@@ -114,7 +176,6 @@ export default function SubmitForm() {
   const [categoryOpen, setCategoryOpen] = useState(false);
   const categoryRef = useRef<HTMLDivElement>(null);
   const [shortDescription, setShortDescription] = useState("");
-  const [longDescription, setLongDescription] = useState("");
   const [tags, setTags] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -122,8 +183,19 @@ export default function SubmitForm() {
   const [showError, setShowError] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [showGenerateWarning, setShowGenerateWarning] = useState(false);
+
+  // V2 generated content state
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedDescription, setGeneratedDescription] = useState("");
+  const [generatedUseCases, setGeneratedUseCases] = useState("");
+  const [generatedHowItWorks, setGeneratedHowItWorks] = useState("");
+  const [readmeIncludedMarkdown, setReadmeIncludedMarkdown] = useState("");
+  const [readmeIncludeSource, setReadmeIncludeSource] = useState<"markers" | "full" | "">("");
+  const [contentGenerated, setContentGenerated] = useState(false);
 
   const submitPackage = useAction(api.packages.submitPackage);
+  const previewContent = useAction(api.seoContent.previewDirectoryContent);
   const generateUploadUrl = useMutation(api.packages.generateUploadUrl);
   const saveLogo = useMutation(api.packages.saveLogo);
 
@@ -166,17 +238,57 @@ export default function SubmitForm() {
     return pattern.test(url);
   };
 
+  const canGenerate =
+    componentName.trim() &&
+    repositoryUrl.trim() &&
+    npmUrl.trim() &&
+    shortDescription.trim() &&
+    validateGitHubRepoUrl(repositoryUrl.trim()) &&
+    validateNpmUrl(npmUrl.trim());
+
+  const handleGenerateContent = useCallback(async () => {
+    if (!canGenerate) return;
+    setIsGenerating(true);
+    try {
+      const result = await previewContent({
+        repositoryUrl: repositoryUrl.trim(),
+        npmUrl: npmUrl.trim(),
+        componentName: componentName.trim(),
+        shortDescription: shortDescription.trim(),
+        source: "submit",
+      });
+      setGeneratedDescription(result.description);
+      setGeneratedUseCases(result.useCases);
+      setGeneratedHowItWorks(result.howItWorks);
+      setReadmeIncludedMarkdown(result.readmeIncludedMarkdown || "");
+      setReadmeIncludeSource(result.readmeIncludeSource || "");
+      setContentGenerated(true);
+      toast.success("Content generated. Review and edit below before submitting.");
+    } catch (err) {
+      setErrorMessage(
+        err instanceof Error ? err.message : "Failed to generate content",
+      );
+      setShowError(true);
+    } finally {
+      setIsGenerating(false);
+      setShowGenerateWarning(false);
+    }
+  }, [canGenerate, previewContent, repositoryUrl, npmUrl, componentName, shortDescription]);
+
+  const handleOpenGenerateWarning = useCallback(() => {
+    if (!canGenerate || isGenerating || isLoading) return;
+    setShowGenerateWarning(true);
+  }, [canGenerate, isGenerating, isLoading]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate required fields
     if (
       !componentName.trim() ||
       !repositoryUrl.trim() ||
       !npmUrl.trim() ||
       !demoUrl.trim() ||
       !shortDescription.trim() ||
-      !longDescription.trim() ||
       !submitterName.trim() ||
       !submitterEmail.trim()
     ) {
@@ -187,7 +299,7 @@ export default function SubmitForm() {
 
     if (!validateGitHubRepoUrl(repositoryUrl.trim())) {
       setErrorMessage(
-        "Please enter a valid GitHub repository URL. Expected format: https://github.com/owner/repo"
+        "Please enter a valid GitHub repository URL. Expected format: https://github.com/owner/repo",
       );
       setShowError(true);
       return;
@@ -195,7 +307,7 @@ export default function SubmitForm() {
 
     if (!validateNpmUrl(npmUrl.trim())) {
       setErrorMessage(
-        "Please enter a valid npm URL. Expected format: https://www.npmjs.com/package/package-name"
+        "Please enter a valid npm URL. Expected format: https://www.npmjs.com/package/package-name",
       );
       setShowError(true);
       return;
@@ -209,7 +321,7 @@ export default function SubmitForm() {
 
     if (!validateUrl(demoUrl.trim())) {
       setErrorMessage(
-        "Please enter a valid URL for the live demo (must start with http:// or https://)."
+        "Please enter a valid URL for the live demo (must start with http:// or https://).",
       );
       setShowError(true);
       return;
@@ -225,16 +337,20 @@ export default function SubmitForm() {
         submitterDiscord: submitterDiscord.trim() || undefined,
         category: category || undefined,
         shortDescription: shortDescription.trim(),
-        longDescription: longDescription.trim(),
         tags: tags.trim() || undefined,
         videoUrl: videoUrl.trim() || undefined,
         demoUrl: demoUrl.trim(),
         componentName: componentName.trim(),
+        // V2 generated content
+        generatedDescription: generatedDescription || undefined,
+        generatedUseCases: generatedUseCases || undefined,
+        generatedHowItWorks: generatedHowItWorks || undefined,
+        readmeIncludedMarkdown: readmeIncludedMarkdown || undefined,
+        readmeIncludeSource: (readmeIncludeSource as "markers" | "full") || undefined,
       };
 
       const result = await submitPackage(payload);
 
-      // If logo file selected, upload it
       if (logoFile && result) {
         const uploadUrl = await generateUploadUrl();
         const uploadRes = await fetch(uploadUrl, {
@@ -249,7 +365,6 @@ export default function SubmitForm() {
       }
 
       setShowSuccess(true);
-      // Reset form
       setComponentName("");
       setRepositoryUrl("");
       setNpmUrl("");
@@ -259,10 +374,15 @@ export default function SubmitForm() {
       setSubmitterDiscord("");
       setCategory("");
       setShortDescription("");
-      setLongDescription("");
       setTags("");
       setVideoUrl("");
       setLogoFile(null);
+      setGeneratedDescription("");
+      setGeneratedUseCases("");
+      setGeneratedHowItWorks("");
+      setReadmeIncludedMarkdown("");
+      setReadmeIncludeSource("");
+      setContentGenerated(false);
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Failed to submit component");
       setShowError(true);
@@ -302,7 +422,7 @@ export default function SubmitForm() {
   return (
     <div className="min-h-screen bg-bg-primary">
       <Header />
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page title */}
         <h1 className="text-xl font-medium text-text-primary mb-4">Submit a Component</h1>
 
@@ -459,71 +579,137 @@ export default function SubmitForm() {
               </p>
             </div>
 
-            {/* Long Description */}
-            <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">
-                Long Description <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                placeholder="Detailed markdown description of your component, features, and use cases"
-                value={longDescription}
-                onChange={(e) => setLongDescription(e.target.value.slice(0, 500))}
-                required
-                disabled={isLoading}
-                rows={4}
-                maxLength={500}
-                className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20 resize-none"
-              />
-              <p className="text-xs text-text-tertiary mt-1">
-                {longDescription.length}/500 characters. Supports markdown: headings, bullet lists, line breaks, and links.
+            {/* Generate Component Directory Content */}
+            <div className="pt-4 border-t border-border">
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-text-primary">
+                  Component Directory Content
+                </label>
+                {contentGenerated && (
+                  <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                    <CheckCircle size={14} weight="bold" /> Generated
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-text-secondary mb-3">
+                Generate a description, use cases, and "how it works" section from your GitHub README and npm package. You can edit the results before submitting.
               </p>
-              {longDescription.trim() && (
-                <div className="mt-2 rounded-lg border border-border bg-white p-3">
-                  <p className="text-[11px] uppercase tracking-wider text-text-secondary mb-2">
-                    Mini preview
-                  </p>
-                  <div className="prose prose-sm max-w-none text-text-primary">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkBreaks]}
-                      components={{
-                        h1: ({ children }) => (
-                          <h1 className="text-lg font-semibold text-text-primary mt-3 mb-2">{children}</h1>
-                        ),
-                        h2: ({ children }) => (
-                          <h2 className="text-base font-semibold text-text-primary mt-2 mb-1">{children}</h2>
-                        ),
-                        h3: ({ children }) => (
-                          <h3 className="text-sm font-semibold text-text-primary mt-2 mb-1">{children}</h3>
-                        ),
-                        p: ({ children }) => (
-                          <p className="whitespace-pre-line mb-2 text-sm">{children}</p>
-                        ),
-                        ul: ({ children }) => (
-                          <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>
-                        ),
-                        ol: ({ children }) => (
-                          <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>
-                        ),
-                        li: ({ children }) => <li className="text-sm">{children}</li>,
-                        a: ({ href, children }) => {
-                          const isExternal = Boolean(href?.startsWith("http"));
-                          return (
-                            <a
-                              href={href}
-                              className="text-[#8D2676] hover:underline"
-                              target={isExternal ? "_blank" : undefined}
-                              rel={isExternal ? "noopener noreferrer" : undefined}>
-                              {children}
-                            </a>
-                          );
-                        },
-                      }}>
-                      {longDescription}
-                    </ReactMarkdown>
-                  </div>
-                </div>
+              <button
+                type="button"
+                onClick={handleOpenGenerateWarning}
+                disabled={!canGenerate || isGenerating || isLoading}
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                {isGenerating ? (
+                  <AiLoadingDots />
+                ) : contentGenerated ? (
+                  <>
+                    <Lightning size={16} weight="bold" />
+                    Regenerate Content
+                  </>
+                ) : (
+                  <>
+                    <Lightning size={16} weight="bold" />
+                    Generate Component Directory Content
+                  </>
+                )}
+              </button>
+              {!canGenerate && !contentGenerated && (
+                <p className="text-xs text-text-tertiary mt-2">
+                  Fill in Component Name, GitHub Repo URL, npm package URL, and Short Description first.
+                </p>
               )}
             </div>
+
+            {/* Generated Content Preview / Edit */}
+            {contentGenerated && (
+              <div className="space-y-4 rounded-lg border border-border bg-white p-4">
+                {/* Description */}
+                <div>
+                  <label className="flex items-center gap-1.5 text-sm font-medium text-text-primary mb-1">
+                    <PencilSimple size={14} /> Description
+                  </label>
+                  <textarea
+                    value={generatedDescription}
+                    onChange={(e) => setGeneratedDescription(e.target.value)}
+                    disabled={isLoading}
+                    rows={3}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20 resize-y"
+                  />
+                </div>
+
+                {/* Use Cases */}
+                <div>
+                  <label className="flex items-center gap-1.5 text-sm font-medium text-text-primary mb-1">
+                    <PencilSimple size={14} /> Use Cases
+                  </label>
+                  <textarea
+                    value={generatedUseCases}
+                    onChange={(e) => setGeneratedUseCases(e.target.value)}
+                    disabled={isLoading}
+                    rows={5}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20 resize-y"
+                  />
+                  <div className="mt-1 rounded border border-border bg-bg-primary p-2">
+                    <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">Preview</p>
+                    <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkBreaks]}
+                        components={markdownComponents as never}
+                      >
+                        {generatedUseCases}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                </div>
+
+                {/* How it Works */}
+                <div>
+                  <label className="flex items-center gap-1.5 text-sm font-medium text-text-primary mb-1">
+                    <PencilSimple size={14} /> How it Works
+                  </label>
+                  <textarea
+                    value={generatedHowItWorks}
+                    onChange={(e) => setGeneratedHowItWorks(e.target.value)}
+                    disabled={isLoading}
+                    rows={5}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20 resize-y"
+                  />
+                  <div className="mt-1 rounded border border-border bg-bg-primary p-2">
+                    <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">Preview</p>
+                    <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkBreaks]}
+                        components={markdownComponents as never}
+                      >
+                        {generatedHowItWorks}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                </div>
+
+                {/* README Include Preview */}
+                {readmeIncludedMarkdown && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <label className="text-sm font-medium text-text-primary">
+                        README Preview
+                      </label>
+                    </div>
+                    <ReadmePreviewNotice readmeIncludeSource={readmeIncludeSource} />
+                    <div className="rounded-lg border border-border bg-bg-primary p-3 max-h-64 overflow-y-auto">
+                      <div className="prose prose-sm max-w-none text-text-primary">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkBreaks]}
+                          components={markdownComponents as never}
+                        >
+                          {readmeIncludedMarkdown}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Tags */}
             <div>
@@ -724,6 +910,14 @@ export default function SubmitForm() {
       {/* Error modal */}
       {showError && (
         <ErrorModal message={errorMessage} onClose={() => setShowError(false)} />
+      )}
+
+      {showGenerateWarning && (
+        <GenerateWarningModal
+          onClose={() => setShowGenerateWarning(false)}
+          onConfirm={handleGenerateContent}
+          isLoading={isGenerating}
+        />
       )}
     </div>
   );

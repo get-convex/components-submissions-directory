@@ -213,47 +213,62 @@ function buildComponentMarkdown(pkg: any): string {
     lines.push(`**Tags:** ${pkg.tags.join(", ")}\n`);
   }
 
-  // AI-generated SEO content sections
-  if (pkg.seoValueProp) {
+  // Prefer v2 content model
+  if (pkg.contentModelVersion === 2 && pkg.generatedDescription) {
     lines.push(`---\n`);
-    lines.push(`> ${pkg.seoValueProp}\n`);
-  }
+    lines.push(`## Description\n`);
+    lines.push(`${pkg.generatedDescription}\n`);
 
-  if (pkg.seoBenefits && pkg.seoBenefits.length > 0) {
-    lines.push(`## Benefits\n`);
-    for (const benefit of pkg.seoBenefits) {
-      lines.push(`- ${benefit}`);
+    if (pkg.generatedUseCases) {
+      lines.push(`## Use cases\n`);
+      lines.push(`${pkg.generatedUseCases}\n`);
     }
-    lines.push("");
-  }
 
-  if (pkg.seoUseCases && pkg.seoUseCases.length > 0) {
-    lines.push(`## Use cases\n`);
-    for (const uc of pkg.seoUseCases) {
-      lines.push(`### ${uc.query}\n`);
-      lines.push(`${uc.answer}\n`);
+    if (pkg.generatedHowItWorks) {
+      lines.push(`## How it works\n`);
+      lines.push(`${pkg.generatedHowItWorks}\n`);
     }
-  }
 
-  if (pkg.seoFaq && pkg.seoFaq.length > 0) {
-    lines.push(`## FAQ\n`);
-    for (const faq of pkg.seoFaq) {
-      lines.push(`**Q: ${faq.question}**\n`);
-      lines.push(`${faq.answer}\n`);
+    if (pkg.readmeIncludedMarkdown) {
+      lines.push(`---\n`);
+      lines.push(pkg.readmeIncludedMarkdown);
     }
-  }
-
-  if (pkg.longDescription) {
-    lines.push(`---\n`);
-    lines.push(pkg.longDescription);
-  }
-
-  if (pkg.seoResourceLinks && pkg.seoResourceLinks.length > 0) {
-    lines.push(`\n## Resources\n`);
-    for (const link of pkg.seoResourceLinks) {
-      lines.push(`- [${link.label}](${link.url})`);
+  } else {
+    // Fallback: old SEO model
+    if (pkg.seoValueProp) {
+      lines.push(`---\n`);
+      lines.push(`> ${pkg.seoValueProp}\n`);
     }
-    lines.push("");
+
+    if (pkg.seoBenefits && pkg.seoBenefits.length > 0) {
+      lines.push(`## Benefits\n`);
+      for (const benefit of pkg.seoBenefits) {
+        lines.push(`- ${benefit}`);
+      }
+      lines.push("");
+    }
+
+    if (pkg.seoUseCases && pkg.seoUseCases.length > 0) {
+      lines.push(`## Use cases\n`);
+      for (const uc of pkg.seoUseCases) {
+        lines.push(`### ${uc.query}\n`);
+        lines.push(`${uc.answer}\n`);
+      }
+    }
+
+    if (pkg.seoFaq && pkg.seoFaq.length > 0) {
+      lines.push(`## FAQ\n`);
+      for (const faq of pkg.seoFaq) {
+        lines.push(`**Q: ${faq.question}**\n`);
+        lines.push(`${faq.answer}\n`);
+      }
+    }
+
+    if (pkg.longDescription) {
+      lines.push(`---\n`);
+      lines.push(pkg.longDescription);
+    }
+
   }
 
   if (pkg.slug) {

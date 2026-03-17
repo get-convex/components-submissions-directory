@@ -1,10 +1,14 @@
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { useAuth } from "../lib/auth";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Toaster, toast } from "sonner";
 import Header from "../components/Header";
+import CodeBlock from "../components/CodeBlock";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import {
   Package,
   CheckCircle,
@@ -25,6 +29,9 @@ import {
   Prohibit,
   Copy,
   Check,
+  Lightning,
+  SpinnerGap,
+  CaretDown,
 } from "@phosphor-icons/react";
 
 // Get base path for links (always /components)
@@ -437,6 +444,21 @@ function ViewNotesModal({
   );
 }
 
+// Shared markdown code component override for CodeBlock rendering
+const markdownCodeComponents = {
+  code({ className, children, ...rest }: { className?: string; children?: React.ReactNode; [key: string]: unknown }) {
+    const match = /language-(\w+)/.exec(className || "");
+    const code = String(children).replace(/\n$/, "");
+    if (match || code.includes("\n")) {
+      return <CodeBlock code={code} language={match?.[1]} />;
+    }
+    return <code className={className} {...rest}>{children}</code>;
+  },
+  pre({ children }: { children?: React.ReactNode }) {
+    return <>{children}</>;
+  },
+};
+
 // Edit submission modal
 function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose: () => void }) {
   const submission = useQuery(api.packages.getMySubmissionForEdit, { packageId });
@@ -445,6 +467,7 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
   const generateUploadUrl = useMutation(api.packages.generateUploadUrl);
   const saveLogo = useMutation(api.packages.saveLogo);
   const clearLogo = useMutation(api.packages.clearLogo);
+  const previewContent = useAction(api.seoContent.previewDirectoryContent);
 
   const [componentName, setComponentName] = useState("");
   const [shortDescription, setShortDescription] = useState("");
@@ -457,6 +480,15 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
   const [currentLogoUrl, setCurrentLogoUrl] = useState("");
   const [clearExistingLogo, setClearExistingLogo] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // V2 content state
+  const [generatedDescription, setGeneratedDescription] = useState("");
+  const [generatedUseCases, setGeneratedUseCases] = useState("");
+  const [generatedHowItWorks, setGeneratedHowItWorks] = useState("");
+  const [readmeIncludedMarkdown, setReadmeIncludedMarkdown] = useState("");
+  const [readmeIncludeSource, setReadmeIncludeSource] = useState<"markers" | "full" | "">("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [showContentSection, setShowContentSection] = useState(false);
 
   // Populate form when data loads
   useEffect(() => {
@@ -471,8 +503,56 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
       setCurrentLogoUrl(submission.logoUrl || "");
       setLogoFile(null);
       setClearExistingLogo(false);
+      setGeneratedDescription(submission.generatedDescription || "");
+      setGeneratedUseCases(submission.generatedUseCases || "");
+      setGeneratedHowItWorks(submission.generatedHowItWorks || "");
+      setReadmeIncludedMarkdown(submission.readmeIncludedMarkdown || "");
+      setReadmeIncludeSource(submission.readmeIncludeSource || "");
+      setShowContentSection(
+        !!(submission.generatedDescription || submission.generatedUseCases || submission.generatedHowItWorks || submission.contentModelVersion === 2),
+      );
     }
   }, [submission]);
+
+  const handleGenerateContent = useCallback(async () => {
+    if (!submission) return;
+    const repoUrl = submission.repositoryUrl;
+    const npmUrl = submission.npmUrl;
+    const name = componentName || submission.componentName || submission.name;
+    const desc = shortDescription || submission.shortDescription || "";
+
+    if (!repoUrl || !npmUrl || !name || !desc) {
+      toast.error("Need repo URL, npm URL, component name, and short description to generate content");
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const result = await previewContent({
+        repositoryUrl: repoUrl,
+        npmUrl,
+        componentName: name,
+        shortDescription: desc,
+        source: "profile",
+      });
+      setGeneratedDescription(result.description);
+      setGeneratedUseCases(result.useCases);
+      setGeneratedHowItWorks(result.howItWorks);
+      if (result.readmeIncludedMarkdown) {
+        setReadmeIncludedMarkdown(result.readmeIncludedMarkdown);
+      }
+      if (result.readmeIncludeSource) {
+        setReadmeIncludeSource(result.readmeIncludeSource);
+      }
+      setShowContentSection(true);
+      toast.success("Content generated");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to generate content");
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [submission, componentName, shortDescription, previewContent]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -492,6 +572,11 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
           : undefined,
         demoUrl: demoUrl || undefined,
         videoUrl: videoUrl || undefined,
+        generatedDescription: generatedDescription || undefined,
+        generatedUseCases: generatedUseCases || undefined,
+        generatedHowItWorks: generatedHowItWorks || undefined,
+        readmeIncludedMarkdown: readmeIncludedMarkdown || undefined,
+        readmeIncludeSource: readmeIncludeSource || undefined,
       });
 
       if (clearExistingLogo && currentLogoUrl && !logoFile) {
@@ -539,12 +624,14 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
     );
   }
 
+  const canGenerate = !!(submission.repositoryUrl && submission.npmUrl && (componentName || submission.componentName) && (shortDescription || submission.shortDescription));
+
   return (
     <div
       className="fixed inset-0 flex items-start justify-center pt-6 p-4 overflow-y-auto"
       style={{ zIndex: 2147483647 }}>
       <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg p-6 rounded-lg bg-white border border-border shadow-lg my-4">
+      <div className="relative w-full max-w-2xl p-6 rounded-lg bg-white border border-border shadow-lg my-4">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors">
@@ -583,17 +670,154 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">
-              Long Description
-            </label>
-            <textarea
-              value={longDescription}
-              onChange={(e) => setLongDescription(e.target.value)}
-              placeholder="Full description (Markdown supported)"
-              rows={4}
-              className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-button focus:ring-2 focus:ring-button/20 resize-none"
-            />
+          {/* Long Description (v1, shown when no v2 content exists) */}
+          {!showContentSection && (
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1">
+                Long Description
+              </label>
+              <textarea
+                value={longDescription}
+                onChange={(e) => setLongDescription(e.target.value)}
+                placeholder="Full description (Markdown supported)"
+                rows={4}
+                className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-button focus:ring-2 focus:ring-button/20 resize-none"
+              />
+            </div>
+          )}
+
+          {/* Generate Content Section */}
+          <div className="border-t border-border pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-sm font-medium text-text-primary">
+                Component Directory Content
+              </label>
+              <button
+                type="button"
+                onClick={handleGenerateContent}
+                disabled={!canGenerate || isGenerating || isSubmitting}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-full bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isGenerating ? (
+                  <>
+                    <SpinnerGap size={14} className="animate-spin" />
+                    Generating...
+                  </>
+                ) : showContentSection ? (
+                  <>
+                    <Lightning size={14} />
+                    Regenerate Content
+                  </>
+                ) : (
+                  <>
+                    <Lightning size={14} />
+                    Generate Content
+                  </>
+                )}
+              </button>
+            </div>
+
+            {!canGenerate && (
+              <p className="text-xs text-text-tertiary mb-2">
+                Requires a GitHub repo URL, npm URL, component name, and short description.
+              </p>
+            )}
+
+            {showContentSection && (
+              <div className="space-y-4">
+                {/* Description */}
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-medium text-text-primary mb-1">
+                    <PencilSimple size={12} /> Description
+                  </label>
+                  <textarea
+                    value={generatedDescription}
+                    onChange={(e) => setGeneratedDescription(e.target.value)}
+                    disabled={isSubmitting}
+                    rows={3}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20 resize-none"
+                  />
+                </div>
+
+                {/* Use Cases */}
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-medium text-text-primary mb-1">
+                    <PencilSimple size={12} /> Use Cases
+                  </label>
+                  <textarea
+                    value={generatedUseCases}
+                    onChange={(e) => setGeneratedUseCases(e.target.value)}
+                    disabled={isSubmitting}
+                    rows={4}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20 resize-none"
+                  />
+                  {generatedUseCases && (
+                    <div className="mt-1 rounded border border-border bg-bg-primary p-2">
+                      <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">Preview</p>
+                      <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkBreaks]}
+                          components={markdownCodeComponents as never}
+                        >
+                          {generatedUseCases}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* How it Works */}
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-medium text-text-primary mb-1">
+                    <PencilSimple size={12} /> How it Works
+                  </label>
+                  <textarea
+                    value={generatedHowItWorks}
+                    onChange={(e) => setGeneratedHowItWorks(e.target.value)}
+                    disabled={isSubmitting}
+                    rows={4}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20 resize-none"
+                  />
+                  {generatedHowItWorks && (
+                    <div className="mt-1 rounded border border-border bg-bg-primary p-2">
+                      <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">Preview</p>
+                      <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkBreaks]}
+                          components={markdownCodeComponents as never}
+                        >
+                          {generatedHowItWorks}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* README Include Preview */}
+                {readmeIncludedMarkdown && (
+                  <div>
+                    <label className="text-xs font-medium text-text-primary mb-1 block">
+                      README Preview
+                    </label>
+                    <p className="text-xs text-text-secondary bg-blue-50 border border-blue-100 rounded px-2 py-1 mb-2">
+                      {readmeIncludeSource === "markers"
+                        ? 'Content from the "<!-- START: Include on https://convex.dev/components -->" section in the README.'
+                        : "No include markers found in README. Showing full README content."}
+                    </p>
+                    <div className="rounded-lg border border-border bg-bg-primary p-3 max-h-48 overflow-y-auto">
+                      <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkBreaks]}
+                          components={markdownCodeComponents as never}
+                        >
+                          {readmeIncludedMarkdown}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div>
@@ -747,18 +971,22 @@ function SubmissionCard({
     shortDescription?: string;
     category?: string;
     unreadAdminReplies: number;
+    submittedShortDescription?: string;
+    submittedLongDescription?: string;
   };
   onRequestRefresh: (id: Id<"packages">, name: string) => void;
   onViewNotes: (id: Id<"packages">, name: string) => void;
   onEdit: (id: Id<"packages">) => void;
   basePath: string;
 }) {
+  const [showOriginalText, setShowOriginalText] = useState(false);
   const displayName = submission.componentName || submission.name;
   const submittedDate = new Date(submission.submittedAt).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
   });
+  const hasOriginalText = submission.submittedShortDescription || submission.submittedLongDescription;
 
   // Show View button when approved AND visible (consistent with admin dashboard)
   const canViewDetail =
@@ -851,6 +1079,46 @@ function SubmissionCard({
 
           {/* Badge snippet for README - show when slug exists */}
           {submission.slug && <BadgeSnippet slug={submission.slug} />}
+
+          {/* Original submitted text toggle */}
+          {hasOriginalText && (
+            <div className="mt-3 pt-3 border-t border-border/50">
+              <button
+                onClick={() => setShowOriginalText(!showOriginalText)}
+                className="inline-flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary transition-colors"
+              >
+                <CaretDown
+                  size={12}
+                  className={`transition-transform ${showOriginalText ? "rotate-180" : ""}`}
+                />
+                Original Submitted Text
+              </button>
+              {showOriginalText && (
+                <div className="mt-2 space-y-2 p-3 rounded-lg bg-bg-secondary/50 border border-border/50">
+                  {submission.submittedShortDescription && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-0.5">
+                        Short Description
+                      </p>
+                      <p className="text-xs text-text-secondary">
+                        {submission.submittedShortDescription}
+                      </p>
+                    </div>
+                  )}
+                  {submission.submittedLongDescription && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-0.5">
+                        Long Description
+                      </p>
+                      <p className="text-xs text-text-secondary whitespace-pre-wrap">
+                        {submission.submittedLongDescription}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -874,10 +1142,6 @@ export default function Profile() {
     packageId: Id<"packages">;
     packageName: string;
   } | null>(null);
-
-  // Modal state for editing
-  const [editModal, setEditModal] = useState<Id<"packages"> | null>(null);
-
 
   // Loading state
   if (authLoading) {
@@ -923,7 +1187,7 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-bg-primary">
       <Header />
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page title with submit CTA */}
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-xl font-medium text-text-primary">Component Submissions</h1>
@@ -992,7 +1256,9 @@ export default function Profile() {
                     setRequestModal({ packageId: id, packageName: name })
                   }
                   onViewNotes={(id, name) => setNotesModal({ packageId: id, packageName: name })}
-                  onEdit={(id) => setEditModal(id)}
+                  onEdit={(id) => {
+                    window.location.href = `${basePath}/profile/edit/${id}`;
+                  }}
                 />
               ))}
             </div>
@@ -1106,9 +1372,6 @@ export default function Profile() {
           onClose={() => setNotesModal(null)}
         />
       )}
-
-      {/* Edit modal */}
-      {editModal && <EditModal packageId={editModal} onClose={() => setEditModal(null)} />}
 
     </div>
   );

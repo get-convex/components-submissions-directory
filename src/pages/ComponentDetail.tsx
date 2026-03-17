@@ -1,12 +1,14 @@
 // Component detail page at /components/:slug
-// Layout: wide sidebar left with thumbnail + metadata, content right
-import { useEffect, useState, useRef, useMemo, useCallback } from "react";
+// Layout: narrow sidebar left with thumbnail + metadata, content right
+import { useEffect, useState, useRef, useMemo, useCallback, type ReactNode } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { InstallCommand } from "../components/InstallCommand";
 import { VerifiedBadge } from "../components/VerifiedBadge";
 import { CommunityBadge } from "../components/CommunityBadge";
 import Header from "../components/Header";
+import CodeBlock from "../components/CodeBlock";
+import { markdownComponents } from "../components/markdownComponents";
 import { useDirectoryCategories } from "../lib/categories";
 import { buildComponentClientUrls } from "../../shared/componentUrls";
 import {
@@ -65,7 +67,26 @@ function capitalizeHeadingText(value: string): string {
   return value.replace(/\b([a-z])/g, (match) => match.toUpperCase());
 }
 
-// Build a full markdown document from component data (includes AI SEO content)
+function resolveRepositoryMarkdownHref(href?: string, repositoryUrl?: string): string | undefined {
+  if (!href) return href;
+  if (
+    href.startsWith("#") ||
+    href.startsWith("/") ||
+    href.startsWith("//") ||
+    /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(href)
+  ) {
+    return href;
+  }
+  if (!repositoryUrl) return href;
+
+  try {
+    return new URL(href, `${repositoryUrl.replace(/\/$/, "")}/blob/main/README.md`).toString();
+  } catch {
+    return href;
+  }
+}
+
+// Build a full markdown document from component data (prefers v2 content model, falls back to SEO)
 function buildMarkdownDoc(c: {
   name: string;
   componentName?: string;
@@ -88,6 +109,11 @@ function buildMarkdownDoc(c: {
   seoFaq?: { question: string; answer: string }[];
   seoResourceLinks?: { label: string; url: string }[];
   seoGenerationStatus?: string;
+  generatedDescription?: string;
+  generatedUseCases?: string;
+  generatedHowItWorks?: string;
+  readmeIncludedMarkdown?: string;
+  contentModelVersion?: number;
 }): string {
   const lines: string[] = [];
   lines.push(`# ${c.componentName || c.name}\n`);
@@ -114,43 +140,59 @@ function buildMarkdownDoc(c: {
     lines.push(`**Tags:** ${c.tags.join(", ")}\n`);
   }
 
-  // AI-generated SEO content (if available)
-  if (c.seoGenerationStatus === "completed") {
-    if (c.seoValueProp) {
-      lines.push(`---\n`);
-      lines.push(`> ${c.seoValueProp}\n`);
-    }
-    if (c.seoBenefits && c.seoBenefits.length > 0) {
-      lines.push(`## Benefits\n`);
-      for (const b of c.seoBenefits) lines.push(`- ${b}`);
-      lines.push("");
-    }
-    if (c.seoUseCases && c.seoUseCases.length > 0) {
-      lines.push(`## Use cases\n`);
-      for (const uc of c.seoUseCases) {
-        lines.push(`### ${uc.query}\n`);
-        lines.push(`${uc.answer}\n`);
-      }
-    }
-    if (c.seoFaq && c.seoFaq.length > 0) {
-      lines.push(`## FAQ\n`);
-      for (const faq of c.seoFaq) {
-        lines.push(`**Q: ${faq.question}**\n`);
-        lines.push(`${faq.answer}\n`);
-      }
-    }
-    if (c.seoResourceLinks && c.seoResourceLinks.length > 0) {
-      lines.push(`## Resources\n`);
-      for (const link of c.seoResourceLinks) {
-        lines.push(`- [${link.label}](${link.url})`);
-      }
-      lines.push("");
-    }
-  }
-
-  if (c.longDescription) {
+  // V2 content model (preferred)
+  if (c.contentModelVersion === 2 && c.generatedDescription) {
     lines.push(`---\n`);
-    lines.push(c.longDescription);
+    lines.push(`## Description\n`);
+    lines.push(`${c.generatedDescription}\n`);
+
+    if (c.generatedUseCases) {
+      lines.push(`## Use cases\n`);
+      lines.push(`${c.generatedUseCases}\n`);
+    }
+
+    if (c.generatedHowItWorks) {
+      lines.push(`## How it works\n`);
+      lines.push(`${c.generatedHowItWorks}\n`);
+    }
+
+    if (c.readmeIncludedMarkdown) {
+      lines.push(`---\n`);
+      lines.push(`### From the README.md\n`);
+      lines.push(c.readmeIncludedMarkdown);
+    }
+  } else {
+    // Fallback: old SEO model
+    if (c.seoGenerationStatus === "completed") {
+      if (c.seoValueProp) {
+        lines.push(`---\n`);
+        lines.push(`> ${c.seoValueProp}\n`);
+      }
+      if (c.seoBenefits && c.seoBenefits.length > 0) {
+        lines.push(`## Benefits\n`);
+        for (const b of c.seoBenefits) lines.push(`- ${b}`);
+        lines.push("");
+      }
+      if (c.seoUseCases && c.seoUseCases.length > 0) {
+        lines.push(`## Use cases\n`);
+        for (const uc of c.seoUseCases) {
+          lines.push(`### ${uc.query}\n`);
+          lines.push(`${uc.answer}\n`);
+        }
+      }
+      if (c.seoFaq && c.seoFaq.length > 0) {
+        lines.push(`## FAQ\n`);
+        for (const faq of c.seoFaq) {
+          lines.push(`**Q: ${faq.question}**\n`);
+          lines.push(`${faq.answer}\n`);
+        }
+      }
+    }
+
+    if (c.longDescription) {
+      lines.push(`---\n`);
+      lines.push(c.longDescription);
+    }
   }
 
   if (c.slug) {
@@ -392,7 +434,9 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
   const isApprovedForIndexing = reviewStatus === "approved";
   const hideSeoAndSkillContent = component?.hideSeoAndSkillContentOnDetailPage === true;
   const showDetailSeoContent =
-    component?.seoGenerationStatus === "completed" && !hideSeoAndSkillContent;
+    component?.contentModelVersion !== 2 &&
+    component?.seoGenerationStatus === "completed" &&
+    !hideSeoAndSkillContent;
   const showAgentContent =
     (reviewStatus === "approved" || reviewStatus === "in_review") && !hideSeoAndSkillContent;
   const [badgeCopied, setBadgeCopied] = useState(false);
@@ -574,6 +618,24 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
   const resolvedCategory = component?.category
     ? dynamicCategories.find((category) => category.id === component.category) ?? null
     : null;
+  const renderMarkdownLink = useCallback(
+    ({ href, children }: { href?: string; children?: ReactNode }) => {
+      const resolvedHref = resolveRepositoryMarkdownHref(href, component?.repositoryUrl);
+      const isExternal = Boolean(resolvedHref?.startsWith("http"));
+
+      return (
+        <a
+          href={resolvedHref}
+          className="text-[#8D2676] hover:underline"
+          target={isExternal ? "_blank" : undefined}
+          rel={isExternal ? "noopener noreferrer" : undefined}
+        >
+          {children}
+        </a>
+      );
+    },
+    [component?.repositoryUrl],
+  );
   const categoryHref =
     component?.category && resolvedCategory ? `${basePath}categories/${component.category}` : null;
 
@@ -1127,8 +1189,76 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
             )}
             */}
 
-            {/* Long description title (below install command) */}
-            {component.longDescription && (
+            {/* V2 generated content (Description, Use Cases, How it Works) */}
+            {component.contentModelVersion === 2 && component.generatedDescription && (
+              <div className="mb-6 space-y-6">
+                <section>
+                  <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-2">
+                    Description
+                  </h2>
+                  <p className="text-sm text-text-secondary leading-relaxed">
+                    {component.generatedDescription}
+                  </p>
+                </section>
+
+                {component.generatedUseCases && (
+                  <section>
+                    <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-2">
+                      Use cases
+                    </h2>
+                    <div className="markdown-body">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkBreaks]}
+                        components={{ ...markdownComponents, a: renderMarkdownLink } as never}
+                      >
+                        {component.generatedUseCases}
+                      </ReactMarkdown>
+                    </div>
+                  </section>
+                )}
+
+                {component.generatedHowItWorks && (
+                  <section>
+                    <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-2">
+                      How it works
+                    </h2>
+                    <div className="markdown-body">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkBreaks]}
+                        components={{ ...markdownComponents, a: renderMarkdownLink } as never}
+                      >
+                        {component.generatedHowItWorks}
+                      </ReactMarkdown>
+                    </div>
+                  </section>
+                )}
+
+                {/* Use with agents and CLI section */}
+                {showAgentContent && (
+                  <div id="agent-install" className="mb-6 scroll-mt-20">
+                    <AgentInstallSection component={component} />
+                  </div>
+                )}
+
+                {component.readmeIncludedMarkdown && (
+                  <section>
+                    <hr className="border-border my-6" />
+                    <h3 className="text-base font-semibold text-text-primary mb-4">From the README.md</h3>
+                    <div className="markdown-body">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkBreaks]}
+                        components={{ ...markdownComponents, a: renderMarkdownLink } as never}
+                      >
+                        {component.readmeIncludedMarkdown}
+                      </ReactMarkdown>
+                    </div>
+                  </section>
+                )}
+              </div>
+            )}
+
+            {/* Old content model: Long description title (below install command) */}
+            {component.contentModelVersion !== 2 && component.longDescription && (
               <h2 className="text-lg font-semibold text-text-primary mb-3">
                 {capitalizeHeadingText(component.componentName || component.name)} Description
               </h2>
@@ -1165,40 +1295,14 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               </div>
             ) : (
               <>
-                {/* Long description markdown content */}
-                {component.longDescription && (
-                  <div className="max-w-none text-text-primary prose-headings:text-text-primary prose-a:text-[#8D2676] hover:prose-a:underline prose-code:text-sm prose-code:bg-bg-secondary prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-[#1a1a1a] prose-pre:text-gray-300 mb-6 [&_p]:text-sm [&_p]:text-text-secondary [&_p]:leading-relaxed [&_p]:mb-4 [&_ul]:text-sm [&_ul]:text-text-secondary [&_ol]:text-sm [&_ol]:text-text-secondary [&_li]:text-sm [&_li]:text-text-secondary [&_h1]:text-sm [&_h1]:font-semibold [&_h1]:uppercase [&_h1]:tracking-wider [&_h1]:mb-2 [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:uppercase [&_h2]:tracking-wider [&_h2]:mb-2 [&_h3]:text-sm [&_h3]:font-medium [&_h3]:mb-1">
+                {/* Long description markdown content (v1 only) */}
+                {component.contentModelVersion !== 2 && component.longDescription && (
+                  <div className="markdown-body mb-6">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm, remarkBreaks]}
                       components={{
-                        p: ({ children }) => (
-                          <p className="text-sm text-text-secondary leading-relaxed mb-4 whitespace-pre-line">
-                            {children}
-                          </p>
-                        ),
-                        img: ({ src, alt }) => {
-                          if (src && /\.(mp4|webm|mov)(\?.*)?$/i.test(src)) {
-                            return (
-                              <video
-                                src={src}
-                                controls
-                                playsInline
-                                className="w-full rounded-lg my-4"
-                                title={alt || "Video"}>
-                                Your browser does not support the video tag.
-                              </video>
-                            );
-                          }
-                          return (
-                            <img
-                              src={src}
-                              alt={alt || ""}
-                              className="max-w-full rounded-lg"
-                              loading="lazy"
-                            />
-                          );
-                        },
-                        a: ({ href, children }) => {
+                        ...markdownComponents,
+                        a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
                           if (href && /\.(mp4|webm|mov)(\?.*)?$/i.test(href)) {
                             return (
                               <video
@@ -1211,10 +1315,14 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                               </video>
                             );
                           }
-                          const isExternal = Boolean(href?.startsWith("http"));
+                          const resolvedHref = resolveRepositoryMarkdownHref(
+                            href,
+                            component.repositoryUrl,
+                          );
+                          const isExternal = Boolean(resolvedHref?.startsWith("http"));
                           return (
                             <a
-                              href={href}
+                              href={resolvedHref}
                               className="text-[#8D2676] hover:underline"
                               target={isExternal ? "_blank" : undefined}
                               rel={isExternal ? "noopener noreferrer" : undefined}>
@@ -1222,7 +1330,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                             </a>
                           );
                         },
-                      }}>
+                      } as never}>
                       {component.longDescription}
                     </ReactMarkdown>
                   </div>
@@ -1308,30 +1416,6 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                       </section>
                     )}
 
-                    {/* Resource links as bullet list */}
-                    {component.seoResourceLinks && component.seoResourceLinks.length > 0 && (
-                      <section>
-                        <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-2">
-                          Resources
-                        </h2>
-                        <ul className="space-y-1.5">
-                          {component.seoResourceLinks.map(
-                            (link: { label: string; url: string }, i: number) => (
-                              <li key={i} className="flex items-start gap-2 text-sm">
-                                <span className="mt-1.5 w-1 h-1 rounded-full bg-text-secondary shrink-0" />
-                                <a
-                                  href={link.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-text-secondary hover:text-text-primary transition-colors">
-                                  {link.label}
-                                </a>
-                              </li>
-                            )
-                          )}
-                        </ul>
-                      </section>
-                    )}
                   </div>
                 )}
               </>
@@ -1353,47 +1437,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               </div>
             )}
 
-            {/* Use with agents and CLI section */}
-            {showAgentContent && (
-              <div id="agent-install" className="mb-6 scroll-mt-20">
-                <AgentInstallSection component={component} />
-              </div>
-            )}
-
-            {/* SKILL.md for Claude agents */}
-            {showAgentContent && component.skillMd && (
-              <div className="mb-6">
-                <h3 className="text-sm font-semibold text-text-primary mb-2">
-                  Agent Skill (SKILL.md)
-                </h3>
-                <p className="text-xs text-text-secondary mb-2">
-                  Copy or download this SKILL.md file to teach Claude how to use this component.
-                </p>
-                <div className="relative rounded-md bg-[#1a1a1a] text-gray-300">
-                  <div className="absolute top-2 right-2 flex gap-1">
-                    <button
-                      onClick={handleDownloadSkill}
-                      className="p-1.5 rounded hover:bg-white/10 transition-colors"
-                      title="Download SKILL.md">
-                      <FileArrowDown className="w-4 h-4 text-gray-400" weight="bold" />
-                    </button>
-                    <button
-                      onClick={handleCopySkill}
-                      className="p-1.5 rounded hover:bg-white/10 transition-colors"
-                      title={skillCopied ? "Copied" : "Copy SKILL.md"}>
-                      {skillCopied ? (
-                        <CheckIcon className="w-4 h-4 text-green-400" />
-                      ) : (
-                        <CopyIcon className="w-4 h-4 text-gray-400" />
-                      )}
-                    </button>
-                  </div>
-                  <pre className="p-3 pr-16 text-xs overflow-x-auto whitespace-pre-wrap font-mono max-h-48 overflow-y-auto">
-                    {component.skillMd}
-                  </pre>
-                </div>
-              </div>
-            )}
+            {/* SKILL.md download only (not visible in page body, available via For Agents) */}
 
             {/* Keywords */}
             {component.tags && component.tags.length > 0 && (
@@ -1413,46 +1457,48 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               </div>
             )}
 
-            {/* llms.txt link */}
-            {componentLinks && !hideSeoAndSkillContent && (
-              <div className="mb-6">
-                <a
-                  href={componentLinks.llmsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-text-secondary hover:text-text-primary transition-colors underline">
-                  View llms.txt
-                </a>
-              </div>
-            )}
-
-            {/* Badge snippet for README */}
-            {badgeMarkdown && (
+            {/* Badge snippet for README + llms link */}
+            {(badgeMarkdown || (componentLinks && !hideSeoAndSkillContent)) && (
               <div className="mt-8 pt-6 border-t border-border pb-6 border-b">
-                <h3 className="text-sm font-semibold text-text-primary mb-2">
-                  Add badge to your README
-                </h3>
-                <div className="flex items-center gap-2 rounded-md bg-[#1a1a1a] px-3 py-2 font-mono text-xs text-gray-300">
-                  <code className="flex-1 overflow-x-auto whitespace-nowrap">{badgeMarkdown}</code>
-                  <button
-                    onClick={handleCopyBadge}
-                    className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors">
-                    {badgeCopied ? (
-                      <CheckIcon className="w-3.5 h-3.5 text-green-400" />
-                    ) : (
-                      <CopyIcon className="w-3.5 h-3.5 text-gray-400" />
+                {badgeMarkdown && (
+                  <>
+                    <h3 className="text-sm font-semibold text-text-primary mb-2">
+                      Add badge to your README
+                    </h3>
+                    <div className="flex items-center gap-2 rounded-md bg-[#1a1a1a] px-3 py-2 font-mono text-xs text-gray-300">
+                      <code className="flex-1 overflow-x-auto whitespace-nowrap">{badgeMarkdown}</code>
+                      <button
+                        onClick={handleCopyBadge}
+                        className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors">
+                        {badgeCopied ? (
+                          <CheckIcon className="w-3.5 h-3.5 text-green-400" />
+                        ) : (
+                          <CopyIcon className="w-3.5 h-3.5 text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                    {badgeImageUrl && (
+                      <div className="mt-3">
+                        <span className="text-xs text-text-secondary mr-2">Preview:</span>
+                        <a href={badgeTargetUrl} target="_blank" rel="noopener noreferrer">
+                          <img
+                            src={badgeImageUrl}
+                            alt="Convex Component badge"
+                            className="inline-block h-5"
+                          />
+                        </a>
+                      </div>
                     )}
-                  </button>
-                </div>
-                {badgeImageUrl && (
-                  <div className="mt-3">
-                    <span className="text-xs text-text-secondary mr-2">Preview:</span>
-                    <a href={badgeTargetUrl} target="_blank" rel="noopener noreferrer">
-                      <img
-                        src={badgeImageUrl}
-                        alt="Convex Component badge"
-                        className="inline-block h-5"
-                      />
+                  </>
+                )}
+                {componentLinks && !hideSeoAndSkillContent && (
+                  <div className={badgeMarkdown ? "mt-4 pt-4 border-t border-border" : ""}>
+                    <a
+                      href={componentLinks.llmsUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-text-secondary hover:text-text-primary transition-colors underline">
+                      View llms.txt
                     </a>
                   </div>
                 )}

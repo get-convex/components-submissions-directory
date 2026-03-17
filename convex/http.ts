@@ -96,8 +96,9 @@ http.route({
     for (const pkg of sorted) {
       const name = pkg.componentName || pkg.name || "Unknown";
       const slug = pkg.slug || "";
-      const desc =
-        pkg.seoValueProp || pkg.shortDescription || pkg.description || "";
+      const desc = (pkg.contentModelVersion === 2 && pkg.generatedDescription)
+        ? pkg.generatedDescription.slice(0, 200)
+        : (pkg.seoValueProp || pkg.shortDescription || pkg.description || "");
       const category = pkg.category || "general";
       const url = slug
         ? `https://www.convex.dev/components/${slug}`
@@ -207,46 +208,62 @@ function buildComponentMarkdown(pkg: any): string {
     lines.push(`**Tags:** ${pkg.tags.join(", ")}\n`);
   }
 
-  if (pkg.seoValueProp) {
+  // Prefer v2 content model
+  if (pkg.contentModelVersion === 2 && pkg.generatedDescription) {
     lines.push(`---\n`);
-    lines.push(`> ${pkg.seoValueProp}\n`);
-  }
+    lines.push(`## Description\n`);
+    lines.push(`${pkg.generatedDescription}\n`);
 
-  if (pkg.seoBenefits && pkg.seoBenefits.length > 0) {
-    lines.push(`## Benefits\n`);
-    for (const benefit of pkg.seoBenefits) {
-      lines.push(`- ${benefit}`);
+    if (pkg.generatedUseCases) {
+      lines.push(`## Use cases\n`);
+      lines.push(`${pkg.generatedUseCases}\n`);
     }
-    lines.push("");
-  }
 
-  if (pkg.seoUseCases && pkg.seoUseCases.length > 0) {
-    lines.push(`## Use cases\n`);
-    for (const uc of pkg.seoUseCases) {
-      lines.push(`### ${uc.query}\n`);
-      lines.push(`${uc.answer}\n`);
+    if (pkg.generatedHowItWorks) {
+      lines.push(`## How it works\n`);
+      lines.push(`${pkg.generatedHowItWorks}\n`);
     }
-  }
 
-  if (pkg.seoFaq && pkg.seoFaq.length > 0) {
-    lines.push(`## FAQ\n`);
-    for (const faq of pkg.seoFaq) {
-      lines.push(`**Q: ${faq.question}**\n`);
-      lines.push(`${faq.answer}\n`);
+    if (pkg.readmeIncludedMarkdown) {
+      lines.push(`---\n`);
+      lines.push(pkg.readmeIncludedMarkdown);
     }
-  }
-
-  if (pkg.longDescription) {
-    lines.push(`---\n`);
-    lines.push(pkg.longDescription);
-  }
-
-  if (pkg.seoResourceLinks && pkg.seoResourceLinks.length > 0) {
-    lines.push(`\n## Resources\n`);
-    for (const link of pkg.seoResourceLinks) {
-      lines.push(`- [${link.label}](${link.url})`);
+  } else {
+    // Fallback: old SEO model
+    if (pkg.seoValueProp) {
+      lines.push(`---\n`);
+      lines.push(`> ${pkg.seoValueProp}\n`);
     }
-    lines.push("");
+
+    if (pkg.seoBenefits && pkg.seoBenefits.length > 0) {
+      lines.push(`## Benefits\n`);
+      for (const benefit of pkg.seoBenefits) {
+        lines.push(`- ${benefit}`);
+      }
+      lines.push("");
+    }
+
+    if (pkg.seoUseCases && pkg.seoUseCases.length > 0) {
+      lines.push(`## Use cases\n`);
+      for (const uc of pkg.seoUseCases) {
+        lines.push(`### ${uc.query}\n`);
+        lines.push(`${uc.answer}\n`);
+      }
+    }
+
+    if (pkg.seoFaq && pkg.seoFaq.length > 0) {
+      lines.push(`## FAQ\n`);
+      for (const faq of pkg.seoFaq) {
+        lines.push(`**Q: ${faq.question}**\n`);
+        lines.push(`${faq.answer}\n`);
+      }
+    }
+
+    if (pkg.longDescription) {
+      lines.push(`---\n`);
+      lines.push(pkg.longDescription);
+    }
+
   }
 
   if (pkg.slug) {
@@ -394,38 +411,51 @@ http.route({
     if (pkg.tags && pkg.tags.length > 0) lines.push(`- Tags: ${pkg.tags.join(", ")}`);
     lines.push("");
 
-    if (pkg.seoBenefits && pkg.seoBenefits.length > 0) {
-      lines.push("## Benefits");
-      for (const benefit of pkg.seoBenefits) {
-        lines.push(`- ${benefit}`);
-      }
+    // Prefer v2 content model for llms output
+    if (pkg.contentModelVersion === 2 && pkg.generatedDescription) {
+      lines.push("## Description");
+      lines.push(pkg.generatedDescription);
       lines.push("");
-    }
 
-    if (pkg.seoUseCases && pkg.seoUseCases.length > 0) {
-      lines.push("## Use Cases");
-      for (const uc of pkg.seoUseCases) {
-        lines.push(`- Q: ${uc.query}`);
-        lines.push(`  A: ${uc.answer}`);
+      if (pkg.generatedUseCases) {
+        lines.push("## Use Cases");
+        lines.push(pkg.generatedUseCases);
+        lines.push("");
       }
-      lines.push("");
-    }
 
-    if (pkg.seoFaq && pkg.seoFaq.length > 0) {
-      lines.push("## FAQ");
-      for (const faq of pkg.seoFaq) {
-        lines.push(`- Q: ${faq.question}`);
-        lines.push(`  A: ${faq.answer}`);
+      if (pkg.generatedHowItWorks) {
+        lines.push("## How It Works");
+        lines.push(pkg.generatedHowItWorks);
+        lines.push("");
       }
-      lines.push("");
-    }
+    } else {
+      // Fallback: old SEO model
+      if (pkg.seoBenefits && pkg.seoBenefits.length > 0) {
+        lines.push("## Benefits");
+        for (const benefit of pkg.seoBenefits) {
+          lines.push(`- ${benefit}`);
+        }
+        lines.push("");
+      }
 
-    if (pkg.seoResourceLinks && pkg.seoResourceLinks.length > 0) {
-      lines.push("## Resources");
-      for (const link of pkg.seoResourceLinks) {
-        lines.push(`- ${link.label}: ${link.url}`);
+      if (pkg.seoUseCases && pkg.seoUseCases.length > 0) {
+        lines.push("## Use Cases");
+        for (const uc of pkg.seoUseCases) {
+          lines.push(`- Q: ${uc.query}`);
+          lines.push(`  A: ${uc.answer}`);
+        }
+        lines.push("");
       }
-      lines.push("");
+
+      if (pkg.seoFaq && pkg.seoFaq.length > 0) {
+        lines.push("## FAQ");
+        for (const faq of pkg.seoFaq) {
+          lines.push(`- Q: ${faq.question}`);
+          lines.push(`  A: ${faq.answer}`);
+        }
+        lines.push("");
+      }
+
     }
 
     return new Response(lines.join("\n"), {

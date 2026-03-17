@@ -188,6 +188,38 @@ const applicationTables = {
     hideSeoAndSkillContentOnDetailPage: v.optional(v.boolean()),
     // AI-generated SKILL.md content for Claude agent skills
     skillMd: v.optional(v.string()),
+
+    // --- New generated component directory content (v2 content model) ---
+    // AI-generated description section for the detail page
+    generatedDescription: v.optional(v.string()),
+    // AI-generated use cases section
+    generatedUseCases: v.optional(v.string()),
+    // AI-generated "how it works" section
+    generatedHowItWorks: v.optional(v.string()),
+    // README excerpt extracted between include markers (or full README fallback)
+    readmeIncludedMarkdown: v.optional(v.string()),
+    // Whether the README had the include markers or used full fallback
+    readmeIncludeSource: v.optional(
+      v.union(v.literal("markers"), v.literal("full")),
+    ),
+    // Content generation status for the new model
+    contentGenerationStatus: v.optional(
+      v.union(
+        v.literal("pending"),
+        v.literal("generating"),
+        v.literal("completed"),
+        v.literal("error"),
+      ),
+    ),
+    contentGenerationError: v.optional(v.string()),
+    contentGeneratedAt: v.optional(v.number()),
+    // Version flag: 1 = old SEO model, 2 = new generated content model
+    contentModelVersion: v.optional(v.number()),
+
+    // Snapshot of user-submitted descriptions before content model migration
+    submittedShortDescription: v.optional(v.string()),
+    submittedLongDescription: v.optional(v.string()),
+
     // Reward tracking (denormalized for quick badge rendering)
     rewardStatus: v.optional(
       v.union(
@@ -525,6 +557,12 @@ const applicationTables = {
   })
     .index("by_hashed_ip_and_created", ["hashedIp", "createdAt"])
     .index("by_repo_and_expires", ["normalizedRepoUrl", "expiresAt"]),
+
+  contentGenerationRequests: defineTable({
+    userKey: v.string(),
+    source: v.union(v.literal("submit"), v.literal("profile")),
+    createdAt: v.number(),
+  }).index("by_userKey_and_createdAt", ["userKey", "createdAt"]),
 };
 
 export default defineSchema({

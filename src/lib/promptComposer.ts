@@ -27,6 +27,9 @@ interface PromptComponentData {
   seoValueProp?: string;
   seoBenefits?: string[];
   skillMd?: string;
+  generatedDescription?: string;
+  generatedUseCases?: string;
+  contentModelVersion?: number;
 }
 
 /**
@@ -43,9 +46,12 @@ export function generateUniversalPrompt(
   const sourceFieldsUsed: string[] = [];
   let fallbackUsed = false;
 
-  // Build description from layered sources
+  // Build description from layered sources (prefer v2 content model)
   let description = "";
-  if (component.seoValueProp) {
+  if (component.contentModelVersion === 2 && component.generatedDescription) {
+    description = component.generatedDescription;
+    sourceFieldsUsed.push("generatedDescription");
+  } else if (component.seoValueProp) {
     description = component.seoValueProp;
     sourceFieldsUsed.push("seoValueProp");
   } else if (component.shortDescription) {
@@ -57,9 +63,12 @@ export function generateUniversalPrompt(
     fallbackUsed = true;
   }
 
-  // Build benefits list from SEO content or generate from tags
+  // Build benefits list from v2 use cases, SEO content, or tags
   let benefitsList = "";
-  if (component.seoBenefits && component.seoBenefits.length > 0) {
+  if (component.contentModelVersion === 2 && component.generatedUseCases) {
+    benefitsList = component.generatedUseCases;
+    sourceFieldsUsed.push("generatedUseCases");
+  } else if (component.seoBenefits && component.seoBenefits.length > 0) {
     benefitsList = component.seoBenefits.map((b) => `- ${b}`).join("\n");
     sourceFieldsUsed.push("seoBenefits");
   } else if (component.tags && component.tags.length > 0) {
