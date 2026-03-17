@@ -2,7 +2,12 @@
 
 ## to do
 
-Session updates complete on 2026-03-17 18:45 UTC.
+Session updates complete on 2026-03-17 19:30 UTC.
+
+- [x] hide "Add badge to your README" section on ComponentDetail page while keeping it on Profile, Submit, and other pages (2026-03-17 19:30 UTC)
+  - Removed badge markdown snippet, copy button, and preview image from `src/pages/ComponentDetail.tsx`
+  - Kept the standalone `View llms.txt` link visible on the detail page
+  - Badge section remains unchanged on `src/pages/Profile.tsx`, `src/pages/Submit.tsx`, and other surfaces
 
 - [x] fix SKILL.md (Download Skill) not generated during submit, profile edit, or content model migration (2026-03-17 18:45 UTC)
   - Extracted `buildSkillMdFromContent` to `shared/buildSkillMd.ts` so it can be imported by both "use node" action files and mutation files

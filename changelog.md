@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Hidden "Add badge to your README" section on component detail page (2026-03-17 19:30 UTC)
+  - Badge markdown snippet, copy button, and preview image removed from `ComponentDetail.tsx`
+  - Standalone `View llms.txt` link remains visible
+  - Badge section still present on Profile, Submit, and other surfaces
+
 ### Fixed
 
 - SKILL.md (Download Skill) now generated during submit, profile edit, and content model migration (2026-03-17 18:45 UTC)
