@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Raw HTML tags in GitHub READMEs now render correctly on component detail pages (2026-03-17 22:15 UTC)
+  - Added `rehype-raw` plugin to all `ReactMarkdown` instances in `ComponentDetail.tsx`
+  - Tags like `<div align="center">`, `<strong>`, and inline `<img>` were previously displayed as literal text instead of rendered HTML
+  - Affects Use Cases, How it Works, From the README, and v1 long description sections
+
+### Changed
+
+- README preview source toggle now opens by default on SubmitForm and ProfileEditSubmission pages (2026-03-17 21:00 UTC)
+  - `ReadmePreviewNotice` component default state changed from collapsed to expanded
+  - Helps submitters see the README source explanation without needing to click
+
+### Removed
+
+- Removed "View markdown source" option from the Markdown dropdown on component detail page (2026-03-17 20:15 UTC)
+  - Option was broken after the unified markdown rendering refactor and no longer toggled properly
+  - Cleaned up unused `showMarkdown` state, `mdCopied` state, `handleCopyMdInline` function, `EyeOpenIcon` import, and the markdown source view panel
+  - Remaining dropdown options (Open markdown file, Copy as Markdown, Copy page URL, Open in ChatGPT/Claude/Perplexity) are unchanged
+
 ### Changed
 
 - Hidden "Add badge to your README" section on component detail page (2026-03-17 19:30 UTC)

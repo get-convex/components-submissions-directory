@@ -11,10 +11,11 @@ const COMPONENT_TEMPLATE_URL =
 export default function ReadmePreviewNotice({
   readmeIncludeSource,
 }: ReadmePreviewNoticeProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
 
   return (
     <details
+      open
       className="mb-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-text-secondary"
       onToggle={(event) => setIsOpen((event.currentTarget as HTMLDetailsElement).open)}
     >

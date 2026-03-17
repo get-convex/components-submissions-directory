@@ -2,7 +2,23 @@
 
 ## to do
 
-Session updates complete on 2026-03-17 19:30 UTC.
+Session updates complete on 2026-03-17 22:15 UTC.
+
+- [x] fix raw HTML tags rendering as text in README markdown on ComponentDetail page (2026-03-17 22:15 UTC)
+  - Installed `rehype-raw` package to allow `react-markdown` to parse and render inline HTML from GitHub READMEs
+  - Added `rehypePlugins={[rehypeRaw]}` to all 4 `ReactMarkdown` instances in `src/pages/ComponentDetail.tsx` (Use Cases, How it Works, From the README, and v1 long description)
+  - Fixes `<div align="center">`, `<strong>`, `<img>` and other HTML tags that were showing as literal text
+  - Verified with `npx vite build`
+
+- [x] make README preview source toggle open by default on SubmitForm and ProfileEditSubmission (2026-03-17 21:00 UTC)
+  - Changed `ReadmePreviewNotice` default state from closed to open (`useState(true)` and `open` attribute on `<details>`)
+  - Affects both `SubmitForm.tsx` and `ProfileEditSubmission.tsx` since they share the same component
+
+- [x] remove broken "View markdown source" option from Markdown dropdown on ComponentDetail page (2026-03-17 20:15 UTC)
+  - Removed the toggle button from the dropdown menu in `src/pages/ComponentDetail.tsx`
+  - Removed the associated markdown source view panel (pre block with raw markdown)
+  - Cleaned up unused `showMarkdown` state, `mdCopied` state, `handleCopyMdInline` function, and `EyeOpenIcon` import
+  - Remaining dropdown options (Open markdown file, Copy as Markdown, Copy page URL, Open in ChatGPT/Claude/Perplexity) are unchanged
 
 - [x] hide "Add badge to your README" section on ComponentDetail page while keeping it on Profile, Submit, and other pages (2026-03-17 19:30 UTC)
   - Removed badge markdown snippet, copy button, and preview image from `src/pages/ComponentDetail.tsx`

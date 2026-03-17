@@ -28,7 +28,6 @@ import {
   ChevronDownIcon,
   FileTextIcon,
   ClipboardIcon,
-  EyeOpenIcon,
   QuestionMarkCircledIcon,
   Cross2Icon,
 } from "@radix-ui/react-icons";
@@ -37,6 +36,7 @@ import { FileArrowDown, ClipboardText, DiscordLogo } from "@phosphor-icons/react
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
+import rehypeRaw from "rehype-raw";
 
 const AI_READ_PROMPT = "Read this URL and summarize it:";
 
@@ -440,11 +440,9 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
   const showAgentContent =
     (reviewStatus === "approved" || reviewStatus === "in_review") && !hideSeoAndSkillContent;
   const [badgeCopied, setBadgeCopied] = useState(false);
-  const [showMarkdown, setShowMarkdown] = useState(false);
   const [copyMenuOpen, setCopyMenuOpen] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [pageCopied, setPageCopied] = useState(false);
-  const [mdCopied, setMdCopied] = useState(false);
   const [skillCopied, setSkillCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -663,14 +661,6 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
     } catch {}
   };
 
-  // Copy markdown from the source view block
-  const handleCopyMdInline = async () => {
-    try {
-      await navigator.clipboard.writeText(markdownDoc);
-      setMdCopied(true);
-      setTimeout(() => setMdCopied(false), 2000);
-    } catch {}
-  };
 
   const handleCopyPageUrl = async () => {
     try {
@@ -945,15 +935,6 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 {copyMenuOpen && (
                   <div className="absolute left-0 top-full mt-1 w-56 rounded-lg bg-white shadow-hover py-1 z-20">
                     <button
-                      onClick={() => {
-                        setShowMarkdown(!showMarkdown);
-                        setCopyMenuOpen(false);
-                      }}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
-                      <EyeOpenIcon className="w-3.5 h-3.5 text-text-secondary" />
-                      {showMarkdown ? "View rendered" : "View markdown source"}
-                    </button>
-                    <button
                       onClick={openMarkdownFile}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
                       <ExternalLinkIcon className="w-3.5 h-3.5 text-text-secondary" />
@@ -1209,6 +1190,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                     <div className="markdown-body">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm, remarkBreaks]}
+                        rehypePlugins={[rehypeRaw]}
                         components={{ ...markdownComponents, a: renderMarkdownLink } as never}
                       >
                         {component.generatedUseCases}
@@ -1225,6 +1207,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                     <div className="markdown-body">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm, remarkBreaks]}
+                        rehypePlugins={[rehypeRaw]}
                         components={{ ...markdownComponents, a: renderMarkdownLink } as never}
                       >
                         {component.generatedHowItWorks}
@@ -1247,6 +1230,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                     <div className="markdown-body">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm, remarkBreaks]}
+                        rehypePlugins={[rehypeRaw]}
                         components={{ ...markdownComponents, a: renderMarkdownLink } as never}
                       >
                         {component.readmeIncludedMarkdown}
@@ -1264,42 +1248,14 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               </h2>
             )}
 
-            {/* Markdown source view toggle */}
-            {showMarkdown ? (
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-text-secondary uppercase tracking-wider">
-                    Markdown source
-                  </span>
-                  <button
-                    onClick={() => setShowMarkdown(false)}
-                    className="text-xs text-text-secondary hover:text-text-primary transition-colors">
-                    View rendered
-                  </button>
-                </div>
-                <div className="relative rounded-lg bg-[#1a1a1a] text-gray-300">
-                  <button
-                    onClick={handleCopyMdInline}
-                    className="absolute top-3 right-3 p-1.5 rounded hover:bg-white/10 transition-colors"
-                    title={mdCopied ? "Copied" : "Copy Markdown"}>
-                    {mdCopied ? (
-                      <CheckIcon className="w-4 h-4 text-green-400" />
-                    ) : (
-                      <CopyIcon className="w-4 h-4 text-gray-400" />
-                    )}
-                  </button>
-                  <pre className="p-4 pr-12 text-sm overflow-x-auto whitespace-pre-wrap font-mono">
-                    {markdownDoc}
-                  </pre>
-                </div>
-              </div>
-            ) : (
+            {/* Rendered markdown content */}
               <>
                 {/* Long description markdown content (v1 only) */}
                 {component.contentModelVersion !== 2 && component.longDescription && (
                   <div className="markdown-body mb-6">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm, remarkBreaks]}
+                      rehypePlugins={[rehypeRaw]}
                       components={{
                         ...markdownComponents,
                         a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
@@ -1419,7 +1375,6 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                   </div>
                 )}
               </>
-            )}
 
             {/* Video embed (below AI content) */}
             {component.videoUrl && (
