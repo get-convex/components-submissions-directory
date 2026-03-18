@@ -208,6 +208,20 @@ export default async (
       },
     });
   }
+  // Proxy the directory markdown index directly to Convex.
+  // Like llms.txt, this cannot rely on Netlify redirects once an edge function runs.
+  if (url.pathname === "/components/components.md") {
+    const res = await fetch(`${siteUrl}/api/markdown-index`, {
+      headers: { accept: "text/markdown, text/plain;q=0.9, */*;q=0.8" },
+    });
+    return new Response(res.body, {
+      status: res.status,
+      headers: {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Cache-Control": "public, max-age=300, s-maxage=600",
+      },
+    });
+  }
   const llmsMatch = url.pathname.match(/^\/components\/(.+)\/llms\.txt$/);
   if (llmsMatch) {
     const slug = llmsMatch[1];

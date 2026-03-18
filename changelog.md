@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `/components/components.md` now proxies directly from `og-meta.ts` to Convex `/api/markdown-index` so the deployed URL returns markdown instead of SPA HTML (2026-03-18 02:16 UTC)
+  - Root cause: Netlify redirects do not fire after the `/components/*` edge function runs and calls `context.next()`
+  - The existing `llms.txt` route already used this direct-proxy pattern, but the directory markdown index route did not
+  - Verified `npm run build` still passes after the edge routing fix
+
 ### Changed
 
 - Documentation viewer now uses Pierre Diffs (`@pierre/diffs`) for syntax-highlighted code blocks with line numbers and copy button, matching the ComponentDetail page renderer (2026-03-18 02:00 UTC)

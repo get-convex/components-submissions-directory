@@ -48,7 +48,9 @@ Netlify deployment configuration. Sets build command (`npm run build`), publish 
 - Main LLMs.txt and Markdown proxies to Convex HTTP endpoints:
   - `/components/llms.txt` -> `/api/llms.txt`
   - `/components.md` -> `/api/markdown-index`
+  - `/components/components.md` -> `/api/markdown-index`
   - `/components/*/llms.txt` -> `/api/component-llms?slug=:splat` (single and scoped slugs)
+  - Note: the exact `/components/components.md` route is also handled inside `og-meta.ts` because redirects do not fire once the `/components/*` edge function runs
 - MCP and badge proxies to production Convex deployment (`https://giant-grouse-674.convex.site`):
   - `/components/api/mcp/*` -> `https://giant-grouse-674.convex.site/api/mcp/:splat`
   - `/api/mcp/*` -> `https://giant-grouse-674.convex.site/api/mcp/:splat`
@@ -56,7 +58,7 @@ Netlify deployment configuration. Sets build command (`npm run build`), publish 
 - `/components` and `/components/*` fall back to `/index.html` for SPA routing (200)
 - Edge Function mapping:
   - `/components/badge/*` -> `netlify/edge-functions/component-badge.ts` (proxies badge SVG by slug to Convex HTTP badge endpoint)
-  - `/components/*` -> `netlify/edge-functions/og-meta.ts` (injects component-specific OG meta tags into SPA HTML for all requests)
+  - `/components/*` -> `netlify/edge-functions/og-meta.ts` (injects component-specific OG meta tags and directly proxies sitemap/llms.txt/components.md routes that cannot rely on redirects after edge functions)
   - `/components/*/*.md` -> `netlify/edge-functions/component-markdown.ts` (keeps Netlify URL, proxies markdown by slug)
 
 Session note (2026-03-06): Live endpoint checks showed `www.convex.dev/components/api/mcp/protocol` still returning SPA HTML while direct Convex MCP endpoint `https://giant-grouse-674.convex.site/api/mcp/protocol` returns valid JSON-RPC responses.
@@ -646,7 +648,7 @@ TypeScript declarations for Vite environment variables.
 
 ### `netlify/edge-functions/og-meta.ts`
 
-Netlify Edge Function that injects component-specific OpenGraph, Twitter Card, and robots meta tags into the SPA HTML for all requests to `/components/{slug}`. Fetches component data from the Convex public `getComponentBySlug` query via HTTP API in parallel with the SPA response, then replaces default meta tags (`og:title`, `og:description`, `og:image`, `twitter:card`, `<title>`, etc.) in the HTML before serving. Uses the component `thumbnailUrl` directly for `og:image`, which keeps social previews on the known working raw Convex storage URL format. Review-state robots behavior now matches the SPA: approved pages get indexable robots output, while pending, in review, changes requested, and rejected pages get `noindex, nofollow` in bot-visible HTML. Documentation routes (`/components/documentation` and `/components/documentation/*`) get server-side `noindex, nofollow` injected before passthrough so crawlers that do not execute JavaScript also respect the directive. Falls back to default SPA behavior if the component is not found or if the path is a reserved route or static asset. CDN cached for 5 minutes. Required because the SPA sets meta tags via client-side JavaScript which crawlers do not execute. Reserved paths that skip OG injection: `submit`, `admin`, `login`, `callback`, `profile`, `submissions`, `documentation`, `badge`, `categories`, and `badge/*` (badge paths use the dedicated badge edge proxy instead).
+Netlify Edge Function that injects component-specific OpenGraph, Twitter Card, and robots meta tags into the SPA HTML for component routes under `/components/{slug}`. It also directly proxies `/components/sitemap.xml`, `/components/llms.txt`, scoped `*/llms.txt`, and `/components/components.md` to Convex because Netlify redirects do not fire after an edge function runs. For actual component pages, it fetches component data from the Convex public `getComponentBySlug` query via HTTP API in parallel with the SPA response, then replaces default meta tags (`og:title`, `og:description`, `og:image`, `twitter:card`, `<title>`, etc.) in the HTML before serving. Uses the component `thumbnailUrl` directly for `og:image`, which keeps social previews on the known working raw Convex storage URL format. Review-state robots behavior now matches the SPA: approved pages get indexable robots output, while pending, in review, changes requested, and rejected pages get `noindex, nofollow` in bot-visible HTML. Documentation routes (`/components/documentation` and `/components/documentation/*`) get server-side `noindex, nofollow` injected before passthrough so crawlers that do not execute JavaScript also respect the directive. Falls back to default SPA behavior if the component is not found or if the path is a reserved route or static asset. CDN cached for 5 minutes. Required because the SPA sets meta tags via client-side JavaScript which crawlers do not execute. Reserved paths that skip OG injection: `submit`, `admin`, `login`, `callback`, `profile`, `submissions`, `documentation`, `badge`, `categories`, and `badge/*` (badge paths use the dedicated badge edge proxy instead).
 
 ### `netlify/edge-functions/component-badge.ts`
 

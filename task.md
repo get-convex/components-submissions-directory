@@ -2,7 +2,14 @@
 
 ## to do
 
-Session updates complete on 2026-03-18 02:00 UTC.
+Session updates complete on 2026-03-18 02:20 UTC.
+
+- [x] Fix deployed `/components/components.md` route so it returns markdown instead of SPA HTML (2026-03-18 02:10 UTC)
+  - Root cause: `og-meta.ts` intercepts `/components/*` before redirects, and redirects do not fire after edge functions call `context.next()`
+  - `llms.txt` already had a direct proxy branch in `og-meta.ts`, but `/components/components.md` did not
+  - Fixed by proxying `/components/components.md` directly to Convex `/api/markdown-index` from `og-meta.ts`
+  - Verified `npm run build` still passes after the routing change and docs were synced
+  - PRD at `prds/components-components-md-route-fix.md`
 
 - [x] Upgrade Documentation viewer to use Pierre Diffs for code blocks (2026-03-18 02:00 UTC)
   - Added `rehype-raw` import and plugin to `Documentation.tsx` for inline HTML support
