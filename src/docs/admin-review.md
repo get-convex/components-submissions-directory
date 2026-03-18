@@ -101,11 +101,14 @@ Before approving, verify:
 - [ ] npm package exists and is accessible
 - [ ] GitHub repo is public and accessible
 - [ ] Package follows Convex component structure
-- [ ] Has convex.config.ts file
+- [ ] Has `convex.config.ts` with `defineComponent()`
+- [ ] `package.json` exports `./convex.config.js` and `./_generated/component.js`
 - [ ] Documentation is adequate
 - [ ] No security concerns
 - [ ] Category is appropriate
 - [ ] Description is accurate
+- [ ] Generate content (v2) if not already done
+- [ ] Generate slug if missing
 
 ## Soft deletion from user side
 
@@ -122,6 +125,10 @@ Users can request deletion of their own submissions through the profile page:
 During the waiting period, either the user (via `cancelDeleteMySubmission`) or an admin can cancel the deletion. The component returns to its previous review status and visibility.
 
 Pending deletions appear in the admin Deletion tab with the time remaining and who requested the deletion.
+
+## Rewards
+
+When a component is approved (or in review), admins can send gift card rewards via the Send Reward button in the Actions row. The button is disabled for packages not in `in_review` or `approved` status.
 
 ## Notes for reviewers
 

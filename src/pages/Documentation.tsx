@@ -5,6 +5,8 @@ import { useAuth } from "../lib/auth";
 import Header from "../components/Header";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import CodeBlock from "../components/CodeBlock";
 import {
   Copy,
   Check,
@@ -33,6 +35,7 @@ import adminNotesDoc from "../docs/admin-notes.md?raw";
 import mcpDoc from "../docs/mcp.md?raw";
 import apiEndpointsDoc from "../docs/api-endpoints.md?raw";
 import badgesDoc from "../docs/badges.md?raw";
+import updatingDocsDoc from "../docs/updating-docs.md?raw";
 
 type DocSection = {
   id: string;
@@ -58,6 +61,7 @@ const docs: DocSection[] = [
   { id: "mcp", title: "MCP (Model Context Protocol)", content: mcpDoc, group: "integrations" },
   { id: "api-endpoints", title: "Public API Endpoints", content: apiEndpointsDoc, group: "integrations" },
   { id: "badges", title: "README Badges", content: badgesDoc, group: "integrations" },
+  { id: "updating-docs", title: "Updating the Docs", content: updatingDocsDoc, group: "getting-started" },
 ];
 
 function extractHeadings(markdown: string): { id: string; text: string; level: number }[] {
@@ -390,6 +394,7 @@ export default function Documentation({ section }: DocumentationProps) {
             <article className="prose prose-slate max-w-none prose-headings:font-semibold prose-headings:text-text-primary prose-headings:tracking-tight prose-p:text-text-secondary prose-p:leading-7 prose-strong:text-text-primary prose-em:text-text-primary prose-li:text-text-secondary prose-li:leading-7 prose-ul:my-5 prose-ol:my-5 prose-blockquote:my-6 prose-blockquote:rounded-r-lg prose-blockquote:border-l-4 prose-blockquote:border-l-button prose-blockquote:bg-bg-hover prose-blockquote:px-4 prose-blockquote:py-2 prose-blockquote:text-text-secondary prose-hr:my-8 prose-hr:border-border prose-a:text-blue-600 prose-a:no-underline hover:prose-a:underline prose-code:text-text-primary prose-code:bg-bg-hover prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-normal prose-code:before:content-none prose-code:after:content-none prose-pre:bg-[rgb(30,28,26)] prose-pre:text-white prose-pre:border prose-pre:border-[rgb(55,52,49)] prose-pre:rounded-lg prose-pre:shadow-sm prose-img:rounded-lg prose-img:border prose-img:border-border prose-img:shadow-sm prose-table:my-6 prose-table:text-sm prose-th:text-text-primary prose-th:font-medium prose-th:bg-bg-hover prose-td:border-border prose-th:border-border prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeRaw]}
                 components={{
                   h1: ({ children }) => (
                     <h1 className="text-2xl font-semibold text-text-primary mb-4 mt-0">
@@ -433,6 +438,22 @@ export default function Documentation({ section }: DocumentationProps) {
                       </table>
                     </div>
                   ),
+                  thead: ({ children }) => (
+                    <thead className="bg-bg-hover">{children}</thead>
+                  ),
+                  th: ({ children }) => (
+                    <th className="border border-border px-3 py-2 text-left text-xs font-semibold text-text-primary">
+                      {children}
+                    </th>
+                  ),
+                  td: ({ children }) => (
+                    <td className="border border-border px-3 py-2 text-sm text-text-secondary">
+                      {children}
+                    </td>
+                  ),
+                  tr: ({ children }) => (
+                    <tr className="even:bg-bg-secondary/50">{children}</tr>
+                  ),
                   ul: ({ children }) => (
                     <ul className="list-disc pl-6 marker:text-text-tertiary space-y-1">{children}</ul>
                   ),
@@ -442,19 +463,12 @@ export default function Documentation({ section }: DocumentationProps) {
                   li: ({ children }) => <li className="leading-7">{children}</li>,
                   blockquote: ({ children }) => <blockquote>{children}</blockquote>,
                   hr: () => <hr className="border-border" />,
-                  pre: ({ children }) => (
-                    <pre className="overflow-x-auto rounded-lg border border-[rgb(55,52,49)] bg-[rgb(30,28,26)] p-4 text-[13px] leading-6 text-white">
-                      {children}
-                    </pre>
-                  ),
+                  pre: ({ children }) => <>{children}</>,
                   code: ({ className, children, ...props }) => {
-                    const isBlock = Boolean(className && className.includes("language-"));
-                    if (isBlock) {
-                      return (
-                        <code className={className} {...props}>
-                          {children}
-                        </code>
-                      );
+                    const match = /language-(\w+)/.exec(className || "");
+                    const code = String(children).replace(/\n$/, "");
+                    if (match || code.includes("\n")) {
+                      return <CodeBlock code={code} language={match?.[1]} />;
                     }
                     return (
                       <code className="rounded bg-bg-hover px-1.5 py-0.5 text-sm text-text-primary" {...props}>
@@ -462,14 +476,29 @@ export default function Documentation({ section }: DocumentationProps) {
                       </code>
                     );
                   },
-                  img: ({ src, alt }) => (
-                    <img
-                      src={src}
-                      alt={alt ?? ""}
-                      className="my-6 rounded-lg border border-border shadow-sm"
-                      loading="lazy"
-                    />
-                  ),
+                  img: ({ src, alt }) => {
+                    if (src && /\.(mp4|webm|mov)(\?.*)?$/i.test(src)) {
+                      return (
+                        <video
+                          src={src}
+                          controls
+                          playsInline
+                          className="w-full rounded-lg my-4"
+                          title={alt || "Video"}
+                        >
+                          Your browser does not support the video tag.
+                        </video>
+                      );
+                    }
+                    return (
+                      <img
+                        src={src}
+                        alt={alt ?? ""}
+                        className="my-6 rounded-lg border border-border shadow-sm max-w-full"
+                        loading="lazy"
+                      />
+                    );
+                  },
                   a: ({ href, children }) => (
                     <a
                       href={href}

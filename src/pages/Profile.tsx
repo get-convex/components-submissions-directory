@@ -32,6 +32,10 @@ import {
   Lightning,
   SpinnerGap,
   CaretDown,
+  Key,
+  Terminal,
+  Info,
+  ArrowsClockwise,
 } from "@phosphor-icons/react";
 
 // Get base path for links (always /components)
@@ -951,6 +955,207 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
   );
 }
 
+// API Usage Guide modal
+function ApiUsageModal({ onClose }: { onClose: () => void }) {
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+
+  const endpoints = [
+    {
+      name: "Search components",
+      method: "GET",
+      path: "/api/components/search?q=auth",
+      description: "Search by name, description, category, or tags. Supports pagination.",
+    },
+    {
+      name: "Get component",
+      method: "GET",
+      path: "/api/components/detail?slug=agent",
+      description: "Full component profile with install command, docs, and metadata.",
+    },
+    {
+      name: "Install command",
+      method: "GET",
+      path: "/api/components/install?slug=agent",
+      description: "Get the install command for any package manager.",
+    },
+    {
+      name: "Categories",
+      method: "GET",
+      path: "/api/components/categories",
+      description: "List all categories with component counts.",
+    },
+    {
+      name: "Component docs",
+      method: "GET",
+      path: "/api/components/docs?slug=agent",
+      description: "Get markdown, llms.txt, and directory page URLs.",
+    },
+    {
+      name: "API info",
+      method: "GET",
+      path: "/api/components/info",
+      description: "Endpoint directory with auth and rate limit details.",
+    },
+  ];
+
+  const handleCopy = async (text: string, idx: number) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedIdx(idx);
+      setTimeout(() => setCopiedIdx(null), 2000);
+    } catch { /* noop */ }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 flex items-start justify-center pt-8 p-4 overflow-y-auto"
+      style={{ zIndex: 2147483647 }}>
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-2xl rounded-lg bg-white border border-border shadow-lg my-4">
+        <div className="flex items-center justify-between p-5 border-b border-border">
+          <div>
+            <h2 className="text-lg font-medium text-text-primary">Components REST API</h2>
+            <p className="text-xs text-text-secondary mt-0.5">
+              Programmatic access to the Convex Components Directory
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-6 max-h-[70vh] overflow-y-auto">
+          {/* What it does */}
+          <div>
+            <h3 className="text-sm font-medium text-text-primary mb-2">What you can do</h3>
+            <ul className="space-y-1.5 text-xs text-text-secondary">
+              <li className="flex items-start gap-2">
+                <CheckCircle size={14} className="text-green-600 mt-0.5 shrink-0" />
+                Search and discover approved Convex components
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle size={14} className="text-green-600 mt-0.5 shrink-0" />
+                Get install commands for any package manager
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle size={14} className="text-green-600 mt-0.5 shrink-0" />
+                Fetch component metadata, docs links, and trust signals
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle size={14} className="text-green-600 mt-0.5 shrink-0" />
+                Feed to coding agents, automate dependency discovery, build tooling
+              </li>
+            </ul>
+          </div>
+
+          {/* Authentication */}
+          <div>
+            <h3 className="text-sm font-medium text-text-primary mb-2">Authentication</h3>
+            <p className="text-xs text-text-secondary mb-2">
+              Pass your API key as a Bearer token. Anonymous access works at lower rate limits.
+            </p>
+            <div className="rounded-md bg-[#1a1a1a] px-3 py-2">
+              <code className="text-xs text-gray-300">
+                Authorization: Bearer YOUR_API_KEY
+              </code>
+            </div>
+          </div>
+
+          {/* Rate limits */}
+          <div>
+            <h3 className="text-sm font-medium text-text-primary mb-2">Rate limits</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs font-medium text-text-primary">With API key</p>
+                <p className="text-lg font-medium text-text-primary mt-1">100 <span className="text-xs font-normal text-text-secondary">req/min</span></p>
+              </div>
+              <div className="rounded-lg border border-border p-3">
+                <p className="text-xs font-medium text-text-primary">Anonymous</p>
+                <p className="text-lg font-medium text-text-primary mt-1">10 <span className="text-xs font-normal text-text-secondary">req/min</span></p>
+              </div>
+            </div>
+          </div>
+
+          {/* Endpoints */}
+          <div>
+            <h3 className="text-sm font-medium text-text-primary mb-2">Endpoints</h3>
+            <div className="space-y-2">
+              {endpoints.map((ep, idx) => {
+                const curlCmd = `curl -H "Authorization: Bearer YOUR_KEY" "https://www.convex.dev${ep.path}"`;
+                return (
+                  <div key={idx} className="rounded-lg border border-border p-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-text-primary">{ep.name}</span>
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-bg-secondary text-text-secondary">
+                        {ep.method}
+                      </span>
+                    </div>
+                    <p className="text-xs text-text-secondary mb-2">{ep.description}</p>
+                    <div className="flex items-center gap-1.5 rounded-md bg-[#1a1a1a] px-2.5 py-1.5">
+                      <code className="flex-1 text-[11px] text-gray-300 overflow-x-auto whitespace-nowrap">
+                        {curlCmd}
+                      </code>
+                      <button
+                        onClick={() => handleCopy(curlCmd, idx)}
+                        className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors">
+                        {copiedIdx === idx ? (
+                          <Check size={12} className="text-green-400" />
+                        ) : (
+                          <Copy size={12} className="text-gray-400" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Also available */}
+          <div>
+            <h3 className="text-sm font-medium text-text-primary mb-2">Also available</h3>
+            <p className="text-xs text-text-secondary mb-2">
+              For LLM consumption, the directory also publishes these content endpoints (no API key required):
+            </p>
+            <ul className="space-y-1 text-xs">
+              <li>
+                <a
+                  href="https://www.convex.dev/components/llms.txt"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-button hover:underline">
+                  /components/llms.txt
+                </a>
+                <span className="text-text-secondary ml-1.5">Full directory index for LLMs</span>
+              </li>
+              <li>
+                <a
+                  href="https://www.convex.dev/components/components.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-button hover:underline">
+                  /components/components.md
+                </a>
+                <span className="text-text-secondary ml-1.5">Markdown index grouped by category</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-border">
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2 rounded-full text-sm font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Submission card component
 function SubmissionCard({
   submission,
@@ -1130,6 +1335,10 @@ export default function Profile() {
   const { isAuthenticated, isLoading: authLoading, signIn, signOut } = useAuth();
   const user = useQuery(api.auth.loggedInUser);
   const submissions = useQuery(api.packages.getMySubmissions, isAuthenticated ? {} : "skip");
+  const apiAccessStatus = useQuery(api.apiKeys.getMyApiAccessStatus, isAuthenticated ? {} : "skip");
+  const apiKeyInfo = useQuery(api.apiKeys.getMyApiKey, isAuthenticated ? {} : "skip");
+  const generateApiKeyMutation = useMutation(api.apiKeys.generateApiKey);
+  const revokeApiKeyMutation = useMutation(api.apiKeys.revokeApiKey);
 
   // Modal state for request
   const [requestModal, setRequestModal] = useState<{
@@ -1142,6 +1351,48 @@ export default function Profile() {
     packageId: Id<"packages">;
     packageName: string;
   } | null>(null);
+
+  // API key state
+  const [showApiUsageModal, setShowApiUsageModal] = useState(false);
+  const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
+  const [newlyGeneratedKey, setNewlyGeneratedKey] = useState<string | null>(null);
+  const [apiKeyLoading, setApiKeyLoading] = useState(false);
+  const [keyCopied, setKeyCopied] = useState(false);
+
+  const handleGenerateApiKey = async () => {
+    setApiKeyLoading(true);
+    try {
+      const key = await generateApiKeyMutation();
+      setNewlyGeneratedKey(key);
+      toast.success("API key generated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to generate API key");
+    } finally {
+      setApiKeyLoading(false);
+    }
+  };
+
+  const handleRevokeApiKey = async () => {
+    setApiKeyLoading(true);
+    try {
+      await revokeApiKeyMutation();
+      setShowRevokeConfirm(false);
+      setNewlyGeneratedKey(null);
+      toast.success("API key revoked");
+    } catch {
+      toast.error("Failed to revoke API key");
+    } finally {
+      setApiKeyLoading(false);
+    }
+  };
+
+  const handleCopyKey = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setKeyCopied(true);
+      setTimeout(() => setKeyCopied(false), 2000);
+    } catch { /* noop */ }
+  };
 
   // Loading state
   if (authLoading) {
@@ -1265,6 +1516,142 @@ export default function Profile() {
           )}
         </div>
 
+        {/* API Access Section (only visible when globally enabled AND user has been granted access) */}
+        {apiAccessStatus?.globalEnabled && apiAccessStatus?.userGranted && (
+        <div className="mt-12 pt-6 border-t border-border">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Key size={18} className="text-text-primary" />
+              <h3 className="text-sm font-medium text-text-primary">API Access</h3>
+            </div>
+            <button
+              onClick={() => setShowApiUsageModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+              <Info size={14} />
+              How to use the API
+            </button>
+          </div>
+
+          <div className="p-4 rounded-lg border border-border bg-white">
+            {/* Newly generated key (shown once) */}
+            {newlyGeneratedKey && (
+              <div className="mb-4 p-3 rounded-lg border border-green-200 bg-green-50">
+                <p className="text-xs font-medium text-green-800 mb-1.5">
+                  Your API key has been generated. Copy it now. You will not see it again.
+                </p>
+                <div className="flex items-center gap-2 rounded-md bg-[#1a1a1a] px-3 py-2">
+                  <code className="flex-1 text-sm text-green-300 font-mono overflow-x-auto whitespace-nowrap">
+                    {newlyGeneratedKey}
+                  </code>
+                  <button
+                    onClick={() => handleCopyKey(newlyGeneratedKey)}
+                    className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors">
+                    {keyCopied ? (
+                      <Check size={14} className="text-green-400" />
+                    ) : (
+                      <Copy size={14} className="text-gray-400" />
+                    )}
+                  </button>
+                </div>
+                <button
+                  onClick={() => setNewlyGeneratedKey(null)}
+                  className="mt-2 text-xs text-green-700 hover:text-green-900 transition-colors">
+                  I have copied my key
+                </button>
+              </div>
+            )}
+
+            {apiKeyInfo ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-text-primary font-mono">{apiKeyInfo.keyPrefix}</p>
+                    <p className="text-xs text-text-secondary mt-0.5">
+                      Created {new Date(apiKeyInfo.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                      {apiKeyInfo.lastUsedAt && (
+                        <> &middot; Last used {new Date(apiKeyInfo.lastUsedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</>
+                      )}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border bg-green-500/10 text-green-600 border-green-500/20">
+                      Active
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 text-xs text-text-secondary">
+                  <span className="flex items-center gap-1">
+                    <Terminal size={12} />
+                    {apiKeyInfo.requestCount.toLocaleString()} requests
+                  </span>
+                  <span>100 req/min limit</span>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-border/50">
+                  <button
+                    onClick={() => setShowApiUsageModal(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+                    <Terminal size={14} />
+                    View endpoints
+                  </button>
+                  {showRevokeConfirm ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-text-secondary">Revoke this key?</span>
+                      <button
+                        onClick={handleRevokeApiKey}
+                        disabled={apiKeyLoading}
+                        className="px-3 py-1.5 text-xs rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50">
+                        {apiKeyLoading ? "Revoking..." : "Yes, revoke"}
+                      </button>
+                      <button
+                        onClick={() => setShowRevokeConfirm(false)}
+                        className="px-3 py-1.5 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover transition-colors">
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowRevokeConfirm(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors">
+                      <ArrowsClockwise size={14} />
+                      Revoke and regenerate
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <Key size={28} className="mx-auto text-text-tertiary mb-2" />
+                <p className="text-sm text-text-secondary mb-1">
+                  Generate an API key to access the Components REST API
+                </p>
+                <p className="text-xs text-text-tertiary mb-4">
+                  Search components, get install commands, and fetch metadata programmatically.
+                  Useful for coding agents, CI pipelines, and custom tooling.
+                </p>
+                <button
+                  onClick={handleGenerateApiKey}
+                  disabled={apiKeyLoading}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-sm rounded-full bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50">
+                  {apiKeyLoading ? (
+                    <>
+                      <SpinnerGap size={16} className="animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Key size={16} />
+                      Generate API Key
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        )}
+
         {/* Status and Visibility Guide */}
         <div className="mt-12 pt-6 border-t border-border">
           <h3 className="text-sm font-medium text-text-primary mb-3">Status Guide</h3>
@@ -1345,7 +1732,7 @@ export default function Profile() {
               <div className="flex-1">
                 <h4 className="text-sm font-medium text-text-primary">Remove a component or close your account</h4>
                 <p className="text-xs text-text-secondary mt-1">
-                  To request removal of a component from the directory, use the "Send Request" button on any of your submissions above. You can also use it to request account removal or any other changes. The Convex team will follow up in your Messages thread.
+                  To request removal of a component from the directory, use the "Send Request" button on any of your submissions above. You can also use it to request account removal or any other changes. The Convex team will follow up in your Messages thread. You can also reach us directly at devx at convex . dev.
                 </p>
               </div>
             </div>
@@ -1371,6 +1758,11 @@ export default function Profile() {
           packageName={notesModal.packageName}
           onClose={() => setNotesModal(null)}
         />
+      )}
+
+      {/* API usage guide modal */}
+      {showApiUsageModal && (
+        <ApiUsageModal onClose={() => setShowApiUsageModal(false)} />
       )}
 
     </div>

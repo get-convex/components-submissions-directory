@@ -30,20 +30,23 @@ Each submission row shows:
 | Status badge | Current review status |
 | Visibility badge | Hidden status if applicable |
 | Actions | Edit, Send Request, View Notes buttons |
+| Badge snippet | README markdown, copy button, and live preview (for packages with slugs) |
 
 ## Editing submissions
 
-Click "Edit" to open the edit modal with fields:
+Click "Edit" to open a dedicated full-page editor at `/profile/edit/:packageId`. The editor includes:
 
-- Component name
-- Short description
-- Long description
-- Category
-- Tags
-- Demo URL
-- Video URL
+- Package, Repo, and npm info as clickable links
+- Component name, short description, category, tags, demo URL, video URL
+- v2 content generation with "Generate Component Directory Content" button
+- Side-by-side editor and live markdown preview for Description, Use Cases, and How it Works on desktop (stacks on mobile)
+- README preview section (read-only)
+- Logo upload and management
+- Vertically resizable textareas for longer editing
 
-Changes are saved immediately. If the component was previously approved, consider sending a note to request re-review.
+### Content regeneration
+
+The profile editor uses the same v2 content flow as the submit form. Regeneration opens a warning modal and is subject to the 5 per hour per account cooldown. Edit the current draft when possible instead of regenerating.
 
 ## Sending requests
 
@@ -81,37 +84,20 @@ Click "View Notes" to see the conversation thread between you and admins. Featur
 | Visible | Appears in directory |
 | Hidden | Temporarily hidden from directory |
 
-## Requesting deletion
+## API access
 
-You can request deletion of your own submissions:
+When the admin has enabled the REST API and granted your account access, an API Access section appears on the profile page. You can:
 
-1. Click "Send Request" on the submission you want removed
-2. Type a deletion request message
-3. The admin team is notified
-4. The component enters a waiting period before permanent deletion
+- Generate a personal API key (one active key at a time)
+- View your key prefix and creation date
+- Revoke your key at any time
+- Open the API Usage Guide modal with endpoint documentation, curl examples, and rate limit info
 
-### Canceling a deletion request
+API keys use the `cdk_` prefix, are hashed at rest, and support two-tier rate limiting: 100 requests per minute with a key, 10 per minute anonymous.
 
-If you change your mind before the waiting period expires:
+## Requesting help
 
-1. Go to your profile
-2. Find the submission with a deletion badge
-3. Click "Cancel Deletion Request"
-4. The component returns to its previous state
-
-The waiting period duration is configured by admins in the Deletion Management settings.
-
-## Account management
-
-At the bottom of the profile page:
-
-- **Delete Account** - Remove your account (requires all submissions deleted first)
-
-To delete your account:
-
-1. Delete or request removal of all submissions
-2. Click "Delete Account"
-3. Confirm the action
+At the bottom of the profile page, a "Need help?" section directs you to use "Send Request" for component removal or account changes. Direct contact email is also provided.
 
 ## Multi-account access
 

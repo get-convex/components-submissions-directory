@@ -12,6 +12,7 @@ The Convex Components Directory is a curated catalog of open-source backend comp
 
 - [Directory](/components/documentation/directory) - Browse and search components
 - [Submit a component](/components/documentation/submit) - How to submit your component
+- [Preflight checker](/components/documentation/submit) - Validate your repo before submitting
 - [Your profile](/components/documentation/profile) - Manage your submissions
 - [Component pages](/components/documentation/component-detail) - Understanding component details
 
@@ -21,10 +22,20 @@ The Convex Components Directory is a curated catalog of open-source backend comp
 - [Package management](/components/documentation/admin-packages) - Managing packages
 - [Review workflow](/components/documentation/admin-review) - Review process
 - [AI review](/components/documentation/admin-ai-review) - Automated AI reviews
-- [SEO content](/components/documentation/admin-seo) - SEO generation
+- [SEO content](/components/documentation/admin-seo) - SEO and content generation
 - [Thumbnails](/components/documentation/admin-thumbnails) - Thumbnail management
 - [Settings](/components/documentation/admin-settings) - Admin settings
 - [Notes and comments](/components/documentation/admin-notes) - Communication system
+
+### Integrations
+
+- [API endpoints](/components/documentation/api-endpoints) - Public REST and content APIs
+- [Badges](/components/documentation/badges) - README badge endpoint
+- [MCP](/components/documentation/mcp) - Model Context Protocol for AI agents
+
+### Contributing
+
+- [Updating the docs](/components/documentation/updating-docs) - How to add and edit documentation pages
 
 ## Technology stack
 
@@ -33,12 +44,13 @@ The directory is built with:
 - **Frontend**: React, Vite, TypeScript, Tailwind CSS
 - **Backend**: Convex (database, functions, file storage)
 - **Authentication**: WorkOS AuthKit with Connect OAuth
-- **Hosting**: Netlify
+- **AI providers**: Anthropic Claude, OpenAI GPT, Google Gemini (with automatic failover)
+- **Hosting**: Netlify (with edge functions for OG meta, badges, and markdown proxying)
 
 ## Access levels
 
 | Role | Access |
 |------|--------|
-| Public | Browse directory, view component details |
-| Authenticated user | Submit components, manage profile |
-| Admin (@convex.dev email) | Full admin dashboard access |
+| Public | Browse directory, view component details, use REST API (rate limited) |
+| Authenticated user | Submit components, manage profile, preflight check, generate API key |
+| Admin (@convex.dev email) | Full admin dashboard access, API access grants |

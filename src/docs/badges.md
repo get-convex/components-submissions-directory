@@ -10,6 +10,8 @@ Component authors can add a dynamic SVG badge to their GitHub README that links 
 
 Replace `your-slug` with your component's slug (the URL-safe identifier shown in your component's directory URL).
 
+The badge endpoint is served via a Netlify edge function that proxies to the Convex badge API.
+
 ## Adding a badge to your README
 
 Paste this markdown into your `README.md`, replacing `your-component` with your slug:
@@ -20,15 +22,20 @@ Paste this markdown into your `README.md`, replacing `your-component` with your 
 
 The badge renders as an inline SVG showing your component's review status.
 
+Badge snippets with copy buttons and live previews are available on the Profile page and the Submissions page for packages with slugs.
+
 ## Badge styles
 
-| Status | Color | Description |
-|--------|-------|-------------|
-| Approved | Blue | Component has been approved |
-| In Review | Purple | Component is currently being reviewed |
-| Changes Requested | Orange | Changes have been requested |
-| Pending | Yellow | Awaiting review |
-| Rejected | Red | Component was rejected |
+The badge uses shields.io styling with a `#555555` gray left box and a colored right box based on review status:
+
+| Status | Color | Hex |
+|--------|-------|-----|
+| Approved | Green | `#228909` |
+| In Review | Blue | `#2563eb` |
+| Changes Requested | Orange | `#ea580c` |
+| Pending | Yellow | `#ca8a04` |
+| Rejected | Red | `#dc2626` |
+| Not Found | Gray | `#6b6b6b` |
 
 The badge automatically reflects your current review status. When an admin updates your status, the badge updates on the next load.
 

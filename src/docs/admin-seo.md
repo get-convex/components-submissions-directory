@@ -1,141 +1,148 @@
-# SEO Content Generation
+# Content Generation
 
-The SEO system generates optimized content for component detail pages using AI.
+The content generation system creates structured component directory content using AI, grounded on GitHub README data and Convex documentation context.
 
-## Generated content
+## Content model (v2)
 
-The SEO generator creates:
+The v2 content model generates three structured sections for each component:
 
-| Content | Description |
+| Section | Description |
 |---------|-------------|
-| Value proposition | One-line benefit statement |
-| Benefits | List of key advantages |
-| Use cases | Common scenarios with explanations |
-| FAQ | Frequently asked questions |
-| Resource links | Related documentation links |
-| SKILL.md | AI agent integration file |
+| Description | Component overview grounded on the README |
+| Use cases | Common scenarios and applications |
+| How it works | Technical explanation |
 
-## Running SEO generation
+Additional generated outputs:
 
-### From the Actions row
+| Output | Description |
+|--------|-------------|
+| README preview | Imported README content (from Convex include markers or full README fallback) |
+| SKILL.md | AI agent integration file for Claude, Cursor, etc. |
 
+## Generation workflow
+
+Content generation is unified across all three surfaces (admin, submit, profile edit) using the same v2 prompt and flow.
+
+### How it works
+
+1. Fetches the GitHub README content on demand
+2. Looks for Convex include markers in the README; falls back to the full README
+3. Fetches best-effort Convex docs grounding from `https://docs.convex.dev/llms.txt`
+4. Sends the context to the active AI provider with the admin custom prompt (or default template)
+5. Parses structured output into Description, Use cases, and How it works
+6. Builds SKILL.md from the generated content fields
+
+### Running generation
+
+**From admin Actions row:**
 1. Expand the package row
-2. Click "Regenerate SEO + Skill" in Actions
+2. Click "Generate Content" in the Actions row
 3. Wait for processing
 4. View results in the Component Details editor
 
-### From Component Details editor
+**From submit or profile edit:**
+1. Fill in required fields (repo URL is essential)
+2. Click "Generate Component Directory Content"
+3. Acknowledge the warning modal
+4. Review and edit each generated section before saving
 
-1. Open Component Details editor
-2. Find the SEO section
-3. Click "Generate SEO Content"
-4. View status and generated content
+### Rate limiting
 
-## SEO status indicators
+| Surface | Limit |
+|---------|-------|
+| Admin | No limit (exempt) |
+| Submit form | 5 per hour per account |
+| Profile edit | 5 per hour per account |
+
+## Content status indicators
 
 | Status | Meaning |
 |--------|---------|
-| Not started | SEO not yet generated |
+| Not started | Content not yet generated |
 | Processing | Currently generating |
 | Completed | Successfully generated |
 | Error | Generation failed |
 
-## Viewing generated content
-
-After generation, view the content:
-
-1. **In admin dashboard** - Component Details editor shows SEO fields
-2. **On component page** - Public component detail page displays content
-3. **In markdown** - Markdown export includes SEO sections
-
 ## SKILL.md generation
 
-SKILL.md is a special file for AI agent integration (Claude, Cursor).
+SKILL.md is built automatically from the v2 content fields whenever content is generated or edited:
+
+- During submission (when v2 content is present)
+- During profile edit (when v2 content fields are saved)
+- During admin regeneration
+- During content model migration (backfills for existing v2 packages)
 
 ### Content structure
 
-```markdown
----
-name: component-name
-description: Brief description for agents
----
-
-# Component Name
-
-## When to use
-...
-
-## Installation
-...
-
-## Quick start
-...
-
-## Key features
-...
-```
+The SKILL.md file includes the component name, description, when to use it, installation steps, quick start guide, and key features, formatted for AI agent consumption.
 
 ### Viewing SKILL.md
 
-- **Admin** - "SKILL.md generated" indicator in Component Details
-- **Public** - Download SKILL button on component page
+- **Admin** - SKILL.md status shown in Component Details editor
+- **Public** - Download Skill button on component detail page (when visible)
 
-## Custom SEO prompts
+## Custom content prompts
 
-Customize the SEO generation prompt in Settings:
+Customize the generation prompt in Settings:
 
 1. Go to Settings tab
-2. Find "SEO Prompt Settings"
+2. Find "Component Directory Content Prompt" (formerly "SEO Prompt Settings")
 3. View or edit the prompt
 4. Save new versions
 5. View version history
 
 ### Prompt placeholders
 
-- `{name}` - Component name
-- `{description}` - Package description
-- `{repositoryUrl}` - GitHub URL
-- `{npmUrl}` - npm URL
-- `{category}` - Component category
-- `{tags}` - Component tags
+The default prompt template supports these variables:
+
+| Placeholder | Replaced with |
+|-------------|--------------|
+| `{{displayName}}` | Component display name |
+| `{{packageName}}` | npm package name |
+| `{{description}}` | Short description |
+| `{{category}}` | Component category |
+| `{{readmeContent}}` | GitHub README content |
+| `{{convexDocsContext}}` | Convex documentation context |
+
+### Reverting prompts
+
+Click "Reset to Default" to restore the original prompt. The default template uses README-first grounding with strict no-marketing-language guidance.
 
 ## AI providers
 
-SEO generation uses the same provider configuration as AI Review:
+Content generation uses the same provider configuration and failover logic as AI Review:
 
 1. Admin-configured provider (primary)
 2. Backup providers (failover)
 3. Environment providers (fallback)
 
-## Re-generating content
+## Editing generated content
 
-To regenerate SEO content:
+### In admin
 
-1. Click "Regenerate SEO + Skill"
-2. Previous content is replaced
-3. New content appears on all pages
+The Component Details editor includes a v2 content section with:
 
-Use re-generation when:
+- Editable Description, Use cases, and How it works fields
+- README preview editing
+- Regenerate button
+- SKILL.md status and content
 
-- Component has significant updates
-- Initial generation had errors
-- Content needs improvement
+### On detail pages
+
+Generated content appears on public component pages with GitHub-style markdown rendering. Content can be hidden from the public page via the admin SEO visibility toggle while remaining editable in the dashboard.
 
 ## SEO on component pages
 
-Generated content appears on public component pages:
+Generated content feeds into:
 
-- **Value prop** - Highlighted quote block
-- **Benefits** - Bulleted list
-- **Use cases** - Q&A format sections
-- **FAQ** - Accordion-style FAQ
-- **Resources** - Link list
+- Visible content sections (Description, Use cases, How it works)
+- JSON-LD structured data (SoftwareSourceCode + FAQPage)
+- Meta description (uses value prop or short description fallback)
+- Open Graph and Twitter Card tags
 
-Content is also included in:
+## Legacy v1 SEO
 
-- JSON-LD structured data
-- Meta description (value prop)
-- Open Graph tags
+Packages that have not been migrated to the v2 content model retain the original SEO fields (value proposition, benefits, use cases, FAQ, resource links). The admin editor shows a legacy `SeoContentSection` for these packages.
 
 ## Troubleshooting
 
@@ -143,5 +150,6 @@ Content is also included in:
 |-------|-------|----------|
 | Generation stuck | API timeout | Retry |
 | Empty content | Parse error | Check AI response, retry |
-| Low quality | Insufficient data | Add better descriptions first |
+| Low quality | Insufficient README | Add better README content first |
 | Provider error | Invalid API key | Check AI Provider Settings |
+| Rate limit hit | Too many regenerations | Wait for cooldown or edit the current draft |

@@ -10,6 +10,7 @@ import { FAQSection } from "../components/FAQSection";
 import { ChallengeBanner } from "../components/ChallengeBanner";
 import { setPageTitle, setPageDescription } from "../lib/seo";
 import { CaretSortIcon, ChevronDownIcon } from "@radix-ui/react-icons";
+import { Robot, FileText, ArrowSquareOut } from "@phosphor-icons/react";
 
 type SortBy = "newest" | "downloads" | "updated" | "rating" | "verified";
 
@@ -561,6 +562,40 @@ export default function Directory() {
 
             {/* FAQ Section */}
             <FAQSection />
+
+            {/* For Agents Section */}
+            <section className="mt-12 pt-8 border-t border-border">
+              <h2 className="text-lg font-semibold text-text-primary mb-2">
+                For Agents
+              </h2>
+              <p className="text-sm text-text-secondary mb-4">
+                AI agents and coding assistants can consume the Convex Components Directory
+                through machine-readable content endpoints. These files auto-update as new
+                components are approved and listed.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <a
+                  href="/components/llms.txt"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-border text-text-primary hover:bg-bg-hover transition-colors"
+                >
+                  <Robot size={16} />
+                  llms.txt
+                  <ArrowSquareOut size={14} className="text-text-tertiary" />
+                </a>
+                <a
+                  href="/components/components.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-border text-text-primary hover:bg-bg-hover transition-colors"
+                >
+                  <FileText size={16} />
+                  components.md
+                  <ArrowSquareOut size={14} className="text-text-tertiary" />
+                </a>
+              </div>
+            </section>
           </main>
         </div>
       </div>

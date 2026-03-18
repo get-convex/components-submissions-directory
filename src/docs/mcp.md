@@ -1,47 +1,49 @@
 # MCP (Model Context Protocol)
 
-The Components Directory implements the Model Context Protocol, a standard for AI tools and agents to discover, query, and install Convex components programmatically. MCP powers the Cursor install buttons, agent prompts, and machine-readable component profiles across the site.
+The Components Directory was designed with MCP support for AI tools and agents to discover, query, and install Convex components programmatically. MCP backend routes and frontend install UI are currently disabled while public host routing is resolved. The code is preserved in the codebase for re-enablement.
+
+## Current status
+
+**All MCP endpoints are disabled.** The `/api/mcp/*` routes have been removed from `convex/http.ts`. The frontend MCP install buttons, MCP ready badge, and multi-platform config tabs in `AgentInstallSection.tsx` are commented out.
+
+**What still works:**
+
+- The "Copy prompt" button on component detail pages (generates an agent-friendly prompt with package name, install command, and docs links)
+- The Components REST API at `/api/components/*` (search, detail, install, docs, categories, info)
+- llms.txt endpoints for AI agent discovery
+- Markdown endpoints for component content
+- All shared MCP types and utility code in the codebase
+
+**What is disabled:**
+
+- `/api/mcp/protocol` JSON-RPC 2.0 endpoint
+- `/api/mcp/search`, `/api/mcp/component`, `/api/mcp/install-command`, `/api/mcp/docs`, `/api/mcp/info`
+- `/api/mcp/cursor-install`, `/api/mcp/cursor-install-component`
+- "Install in Cursor" button on component detail pages
+- "MCP ready" badge on component cards
+- Multi-platform MCP config tabs (Cursor, Claude Desktop, ChatGPT)
 
 ## What is MCP
 
-MCP is a JSON-RPC 2.0 based protocol that lets AI coding assistants (Cursor, Claude, etc.) interact with external services through a standard interface. The directory exposes a protocol endpoint that supports tool discovery and invocation, so agents can search for components, read documentation, and generate install commands without leaving the editor.
+MCP is a JSON-RPC 2.0 based protocol that lets AI coding assistants (Cursor, Claude, etc.) interact with external services through a standard interface. When re-enabled, the directory would expose a protocol endpoint that supports tool discovery and invocation, so agents can search for components, read documentation, and generate install commands without leaving the editor.
 
-## Protocol endpoint
+## Designed protocol endpoint
 
-The MCP entry point supports the Streamable HTTP transport. It accepts both GET (server discovery) and POST (JSON-RPC 2.0) requests.
+The MCP entry point was designed to support Streamable HTTP transport, accepting both GET (server discovery) and POST (JSON-RPC 2.0) requests.
 
-**Temporary working endpoint:** `https://giant-grouse-674.convex.site/api/mcp/protocol`
+**Direct Convex endpoint (not currently routed):** `https://giant-grouse-674.convex.site/api/mcp/protocol`
 
-The public `www.convex.dev/components/api/mcp/protocol` route is still returning SPA HTML in production, so the install flows currently use the direct Convex endpoint as a temporary fallback.
-
-- **GET** returns server info, capabilities, and available tool names (for browser discovery and MCP client initialization)
-- **POST** accepts JSON-RPC 2.0 requests for tool invocation
-
-### Supported methods
+### Designed methods
 
 | Method | Description |
 |--------|-------------|
-| `initialize` | Returns server capabilities and protocol version (`2025-03-26`) |
+| `initialize` | Returns server capabilities and protocol version |
 | `tools/list` | Returns all available MCP tools with their input schemas |
 | `tools/call` | Invokes a tool by name with the given arguments |
 
-### Example request
+## Designed MCP tools
 
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "search_components",
-    "arguments": { "q": "auth", "limit": 5 }
-  }
-}
-```
-
-## Available MCP tools
-
-These tools are callable through the protocol endpoint or directly via REST.
+These tools were built but are not currently routed:
 
 | Tool | Description | Parameters |
 |------|-------------|------------|
@@ -51,41 +53,36 @@ These tools are callable through the protocol endpoint or directly via REST.
 | `get_docs` | Get documentation URLs (markdown, llms.txt, detail page) | `slug` (required) |
 | `list_categories` | List all component categories | none |
 
-## REST API endpoints
+## Components REST API (active)
 
-Each MCP tool is also available as a standalone REST endpoint for simpler integrations.
+For programmatic access to the directory, use the authenticated REST API at `/api/components/*` which replaced the MCP REST endpoints. See the [API endpoints documentation](/components/documentation/api-endpoints) for details on search, detail, install, docs, categories, info endpoints, authentication with API keys, and rate limits.
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/mcp/search` | Search components. Params: `q`, `category`, `limit` (max 50), `offset` |
-| GET | `/api/mcp/component` | Full component profile. Params: `slug` |
-| GET | `/api/mcp/install-command` | Install command. Params: `slug` |
-| GET | `/api/mcp/docs` | Documentation URLs. Params: `slug` |
-| GET | `/api/mcp/info` | Server info with tool definitions |
-| GET | `/api/mcp/cursor-install` | Cursor deeplink for the global directory MCP server |
-| GET | `/api/mcp/cursor-install-component` | Cursor deeplink for a specific component. Params: `slug` |
+## Agent Install section (partially active)
 
-All endpoints return JSON and include CORS headers for cross-origin access.
+On each component detail page, the "Use with agents and CLI" section currently provides:
 
-## Cursor integration
+1. **Copy prompt** button with a pre-formatted agent prompt including package name, install command, and documentation links
 
-The directory generates Cursor IDE deeplinks that let users install the MCP server with one click.
+The following are commented out and will return when MCP routing is fixed:
 
-### Global install
+- "Install in Cursor" button with a one-click deeplink
+- Multi-platform MCP config tabs (Cursor, Claude Desktop, ChatGPT)
+- "Copy config" button that adapts to the selected platform
+- "MCP ready" badge on eligible components
 
-The global install link configures Cursor to connect to the full directory. Users can then search, browse, and install any component from within Cursor.
+### Feature flags
 
-**Link:** `/api/mcp/cursor-install`
+The agent install features are controlled by environment variables:
 
-### Component-specific install
+| Flag | Env Variable | Effect |
+|------|-------------|--------|
+| Agent Install Section | `VITE_AGENT_INSTALL_ENABLED` | Shows or hides the entire section |
+| MCP Badges | `VITE_MCP_BADGES_ENABLED` | Shows "MCP ready" badge (currently no effect while commented out) |
+| MCP Install | `VITE_MCP_ENABLED` | Shows Cursor install and config buttons (currently no effect while commented out) |
 
-Each component with a slug and install command gets its own Cursor install link. This pre-configures the MCP server with the component's slug in the environment.
+## MCP config format (for re-enablement)
 
-**Link:** `/api/mcp/cursor-install-component?slug=component-slug`
-
-### MCP config format (Cursor, Claude Desktop, ChatGPT)
-
-The directory uses the Streamable HTTP transport. No npm packages or local processes needed. All platforms connect directly via URL.
+When re-enabled, the directory would use Streamable HTTP transport with no npm packages or local processes needed.
 
 **Cursor** (`.cursor/mcp.json`):
 ```json
@@ -109,49 +106,11 @@ The directory uses the Streamable HTTP transport. No npm packages or local proce
 }
 ```
 
-**ChatGPT**: Use the connector URL `https://giant-grouse-674.convex.site/api/mcp/protocol` in Settings > Apps and Connectors > Create.
-
-## Component profiles
-
-Each component gets an MCP profile containing structured data for agents. The profile includes:
-
-| Field | Description |
-|-------|-------------|
-| `slug` | URL-safe identifier |
-| `displayName` | Human-readable component name |
-| `packageName` | npm package name |
-| `description` | Short description |
-| `install` | Install command with detected package manager |
-| `docs` | URLs for markdown, llms.txt, and detail page |
-| `links` | npm, GitHub, demo, and website URLs |
-| `metadata` | Category, version, weekly downloads, license |
-| `trustSignals` | Convex verified status, community status, rating |
-
-Profiles exclude sensitive data like submitter PII and moderation fields (defined in `MCP_EXCLUDED_FIELDS`).
-
-## Agent Install section
-
-On each component detail page, the "Use with agents and CLI" section provides:
-
-1. **Copy prompt** button with a pre-formatted agent prompt including package name, install command, and documentation links
-2. **Install in Cursor** button with a one-click deeplink (when MCP is enabled)
-3. **Multi-platform MCP config** with tabs for Cursor, Claude Desktop, and ChatGPT
-4. **Copy config** button that adapts to the selected platform
-5. **MCP ready** badge for components that have a slug and install command
-
-### Feature flags
-
-The agent install features are controlled by environment variables:
-
-| Flag | Env Variable | Effect |
-|------|-------------|--------|
-| Agent Install Section | `VITE_AGENT_INSTALL_ENABLED` | Shows or hides the entire section |
-| MCP Badges | `VITE_MCP_BADGES_ENABLED` | Shows "MCP ready" badge on eligible components |
-| MCP Install | `VITE_MCP_ENABLED` | Shows "Install in Cursor" and config copy buttons |
+**ChatGPT**: Use the connector URL in Settings > Apps and Connectors > Create.
 
 ## MCP types
 
-The shared type definitions in `shared/mcpTypes.ts` define the data contracts:
+The shared type definitions in `shared/mcpTypes.ts` define the data contracts and remain in the codebase:
 
 | Type | Purpose |
 |------|---------|
@@ -163,6 +122,15 @@ The shared type definitions in `shared/mcpTypes.ts` define the data contracts:
 | `CursorInstallLink` | Cursor deeplink response |
 | `McpDirectoryInfo` | Directory-level server info |
 
+## Re-enabling MCP
+
+To bring MCP back online:
+
+1. Re-register the `/api/mcp/*` routes in `convex/http.ts` (the handler functions still exist in the file)
+2. Uncomment the MCP badge and multi-platform install sections in `src/components/AgentInstallSection.tsx`
+3. Verify Netlify proxy rules for `/api/mcp/*` and `/components/api/mcp/*` are active in `netlify.toml`
+4. Test that `www.convex.dev/components/api/mcp/protocol` returns JSON-RPC responses instead of SPA HTML
+
 ## API logging
 
-All MCP API requests are logged to the `mcpApiLogs` table in Convex for analytics and debugging. Logs capture the endpoint path, parameters, and response metadata.
+All REST API requests are logged to the `mcpApiLogs` table in Convex for analytics and debugging. Logs capture the endpoint path, parameters, response metadata, API key ID (for authenticated requests), and hashed IP for rate limiting.

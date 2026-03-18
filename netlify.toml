@@ -22,9 +22,15 @@
   to = "https://giant-grouse-674.convex.site/api/llms.txt"
   status = 200
 
-# Main directory markdown (explicit .md file)
+# Main directory markdown (both paths supported)
 [[redirects]]
   from = "/components.md"
+  to = "https://giant-grouse-674.convex.site/api/markdown-index"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/components/components.md"
   to = "https://giant-grouse-674.convex.site/api/markdown-index"
   status = 200
 
@@ -34,19 +40,15 @@
   to = "https://giant-grouse-674.convex.site/api/component-llms?slug=:splat"
   status = 200
 
-# ============ MCP API Proxies ============
-# Proxy MCP endpoints to Convex HTTP actions (must be before SPA fallback)
-# Supports both /components/api/mcp/* (frontend URLs) and /api/mcp/* (backend URLs)
+# ============ Components REST API Proxies ============
+# Proxy /api/components/* to Convex HTTP actions (must be before SPA fallback)
 
 [[redirects]]
-  from = "/components/api/mcp/*"
-  to = "https://giant-grouse-674.convex.site/api/mcp/:splat"
+  from = "/api/components/*"
+  to = "https://giant-grouse-674.convex.site/api/components/:splat"
   status = 200
-
-[[redirects]]
-  from = "/api/mcp/*"
-  to = "https://giant-grouse-674.convex.site/api/mcp/:splat"
-  status = 200
+  force = true
+  headers = {Access-Control-Allow-Origin = "*"}
 
 # ============ Badge API Proxy ============
 # Proxy badge SVG endpoint to Convex HTTP actions

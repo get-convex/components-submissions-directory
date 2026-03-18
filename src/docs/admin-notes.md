@@ -63,13 +63,16 @@ Admins can:
 - View hidden/archived messages (toggle)
 - Mark messages as read
 
-### Message states
+### Message lifecycle
+
+Messages support a full status lifecycle managed by both submitters and admins:
 
 | State | Description |
 |-------|-------------|
 | Active | Visible in default view |
 | Hidden | Hidden from default view |
 | Archived | Archived, hidden from default |
+| Deleted | Permanently removed |
 
 ### Unread badges
 

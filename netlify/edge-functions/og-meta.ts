@@ -223,6 +223,33 @@ export default async (
     });
   }
 
+  // Inject noindex for admin-only documentation routes
+  if (
+    url.pathname === "/components/documentation" ||
+    url.pathname.startsWith("/components/documentation/")
+  ) {
+    const response = await context.next();
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("text/html")) {
+      let html = await response.text();
+      if (html.includes('name="robots"')) {
+        html = html.replace(
+          /<meta\b[^>]*name="robots"[^>]*\/?>/,
+          '<meta name="robots" content="noindex, nofollow" />'
+        );
+      } else {
+        html = html.replace(
+          "</head>",
+          '  <meta name="robots" content="noindex, nofollow" />\n</head>'
+        );
+      }
+      const headers = new Headers(response.headers);
+      headers.set("content-type", "text/html; charset=utf-8");
+      return new Response(html, { status: response.status, headers });
+    }
+    return response;
+  }
+
   const slug = extractSlug(url.pathname);
 
   if (!slug) {

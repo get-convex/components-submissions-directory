@@ -2,7 +2,51 @@
 
 ## to do
 
-Session updates complete on 2026-03-17 22:15 UTC.
+Session updates complete on 2026-03-18 02:00 UTC.
+
+- [x] Upgrade Documentation viewer to use Pierre Diffs for code blocks (2026-03-18 02:00 UTC)
+  - Added `rehype-raw` import and plugin to `Documentation.tsx` for inline HTML support
+  - Added `CodeBlock` import and wired fenced code blocks through Pierre Diffs (`@pierre/diffs`) with syntax highlighting, line numbers, and copy button
+  - Changed `<pre>` component to passthrough so Pierre Diffs handles full rendering
+  - Added `thead`, `th`, `td`, `tr` components matching ComponentDetail table styling
+  - Added video URL detection for `.mp4`, `.webm`, `.mov` in image tags
+  - Updated `updating-docs.md` to document the Pierre Diffs rendering pipeline
+  - Updated `files.md` Documentation.tsx description to reflect Pierre Diffs usage
+
+- [x] Update API Usage Modal to use /components/components.md path (2026-03-18 00:45 UTC)
+  - Changed href and display text from `/components.md` to `/components/components.md` in the ApiUsageModal on Profile page
+
+- [x] Add contact email to profile help text (2026-03-18 00:40 UTC)
+  - Added "devx at convex . dev" contact info to the account removal help text on Profile page
+
+- [x] Add admin API access controls with global toggle, per-user grants, and analytics dashboard (2026-03-18 00:30 UTC)
+  - Added `apiAccessGrants` table to schema for email-based admin grants
+  - Added `apiAccessEnabled` to admin settings (defaults to off)
+  - Created admin mutations: `grantApiAccess`, `revokeApiAccess`, `searchSubmitters`, `listApiAccessGrants`, `getApiAnalytics`
+  - Added `getMyApiAccessStatus` public query for profile page gating
+  - Gated REST API endpoints behind global toggle (returns 503 when off)
+  - Gated `generateApiKey` behind both global toggle and per-user grant
+  - Added "API" tab to Admin page with global toggle, user search/grant, and analytics dashboard
+  - Gated Profile page API Access section behind global + per-user flags
+  - Added "For Agents" section below FAQ on Directory page linking to llms.txt and components.md
+  - PRD at `prds/admin-api-controls.md`
+
+- [x] Fix /components.md 404 and add /components/components.md alias (2026-03-17 23:30 UTC)
+  - Root cause: Netlify redirect for `/components.md` was missing `force = true`, so the proxy to Convex never fired
+  - Added `force = true` to the `/components.md` redirect
+  - Added `/components/components.md` as a second path that points to the same Convex endpoint
+  - Both `llms.txt` and `.md` endpoints query `_listApprovedPackages` live on each request, no cron needed
+
+- [x] Build REST API with per-user API keys for Components Directory (2026-03-17 23:00 UTC)
+  - Added `apiKeys` table to schema with `keyHash`, `keyPrefix`, `tokenIdentifier`, `status` fields
+  - Extended `mcpApiLogs` with `apiKeyId` and `hashedIp` for per-key and per-IP tracking
+  - Created `convex/apiKeys.ts` with `generateApiKey`, `revokeApiKey`, `getMyApiKey` public functions and internal validation/rate-limit helpers
+  - Built `resolveApiCaller` auth middleware with two-tier rate limiting (100 req/min authenticated, 10 req/min anonymous)
+  - Replaced disabled MCP routes in `convex/http.ts` with live REST endpoints at `/api/components/search`, `/detail`, `/install`, `/docs`, `/categories`, `/info`
+  - Added Netlify proxy redirect for `/api/components/*`
+  - Added API Access section to Profile page with key generation, display, and revocation
+  - Built API Usage Guide modal with endpoint docs, curl examples, rate limit info, and content endpoint links
+  - PRD at `prds/rest-api-keys.md`
 
 - [x] fix raw HTML tags rendering as text in README markdown on ComponentDetail page (2026-03-17 22:15 UTC)
   - Installed `rehype-raw` package to allow `react-markdown` to parse and render inline HTML from GitHub READMEs

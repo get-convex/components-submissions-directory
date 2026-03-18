@@ -2443,6 +2443,7 @@ export const getAdminSettings = query({
     showRelatedOnDetailPage: v.boolean(),
     autoSendRewardOnApprove: v.boolean(),
     defaultRewardAmount: v.number(),
+    apiAccessEnabled: v.boolean(),
   }),
   handler: async (ctx) => {
     const autoAiReview = await ctx.db
@@ -2493,6 +2494,10 @@ export const getAdminSettings = query({
         q.eq("key", "defaultRewardAmount"),
       )
       .first();
+    const apiAccessEnabled = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q) => q.eq("key", "apiAccessEnabled"))
+      .first();
 
     return {
       autoAiReview: autoAiReview?.value || false,
@@ -2504,6 +2509,7 @@ export const getAdminSettings = query({
       showRelatedOnDetailPage: showRelated?.value ?? true,
       autoSendRewardOnApprove: autoSendReward?.value || false,
       defaultRewardAmount: defaultRewardAmount?.value ?? 25,
+      apiAccessEnabled: apiAccessEnabled?.value || false,
     };
   },
 });
@@ -2520,6 +2526,7 @@ export const updateAdminSetting = mutation({
       v.literal("rotateThumbnailTemplatesOnSubmit"),
       v.literal("showRelatedOnDetailPage"),
       v.literal("autoSendRewardOnApprove"),
+      v.literal("apiAccessEnabled"),
     ),
     value: v.boolean(),
   },
@@ -5229,6 +5236,8 @@ export const _recordMcpApiRequest = internalMutation({
     referer: v.optional(v.string()),
     responseStatus: v.number(),
     responseTimeMs: v.optional(v.number()),
+    apiKeyId: v.optional(v.id("apiKeys")),
+    hashedIp: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -5241,6 +5250,8 @@ export const _recordMcpApiRequest = internalMutation({
       requestedAt: Date.now(),
       responseStatus: args.responseStatus,
       responseTimeMs: args.responseTimeMs,
+      apiKeyId: args.apiKeyId,
+      hashedIp: args.hashedIp,
     });
     return null;
   },

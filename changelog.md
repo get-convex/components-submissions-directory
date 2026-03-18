@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Documentation viewer now uses Pierre Diffs (`@pierre/diffs`) for syntax-highlighted code blocks with line numbers and copy button, matching the ComponentDetail page renderer (2026-03-18 02:00 UTC)
+- Documentation viewer now supports inline HTML via `rehype-raw` (2026-03-18 02:00 UTC)
+- Documentation viewer now detects video URLs (`.mp4`, `.webm`, `.mov`) and renders native `<video>` elements (2026-03-18 02:00 UTC)
+- Documentation viewer table rendering upgraded with header backgrounds and alternating row shading (2026-03-18 02:00 UTC)
+- Updated `updating-docs.md` to document Pierre Diffs rendering pipeline and supported markdown features (2026-03-18 02:00 UTC)
+
+### Fixed
+
+- API Usage Modal now links to `/components/components.md` instead of the old `/components.md` path (2026-03-18 00:45 UTC)
+
+### Changed
+
+- Profile page account removal help text now includes direct contact email (2026-03-18 00:40 UTC)
+
+### Added
+
+- Admin API access controls with global toggle, per-user grants, and analytics dashboard (2026-03-18 00:30 UTC)
+  - New "API" tab in Admin page with a global on/off toggle for the REST API (defaults to off)
+  - Admin user search to find submitters and grant/revoke individual API access by email
+  - API analytics dashboard showing 24h/7d request counts, endpoint breakdown, and recent requests table
+  - `apiAccessGrants` table in schema for email-based admin grants
+  - `apiAccessEnabled` admin setting key to control global API availability
+  - REST API endpoints return 503 when global toggle is off
+  - Profile page API Access section only visible when global toggle is on AND user has been granted access
+  - "For Agents" section on Directory page below FAQ linking to `/components/llms.txt` and `/components/components.md`
+
+### Fixed
+
+- `/components.md` was returning 404 due to missing `force = true` on the Netlify redirect (2026-03-17 23:30 UTC)
+  - The Convex `/api/markdown-index` endpoint worked fine, but the proxy rule never fired without force
+  - Also added `/components/components.md` as an alias path to the same endpoint
+
+### Added
+
+- Per-user REST API for the Components Directory at `/api/components/*` (2026-03-17 23:00 UTC)
+  - Six endpoints: search, detail, install, docs, categories, info
+  - API key management on the Profile page with generate, view, and revoke flows
+  - Two-tier rate limiting: 100 req/min with API key, 10 req/min anonymous
+  - Keys use SHA-256 hashed storage with `cdk_` prefix for identification
+  - API Usage Guide modal on Profile page with endpoint docs and curl examples
+  - New `apiKeys` table in schema, extended `mcpApiLogs` with `apiKeyId` and `hashedIp` fields
+  - Netlify proxy rules for `/api/components/*`
+
 ### Fixed
 
 - Raw HTML tags in GitHub READMEs now render correctly on component detail pages (2026-03-17 22:15 UTC)

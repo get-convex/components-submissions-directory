@@ -104,6 +104,10 @@ Preflight checker page at `/components/submit/check`. Allows developers to valid
 
 Public component submission form. Uses the v2 generated content workflow for Description, Use cases, How it works, and README preview instead of the older long-description-first flow. The submit page now opens a warning modal before AI generation, passes source metadata into the preview action, and is covered by the shared backend `once per hour per signed-in account` cooldown used to discourage unnecessary regenerations.
 
+### `convex/apiKeys.ts`
+
+Per-user API key management for the Components REST API. Contains public mutations (`generateApiKey`, `revokeApiKey`), a public query (`getMyApiKey`), and internal functions for HTTP endpoint auth. The `resolveApiCaller` helper extracts Bearer tokens from requests, validates keys via SHA-256 hash lookup, and enforces two-tier rate limiting (100 req/min authenticated, 10 req/min anonymous). Keys use `cdk_` prefix with 32 random hex chars, hashed at rest. One active key per user. Also includes admin functions for API access management: `grantApiAccess`, `revokeApiAccess`, `searchSubmitters`, `listApiAccessGrants`, `getApiAnalytics`, `getMyApiAccessStatus`, and `_isApiEnabled`. Key generation is gated behind both a global `apiAccessEnabled` toggle and a per-user email-based grant in the `apiAccessGrants` table.
+
 ### `convex/auth.ts`
 
 Authentication and admin helper utilities based on `ctx.auth.getUserIdentity()`. Exposes `loggedInUser` and `isAdmin` queries plus `requireAdminIdentity` and `getAdminIdentity` helpers that enforce `@convex.dev` admin access using email claims from WorkOS JWTs.
@@ -483,7 +487,7 @@ Admin-only documentation viewer at `/components/documentation`. Features:
 - Active navigation item highlighting
 - Client-side section routing for docs sidebar navigation to avoid full page reloads and repeated auth spinner on section clicks
 - Right sidebar shows H2/H3 headings from current doc with anchor links
-- Enhanced markdown rendering with polished formatting for GFM tables, code blocks, inline code, blockquotes, ordered and unordered lists, horizontal rules, and images
+- Enhanced markdown rendering matching ComponentDetail.tsx: code blocks use Pierre Diffs (`@pierre/diffs`) with syntax highlighting, line numbers, and copy button; `rehype-raw` for inline HTML; video URL detection; GFM tables with header backgrounds and alternating rows; polished formatting for inline code, blockquotes, ordered and unordered lists, horizontal rules, and images
 - Copy as Markdown button copies raw markdown to clipboard
 - Download as Markdown button downloads .md file
 - Sets `<meta name="robots" content="noindex, nofollow">` to prevent indexing
@@ -493,22 +497,23 @@ Admin-only documentation viewer at `/components/documentation`. Features:
 ### `src/docs/`
 
 Markdown documentation files for the admin documentation system:
-- `index.md` - Overview and quick links
-- `directory.md` - Using the public directory (search, filter, categories)
-- `submit.md` - How to submit components
-- `profile.md` - Managing user profile and submissions
-- `component-detail.md` - Component detail page features
-- `admin-dashboard.md` - Admin dashboard overview
-- `admin-packages.md` - Package management
-- `admin-review.md` - Review workflow and statuses
-- `admin-ai-review.md` - AI review system configuration
-- `admin-seo.md` - SEO content generation
+- `index.md` - Overview, quick links, and technology stack
+- `directory.md` - Using the public directory (search, filter, categories, category landing pages, For Agents section)
+- `submit.md` - How to submit components (preflight checker, v2 content generation, rate limiting)
+- `profile.md` - Managing user profile, submissions, full-page editor, API access
+- `component-detail.md` - Component detail page features (v2 content model, markdown rendering, help modal, review state handling)
+- `admin-dashboard.md` - Admin dashboard overview (API tab, sort options, expanded view)
+- `admin-packages.md` - Package management (author toggle, Component Details editor, rewards)
+- `admin-review.md` - Review workflow, statuses, and rewards
+- `admin-ai-review.md` - AI review system (v6 criteria, automation workflow, review history drawer)
+- `admin-seo.md` - Content generation (v2 unified flow, SKILL.md, rate limiting, custom prompts)
 - `admin-thumbnails.md` - Thumbnail management
-- `admin-settings.md` - Admin settings panel
-- `admin-notes.md` - Notes and comments system
-- `mcp.md` - MCP (Model Context Protocol) endpoints, tools, Cursor integration, and agent install features
-- `api-endpoints.md` - Public API endpoints (llms.txt, markdown, badge SVG, Netlify aliases)
-- `badges.md` - README badge endpoint, usage, and analytics
+- `admin-settings.md` - Admin settings panel (AI automation, content prompts, category management, Tremendous rewards)
+- `admin-notes.md` - Notes and comments system (message lifecycle)
+- `mcp.md` - MCP (Model Context Protocol) endpoints, tools, Cursor integration, agent install features, and Components REST API reference
+- `api-endpoints.md` - Public API endpoints (REST API, llms.txt, markdown, badge SVG, preflight, Netlify aliases)
+- `badges.md` - README badge endpoint, usage, colors, and analytics
+- `updating-docs.md` - How to add, edit, and register new documentation pages
 
 ### `src/pages/NotFound.tsx`
 
@@ -641,7 +646,7 @@ TypeScript declarations for Vite environment variables.
 
 ### `netlify/edge-functions/og-meta.ts`
 
-Netlify Edge Function that injects component-specific OpenGraph, Twitter Card, and robots meta tags into the SPA HTML for all requests to `/components/{slug}`. Fetches component data from the Convex public `getComponentBySlug` query via HTTP API in parallel with the SPA response, then replaces default meta tags (`og:title`, `og:description`, `og:image`, `twitter:card`, `<title>`, etc.) in the HTML before serving. Uses the component `thumbnailUrl` directly for `og:image`, which keeps social previews on the known working raw Convex storage URL format. Review-state robots behavior now matches the SPA: approved pages get indexable robots output, while pending, in review, changes requested, and rejected pages get `noindex, nofollow` in bot-visible HTML. Falls back to default SPA behavior if the component is not found or if the path is a reserved route or static asset. CDN cached for 5 minutes. Required because the SPA sets meta tags via client-side JavaScript which crawlers do not execute. Reserved paths that skip OG injection: `submit`, `admin`, `login`, `callback`, `profile`, `submissions`, `documentation`, `badge`, and `badge/*` (badge paths use the dedicated badge edge proxy instead).
+Netlify Edge Function that injects component-specific OpenGraph, Twitter Card, and robots meta tags into the SPA HTML for all requests to `/components/{slug}`. Fetches component data from the Convex public `getComponentBySlug` query via HTTP API in parallel with the SPA response, then replaces default meta tags (`og:title`, `og:description`, `og:image`, `twitter:card`, `<title>`, etc.) in the HTML before serving. Uses the component `thumbnailUrl` directly for `og:image`, which keeps social previews on the known working raw Convex storage URL format. Review-state robots behavior now matches the SPA: approved pages get indexable robots output, while pending, in review, changes requested, and rejected pages get `noindex, nofollow` in bot-visible HTML. Documentation routes (`/components/documentation` and `/components/documentation/*`) get server-side `noindex, nofollow` injected before passthrough so crawlers that do not execute JavaScript also respect the directive. Falls back to default SPA behavior if the component is not found or if the path is a reserved route or static asset. CDN cached for 5 minutes. Required because the SPA sets meta tags via client-side JavaScript which crawlers do not execute. Reserved paths that skip OG injection: `submit`, `admin`, `login`, `callback`, `profile`, `submissions`, `documentation`, `badge`, `categories`, and `badge/*` (badge paths use the dedicated badge edge proxy instead).
 
 ### `netlify/edge-functions/component-badge.ts`
 

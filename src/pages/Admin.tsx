@@ -59,6 +59,11 @@ import {
   LinkSimple,
   Users,
   CurrencyCircleDollar,
+  Key,
+  ChartBar,
+  ShieldCheck,
+  ToggleLeft,
+  ToggleRight,
 } from "@phosphor-icons/react";
 import {
   ExternalLinkIcon as RadixExternalLinkIcon,
@@ -7438,7 +7443,7 @@ function ThumbnailTemplatePanel() {
 }
 
 // Filter type includes review statuses, all, archived, marked_for_deletion, and settings
-type FilterType = ReviewStatus | "all" | "archived" | "marked_for_deletion" | "settings";
+type FilterType = ReviewStatus | "all" | "archived" | "marked_for_deletion" | "settings" | "api";
 
 // Filter tabs component
 function FilterTabs({
@@ -7510,6 +7515,12 @@ function FilterTabs({
       icon: <Gear size={16} />,
       tooltip: "Auto-refresh, AI review, and stats",
     },
+    {
+      value: "api",
+      label: "API",
+      icon: <Key size={16} />,
+      tooltip: "API access management and analytics",
+    },
   ];
 
   return (
@@ -7526,7 +7537,7 @@ function FilterTabs({
           >
             {tab.icon}
             <span className="hidden sm:inline">{tab.label}</span>
-            {tab.value !== "settings" && (
+            {tab.value !== "settings" && tab.value !== "api" && (
               <span
                 className={`px-1.5 py-0.5 rounded-full text-xs ${
                   activeFilter === tab.value
@@ -7545,6 +7556,364 @@ function FilterTabs({
 }
 
 // Admin dashboard component
+// ============ API MANAGEMENT TAB ============
+
+function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [granting, setGranting] = useState<string | null>(null);
+  const [revoking, setRevoking] = useState<string | null>(null);
+
+  const updateSetting = useMutation(api.packages.updateAdminSetting);
+  const apiAnalytics = useQuery(api.apiKeys.getApiAnalytics);
+  const apiGrants = useQuery(api.apiKeys.listApiAccessGrants);
+  const searchResults = useQuery(
+    api.apiKeys.searchSubmitters,
+    userSearchQuery.length >= 2 ? { searchQuery: userSearchQuery } : "skip",
+  );
+  const grantAccess = useMutation(api.apiKeys.grantApiAccess);
+  const revokeAccess = useMutation(api.apiKeys.revokeApiAccess);
+
+  const globalEnabled = adminSettings?.apiAccessEnabled || false;
+
+  const handleToggleGlobal = async () => {
+    try {
+      await updateSetting({ key: "apiAccessEnabled" as const, value: !globalEnabled });
+      toast.success(globalEnabled ? "API access disabled globally" : "API access enabled globally");
+    } catch {
+      toast.error("Failed to update setting");
+    }
+  };
+
+  const handleGrant = async (email: string, name?: string) => {
+    setGranting(email);
+    try {
+      await grantAccess({ email, name });
+      toast.success(`API access granted to ${email}`);
+      setUserSearchQuery("");
+    } catch {
+      toast.error("Failed to grant access");
+    } finally {
+      setGranting(null);
+    }
+  };
+
+  const handleRevoke = async (email: string) => {
+    setRevoking(email);
+    try {
+      await revokeAccess({ email });
+      toast.success("API access revoked");
+    } catch {
+      toast.error("Failed to revoke access");
+    } finally {
+      setRevoking(null);
+    }
+  };
+
+  // Filter search results to exclude already-granted users
+  const grantedEmails = new Set(
+    (apiGrants || []).filter((g) => !g.revoked).map((g) => g.email),
+  );
+  const filteredSearch = (searchResults || []).filter(
+    (s) => !grantedEmails.has(s.email),
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Global Toggle */}
+      <div className="rounded-2xl border border-border bg-bg-card p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-medium text-text-primary flex items-center gap-2">
+              <Key size={16} />
+              Components REST API
+            </h3>
+            <p className="text-xs text-text-secondary mt-1">
+              When enabled, granted users can generate API keys on their profile page. When disabled, all API endpoints return 503.
+              The llms.txt and components.md content endpoints are not affected by this toggle.
+            </p>
+          </div>
+          <button
+            onClick={handleToggleGlobal}
+            className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
+              globalEnabled ? "bg-green-500" : "bg-gray-300"
+            }`}>
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${
+                globalEnabled ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
+        <div className="mt-3 flex items-center gap-2">
+          <span
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+              globalEnabled
+                ? "bg-green-500/10 text-green-600 border-green-500/20"
+                : "bg-red-500/10 text-red-600 border-red-500/20"
+            }`}>
+            {globalEnabled ? (
+              <>
+                <ToggleRight size={12} /> API Enabled
+              </>
+            ) : (
+              <>
+                <ToggleLeft size={12} /> API Disabled
+              </>
+            )}
+          </span>
+        </div>
+      </div>
+
+      {/* Analytics Dashboard */}
+      <div className="rounded-2xl border border-border bg-bg-card p-5">
+        <h3 className="text-sm font-medium text-text-primary flex items-center gap-2 mb-4">
+          <ChartBar size={16} />
+          API Analytics
+        </h3>
+        {apiAnalytics ? (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              <div className="rounded-lg border border-border p-3 bg-bg-primary">
+                <p className="text-xs text-text-secondary">Requests (24h)</p>
+                <p className="text-xl font-light text-text-primary mt-1">
+                  {apiAnalytics.totalRequests24h.toLocaleString()}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border p-3 bg-bg-primary">
+                <p className="text-xs text-text-secondary">Requests (7d)</p>
+                <p className="text-xl font-light text-text-primary mt-1">
+                  {apiAnalytics.totalRequests7d.toLocaleString()}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border p-3 bg-bg-primary">
+                <p className="text-xs text-text-secondary">Active Keys</p>
+                <p className="text-xl font-light text-text-primary mt-1">
+                  {apiAnalytics.totalActiveKeys}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border p-3 bg-bg-primary">
+                <p className="text-xs text-text-secondary">Granted Users</p>
+                <p className="text-xl font-light text-text-primary mt-1">
+                  {apiAnalytics.totalGrantedUsers}
+                </p>
+              </div>
+            </div>
+
+            {/* Endpoint breakdown */}
+            {apiAnalytics.endpointBreakdown.length > 0 && (
+              <div className="mb-6">
+                <h4 className="text-xs font-medium text-text-secondary mb-2">
+                  Requests by endpoint (7d)
+                </h4>
+                <div className="space-y-1.5">
+                  {apiAnalytics.endpointBreakdown.map((ep) => {
+                    const max = apiAnalytics.endpointBreakdown[0]?.count || 1;
+                    const pct = Math.round((ep.count / max) * 100);
+                    return (
+                      <div key={ep.endpoint} className="flex items-center gap-3">
+                        <span className="text-xs text-text-primary w-20 font-mono">
+                          /{ep.endpoint}
+                        </span>
+                        <div className="flex-1 h-5 rounded bg-bg-hover overflow-hidden">
+                          <div
+                            className="h-full rounded bg-button/20"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="text-xs text-text-secondary w-12 text-right">
+                          {ep.count}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Recent requests */}
+            {apiAnalytics.recentRequests.length > 0 && (
+              <div>
+                <h4 className="text-xs font-medium text-text-secondary mb-2">
+                  Recent requests
+                </h4>
+                <div className="max-h-48 overflow-y-auto rounded-lg border border-border">
+                  <table className="w-full text-xs">
+                    <thead className="bg-bg-hover sticky top-0">
+                      <tr>
+                        <th className="text-left px-3 py-1.5 font-medium text-text-secondary">
+                          Endpoint
+                        </th>
+                        <th className="text-left px-3 py-1.5 font-medium text-text-secondary">
+                          Status
+                        </th>
+                        <th className="text-left px-3 py-1.5 font-medium text-text-secondary">
+                          Auth
+                        </th>
+                        <th className="text-left px-3 py-1.5 font-medium text-text-secondary">
+                          Time
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {apiAnalytics.recentRequests.map((req, i) => (
+                        <tr key={i} className="hover:bg-bg-hover/50">
+                          <td className="px-3 py-1.5 font-mono">/{req.endpoint}</td>
+                          <td className="px-3 py-1.5">
+                            <span
+                              className={`${
+                                req.responseStatus >= 400
+                                  ? "text-red-600"
+                                  : "text-green-600"
+                              }`}>
+                              {req.responseStatus}
+                            </span>
+                          </td>
+                          <td className="px-3 py-1.5">
+                            {req.hasApiKey ? (
+                              <span className="text-green-600">Key</span>
+                            ) : (
+                              <span className="text-text-tertiary">Anon</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-1.5 text-text-secondary">
+                            {new Date(req.requestedAt).toLocaleString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-button" />
+          </div>
+        )}
+      </div>
+
+      {/* User Access Management */}
+      <div className="rounded-2xl border border-border bg-bg-card p-5">
+        <h3 className="text-sm font-medium text-text-primary flex items-center gap-2 mb-4">
+          <ShieldCheck size={16} />
+          User Access Management
+        </h3>
+
+        {/* Search for users */}
+        <div className="mb-4">
+          <label className="block text-xs text-text-secondary mb-1.5">
+            Search submitters to grant API access
+          </label>
+          <div className="relative">
+            <MagnifyingGlass
+              size={14}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-tertiary"
+            />
+            <input
+              type="text"
+              value={userSearchQuery}
+              onChange={(e) => setUserSearchQuery(e.target.value)}
+              placeholder="Search by name or email..."
+              className="w-full pl-8 pr-3 py-2 text-sm rounded-lg border border-border bg-bg-primary text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-button/30"
+            />
+          </div>
+          {userSearchQuery.length >= 2 && filteredSearch.length > 0 && (
+            <div className="mt-2 rounded-lg border border-border bg-bg-primary max-h-40 overflow-y-auto divide-y divide-border">
+              {filteredSearch.map((user) => (
+                <div
+                  key={user.email}
+                  className="flex items-center justify-between px-3 py-2 hover:bg-bg-hover/50">
+                  <div>
+                    <p className="text-xs font-medium text-text-primary">{user.name}</p>
+                    <p className="text-[10px] text-text-secondary">
+                      {user.email} &middot; {user.submissionCount} submission
+                      {user.submissionCount !== 1 ? "s" : ""}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleGrant(user.email, user.name)}
+                    disabled={granting === user.email}
+                    className="px-3 py-1 text-xs rounded-full bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50">
+                    {granting === user.email ? "Granting..." : "Grant Access"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {userSearchQuery.length >= 2 && filteredSearch.length === 0 && searchResults && (
+            <p className="mt-2 text-xs text-text-tertiary">
+              No matching submitters found.
+            </p>
+          )}
+        </div>
+
+        {/* Granted users list */}
+        <div>
+          <h4 className="text-xs font-medium text-text-secondary mb-2">
+            Granted users ({(apiGrants || []).filter((g) => !g.revoked).length})
+          </h4>
+          {apiGrants && apiGrants.length > 0 ? (
+            <div className="rounded-lg border border-border divide-y divide-border">
+              {apiGrants.map((grant) => (
+                <div
+                  key={grant._id}
+                  className={`flex items-center justify-between px-3 py-2.5 ${
+                    grant.revoked ? "opacity-50" : ""
+                  }`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-medium text-text-primary truncate">
+                        {grant.name || grant.email}
+                      </p>
+                      {grant.revoked && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-red-500/10 text-red-600 border border-red-500/20">
+                          Revoked
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-text-secondary mt-0.5">
+                      {grant.email} &middot; Granted{" "}
+                      {new Date(grant.grantedAt).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                      {" "}by {grant.grantedBy}
+                    </p>
+                  </div>
+                  {!grant.revoked && (
+                    <button
+                      onClick={() => handleRevoke(grant.email)}
+                      disabled={revoking === grant.email}
+                      className="px-3 py-1 text-xs rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50">
+                      {revoking === grant.email ? "Revoking..." : "Revoke"}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 rounded-lg border border-border bg-bg-primary">
+              <Users size={24} className="mx-auto text-text-tertiary mb-2" />
+              <p className="text-xs text-text-secondary">
+                No users have been granted API access yet.
+              </p>
+              <p className="text-[10px] text-text-tertiary mt-1">
+                Search for a submitter above to grant them access.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AdminDashboard({
   userEmail,
   packages,
@@ -7573,6 +7942,7 @@ function AdminDashboard({
     marked_for_deletion: 1,
     archived: 1,
     settings: 1,
+    api: 1,
   });
   // Items per page options
   type ItemsPerPageOption = 5 | 10 | 20 | 40 | 100;
@@ -7663,6 +8033,7 @@ function AdminDashboard({
       marked_for_deletion: 1,
       archived: 1,
       settings: 1,
+      api: 1,
     });
     setShowItemsPerPageDropdown(false);
   };
@@ -7705,7 +8076,8 @@ function AdminDashboard({
 
   const counts: Record<FilterType, number> = {
     all: nonArchivedPackages.length,
-    settings: 0, // Settings tab doesn't have a count
+    settings: 0,
+    api: 0,
     pending: nonArchivedPackages.filter(
       (p) => !p.reviewStatus || p.reviewStatus === "pending",
     ).length,
@@ -7725,7 +8097,7 @@ function AdminDashboard({
   // Filter packages based on active filter
   const filteredPackages = packages?.filter((pkg) => {
     // Settings tab shows nothing (no package list)
-    if (activeFilter === "settings") return false;
+    if (activeFilter === "settings" || activeFilter === "api") return false;
     // Marked for deletion tab shows only packages marked for deletion
     if (activeFilter === "marked_for_deletion") return pkg.markedForDeletion === true;
     // Archived tab shows only archived packages
@@ -8436,6 +8808,11 @@ function AdminDashboard({
           {/* Status Legend */}
           <StatusLegend />
         </>
+      )}
+
+      {/* API Management tab */}
+      {activeFilter === "api" && (
+        <ApiManagementTab adminSettings={adminSettings} />
       )}
     </div>
   );

@@ -515,7 +515,7 @@ const applicationTables = {
     .index("by_active", ["isActive"])
     .index("by_created_at", ["createdAt"]),
 
-  // MCP API request logs (for monitoring and rate limiting)
+  // API request logs (for monitoring and rate limiting)
   mcpApiLogs: defineTable({
     endpoint: v.string(), // e.g. "search", "component", "install-command", "docs"
     slug: v.optional(v.string()), // component slug if applicable
@@ -525,10 +525,14 @@ const applicationTables = {
     requestedAt: v.number(),
     responseStatus: v.number(), // HTTP status code
     responseTimeMs: v.optional(v.number()),
+    apiKeyId: v.optional(v.id("apiKeys")), // tracks which API key made the request
+    hashedIp: v.optional(v.string()), // hashed IP for anonymous rate limiting
   })
     .index("by_endpoint", ["endpoint"])
     .index("by_endpoint_and_requested_at", ["endpoint", "requestedAt"])
-    .index("by_requested_at", ["requestedAt"]),
+    .index("by_requested_at", ["requestedAt"])
+    .index("by_apiKeyId_and_requestedAt", ["apiKeyId", "requestedAt"])
+    .index("by_hashedIp_and_requestedAt", ["hashedIp", "requestedAt"]),
 
   // Public preflight checks for component validation before submission
   // Tracks rate limiting by hashed IP and caches results by repo URL
@@ -563,6 +567,29 @@ const applicationTables = {
     source: v.union(v.literal("submit"), v.literal("profile")),
     createdAt: v.number(),
   }).index("by_userKey_and_createdAt", ["userKey", "createdAt"]),
+
+  // Per-user API keys for REST API access
+  apiKeys: defineTable({
+    tokenIdentifier: v.string(),
+    keyHash: v.string(),
+    keyPrefix: v.string(), // first 12 chars for display (e.g. "cdk_a1b2c3d4")
+    createdAt: v.number(),
+    lastUsedAt: v.optional(v.number()),
+    requestCount: v.number(),
+    status: v.union(v.literal("active"), v.literal("revoked")),
+  })
+    .index("by_keyHash", ["keyHash"])
+    .index("by_tokenIdentifier", ["tokenIdentifier"]),
+
+  // Admin-granted API access per user email (checked at key generation and profile gate)
+  apiAccessGrants: defineTable({
+    email: v.string(),
+    name: v.optional(v.string()),
+    grantedAt: v.number(),
+    grantedBy: v.string(),
+    revoked: v.boolean(),
+    revokedAt: v.optional(v.number()),
+  }).index("by_email", ["email"]),
 };
 
 export default defineSchema({

@@ -12,9 +12,11 @@ Each package row displays:
 | Status | Review status badge |
 | Visibility | Visibility badge (if not visible) |
 | Deletion | Red badge if marked for deletion |
+| Quick link | External link icon to component detail page |
 | Downloads | Weekly npm downloads |
-| Date | Submission date |
-| Quick link | External link to component page |
+| Date | Submission date (or approval date in "Recently approved" sort) |
+
+Badges appear in order: StatusBadge, VisibilityBadge, ComponentDetailQuickLink.
 
 ## Expanded package details
 
@@ -26,6 +28,7 @@ Click a row to expand and see full details.
 - **License** - Package license
 - **Size** - Unpacked size
 - **Files** - File count in package
+- **Published** - Last npm publish date
 - **Maintainers** - npm maintainers list
 
 ### Links
@@ -37,25 +40,28 @@ Click a row to expand and see full details.
 | Website | Homepage URL (if set) |
 | Demo | Demo URL (if set) |
 
-### Submitter information
+### Author information
+
+Collapsed behind an `AuthorToggleSection` toggle to reduce clutter and protect PII at a glance. Click to expand and view:
 
 - **Name** - Submitter's display name
 - **Email** - Primary email (editable)
 - **Discord** - Discord username (if provided)
 - **Additional emails** - Secondary access emails (editable)
 
-Click "Edit" on the submitter info to modify emails.
+All three collapsible admin sections (Component Author, Component Details, Package Metadata) use a consistent click-anywhere-to-expand pattern.
 
 ## Searching packages
 
 Use the search bar to find packages by:
 
 - Package name
-- npm URL
-- Submitter email
+- Description
+- Maintainer names
+- Component name
 - GitHub repository URL
 
-Search is case-insensitive and matches partial strings.
+Search uses Convex full-text search indexes and is case-insensitive.
 
 ## Bulk operations
 
@@ -113,6 +119,25 @@ The "Sub Hide" toggle hides a package from the public Submissions page (`/compon
 | Sub Hide OFF | Visible on the submissions listing page (default) |
 
 This is useful for keeping approved components in the directory while removing them from the submissions view. The toggle appears in the Actions row of the expanded package view.
+
+## Component Details editor
+
+The expanded view includes a full Component Details editor for:
+
+- Slug, category, tags, descriptions
+- Video URL, Live Demo URL
+- Verified badge, Community badge, Featured status
+- Thumbnail upload with preview and clear option
+- Logo upload, download, and clear
+- "Hide thumbnail in category listings" checkbox
+- Auto-fill author from GitHub
+- v2 content generation with regenerate, editable sections, README preview, and SKILL.md support
+- SEO visibility toggle for hiding generated content from the public detail page
+- Legacy `SeoContentSection` for v1 packages
+
+## Rewards
+
+The Send Reward button in the Actions row sends gift card rewards via Tremendous. It is disabled for packages not in `in_review` or `approved` status. A reward history button shows past attempts, statuses, notes, and Tremendous links.
 
 ## Data export
 

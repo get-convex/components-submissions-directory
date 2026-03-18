@@ -38,7 +38,7 @@ Use the dropdown to sort by:
 
 ### Categories
 
-Click a category in the sidebar to filter. Categories include:
+Click a category in the sidebar to view its landing page. Categories include:
 
 - AI / Agent Infrastructure
 - Auth / Identity
@@ -51,6 +51,19 @@ Click a category in the sidebar to filter. Categories include:
 - Miscellaneous
 
 The count next to each category shows how many approved components exist. A separate verified count shows how many in that category carry the Convex Verified badge.
+
+Desktop sidebar categories and mobile category pills link directly to category landing pages at `/components/categories/:slug`. The root "All" link points to `/components/`.
+
+## Category landing pages
+
+Each category has a dedicated page at `/components/categories/:slug` with:
+
+- Breadcrumb navigation back to the directory
+- Category title, description, and component counts (total and verified)
+- Scoped search within the category
+- Sort controls (downloads, newest, verified, updated, rating)
+- Paginated component grid (24 per page) with Previous/Next controls
+- Category sidebar with links to other categories
 
 ## Featured section
 
@@ -84,6 +97,13 @@ Click a card to view the full component detail page.
 
 The yellow "Submit a component" button in the sidebar links to the submission form. Users must sign in to submit.
 
+## For Agents section
+
+Below the FAQ, a "For Agents" section links to machine-readable directory content:
+
+- `/components/llms.txt` for AI agent discovery
+- `/components/components.md` for the full markdown index
+
 ## FAQ section
 
 Scroll down to see frequently asked questions about:
@@ -93,3 +113,7 @@ Scroll down to see frequently asked questions about:
 - Component sandboxing
 - Building your own components
 - Updating submissions
+
+## Challenge banner
+
+A promotional banner for the Component Authoring Challenge appears above the FAQ section, linking to the challenge details and rewards.
