@@ -21,6 +21,7 @@
   from = "/components/llms.txt"
   to = "https://giant-grouse-674.convex.site/api/llms.txt"
   status = 200
+  force = true
 
 # Main directory markdown (both paths supported)
 [[redirects]]
@@ -33,6 +34,7 @@
   from = "/components/components.md"
   to = "https://giant-grouse-674.convex.site/api/markdown-index"
   status = 200
+  force = true
 
 # Per-component llms.txt (supports single and scoped slugs)
 [[redirects]]
