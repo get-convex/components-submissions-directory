@@ -105,8 +105,22 @@ export function ConnectAuthProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const signOut = useCallback(() => {
+    const token = session?.token;
+    const sessionId = token ? parseJwtPayload(token)?.sid : undefined;
     persistSession(null);
-  }, [persistSession]);
+
+    const returnTo = window.location.origin + "/components";
+    if (typeof sessionId === "string") {
+      const logoutUrl = new URL(
+        "https://api.workos.com/user_management/sessions/logout",
+      );
+      logoutUrl.searchParams.set("session_id", sessionId);
+      logoutUrl.searchParams.set("return_to", returnTo);
+      window.location.assign(logoutUrl.toString());
+    } else {
+      window.location.assign(returnTo);
+    }
+  }, [persistSession, session]);
 
   const signIn = useCallback(async () => {
     const clientId = getRequiredEnv(
