@@ -1,5 +1,6 @@
 // Submit form page - requires authentication
 import { useAction, useMutation, useQuery } from "convex/react";
+import { ConvexError } from "convex/values";
 import { useAuth } from "../lib/auth";
 import { api } from "../../convex/_generated/api";
 import { Toaster, toast } from "sonner";
@@ -265,9 +266,13 @@ export default function SubmitForm() {
       setContentGenerated(true);
       toast.success("Content generated. Review and edit below before submitting.");
     } catch (err) {
-      setErrorMessage(
-        err instanceof Error ? err.message : "Failed to generate content",
-      );
+      const msg =
+        err instanceof ConvexError
+          ? (err.data as string)
+          : err instanceof Error
+            ? err.message
+            : "Failed to generate content";
+      setErrorMessage(msg);
       setShowError(true);
     } finally {
       setIsGenerating(false);
@@ -384,7 +389,13 @@ export default function SubmitForm() {
       setReadmeIncludeSource("");
       setContentGenerated(false);
     } catch (err) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to submit component");
+      const msg =
+        err instanceof ConvexError
+          ? (err.data as string)
+          : err instanceof Error
+            ? err.message
+            : "Failed to submit component";
+      setErrorMessage(msg);
       setShowError(true);
     } finally {
       setIsLoading(false);

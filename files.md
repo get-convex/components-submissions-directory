@@ -25,6 +25,14 @@ Vite build configuration. Sets up React plugin, path aliases, and base path `/` 
 
 Tailwind CSS configuration with custom design system colors and theme settings. Defines color palette for the app's black and white design aesthetic.
 
+### `convex.json`
+
+Convex deployment configuration. Specifies the functions directory path for the Convex build system.
+
+### `convex-doctor.toml`
+
+Configuration for the convex-doctor static analysis CLI (score: 100/100). Suppresses intentional design patterns including camelCase index naming, progressive schema enrichment with optional fields, array relationships, deep nesting, monolithic file structure, mixed function types, large document writes, duplicated auth checks, scheduler return values, deep function chains, and sequential run calls. Ignores generated code in `convex/_generated/`.
+
 ### `eslint.config.js`
 
 ESLint configuration with TypeScript support, React hooks rules, and relaxed settings for Convex development patterns.
@@ -223,7 +231,7 @@ Node.js action module for composing 16:9 thumbnails. Uses Jimp for raster image 
 
 ### `convex/seoContent.ts`
 
-AI-generated SEO and v2 directory content action module supporting multiple AI providers. Contains both the legacy SEO generation flow and the unified v2 component directory content generation used by admin, submit, and profile edit surfaces. All three surfaces now share the same `buildContentPrompt` function which loads the admin custom prompt via `_getSeoActivePromptContent` with fallback to `DEFAULT_CONTENT_PROMPT_TEMPLATE` in `shared/seoPromptTemplate.ts`. Fetches GitHub README content on demand, adds best effort Convex docs grounding from `https://docs.convex.dev/llms.txt` plus `https://docs.convex.dev/`, and enforces authenticated content preview rate limiting through `convex/contentGenerationLimits.ts`. Runs in Node.js runtime.
+AI-generated SEO and v2 directory content action module supporting multiple AI providers. Contains both the legacy SEO generation flow and the unified v2 component directory content generation used by admin, submit, and profile edit surfaces. All three surfaces now share the same `buildContentPrompt` function which loads the admin custom prompt via `_getSeoActivePromptContent` with fallback to `DEFAULT_CONTENT_PROMPT_TEMPLATE` in `shared/seoPromptTemplate.ts`. Fetches GitHub README content on demand, adds best effort Convex docs grounding from `https://docs.convex.dev/llms.txt` plus `https://docs.convex.dev/`, and enforces authenticated content preview rate limiting through `convex/contentGenerationLimits.ts`. README sanitization is split into `sanitizeReadme` (clean without truncation) and `sanitizeReadmeForPrompt` (clean plus 12k char truncation for AI prompts). `fetchGitHubReadme` returns both `rawContent` (truncated, for prompts) and `fullContent` (untruncated, for display). The v2 content generator and preview action use `fullContent` for the stored `readmeIncludedMarkdown` field so component detail pages show the complete README instead of truncating at 12k characters. Also contains `refreshReadme` (internal action) and `refreshReadmeContent` (public action) for fetching and storing just the README without regenerating AI content, used by the admin Update README button. Runs in Node.js runtime.
 
 ### `convex/contentGenerationLimits.ts`
 
@@ -231,7 +239,7 @@ Internal rate-limit helpers for generated component directory content. Allows up
 
 ### `convex/seoContentDb.ts`
 
-Internal mutations for persisting AI-generated SEO content plus the public admin edit mutation. Separated from `seoContent.ts` because Convex mutations cannot live in `"use node"` files. Contains `_saveSeoContent` (saves SEO fields and SKILL.md content), `_updateSeoStatus`, `_setSeoError`, and `updateSeoContent` (public admin mutation for directly patching SEO fields without AI regeneration). Internal mutations omit `returns:` validators per Convex best practices (TypeScript inference suffices for non-client-facing functions).
+Internal mutations for persisting AI-generated SEO content plus the public admin edit mutation. Separated from `seoContent.ts` because Convex mutations cannot live in `"use node"` files. Contains `_saveSeoContent` (saves SEO fields and SKILL.md content), `_updateSeoStatus`, `_setSeoError`, `_updateReadmeOnly` (patches only the README markdown and source fields without touching AI content), and `updateSeoContent` (public admin mutation for directly patching SEO fields without AI regeneration). Internal mutations omit `returns:` validators per Convex best practices (TypeScript inference suffices for non-client-facing functions).
 
 ### `convex/payments.ts`
 
@@ -417,7 +425,7 @@ Dedicated component submission form page at `/submit`. Features:
 - Tags sent as comma-separated string (matching `submitPackage` validator `v.optional(v.string())`)
 - Preflight check link below header: prominent card with icon directing users to `/components/submit/check` to validate their repo before submission
 - Success modal with horizontal action buttons (View My Submissions, Back to Directory) using the standard rounded-lg button shape instead of pill styling
-- Error modal for submission failures
+- Error modal for submission failures with proper ConvexError extraction so backend messages (e.g. duplicate package name) surface to the user instead of generic "Server Error"
 
 ### `src/pages/Submit.tsx`
 
@@ -702,9 +710,34 @@ Changelog tracking features and changes over time.
 
 Task list for tracking project progress and completed features.
 
+### `.claude/skills/`
+
+Project level Claude skills in standard Agent Skills directory format (`skill-name/SKILL.md` with YAML frontmatter). 12 skills total:
+
+**Project specific:**
+- `dev/SKILL.md`: Full stack Convex development guidance, mutations, auth, design system, docs workflow
+- `gitrules/SKILL.md`: Git safety rules, status first checks, explicit user approval before commits or destructive actions
+- `help/SKILL.md`: Reflection first problem solving, 98% code confidence, minimal change scope
+- `sec-check/SKILL.md`: Security review for Convex auth, public query safety, PII exposure, browser response verification
+- `workflow/SKILL.md`: PRDs, task tracking, changelog sync, files sync, subagent usage
+- `write/SKILL.md`: Writing style guide for tweets, blogs, docs, commits, AI detection avoidance
+
+**React:**
+- `react-effect-decision/SKILL.md`: Decision tree for avoiding direct `useEffect` in favor of derived state, event handlers, `key` remounts, `useMemo`, `useSyncExternalStore`, and Convex hooks
+
+**Convex community (from get-convex repos):**
+- `real-time-backend/SKILL.md`: Backend architecture principles, anti-patterns, implementation guidance
+- `convex-quickstart/SKILL.md`: Project scaffolding with templates for React, Next.js, bare backends
+- `convex-setup-auth/SKILL.md`: Auth provider setup for Convex Auth, Clerk, WorkOS, Auth0
+- `schema-builder/SKILL.md`: Schema design patterns, validator reference, index strategy
+- `function-creator/SKILL.md`: Query/mutation/action creation with auth, validation, error handling
+- `migration-helper/SKILL.md`: Safe migration patterns, batch processing, dual-write
+
 ### `prds/`
 
 Product requirements documents:
+- `scale-optimization.md`: Bandwidth and subscription reduction following OpenClaw patterns: compound indexes, one-shot fetches, change detection, denormalized category counts, search-indexed REST API
+- `claude-skills-alignment.md`: Documents the missing Claude skill coverage for security and workflow rules and the updates that brought `.claude/skills` back in sync with the active Cursor rule set
 - `ai-review-prompt-v6.md`: Documents the v6 AI review model update, including package entry point checks, wrapper-aware helper guidance, and the repo evidence expansion for `package.json` plus client and test files
 - `netlify-llms-redirect-checklist.md`: Shareable runbook for developers diagnosing stale Netlify redirect behavior affecting `llms.txt` and MCP proxy routes, including publish checks, redirect UI review, cache-clearing redeploy steps, and verification commands
 - `architecture-overview.md`: Comprehensive architecture documentation with mermaid diagrams showing user flows, admin flows, AI integration, auth, and database schema
@@ -749,6 +782,7 @@ Product requirements documents:
 - `ai-review-prompt-v5.md`: Documents the v5 AI review update that detects the real component source directory and splits args validators from advisory returns validators
 - `component-detail-help-modal.md`: Documents the small sidebar help modal on component detail pages, including author support guidance, community support link, and the third party component notice
 - `content-model-migration-readme-rendering-fixes.md`: Bug fix PRD for migrated detail pages covering the Pierre renderer crash, v2 legacy SEO gating, and removal of obsolete Resources output
+- `convex-doctor-perfect-score.md`: Documents the two-session effort to improve convex-doctor score from 39/100 to 100/100, including all error fixes, helper extractions from 19 large handlers across 7 files, strategic suppressions, and TypeScript fixes
 
 All PRDs in this folder now include metadata headers (`Created`, `Last Updated`, `Status`) and a `Task completion log` section for agent session traceability.
 

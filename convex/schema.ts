@@ -234,13 +234,17 @@ const applicationTables = {
     .index("by_name", ["name"])
     .index("by_submitted_at", ["submittedAt"])
     .index("by_approved_at", ["approvedAt"])
-    .index("by_review_status", ["reviewStatus"])
     .index("by_visibility", ["visibility"])
     .index("by_slug", ["slug"])
-    .index("by_category", ["category"])
     .index("by_category_and_visibility", ["category", "visibility"])
     .index("by_submitter_email", ["submitterEmail"])
     .index("by_marked_for_deletion", ["markedForDeletion"])
+    .index("by_reviewStatus_and_visibility_and_markedForDeletion", [
+      "reviewStatus",
+      "visibility",
+      "markedForDeletion",
+    ])
+    .index("by_featured_and_reviewStatus", ["featured", "reviewStatus"])
     .searchIndex("search_name", {
       searchField: "name",
       filterFields: ["visibility", "reviewStatus"],
@@ -274,7 +278,6 @@ const applicationTables = {
     userHasRead: v.optional(v.boolean()), // True if user has seen admin reply
     adminHasRead: v.optional(v.boolean()), // True if admin has seen user request
   })
-    .index("by_package", ["packageId"])
     .index("by_package_and_created", ["packageId", "createdAt"])
     .index("by_parent", ["parentNoteId"]),
 
@@ -292,7 +295,6 @@ const applicationTables = {
     ),
     statusUpdatedAt: v.optional(v.number()),
   })
-    .index("by_package", ["packageId"])
     .index("by_package_and_created", ["packageId", "createdAt"]),
 
   // Historical AI review runs for admin audit and comparison
@@ -325,7 +327,6 @@ const applicationTables = {
     source: v.optional(v.string()),
     rawOutput: v.optional(v.string()),
   })
-    .index("by_package", ["packageId"])
     .index("by_package_and_created", ["packageId", "createdAt"]),
 
   // Reward payments tracking (Tremendous integration)
@@ -377,7 +378,6 @@ const applicationTables = {
     referrer: v.optional(v.string()),
     userAgent: v.optional(v.string()),
   })
-    .index("by_slug", ["slug"])
     .index("by_slug_and_fetched_at", ["slug", "fetchedAt"])
     .index("by_package", ["packageId"]),
 
@@ -393,9 +393,13 @@ const applicationTables = {
     sortOrder: v.number(),
     // Whether this category is shown in dropdowns and on the directory
     enabled: v.boolean(),
+    // Denormalized counts (updated on approval/visibility changes)
+    packageCount: v.optional(v.number()),
+    verifiedCount: v.optional(v.number()),
   })
     .index("by_slug", ["slug"])
-    .index("by_sort_order", ["sortOrder"]),
+    .index("by_sort_order", ["sortOrder"])
+    .index("by_enabled_and_sortOrder", ["enabled", "sortOrder"]),
 
   // Star ratings for components (one per user session / fingerprint)
   componentRatings: defineTable({
@@ -404,7 +408,6 @@ const applicationTables = {
     sessionId: v.string(), // anonymous session identifier
     createdAt: v.number(),
   })
-    .index("by_package", ["packageId"])
     .index("by_package_and_session", ["packageId", "sessionId"]),
 
   // Thumbnail background templates for auto-generating 16:9 thumbnails
@@ -449,7 +452,6 @@ const applicationTables = {
     startedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
   })
-    .index("by_package", ["packageId"])
     .index("by_status", ["status"])
     .index("by_package_and_created", ["packageId", "createdAt"]),
 
@@ -501,6 +503,7 @@ const applicationTables = {
     notes: v.optional(v.string()),
   })
     .index("by_active", ["isActive"])
+    .index("by_isDefault", ["isDefault"])
     .index("by_created_at", ["createdAt"]),
 
   // SEO/SKILL.md prompt versions (append-only for history)
@@ -513,6 +516,7 @@ const applicationTables = {
     notes: v.optional(v.string()),
   })
     .index("by_active", ["isActive"])
+    .index("by_isDefault", ["isDefault"])
     .index("by_created_at", ["createdAt"]),
 
   // API request logs (for monitoring and rate limiting)
@@ -528,7 +532,6 @@ const applicationTables = {
     apiKeyId: v.optional(v.id("apiKeys")), // tracks which API key made the request
     hashedIp: v.optional(v.string()), // hashed IP for anonymous rate limiting
   })
-    .index("by_endpoint", ["endpoint"])
     .index("by_endpoint_and_requested_at", ["endpoint", "requestedAt"])
     .index("by_requested_at", ["requestedAt"])
     .index("by_apiKeyId_and_requestedAt", ["apiKeyId", "requestedAt"])
@@ -560,6 +563,7 @@ const applicationTables = {
     expiresAt: v.number(),
   })
     .index("by_hashed_ip_and_created", ["hashedIp", "createdAt"])
+    .index("by_hashed_ip_and_status", ["hashedIp", "status"])
     .index("by_repo_and_expires", ["normalizedRepoUrl", "expiresAt"]),
 
   contentGenerationRequests: defineTable({
@@ -579,7 +583,8 @@ const applicationTables = {
     status: v.union(v.literal("active"), v.literal("revoked")),
   })
     .index("by_keyHash", ["keyHash"])
-    .index("by_tokenIdentifier", ["tokenIdentifier"]),
+    .index("by_tokenIdentifier_and_status", ["tokenIdentifier", "status"])
+    .index("by_status", ["status"]),
 
   // Admin-granted API access per user email (checked at key generation and profile gate)
   apiAccessGrants: defineTable({
@@ -589,7 +594,9 @@ const applicationTables = {
     grantedBy: v.string(),
     revoked: v.boolean(),
     revokedAt: v.optional(v.number()),
-  }).index("by_email", ["email"]),
+  })
+    .index("by_email", ["email"])
+    .index("by_revoked", ["revoked"]),
 };
 
 export default defineSchema({

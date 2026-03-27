@@ -1,17 +1,17 @@
 import { query, QueryCtx, MutationCtx, ActionCtx } from "./_generated/server";
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 
 type AuthContext = QueryCtx | MutationCtx | ActionCtx;
 
 export async function requireAdminIdentity(ctx: AuthContext) {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) {
-    throw new Error("Authentication required");
+    throw new ConvexError("Authentication required");
   }
 
   const email = identity.email;
   if (!email?.endsWith("@convex.dev")) {
-    throw new Error("Admin access requires @convex.dev email");
+    throw new ConvexError("Admin access requires @convex.dev email");
   }
 
   return { email, identity };

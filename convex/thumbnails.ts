@@ -36,7 +36,7 @@ export const listTemplates = query({
     return await ctx.db
       .query("thumbnailTemplates")
       .withIndex("by_sort_order")
-      .collect();
+      .take(1000);
   },
 });
 
@@ -57,7 +57,7 @@ export const listActiveTemplates = query({
     const templates = await ctx.db
       .query("thumbnailTemplates")
       .withIndex("by_active_and_sort", (q) => q.eq("active", true))
-      .collect();
+      .take(1000);
     return templates.map((t) => ({
       _id: t._id,
       name: t.name,
@@ -370,7 +370,7 @@ export const _getTemplateForSubmit = internalQuery({
     const activeTemplates = await ctx.db
       .query("thumbnailTemplates")
       .withIndex("by_active_and_sort", (q) => q.eq("active", true))
-      .collect();
+      .take(1000);
     if (activeTemplates.length === 0) return null;
 
     const hash = Array.from(args.packageId).reduce(
@@ -482,7 +482,7 @@ export const _getPackagesWithLogos = internalQuery({
     }),
   ),
   handler: async (ctx) => {
-    const all = await ctx.db.query("packages").collect();
+    const all = await ctx.db.query("packages").take(1000);
     const withLogos: Array<{ _id: Id<"packages">; thumbnailUrl?: string }> = [];
     for (const p of all) {
       if (p.logoStorageId) {
@@ -539,7 +539,7 @@ export const _cleanupOldThumbnailJobs = internalMutation({
     const oldJobs = await ctx.db
       .query("thumbnailJobs")
       .withIndex("by_status", (q) => q.eq("status", "failed"))
-      .collect();
+      .take(10000);
 
     let deleted = 0;
     for (const job of oldJobs) {

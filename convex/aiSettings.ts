@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { query, mutation, internalQuery } from "./_generated/server";
 import {
   AI_REVIEW_PROMPT_STATUS_LABEL,
@@ -6,6 +6,7 @@ import {
   AI_REVIEW_PROMPT_VERSION,
 } from "../shared/aiReviewPromptMeta";
 import { DEFAULT_SEO_PROMPT_TEMPLATE, DEFAULT_CONTENT_PROMPT_TEMPLATE } from "../shared/seoPromptTemplate";
+import { requireAdminIdentity } from "./auth";
 
 // Provider types
 const providerValidator = v.union(
@@ -41,6 +42,7 @@ export const getAiProviderSettings = query({
     ),
   }),
   handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
     const providers = ["anthropic", "openai", "gemini"] as const;
     const result: Record<
       string,
@@ -96,6 +98,7 @@ export const updateAiProviderSettings = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
     const existing = await ctx.db
       .query("aiProviderSettings")
       .withIndex("by_provider", (q) => q.eq("provider", args.provider))
@@ -103,7 +106,7 @@ export const updateAiProviderSettings = mutation({
 
     // If enabling this provider, disable others
     if (args.isEnabled) {
-      const allProviders = await ctx.db.query("aiProviderSettings").collect();
+      const allProviders = await ctx.db.query("aiProviderSettings").take(100);
       for (const p of allProviders) {
         if (p.provider !== args.provider && p.isEnabled) {
           await ctx.db.patch(p._id, { isEnabled: false });
@@ -151,6 +154,7 @@ export const clearProviderSettings = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
     const existing = await ctx.db
       .query("aiProviderSettings")
       .withIndex("by_provider", (q) => q.eq("provider", args.provider))
@@ -173,7 +177,8 @@ export const getDefaultPrompt = query({
     version: v.string(),
     updatedAt: v.string(),
   }),
-  handler: async () => {
+  handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
     return {
       content: DEFAULT_REVIEW_PROMPT,
       statusLabel: AI_REVIEW_PROMPT_STATUS_LABEL,
@@ -197,6 +202,7 @@ export const getActivePrompt = query({
     promptUpdatedAt: v.string(),
   }),
   handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
     const activeVersion = await ctx.db
       .query("aiPromptVersions")
       .withIndex("by_active", (q) => q.eq("isActive", true))
@@ -243,6 +249,7 @@ export const getPromptVersions = query({
     }),
   ),
   handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
     const versions = await ctx.db
       .query("aiPromptVersions")
       .withIndex("by_created_at")
@@ -262,12 +269,13 @@ export const savePromptVersion = mutation({
   },
   returns: v.id("aiPromptVersions"),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
     if (!args.content.trim()) {
-      throw new Error("Prompt content cannot be empty");
+      throw new ConvexError("Prompt content cannot be empty");
     }
 
     // Deactivate all existing versions
-    const existingVersions = await ctx.db.query("aiPromptVersions").collect();
+    const existingVersions = await ctx.db.query("aiPromptVersions").take(100);
     for (const v of existingVersions) {
       if (v.isActive) {
         await ctx.db.patch(v._id, { isActive: false });
@@ -295,13 +303,14 @@ export const activatePromptVersion = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
     const version = await ctx.db.get(args.versionId);
     if (!version) {
-      throw new Error("Prompt version not found");
+      throw new ConvexError("Prompt version not found");
     }
 
     // Deactivate all versions
-    const allVersions = await ctx.db.query("aiPromptVersions").collect();
+    const allVersions = await ctx.db.query("aiPromptVersions").take(100);
     for (const v of allVersions) {
       if (v.isActive) {
         await ctx.db.patch(v._id, { isActive: false });
@@ -320,8 +329,9 @@ export const resetToDefaultPrompt = mutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
     // Deactivate all custom versions
-    const allVersions = await ctx.db.query("aiPromptVersions").collect();
+    const allVersions = await ctx.db.query("aiPromptVersions").take(100);
     for (const v of allVersions) {
       if (v.isActive) {
         await ctx.db.patch(v._id, { isActive: false });
@@ -331,7 +341,7 @@ export const resetToDefaultPrompt = mutation({
     // Check if default version exists
     const defaultVersion = await ctx.db
       .query("aiPromptVersions")
-      .filter((q) => q.eq(q.field("isDefault"), true))
+      .withIndex("by_isDefault", (q) => q.eq("isDefault", true))
       .first();
 
     if (defaultVersion) {
@@ -459,7 +469,8 @@ export const _getActivePromptContent = internalQuery({
 export const getSeoDefaultPrompt = query({
   args: {},
   returns: v.string(),
-  handler: async () => {
+  handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
     return DEFAULT_SEO_PROMPT;
   },
 });
@@ -475,6 +486,7 @@ export const getSeoActivePrompt = query({
     createdBy: v.optional(v.string()),
   }),
   handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
     const activeVersion = await ctx.db
       .query("seoPromptVersions")
       .withIndex("by_active", (q) => q.eq("isActive", true))
@@ -515,6 +527,7 @@ export const getSeoPromptVersions = query({
     }),
   ),
   handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
     const versions = await ctx.db
       .query("seoPromptVersions")
       .withIndex("by_created_at")
@@ -534,12 +547,13 @@ export const saveSeoPromptVersion = mutation({
   },
   returns: v.id("seoPromptVersions"),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
     if (!args.content.trim()) {
-      throw new Error("Prompt content cannot be empty");
+      throw new ConvexError("Prompt content cannot be empty");
     }
 
     // Deactivate all existing versions
-    const existingVersions = await ctx.db.query("seoPromptVersions").collect();
+    const existingVersions = await ctx.db.query("seoPromptVersions").take(100);
     for (const ver of existingVersions) {
       if (ver.isActive) {
         await ctx.db.patch(ver._id, { isActive: false });
@@ -567,13 +581,14 @@ export const activateSeoPromptVersion = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
     const version = await ctx.db.get(args.versionId);
     if (!version) {
-      throw new Error("SEO prompt version not found");
+      throw new ConvexError("SEO prompt version not found");
     }
 
     // Deactivate all versions
-    const allVersions = await ctx.db.query("seoPromptVersions").collect();
+    const allVersions = await ctx.db.query("seoPromptVersions").take(100);
     for (const ver of allVersions) {
       if (ver.isActive) {
         await ctx.db.patch(ver._id, { isActive: false });
@@ -592,8 +607,9 @@ export const resetSeoToDefaultPrompt = mutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
     // Deactivate all custom versions
-    const allVersions = await ctx.db.query("seoPromptVersions").collect();
+    const allVersions = await ctx.db.query("seoPromptVersions").take(100);
     for (const ver of allVersions) {
       if (ver.isActive) {
         await ctx.db.patch(ver._id, { isActive: false });
@@ -603,7 +619,7 @@ export const resetSeoToDefaultPrompt = mutation({
     // Check if default version exists
     const defaultVersion = await ctx.db
       .query("seoPromptVersions")
-      .filter((q) => q.eq(q.field("isDefault"), true))
+      .withIndex("by_isDefault", (q) => q.eq("isDefault", true))
       .first();
 
     if (defaultVersion) {

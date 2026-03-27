@@ -1223,22 +1223,24 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                   </div>
                 )}
 
-                {component.readmeIncludedMarkdown && (
-                  <section>
-                    <hr className="border-border my-6" />
-                    <h3 className="text-base font-semibold text-text-primary mb-4">From the README.md</h3>
-                    <div className="markdown-body">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkBreaks]}
-                        rehypePlugins={[rehypeRaw]}
-                        components={{ ...markdownComponents, a: renderMarkdownLink } as never}
-                      >
-                        {component.readmeIncludedMarkdown}
-                      </ReactMarkdown>
-                    </div>
-                  </section>
-                )}
               </div>
+            )}
+
+            {/* README section renders independently of v2 content generation */}
+            {component.readmeIncludedMarkdown && (
+              <section>
+                <hr className="border-border my-6" />
+                <h3 className="text-base font-semibold text-text-primary mb-4">From the README.md</h3>
+                <div className="markdown-body">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                    rehypePlugins={[rehypeRaw]}
+                    components={{ ...markdownComponents, a: renderMarkdownLink } as never}
+                  >
+                    {component.readmeIncludedMarkdown}
+                  </ReactMarkdown>
+                </div>
+              </section>
             )}
 
             {/* Old content model: Long description title (below install command) */}

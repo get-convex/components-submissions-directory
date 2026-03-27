@@ -64,6 +64,7 @@ import {
   ShieldCheck,
   ToggleLeft,
   ToggleRight,
+  FileText,
 } from "@phosphor-icons/react";
 import {
   ExternalLinkIcon as RadixExternalLinkIcon,
@@ -2858,6 +2859,7 @@ function InlineActions({
   );
   const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [isRegeneratingSeo, setIsRegeneratingSeo] = useState(false);
+  const [isRefreshingReadme, setIsRefreshingReadme] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isGeneratingSlug, setIsGeneratingSlug] = useState(false);
 
@@ -2877,6 +2879,7 @@ function InlineActions({
   });
   const autoFillAuthor = useMutation(api.packages.autoFillAuthorFromRepo);
   const regenerateSeo = useAction(api.seoContent.regenerateDirectoryContent);
+  const refreshReadme = useAction(api.seoContent.refreshReadmeContent);
   const refreshNpmData = useAction(api.packages.refreshNpmData);
   const generateSlug = useMutation(api.packages.generateSlugForPackage);
 
@@ -3089,6 +3092,20 @@ function InlineActions({
       toast.error("Failed to start content generation");
     } finally {
       setIsRegeneratingSeo(false);
+    }
+  };
+
+  // Refresh only the README content from GitHub
+  const handleRefreshReadme = async () => {
+    if (isRefreshingReadme) return;
+    setIsRefreshingReadme(true);
+    try {
+      await refreshReadme({ packageId });
+      toast.success("README refresh started");
+    } catch (error) {
+      toast.error("Failed to refresh README");
+    } finally {
+      setIsRefreshingReadme(false);
     }
   };
 
@@ -3367,6 +3384,24 @@ function InlineActions({
                   <>
                     <ArrowsClockwise size={14} weight="bold" />
                     <span className="hidden sm:inline">Generate Content</span>
+                  </>
+                )}
+              </button>
+            </Tooltip>
+
+            {/* Refresh README Only */}
+            <Tooltip content={isRefreshingReadme ? "Fetching README..." : "Fetch latest README from GitHub without regenerating AI content"}>
+              <button
+                onClick={handleRefreshReadme}
+                disabled={isLoading || isRefreshingReadme}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all disabled:opacity-50 border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+              >
+                {isRefreshingReadme ? (
+                  <AiLoadingDots size={14} />
+                ) : (
+                  <>
+                    <FileText size={14} weight="bold" />
+                    <span className="hidden sm:inline">Update README</span>
                   </>
                 )}
               </button>
@@ -4347,7 +4382,7 @@ function AutoRefreshSettingsPanel() {
   const [showLogs, setShowLogs] = useState(false);
 
   const refreshSettings = useQuery(api.packages.getRefreshSettings);
-  const refreshStats = useQuery(api.packages.getRefreshStats);
+  const refreshStats = useQuery(api.packages.getRefreshStats, { now: Date.now() });
   const recentLogs = useQuery(api.packages.getRecentRefreshLogs);
   const updateRefreshSetting = useMutation(api.packages.updateRefreshSetting);
   const triggerRefreshApproved = useAction(
@@ -7564,7 +7599,7 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
   const [revoking, setRevoking] = useState<string | null>(null);
 
   const updateSetting = useMutation(api.packages.updateAdminSetting);
-  const apiAnalytics = useQuery(api.apiKeys.getApiAnalytics);
+  const apiAnalytics = useQuery(api.apiKeys.getApiAnalytics, { now: Date.now() });
   const apiGrants = useQuery(api.apiKeys.listApiAccessGrants);
   const searchResults = useQuery(
     api.apiKeys.searchSubmitters,

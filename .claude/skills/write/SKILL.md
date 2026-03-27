@@ -1,3 +1,8 @@
+---
+name: write
+description: Writing style guide for technical content, social media, blog posts, READMEs, git commits, and developer documentation. Optimized to avoid AI detection patterns. Use when writing any content beyond code.
+---
+
 # Writing Style Skill
 
 Expert writing for technical content, social media, and developer documentation. Optimized to avoid AI detection patterns.
@@ -31,15 +36,15 @@ Example usage:
 
 Every piece of content follows this framework:
 
-**One person** — Write to a specific person, not an audience.
+**One person**: Write to a specific person, not an audience.
 
-**One problem** — State the single problem they face.
+**One problem**: State the single problem they face.
 
-**One cause** — Identify the root cause.
+**One cause**: Identify the root cause.
 
-**One difference** — Explain what the solution does differently.
+**One difference**: Explain what the solution does differently.
 
-**One action** — End with one clear next step.
+**One action**: End with one clear next step.
 
 ### Rule of one checklist
 
@@ -436,7 +441,7 @@ BAD: "Many experts believe..." / "Some argue that..."
 GOOD: Name specific sources or remove attribution.
 
 **Setup-pivot-conclusion paragraphs**
-AI follows: General statement → "However" → Balanced conclusion.
+AI follows: General statement -> "However" -> Balanced conclusion.
 Real writing is messier. Not every paragraph needs resolution.
 
 **Symmetrical structures**
@@ -447,7 +452,7 @@ AI balances pros/cons equally. Real analysis is asymmetric.
 - No em dashes between words
 - No hashtags
 - No emojis unless requested
-- No title case ("The Future of AI" → "The future of AI")
+- No title case ("The Future of AI" -> "The future of AI")
 - No excessive formatting
 
 ### How to write human

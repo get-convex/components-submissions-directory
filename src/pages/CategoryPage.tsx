@@ -1,6 +1,6 @@
 // Category landing page at /components/categories/:slug
-import { useState, useEffect, useMemo, useRef } from "react";
-import { useQuery } from "convex/react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useConvex } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { ComponentCard } from "../components/ComponentCard";
 import { CategorySidebar } from "../components/CategorySidebar";
@@ -62,15 +62,30 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
     setCurrentPage(1);
   }, [searchTerm, sortBy]);
 
-  // Fetch category metadata
-  const categoryData = useQuery(api.packages.getCategoryBySlug, { slug: categorySlug });
-  const categories = useQuery(api.packages.listCategories);
+  // One-shot fetches for public catalog data (no reactive subscription overhead)
+  const convex = useConvex();
+  const [categoryData, setCategoryData] = useState<any | undefined>(undefined);
+  const [categories, setCategories] = useState<any[] | undefined>(undefined);
+  const [components, setComponents] = useState<any[] | undefined>(undefined);
 
-  // Fetch components for this category
-  const components = useQuery(api.packages.listApprovedComponents, {
-    category: categorySlug,
-    sortBy,
-  });
+  const fetchGeneration = useRef(0);
+  const fetchData = useCallback(async () => {
+    const gen = ++fetchGeneration.current;
+    const [catData, cats, comp] = await Promise.all([
+      convex.query(api.packages.getCategoryBySlug, { slug: categorySlug }),
+      convex.query(api.packages.listCategories, {}),
+      convex.query(api.packages.listApprovedComponents, {
+        category: categorySlug,
+        sortBy,
+      }),
+    ]);
+    if (gen !== fetchGeneration.current) return;
+    setCategoryData(catData);
+    setCategories(cats);
+    setComponents(comp);
+  }, [convex, categorySlug, sortBy]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   // Set page SEO based on category
   useEffect(() => {

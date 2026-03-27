@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import {
   query,
   mutation,
@@ -35,69 +35,78 @@ function generateRandomHex(bytes: number): string {
 
 // ============ PUBLIC FUNCTIONS ============
 
+async function generateApiKeyHandler(ctx: any) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new ConvexError("Authentication required");
+  }
+
+  const tokenIdentifier = identity.tokenIdentifier;
+  const userEmail = identity.email;
+  if (!userEmail) {
+    throw new ConvexError("Email is required for API access.");
+  }
+
+  await verifyApiAccess(ctx, userEmail);
+  await ensureNoActiveKey(ctx, tokenIdentifier);
+
+  return await createAndStoreApiKey(ctx, tokenIdentifier);
+}
+
+async function verifyApiAccess(ctx: any, userEmail: string) {
+  const globalToggle = await ctx.db
+    .query("adminSettings")
+    .withIndex("by_key", (q: any) => q.eq("key", "apiAccessEnabled"))
+    .first();
+  if (!globalToggle?.value) {
+    throw new ConvexError("API access is not currently available.");
+  }
+
+  const grant = await ctx.db
+    .query("apiAccessGrants")
+    .withIndex("by_email", (q: any) => q.eq("email", userEmail))
+    .first();
+  if (!grant || grant.revoked) {
+    throw new ConvexError("API access has not been enabled for your account.");
+  }
+}
+
+async function ensureNoActiveKey(ctx: any, tokenIdentifier: string) {
+  const existing = await ctx.db
+    .query("apiKeys")
+    .withIndex("by_tokenIdentifier_and_status", (q: any) =>
+      q.eq("tokenIdentifier", tokenIdentifier).eq("status", "active"),
+    )
+    .first();
+  if (existing) {
+    throw new ConvexError(
+      "You already have an active API key. Revoke it first to generate a new one.",
+    );
+  }
+}
+
+async function createAndStoreApiKey(ctx: any, tokenIdentifier: string) {
+  const rawKey = "cdk_" + generateRandomHex(16);
+  const keyHash = await hashString(rawKey);
+  const keyPrefix = rawKey.slice(0, 12) + "...";
+
+  await ctx.db.insert("apiKeys", {
+    tokenIdentifier,
+    keyHash,
+    keyPrefix,
+    createdAt: Date.now(),
+    requestCount: 0,
+    status: "active",
+  });
+
+  return rawKey;
+}
+
 export const generateApiKey = mutation({
   args: {},
   returns: v.string(),
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Authentication required");
-    }
-
-    const tokenIdentifier = identity.tokenIdentifier;
-
-    // Verify global toggle is on
-    const globalToggle = await ctx.db
-      .query("adminSettings")
-      .withIndex("by_key", (q) => q.eq("key", "apiAccessEnabled"))
-      .first();
-    if (!globalToggle?.value) {
-      throw new Error("API access is not currently available.");
-    }
-
-    // Verify user has been granted access by admin (matched by email)
-    const userEmail = identity.email;
-    if (!userEmail) {
-      throw new Error("Email is required for API access.");
-    }
-    const grant = await ctx.db
-      .query("apiAccessGrants")
-      .withIndex("by_email", (q) => q.eq("email", userEmail))
-      .first();
-    if (!grant || grant.revoked) {
-      throw new Error("API access has not been enabled for your account.");
-    }
-
-    // Check if user already has an active key
-    const existing = await ctx.db
-      .query("apiKeys")
-      .withIndex("by_tokenIdentifier", (q) =>
-        q.eq("tokenIdentifier", tokenIdentifier),
-      )
-      .filter((q) => q.eq(q.field("status"), "active"))
-      .first();
-
-    if (existing) {
-      throw new Error(
-        "You already have an active API key. Revoke it first to generate a new one.",
-      );
-    }
-
-    // Generate key: cdk_ prefix + 32 random hex chars
-    const rawKey = "cdk_" + generateRandomHex(16);
-    const keyHash = await hashString(rawKey);
-    const keyPrefix = rawKey.slice(0, 12) + "...";
-
-    await ctx.db.insert("apiKeys", {
-      tokenIdentifier,
-      keyHash,
-      keyPrefix,
-      createdAt: Date.now(),
-      requestCount: 0,
-      status: "active",
-    });
-
-    return rawKey;
+    return await generateApiKeyHandler(ctx);
   },
 });
 
@@ -107,15 +116,14 @@ export const revokeApiKey = mutation({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Authentication required");
+      throw new ConvexError("Authentication required");
     }
 
     const existing = await ctx.db
       .query("apiKeys")
-      .withIndex("by_tokenIdentifier", (q) =>
-        q.eq("tokenIdentifier", identity.tokenIdentifier),
+      .withIndex("by_tokenIdentifier_and_status", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier).eq("status", "active"),
       )
-      .filter((q) => q.eq(q.field("status"), "active"))
       .first();
 
     if (!existing) {
@@ -147,10 +155,9 @@ export const getMyApiKey = query({
 
     const key = await ctx.db
       .query("apiKeys")
-      .withIndex("by_tokenIdentifier", (q) =>
-        q.eq("tokenIdentifier", identity.tokenIdentifier),
+      .withIndex("by_tokenIdentifier_and_status", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier).eq("status", "active"),
       )
-      .filter((q) => q.eq(q.field("status"), "active"))
       .first();
 
     if (!key) {
@@ -213,21 +220,21 @@ export const _recordApiKeyUsage = internalMutation({
 });
 
 export const _checkApiKeyRateLimit = internalQuery({
-  args: { apiKeyId: v.id("apiKeys") },
+  args: { apiKeyId: v.id("apiKeys"), now: v.number() },
   returns: v.object({
     allowed: v.boolean(),
     remaining: v.number(),
     resetAt: v.number(),
   }),
   handler: async (ctx, args) => {
-    const windowStart = Date.now() - RATE_WINDOW_MS;
+    const windowStart = args.now - RATE_WINDOW_MS;
 
     const recentRequests = await ctx.db
       .query("mcpApiLogs")
       .withIndex("by_apiKeyId_and_requestedAt", (q) =>
         q.eq("apiKeyId", args.apiKeyId).gt("requestedAt", windowStart),
       )
-      .collect();
+      .take(1000);
 
     const count = recentRequests.length;
     const remaining = Math.max(0, AUTHENTICATED_RATE_LIMIT - count);
@@ -239,21 +246,21 @@ export const _checkApiKeyRateLimit = internalQuery({
 });
 
 export const _checkAnonymousRateLimit = internalQuery({
-  args: { hashedIp: v.string() },
+  args: { hashedIp: v.string(), now: v.number() },
   returns: v.object({
     allowed: v.boolean(),
     remaining: v.number(),
     resetAt: v.number(),
   }),
   handler: async (ctx, args) => {
-    const windowStart = Date.now() - RATE_WINDOW_MS;
+    const windowStart = args.now - RATE_WINDOW_MS;
 
     const recentRequests = await ctx.db
       .query("mcpApiLogs")
       .withIndex("by_hashedIp_and_requestedAt", (q) =>
         q.eq("hashedIp", args.hashedIp).gt("requestedAt", windowStart),
       )
-      .collect();
+      .take(1000);
 
     const count = recentRequests.length;
     const remaining = Math.max(0, ANONYMOUS_RATE_LIMIT - count);
@@ -320,11 +327,10 @@ export async function resolveApiCaller(
       // Valid API key: check per-key rate limit
       const rateCheck = await ctx.runQuery(
         internal.apiKeys._checkApiKeyRateLimit,
-        { apiKeyId: keyDoc._id },
+        { apiKeyId: keyDoc._id, now: Date.now() },
       );
 
-      // Record usage asynchronously
-      ctx.runMutation(internal.apiKeys._recordApiKeyUsage, {
+      await ctx.runMutation(internal.apiKeys._recordApiKeyUsage, {
         apiKeyId: keyDoc._id,
       });
 
@@ -346,7 +352,7 @@ export async function resolveApiCaller(
   // Anonymous: check per-IP rate limit
   const rateCheck = await ctx.runQuery(
     internal.apiKeys._checkAnonymousRateLimit,
-    { hashedIp },
+    { hashedIp, now: Date.now() },
   );
 
   return {
@@ -481,7 +487,7 @@ export const revokeApiAccess = mutation({
     // Revoke any active API keys from users with this email by searching all keys
     const allKeys = await ctx.db
       .query("apiKeys")
-      .collect();
+      .take(10000);
     // We can't easily look up by email in apiKeys, but there should be few active keys
     // This is a rare admin action so scanning is acceptable
     return null;
@@ -504,7 +510,7 @@ export const listApiAccessGrants = query({
   handler: async (ctx) => {
     await requireAdminIdentity(ctx);
 
-    const grants = await ctx.db.query("apiAccessGrants").collect();
+    const grants = await ctx.db.query("apiAccessGrants").take(1000);
     return grants.map((g) => ({
       _id: g._id,
       email: g.email,
@@ -534,7 +540,7 @@ export const searchSubmitters = query({
     }
 
     const q = args.searchQuery.toLowerCase();
-    const packages = await ctx.db.query("packages").collect();
+    const packages = await ctx.db.query("packages").take(1000);
 
     const submitterMap: Record<
       string,
@@ -569,7 +575,7 @@ export const searchSubmitters = query({
 // ============ ADMIN: API ANALYTICS ============
 
 export const getApiAnalytics = query({
-  args: {},
+  args: { now: v.number() },
   returns: v.object({
     totalRequests24h: v.number(),
     totalRequests7d: v.number(),
@@ -590,68 +596,68 @@ export const getApiAnalytics = query({
       }),
     ),
   }),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     await requireAdminIdentity(ctx);
-
-    const now = Date.now();
-    const day = now - 24 * 60 * 60 * 1000;
-    const week = now - 7 * 24 * 60 * 60 * 1000;
-
-    // Recent API logs (last 7 days, but filter for /api/components endpoints)
-    const logs = await ctx.db
-      .query("mcpApiLogs")
-      .withIndex("by_requested_at", (q) => q.gt("requestedAt", week))
-      .collect();
-
-    // Filter to REST API endpoints only (not legacy MCP or badge)
-    const apiEndpoints = [
-      "search", "detail", "install", "docs", "categories", "info",
-    ];
-    const apiLogs = logs.filter((l) => apiEndpoints.includes(l.endpoint));
-
-    const totalRequests24h = apiLogs.filter((l) => l.requestedAt > day).length;
-    const totalRequests7d = apiLogs.length;
-
-    // Endpoint breakdown
-    const endpointCounts: Record<string, number> = {};
-    for (const log of apiLogs) {
-      endpointCounts[log.endpoint] = (endpointCounts[log.endpoint] || 0) + 1;
-    }
-    const endpointBreakdown = Object.entries(endpointCounts)
-      .map(([endpoint, count]) => ({ endpoint, count }))
-      .sort((a, b) => b.count - a.count);
-
-    // Recent requests (last 50)
-    const recentRequests = apiLogs
-      .sort((a, b) => b.requestedAt - a.requestedAt)
-      .slice(0, 50)
-      .map((l) => ({
-        endpoint: l.endpoint,
-        requestedAt: l.requestedAt,
-        responseStatus: l.responseStatus,
-        hasApiKey: !!l.apiKeyId,
-      }));
-
-    // Active keys count
-    const activeKeys = await ctx.db
-      .query("apiKeys")
-      .collect();
-    const totalActiveKeys = activeKeys.filter((k) => k.status === "active").length;
-
-    // Granted users count
-    const grants = await ctx.db.query("apiAccessGrants").collect();
-    const totalGrantedUsers = grants.filter((g) => !g.revoked).length;
-
-    return {
-      totalRequests24h,
-      totalRequests7d,
-      totalActiveKeys,
-      totalGrantedUsers,
-      endpointBreakdown,
-      recentRequests,
-    };
+    return await getApiAnalyticsHelper(ctx, args.now);
   },
 });
+
+const API_ENDPOINTS = ["search", "detail", "install", "docs", "categories", "info"];
+
+async function getApiAnalyticsHelper(ctx: any, now: number) {
+  const day = now - 24 * 60 * 60 * 1000;
+  const week = now - 7 * 24 * 60 * 60 * 1000;
+
+  const logs = await ctx.db
+    .query("mcpApiLogs")
+    .withIndex("by_requested_at", (q: any) => q.gt("requestedAt", week))
+    .take(1000);
+
+  const apiLogs = logs.filter((l: any) => API_ENDPOINTS.includes(l.endpoint));
+  const { endpointBreakdown, recentRequests } = aggregateApiLogs(apiLogs, day);
+  const { totalActiveKeys, totalGrantedUsers } = await countKeysAndGrants(ctx);
+
+  return {
+    totalRequests24h: apiLogs.filter((l: any) => l.requestedAt > day).length,
+    totalRequests7d: apiLogs.length,
+    totalActiveKeys,
+    totalGrantedUsers,
+    endpointBreakdown,
+    recentRequests,
+  };
+}
+
+function aggregateApiLogs(apiLogs: any[], day: number) {
+  const endpointCounts: Record<string, number> = {};
+  for (const log of apiLogs) {
+    endpointCounts[log.endpoint] = (endpointCounts[log.endpoint] || 0) + 1;
+  }
+  const endpointBreakdown = Object.entries(endpointCounts)
+    .map(([endpoint, count]) => ({ endpoint, count }))
+    .sort((a, b) => b.count - a.count);
+
+  const recentRequests = apiLogs
+    .sort((a, b) => b.requestedAt - a.requestedAt)
+    .slice(0, 50)
+    .map((l) => ({
+      endpoint: l.endpoint,
+      requestedAt: l.requestedAt,
+      responseStatus: l.responseStatus,
+      hasApiKey: !!l.apiKeyId,
+    }));
+
+  return { endpointBreakdown, recentRequests };
+}
+
+async function countKeysAndGrants(ctx: any) {
+  const activeKeys = await ctx.db.query("apiKeys").take(1000);
+  const totalActiveKeys = activeKeys.filter((k: any) => k.status === "active").length;
+
+  const grants = await ctx.db.query("apiAccessGrants").take(1000);
+  const totalGrantedUsers = grants.filter((g: any) => !g.revoked).length;
+
+  return { totalActiveKeys, totalGrantedUsers };
+}
 
 // Internal: check if API is globally enabled (for HTTP endpoints)
 export const _isApiEnabled = internalQuery({

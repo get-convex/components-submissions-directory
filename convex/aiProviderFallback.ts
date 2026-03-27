@@ -1,3 +1,5 @@
+import { ConvexError } from "convex/values";
+
 export type AiProvider = "anthropic" | "openai" | "gemini";
 
 export type AiProviderSource = "admin-active" | "admin-backup" | "env";
@@ -106,7 +108,7 @@ export async function executeWithProviderFallback<T>(
   usedSource: AiProviderSource;
 }> {
   if (input.candidates.length === 0) {
-    throw new Error(
+    throw new ConvexError(
       "No AI provider configured. Set ANTHROPIC_API_KEY or CONVEX_OPENAI_API_KEY, or configure a provider in Admin Settings.",
     );
   }
@@ -128,5 +130,5 @@ export async function executeWithProviderFallback<T>(
     }
   }
 
-  throw new Error(`All AI providers failed. ${errors.join(" | ")}`);
+  throw new ConvexError(`All AI providers failed. ${errors.join(" | ")}`);
 }

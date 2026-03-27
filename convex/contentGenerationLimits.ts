@@ -5,20 +5,20 @@ const CONTENT_GENERATION_WINDOW_MS = 60 * 60 * 1000;
 const MAX_CONTENT_GENERATIONS_PER_WINDOW = 5;
 
 export const _checkRateLimit = internalQuery({
-  args: { userKey: v.string() },
+  args: { userKey: v.string(), now: v.number() },
   returns: v.object({
     allowed: v.boolean(),
     resetAt: v.optional(v.number()),
   }),
   handler: async (ctx, args) => {
-    const windowStart = Date.now() - CONTENT_GENERATION_WINDOW_MS;
+    const windowStart = args.now - CONTENT_GENERATION_WINDOW_MS;
 
     const recentRequests = await ctx.db
       .query("contentGenerationRequests")
       .withIndex("by_userKey_and_createdAt", (q) =>
         q.eq("userKey", args.userKey).gt("createdAt", windowStart),
       )
-      .collect();
+      .take(1000);
 
     const allowed = recentRequests.length < MAX_CONTENT_GENERATIONS_PER_WINDOW;
 

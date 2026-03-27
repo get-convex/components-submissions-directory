@@ -1,8 +1,8 @@
 "use node";
 
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { action, internalAction } from "./_generated/server";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -30,7 +30,7 @@ export async function callAiProvider(
       });
       const content = response.content[0];
       if (content.type !== "text") {
-        throw new Error("Unexpected response type from Anthropic");
+        throw new ConvexError("Unexpected response type from Anthropic");
       }
       return content.text;
     }
@@ -44,7 +44,7 @@ export async function callAiProvider(
       });
       const content = response.choices[0]?.message?.content;
       if (!content) {
-        throw new Error("No content in OpenAI response");
+        throw new ConvexError("No content in OpenAI response");
       }
       return content;
     }
@@ -56,13 +56,13 @@ export async function callAiProvider(
       const response = result.response;
       const text = response.text();
       if (!text) {
-        throw new Error("No content in Gemini response");
+        throw new ConvexError("No content in Gemini response");
       }
       return text;
     }
 
     default:
-      throw new Error(`Unsupported provider: ${provider}`);
+      throw new ConvexError<string>(`Unsupported provider: ${provider}`);
   }
 }
 
@@ -195,7 +195,7 @@ export async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
   const match = normalizedUrl.match(/github\.com\/([^/]+)\/([^/]+)$/);
   if (!match) {
     console.error("Failed to parse GitHub URL:", repoUrl, "->", normalizedUrl);
-    throw new Error(
+    throw new ConvexError(
       `Invalid GitHub repository URL: ${repoUrl}. Expected format: https://github.com/owner/repo`
     );
   }
@@ -819,10 +819,7 @@ export const runPreflightCheck = internalAction({
 
 // Run AI review using configured provider (Anthropic, OpenAI, or Gemini)
 // Uses the shared runReviewOnRepo helper but persists results to the package record
-export const runAiReview = action({
-  args: { packageId: v.id("packages") },
-  returns: v.null(),
-  handler: async (ctx, args) => {
+async function runAiReviewHandler(ctx: any, args: { packageId: any }) {
     const reviewCreatedAt = Date.now();
 
     // Set status to reviewing
@@ -838,7 +835,7 @@ export const runAiReview = action({
       });
 
       if (!pkg) {
-        throw new Error("Package not found");
+        throw new ConvexError("Package not found");
       }
 
       // Check if package has GitHub repository URL
@@ -851,20 +848,13 @@ export const runAiReview = action({
           notes: "Unable to check: No repository URL provided",
         }));
 
-        await ctx.runMutation(internal.packages._updateAiReviewResult, {
+        await ctx.runMutation(internal.packages._saveAiReviewResultAndRun, {
           packageId: args.packageId,
           status: "partial",
           summary,
           criteria,
           error: undefined,
-        });
-        await ctx.runMutation(internal.packages._createAiReviewRun, {
-          packageId: args.packageId,
           createdAt: reviewCreatedAt,
-          status: "partial",
-          summary,
-          criteria,
-          error: undefined,
           provider: undefined,
           model: undefined,
           source: undefined,
@@ -873,11 +863,11 @@ export const runAiReview = action({
         return null;
       }
 
-      // Get provider settings and prompt from aiSettings
-      const providerSettings = await ctx.runQuery(
-        internal.aiSettings._getProviderSettingsForFallback
-      );
-      const customPromptContent = await ctx.runQuery(internal.aiSettings._getActivePromptContent);
+      // Get provider settings and prompt in parallel
+      const [providerSettings, customPromptContent] = await Promise.all([
+        ctx.runQuery(internal.aiSettings._getProviderSettingsForFallback),
+        ctx.runQuery(internal.aiSettings._getActivePromptContent),
+      ]);
 
       // Use the shared review helper
       const result = await runReviewOnRepo(
@@ -888,28 +878,21 @@ export const runAiReview = action({
         customPromptContent ?? undefined
       );
 
-      // Store review results
-      await ctx.runMutation(internal.packages._updateAiReviewResult, {
+      // Store review results (batched into single transaction)
+      await ctx.runMutation(internal.packages._saveAiReviewResultAndRun, {
         packageId: args.packageId,
         status: result.status,
         summary: result.summary,
         criteria: result.criteria,
         error: result.error,
-      });
-      await ctx.runMutation(internal.packages._createAiReviewRun, {
-        packageId: args.packageId,
         createdAt: reviewCreatedAt,
-        status: result.status,
-        summary: result.summary,
-        criteria: result.criteria,
-        error: result.error,
         provider: result.provider,
         model: result.model,
         source: result.source,
         rawOutput: result.rawOutput,
       });
 
-      const settings = await ctx.runQuery(api.packages.getAdminSettings);
+      const settings = await ctx.runQuery(internal.packages._getAdminSettings);
       if (settings.autoAiReview) {
         if (result.status === "passed" && settings.autoApproveOnPass) {
           await ctx.runMutation(internal.packages._updateReviewStatus, {
@@ -933,21 +916,14 @@ export const runAiReview = action({
       const message = error instanceof Error ? error.message : String(error);
       const summary = "AI review encountered an error";
 
-      // Store error
-      await ctx.runMutation(internal.packages._updateAiReviewResult, {
+      // Store error (batched into single transaction)
+      await ctx.runMutation(internal.packages._saveAiReviewResultAndRun, {
         packageId: args.packageId,
         status: "error",
         summary,
         criteria: [],
         error: message,
-      });
-      await ctx.runMutation(internal.packages._createAiReviewRun, {
-        packageId: args.packageId,
         createdAt: reviewCreatedAt,
-        status: "error",
-        summary,
-        criteria: [],
-        error: message,
         provider: undefined,
         model: undefined,
         source: undefined,
@@ -955,5 +931,22 @@ export const runAiReview = action({
       });
       return null;
     }
+}
+
+export const runAiReview = action({
+  args: { packageId: v.id("packages") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError("Authentication required");
+    }
+    return runAiReviewHandler(ctx, args);
   },
+});
+
+export const _runAiReview = internalAction({
+  args: { packageId: v.id("packages") },
+  returns: v.null(),
+  handler: runAiReviewHandler,
 });

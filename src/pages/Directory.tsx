@@ -1,6 +1,6 @@
 // Main directory listing page at /components
-import { useState, useEffect, useMemo, useRef } from "react";
-import { useQuery } from "convex/react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useConvex } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { ComponentCard } from "../components/ComponentCard";
 import { CategorySidebar } from "../components/CategorySidebar";
@@ -64,12 +64,28 @@ export default function Directory() {
     setVisibleBySection({});
   }, [searchTerm, sortBy, gridColumns]);
 
-  // Fetch data from Convex
-  const components = useQuery(api.packages.listApprovedComponents, {
-    sortBy,
-  });
-  const categories = useQuery(api.packages.listCategories);
-  const featured = useQuery(api.packages.getFeaturedComponents);
+  // One-shot fetches for public catalog data (no reactive subscription overhead)
+  const convex = useConvex();
+  const [components, setComponents] = useState<any[] | undefined>(undefined);
+  const [categories, setCategories] = useState<any[] | undefined>(undefined);
+  const [featured, setFeatured] = useState<any[] | undefined>(undefined);
+
+  const fetchGeneration = useRef(0);
+  const fetchData = useCallback(async () => {
+    const gen = ++fetchGeneration.current;
+    const [comp, cats, feat] = await Promise.all([
+      convex.query(api.packages.listApprovedComponents, { sortBy }),
+      convex.query(api.packages.listCategories, {}),
+      convex.query(api.packages.getFeaturedComponents, {}),
+    ]);
+    if (gen !== fetchGeneration.current) return;
+    setComponents(comp);
+    setCategories(cats);
+    setFeatured(feat);
+  }, [convex, sortBy]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
   const categoryItems = categories ?? [];
 
   // Set page SEO

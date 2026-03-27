@@ -1,6 +1,6 @@
 "use node";
 
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -118,16 +118,16 @@ async function sendRewardThroughTremendous(
     if (!response.ok) {
       const errorText = await response.text();
       if (response.status === 404) {
-        throw new Error(
+        throw new ConvexError(
           `Tremendous API error: 404 ${errorText}. Check TREMENDOUS_BASE_URL. Use https://testflight.tremendous.com/api/v2 for sandbox or https://api.tremendous.com/api/v2 for production.`,
         );
       }
       if (response.status === 400 && campaignId) {
-        throw new Error(
+        throw new ConvexError(
           `Tremendous API error: 400 ${errorText}. Your campaign is controlling available payout products. Check the campaign's allowed products and minimum amounts in Tremendous.`,
         );
       }
-      throw new Error(`Tremendous API error: ${response.status} ${errorText}`);
+      throw new ConvexError(`Tremendous API error: ${response.status} ${errorText}`);
     }
 
     const data = (await response.json()) as TremendousOrderResponse;
@@ -183,6 +183,10 @@ export const sendReward = internalAction({
     sentBy: v.string(),
     note: v.optional(v.string()),
   },
+  returns: v.object({
+    success: v.boolean(),
+    error: v.optional(v.string()),
+  }),
   handler: async (ctx, args): Promise<RewardSendResult> => {
     const pkg = await ctx.runQuery(internal.paymentsDb._getPackageForReward, {
       packageId: args.packageId,
@@ -233,16 +237,35 @@ export const sendRewardManual = action({
     ctx,
     args,
   ): Promise<RewardSendResult> => {
-    const result: RewardSendResult = await ctx.runAction(
-      internal.payments.sendReward,
-      {
-        packageId: args.packageId,
-        amount: args.amount,
-        sentBy: args.sentBy,
-        note: args.note,
-      },
-    );
-    return result;
+    const pkg = await ctx.runQuery(internal.paymentsDb._getPackageForReward, {
+      packageId: args.packageId,
+    });
+
+    if (!pkg) {
+      return { success: false, error: "Package not found" };
+    }
+
+    if (!pkg.submitterEmail) {
+      return { success: false, error: "No submitter email on this package" };
+    }
+
+    const allowedStatuses = ["in_review", "approved"];
+    if (!pkg.reviewStatus || !allowedStatuses.includes(pkg.reviewStatus)) {
+      return {
+        success: false,
+        error: `Rewards can only be sent for packages in review or approved status. Current status: ${pkg.reviewStatus ?? "pending"}`,
+      };
+    }
+
+    return await sendRewardThroughTremendous(ctx, {
+      packageId: args.packageId,
+      recipientEmail: pkg.submitterEmail,
+      recipientName: pkg.submitterName,
+      amount: args.amount,
+      sentBy: args.sentBy,
+      note: args.note,
+      externalIdPrefix: `pkg-${args.packageId}`,
+    });
   },
 });
 

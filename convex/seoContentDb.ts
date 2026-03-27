@@ -2,7 +2,7 @@
 // Separated from seoContent.ts because mutations cannot live in "use node" files.
 // Note: Internal mutations omit return validators per Convex best practices (TypeScript inference suffices).
 
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { mutation, internalMutation } from "./_generated/server";
 import { requireAdminIdentity } from "./auth";
 import { buildSkillMdFromContent } from "../shared/buildSkillMd";
@@ -24,6 +24,7 @@ export const _saveSeoContent = internalMutation({
     ),
     skillMd: v.optional(v.string()),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.patch(args.packageId, {
       seoValueProp: args.valueProp,
@@ -50,6 +51,7 @@ export const _updateSeoStatus = internalMutation({
       v.literal("error"),
     ),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.patch(args.packageId, {
       seoGenerationStatus: args.status,
@@ -100,6 +102,7 @@ export const _setSeoError = internalMutation({
     packageId: v.id("packages"),
     error: v.string(),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.patch(args.packageId, {
       seoGenerationStatus: "error",
@@ -124,6 +127,7 @@ export const _saveGeneratedContent = internalMutation({
     ),
     skillMd: v.optional(v.string()),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.patch(args.packageId, {
       generatedDescription: args.generatedDescription,
@@ -151,6 +155,7 @@ export const _updateContentStatus = internalMutation({
       v.literal("error"),
     ),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.patch(args.packageId, {
       contentGenerationStatus: args.status,
@@ -164,6 +169,7 @@ export const _setContentError = internalMutation({
     packageId: v.id("packages"),
     error: v.string(),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
     await ctx.db.patch(args.packageId, {
       contentGenerationStatus: "error",
@@ -229,62 +235,67 @@ export const updateGeneratedContent = mutation({
   },
 });
 
-// Admin mutation: migrate a single package from v1 (SEO) to v2 content model
-export const migrateToContentModel = mutation({
+// Internal mutation: update only the README markdown field (no AI content changes)
+export const _updateReadmeOnly = internalMutation({
   args: {
     packageId: v.id("packages"),
+    readmeIncludedMarkdown: v.optional(v.string()),
+    readmeIncludeSource: v.optional(
+      v.union(v.literal("markers"), v.literal("full")),
+    ),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await requireAdminIdentity(ctx);
+    await ctx.db.patch(args.packageId, {
+      readmeIncludedMarkdown: args.readmeIncludedMarkdown,
+      readmeIncludeSource: args.readmeIncludeSource,
+    });
+    return null;
+  },
+});
 
+// Admin mutation: migrate a single package from v1 (SEO) to v2 content model
+function tryBuildSkillMd(pkg: any): string | undefined {
+  if (pkg.generatedDescription && pkg.generatedUseCases && pkg.generatedHowItWorks) {
+    return buildSkillMdFromContent(pkg, {
+      description: pkg.generatedDescription,
+      useCases: pkg.generatedUseCases,
+      howItWorks: pkg.generatedHowItWorks,
+    });
+  }
+  return undefined;
+}
+
+function buildMigrationPatch(pkg: any) {
+  const patchData: Record<string, unknown> = { contentModelVersion: 2 };
+  if (!pkg.submittedShortDescription && pkg.shortDescription) {
+    patchData.submittedShortDescription = pkg.shortDescription;
+  }
+  if (!pkg.submittedLongDescription && pkg.longDescription) {
+    patchData.submittedLongDescription = pkg.longDescription;
+  }
+  const skillMd = tryBuildSkillMd(pkg);
+  if (skillMd) patchData.skillMd = skillMd;
+  return patchData;
+}
+
+export const migrateToContentModel = mutation({
+  args: { packageId: v.id("packages") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
     const pkg = await ctx.db.get(args.packageId);
-    if (!pkg) throw new Error("Package not found");
+    if (!pkg) throw new ConvexError("Package not found");
 
     if (pkg.contentModelVersion === 2) {
-      // Already v2, but backfill skillMd if missing and content exists
-      if (
-        !pkg.skillMd &&
-        pkg.generatedDescription &&
-        pkg.generatedUseCases &&
-        pkg.generatedHowItWorks
-      ) {
-        const skillMd = buildSkillMdFromContent(pkg, {
-          description: pkg.generatedDescription,
-          useCases: pkg.generatedUseCases,
-          howItWorks: pkg.generatedHowItWorks,
-        });
-        await ctx.db.patch(args.packageId, { skillMd });
+      if (!pkg.skillMd) {
+        const skillMd = tryBuildSkillMd(pkg);
+        if (skillMd) await ctx.db.patch(args.packageId, { skillMd });
       }
       return null;
     }
 
-    // Snapshot user-submitted descriptions before migration (only if not already captured)
-    const patchData: Record<string, unknown> = {
-      contentModelVersion: 2,
-    };
-    if (!pkg.submittedShortDescription && pkg.shortDescription) {
-      patchData.submittedShortDescription = pkg.shortDescription;
-    }
-    if (!pkg.submittedLongDescription && pkg.longDescription) {
-      patchData.submittedLongDescription = pkg.longDescription;
-    }
-
-    // Build skillMd from existing v2 content fields if available
-    if (
-      pkg.generatedDescription &&
-      pkg.generatedUseCases &&
-      pkg.generatedHowItWorks
-    ) {
-      patchData.skillMd = buildSkillMdFromContent(pkg, {
-        description: pkg.generatedDescription,
-        useCases: pkg.generatedUseCases,
-        howItWorks: pkg.generatedHowItWorks,
-      });
-    }
-
-    await ctx.db.patch(args.packageId, patchData);
-
+    await ctx.db.patch(args.packageId, buildMigrationPatch(pkg));
     return null;
   },
 });

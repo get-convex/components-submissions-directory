@@ -1,3 +1,8 @@
+---
+name: help
+description: Reflection-first problem solving methodology for Convex development. Use before implementing any solution to ensure proper root cause analysis, 98% code confidence, and minimal change scope.
+---
+
 # Core Development Guidelines Skill
 
 Deep reflection and problem-solving methodology for full-stack Convex development.
@@ -6,11 +11,11 @@ Deep reflection and problem-solving methodology for full-stack Convex developmen
 
 Before implementing any solution, follow this process:
 
-1. **Reflect** - Carefully consider why the current implementation may not be working
-2. **Identify** - What's missing, incomplete, or incorrect based on the request
-3. **Theorize** - Different possible sources of the problem or areas requiring updates
-4. **Distill** - Narrow down to 1-2 most probable root causes or solutions
-5. **Proceed** - Only move forward after clear understanding
+1. **Reflect**: Carefully consider why the current implementation may not be working
+2. **Identify**: What's missing, incomplete, or incorrect based on the request
+3. **Theorize**: Different possible sources of the problem or areas requiring updates
+4. **Distill**: Narrow down to 1-2 most probable root causes or solutions
+5. **Proceed**: Only move forward after clear understanding
 
 **Never assume.** If anything is unclear, ask questions and clarify.
 

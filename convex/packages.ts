@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import {
   action,
   mutation,
@@ -13,6 +13,39 @@ import { getAdminIdentity, requireAdminIdentity } from "./auth";
 import { api, internal } from "./_generated/api";
 import { Id, Doc } from "./_generated/dataModel";
 import { buildSkillMdFromContent } from "../shared/buildSkillMd";
+
+// ============ HELPER: Recount category package/verified counts ============
+// Recalculates denormalized counts on the categories table after approval/visibility changes.
+// Only patches categories whose counts actually changed (avoids subscription invalidation).
+async function recountCategoryStats(ctx: MutationCtx) {
+  const allCategories = await ctx.db.query("categories").take(1000);
+  const approvedPackages = await ctx.db
+    .query("packages")
+    .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+    .take(5000);
+
+  const countMap: Record<string, number> = {};
+  const verifiedMap: Record<string, number> = {};
+  for (const pkg of approvedPackages) {
+    if (pkg.visibility === "hidden" || pkg.visibility === "archived" || pkg.markedForDeletion) continue;
+    if (!pkg.category) continue;
+    countMap[pkg.category] = (countMap[pkg.category] || 0) + 1;
+    if (pkg.convexVerified) {
+      verifiedMap[pkg.category] = (verifiedMap[pkg.category] || 0) + 1;
+    }
+  }
+
+  for (const cat of allCategories) {
+    const newCount = countMap[cat.slug] || 0;
+    const newVerified = verifiedMap[cat.slug] || 0;
+    if (cat.packageCount !== newCount || cat.verifiedCount !== newVerified) {
+      await ctx.db.patch(cat._id, {
+        packageCount: newCount,
+        verifiedCount: newVerified,
+      });
+    }
+  }
+}
 
 // ============ HELPER: Get current user's email from identity claims ============
 async function getCurrentUserEmail(ctx: QueryCtx | MutationCtx): Promise<string | null> {
@@ -34,7 +67,7 @@ async function requirePackageOwnerOrAdmin(
 ): Promise<Doc<"packages">> {
   const pkg = await ctx.db.get(packageId);
   if (!pkg) {
-    throw new Error("Package not found");
+    throw new ConvexError("Package not found");
   }
 
   const adminIdentity = await getAdminIdentity(ctx);
@@ -44,11 +77,11 @@ async function requirePackageOwnerOrAdmin(
 
   const userEmail = await getCurrentUserEmail(ctx);
   if (!userEmail) {
-    throw new Error("Authentication required");
+    throw new ConvexError("Authentication required");
   }
 
   if (!userOwnsPackage(pkg, userEmail)) {
-    throw new Error("You can only modify your own submissions");
+    throw new ConvexError("You can only modify your own submissions");
   }
 
   return pkg;
@@ -419,7 +452,7 @@ function paginatePublicPackages(
 }
 
 async function getVisibleSubmitPackages(ctx: QueryCtx) {
-  const allPackages = await ctx.db.query("packages").collect();
+  const allPackages = await ctx.db.query("packages").take(1000);
   return allPackages.filter((pkg) => {
     const isVisible = !pkg.visibility || pkg.visibility === "visible";
     return isVisible && !pkg.markedForDeletion && !pkg.hideFromSubmissions;
@@ -441,12 +474,12 @@ function toPublicPackage(pkg: any) {
     license: pkg.license || "Unknown",
     unpackedSize: pkg.unpackedSize ?? 0,
     totalFiles: pkg.totalFiles ?? 0,
-    lastPublish: pkg.lastPublish || new Date().toISOString(),
+    lastPublish: pkg.lastPublish || "Unknown",
     weeklyDownloads: pkg.weeklyDownloads ?? 0,
     collaborators: pkg.collaborators || [],
     maintainerNames: pkg.maintainerNames,
     npmUrl: pkg.npmUrl || `https://www.npmjs.com/package/${pkg.name || ""}`,
-    submittedAt: pkg.submittedAt ?? pkg._creationTime ?? Date.now(),
+    submittedAt: pkg.submittedAt ?? pkg._creationTime ?? 0,
     approvedAt: pkg.approvedAt,
     demoUrl: pkg.demoUrl,
     reviewStatus: pkg.reviewStatus,
@@ -510,12 +543,12 @@ function toAdminPackage(pkg: any) {
     license: pkg.license || "Unknown",
     unpackedSize: pkg.unpackedSize ?? 0,
     totalFiles: pkg.totalFiles ?? 0,
-    lastPublish: pkg.lastPublish || new Date().toISOString(),
+    lastPublish: pkg.lastPublish || "Unknown",
     weeklyDownloads: pkg.weeklyDownloads ?? 0,
     collaborators: pkg.collaborators || [],
     maintainerNames: pkg.maintainerNames,
     npmUrl: pkg.npmUrl || `https://www.npmjs.com/package/${pkg.name || ""}`,
-    submittedAt: pkg.submittedAt ?? pkg._creationTime ?? Date.now(),
+    submittedAt: pkg.submittedAt ?? pkg._creationTime ?? 0,
     approvedAt: pkg.approvedAt,
     // Submitter info (admin only)
     submitterName: pkg.submitterName,
@@ -649,9 +682,28 @@ async function generateUniqueSlug(
   return `${baseSlug}-${Date.now()}`;
 }
 
-export const fetchNpmPackage = action({
-  args: { packageName: v.string() },
-  handler: async (ctx, args) => {
+const fetchNpmPackageReturnValidator = v.object({
+  name: v.string(),
+  description: v.string(),
+  installCommand: v.string(),
+  repositoryUrl: v.optional(v.string()),
+  homepageUrl: v.optional(v.string()),
+  version: v.string(),
+  license: v.string(),
+  unpackedSize: v.number(),
+  totalFiles: v.number(),
+  lastPublish: v.string(),
+  weeklyDownloads: v.number(),
+  collaborators: v.array(
+    v.object({
+      name: v.string(),
+      avatar: v.string(),
+    }),
+  ),
+  npmUrl: v.string(),
+});
+
+export async function fetchNpmPackageHandler(_ctx: any, args: { packageName: string }) {
     const name = decodeURIComponent(args.packageName.trim());
 
     // For scoped packages (@scope/name), encode the slash between scope and name
@@ -668,7 +720,7 @@ export const fetchNpmPackage = action({
     ]);
 
     if (!metadataResponse.ok) {
-      throw new Error(
+      throw new ConvexError(
         `Failed to fetch registry metadata for "${name}": ${metadataResponse.status} ${metadataResponse.statusText}`,
       );
     }
@@ -685,12 +737,12 @@ export const fetchNpmPackage = action({
     // Get latest version info
     const latestVersion = metadata["dist-tags"]?.latest;
     if (!latestVersion) {
-      throw new Error("No latest version found for package");
+      throw new ConvexError("No latest version found for package");
     }
 
     const versionData = metadata.versions?.[latestVersion];
     if (!versionData) {
-      throw new Error("Version data not found");
+      throw new ConvexError("Version data not found");
     }
 
     // Extract repository URL
@@ -733,8 +785,52 @@ export const fetchNpmPackage = action({
       collaborators,
       npmUrl: `https://www.npmjs.com/package/${encodeURIComponent(name)}`,
     };
+}
+
+export const fetchNpmPackage = action({
+  args: { packageName: v.string() },
+  returns: fetchNpmPackageReturnValidator,
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new ConvexError("Authentication required");
+    }
+    return fetchNpmPackageHandler(ctx, args);
   },
 });
+
+export const _fetchNpmPackage = internalAction({
+  args: { packageName: v.string() },
+  returns: fetchNpmPackageReturnValidator,
+  handler: fetchNpmPackageHandler,
+});
+
+async function fetchAndUpdateNpmData(
+  ctx: any,
+  packageId: Id<"packages">,
+  existingPkg: any,
+) {
+  const packageData: any = await fetchNpmPackageHandler(ctx, {
+    packageName: existingPkg.name,
+  });
+
+  const repositoryUrl = existingPkg.repositoryUrl || packageData.repositoryUrl;
+  const homepageUrl = existingPkg.homepageUrl || packageData.homepageUrl;
+
+  await ctx.runMutation(internal.packages._updateNpmDataAndTimestamp, {
+    packageId,
+    description: packageData.description,
+    version: packageData.version,
+    license: packageData.license,
+    repositoryUrl,
+    homepageUrl,
+    unpackedSize: packageData.unpackedSize,
+    totalFiles: packageData.totalFiles,
+    lastPublish: packageData.lastPublish,
+    weeklyDownloads: packageData.weeklyDownloads,
+    collaborators: packageData.collaborators,
+  });
+}
 
 // Admin action: Refresh npm data for a specific package
 export const refreshNpmData = action({
@@ -743,53 +839,16 @@ export const refreshNpmData = action({
   handler: async (ctx, args): Promise<null> => {
     await requireAdminIdentity(ctx);
 
-    // SECURITY: Use internal query to get full package data
     const pkg = await ctx.runQuery(internal.packages._getPackage, {
       packageId: args.packageId,
     });
-
     if (!pkg) {
-      throw new Error("Package not found");
+      throw new ConvexError("Package not found");
     }
 
     try {
-      // Fetch fresh data from npm
-      const packageData: any = await ctx.runAction(
-        api.packages.fetchNpmPackage,
-        {
-          packageName: pkg.name,
-        },
-      );
-
-      // Preserve existing repositoryUrl if already set (don't overwrite with npm data)
-      // Only use npm's repositoryUrl if the package doesn't have one
-      const repositoryUrl = pkg.repositoryUrl || packageData.repositoryUrl;
-
-      // Preserve existing homepageUrl if already set
-      const homepageUrl = pkg.homepageUrl || packageData.homepageUrl;
-
-      // Update the package with fresh npm data (preserves submitter info, review status, etc.)
-      await ctx.runMutation(internal.packages._updateNpmData, {
-        packageId: args.packageId,
-        description: packageData.description,
-        version: packageData.version,
-        license: packageData.license,
-        repositoryUrl,
-        homepageUrl,
-        unpackedSize: packageData.unpackedSize,
-        totalFiles: packageData.totalFiles,
-        lastPublish: packageData.lastPublish,
-        weeklyDownloads: packageData.weeklyDownloads,
-        collaborators: packageData.collaborators,
-      });
-
-      // Update refresh timestamp and clear any previous error
-      await ctx.runMutation(internal.packages._updatePackageRefreshTimestamp, {
-        packageId: args.packageId,
-        clearError: true,
-      });
+      await fetchAndUpdateNpmData(ctx, args.packageId, pkg);
     } catch (error) {
-      // Set error on package so admin can see what failed
       const errorMessage =
         error instanceof Error ? error.message : "Unknown error";
       await ctx.runMutation(internal.packages._setPackageRefreshError, {
@@ -827,150 +886,142 @@ export const submitPackage = action({
       v.union(v.literal("markers"), v.literal("full")),
     ),
   },
-  handler: async (ctx, args): Promise<any> => {
+  returns: v.id("packages"),
+  handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Authentication required to submit a package. Please sign in first.");
+      throw new ConvexError("Authentication required to submit a package. Please sign in first.");
     }
 
     const submitterEmail = identity.email?.trim();
     if (!submitterEmail) {
-      throw new Error("Your account is missing an email address.");
+      throw new ConvexError("Your account is missing an email address.");
     }
 
-    const repositoryUrl = args.repositoryUrl.trim();
-    const npmUrl = args.npmUrl.trim();
-    const componentName = args.componentName.trim();
-    const shortDescription = args.shortDescription.trim();
-    const longDescription = args.longDescription?.trim() || "";
-    const demoUrl = args.demoUrl.trim();
+    const validated = validateSubmitInputs(args);
+    const packageName = parsePackageNameFromNpmUrl(validated.npmUrl);
 
-    if (!componentName || !shortDescription || !demoUrl) {
-      throw new Error("Please fill in all required fields.");
-    }
-
-    const parsedRepo = parseGitHubRepo(repositoryUrl);
-    if (!parsedRepo) {
-      throw new Error(
-        "Invalid GitHub repository URL. Expected format: https://github.com/owner/repo",
-      );
-    }
-
-    // Parse package name from URL
-    // Handles: https://www.npmjs.com/package/@convex-dev/agent or https://www.npmjs.com/package/react
-    // For scoped packages, capture @scope/name together
-    const urlMatch = npmUrl.match(
-      /npmjs\.com\/package\/((?:@[^/]+\/)?[^/?#]+)/,
-    );
-    if (!urlMatch) {
-      throw new Error(
-        "Invalid npm URL. Expected format: https://www.npmjs.com/package/package-name",
-      );
-    }
-
-    const packageName = decodeURIComponent(urlMatch[1]);
-
-    // SECURITY: Use internal query to check if package already exists
-    const existing = await ctx.runQuery(internal.packages._getPackageByName, {
+    const prereqs: any = await ctx.runQuery(internal.packages._checkSubmitPrereqs, {
       name: packageName,
     });
-
-    if (existing) {
-      throw new Error("Package already submitted");
-    }
-
-    // Fetch package data from npm
-    const packageData: any = await ctx.runAction(api.packages.fetchNpmPackage, {
-      packageName,
-    });
-
-    // Generate slug from package name
-    const slug = generateSlugFromName(packageName);
-
-    // Parse tags from comma-separated string
-    const parsedTags = args.tags
-      ? args.tags.split(",").map((t: string) => t.trim()).filter(Boolean)
-      : undefined;
-
-    // Auto-extract author info from GitHub repository URL
-    let authorUsername: string | undefined;
-    let authorAvatar: string | undefined;
-    if (parsedRepo) {
-      authorUsername = parsedRepo.owner;
-      authorAvatar = `https://avatars.githubusercontent.com/${parsedRepo.owner}`;
-    }
-
-    // Build SKILL.md when v2 content is present so Download Skill works immediately
-    let skillMd: string | undefined;
-    if (args.generatedDescription && args.generatedUseCases && args.generatedHowItWorks) {
-      skillMd = buildSkillMdFromContent(
-        {
-          name: packageName,
-          componentName,
-          shortDescription,
-          description: packageData.description,
-          repositoryUrl,
-          npmUrl,
-          demoUrl,
-          installCommand: packageData.installCommand,
-          slug,
-        },
-        {
-          description: args.generatedDescription,
-          useCases: args.generatedUseCases,
-          howItWorks: args.generatedHowItWorks,
-        },
+    if (prereqs.existing) {
+      throw new ConvexError(
+        `A component with the npm package "${packageName}" has already been submitted. ` +
+        `If this is yours, check your profile for its current status. ` +
+        `If you believe this is an error, please reach out to us.`,
       );
     }
 
-    // Insert into database with submitter info and new directory fields
-    const packageId = await ctx.runMutation(internal.packages._addPackage, {
-      ...packageData,
-      repositoryUrl,
-      submitterName: args.submitterName,
-      submitterEmail,
-      submitterDiscord: args.submitterDiscord,
-      demoUrl,
-      slug,
-      componentName,
-      category: args.category,
-      shortDescription,
-      longDescription: longDescription || undefined,
-      tags: parsedTags,
-      videoUrl: args.videoUrl,
-      authorUsername,
-      authorAvatar,
-      communitySubmitted: true,
-      // V2 generated content (if submitted with preview)
-      generatedDescription: args.generatedDescription,
-      generatedUseCases: args.generatedUseCases,
-      generatedHowItWorks: args.generatedHowItWorks,
-      readmeIncludedMarkdown: args.readmeIncludedMarkdown,
-      readmeIncludeSource: args.readmeIncludeSource,
-      contentModelVersion: args.generatedDescription ? 2 : undefined,
-      skillMd,
-    });
+    const packageData: any = await fetchNpmPackageHandler(ctx, { packageName });
+    const insertData = buildPackageInsertData(args, validated, packageName, packageData, submitterEmail);
 
-    // Auto AI review moves eligible submissions into in_review and
-    // queues the background review without changing the final outcome.
-    const settings = await ctx.runQuery(api.packages.getAdminSettings);
-    const autoAiReviewEnabled = settings.autoAiReview || false;
+    const packageId: Id<"packages"> = await ctx.runMutation(internal.packages._addPackage, insertData);
 
-    if (autoAiReviewEnabled && args.repositoryUrl) {
+    if (prereqs.settings.autoAiReview && args.repositoryUrl) {
       const _: null = await ctx.runMutation(internal.packages._updateReviewStatus, {
         packageId,
         reviewStatus: "in_review",
         reviewedBy: "AI",
         reviewNotes: "Auto AI review queued on submission",
       });
-      await ctx.scheduler.runAfter(0, api.aiReview.runAiReview, {
-        packageId,
-      });
+      await ctx.scheduler.runAfter(0, internal.aiReview._runAiReview, { packageId });
     }
 
     return packageId;
   },
 });
+
+function validateSubmitInputs(args: any) {
+  const repositoryUrl = args.repositoryUrl.trim();
+  const npmUrl = args.npmUrl.trim();
+  const componentName = args.componentName.trim();
+  const shortDescription = args.shortDescription.trim();
+  const longDescription = args.longDescription?.trim() || "";
+  const demoUrl = args.demoUrl.trim();
+
+  if (!componentName || !shortDescription || !demoUrl) {
+    throw new ConvexError("Please fill in all required fields.");
+  }
+
+  const parsedRepo = parseGitHubRepo(repositoryUrl);
+  if (!parsedRepo) {
+    throw new ConvexError(
+      "Invalid GitHub repository URL. Expected format: https://github.com/owner/repo",
+    );
+  }
+
+  return { repositoryUrl, npmUrl, componentName, shortDescription, longDescription, demoUrl, parsedRepo };
+}
+
+function parsePackageNameFromNpmUrl(npmUrl: string): string {
+  const urlMatch = npmUrl.match(/npmjs\.com\/package\/((?:@[^/]+\/)?[^/?#]+)/);
+  if (!urlMatch) {
+    throw new ConvexError(
+      "Invalid npm URL. Expected format: https://www.npmjs.com/package/package-name",
+    );
+  }
+  return decodeURIComponent(urlMatch[1]);
+}
+
+function buildPackageInsertData(args: any, validated: any, packageName: string, packageData: any, submitterEmail: string) {
+  const slug = generateSlugFromName(packageName);
+  const parsedTags = args.tags
+    ? args.tags.split(",").map((t: string) => t.trim()).filter(Boolean)
+    : undefined;
+
+  const authorUsername = validated.parsedRepo?.owner;
+  const authorAvatar = validated.parsedRepo
+    ? `https://avatars.githubusercontent.com/${validated.parsedRepo.owner}`
+    : undefined;
+
+  let skillMd: string | undefined;
+  if (args.generatedDescription && args.generatedUseCases && args.generatedHowItWorks) {
+    skillMd = buildSkillMdFromContent(
+      {
+        name: packageName,
+        componentName: validated.componentName,
+        shortDescription: validated.shortDescription,
+        description: packageData.description,
+        repositoryUrl: validated.repositoryUrl,
+        npmUrl: validated.npmUrl,
+        demoUrl: validated.demoUrl,
+        installCommand: packageData.installCommand,
+        slug,
+      },
+      {
+        description: args.generatedDescription,
+        useCases: args.generatedUseCases,
+        howItWorks: args.generatedHowItWorks,
+      },
+    );
+  }
+
+  return {
+    ...packageData,
+    repositoryUrl: validated.repositoryUrl,
+    submitterName: args.submitterName,
+    submitterEmail,
+    submitterDiscord: args.submitterDiscord,
+    demoUrl: validated.demoUrl,
+    slug,
+    componentName: validated.componentName,
+    category: args.category,
+    shortDescription: validated.shortDescription,
+    longDescription: validated.longDescription || undefined,
+    tags: parsedTags,
+    videoUrl: args.videoUrl,
+    authorUsername,
+    authorAvatar,
+    communitySubmitted: true,
+    generatedDescription: args.generatedDescription,
+    generatedUseCases: args.generatedUseCases,
+    generatedHowItWorks: args.generatedHowItWorks,
+    readmeIncludedMarkdown: args.readmeIncludedMarkdown,
+    readmeIncludeSource: args.readmeIncludeSource,
+    contentModelVersion: args.generatedDescription ? 2 : undefined,
+    skillMd,
+  };
+}
 
 export const _addPackage = internalMutation({
   args: {
@@ -1022,130 +1073,156 @@ export const _addPackage = internalMutation({
   },
   returns: v.id("packages"),
   handler: async (ctx, args) => {
-    // Create denormalized maintainer names string for search
-    const maintainerNames = args.collaborators.map((c) => c.name).join(" ");
-
-    // Check if package already exists
-    const existing = await ctx.db
-      .query("packages")
-      .withIndex("by_name", (q) => q.eq("name", args.name))
-      .first();
-
-    if (existing) {
-      // Update existing package (keep existing submitter info)
-      await ctx.db.patch("packages", existing._id, {
-        description: args.description,
-        installCommand: args.installCommand,
-        repositoryUrl: args.repositoryUrl,
-        homepageUrl: args.homepageUrl,
-        version: args.version,
-        license: args.license,
-        unpackedSize: args.unpackedSize,
-        totalFiles: args.totalFiles,
-        lastPublish: args.lastPublish,
-        weeklyDownloads: args.weeklyDownloads,
-        collaborators: args.collaborators,
-        maintainerNames,
-        npmUrl: args.npmUrl,
-        submittedAt: Date.now(),
-        reviewStatus: existing.reviewStatus ?? "pending",
-        visibility: existing.visibility ?? "visible",
-      });
-      return existing._id;
-    }
-
-    // Ensure slug is unique before inserting
-    let finalSlug = args.slug;
-    if (finalSlug) {
-      finalSlug = await generateUniqueSlug(ctx, finalSlug);
-    }
-
-    // Insert new package with submitter info, maintainer names, and directory fields
-    return await ctx.db.insert("packages", {
-      name: args.name,
-      description: args.description,
-      installCommand: args.installCommand,
-      repositoryUrl: args.repositoryUrl,
-      homepageUrl: args.homepageUrl,
-      version: args.version,
-      license: args.license,
-      unpackedSize: args.unpackedSize,
-      totalFiles: args.totalFiles,
-      lastPublish: args.lastPublish,
-      weeklyDownloads: args.weeklyDownloads,
-      collaborators: args.collaborators,
-      npmUrl: args.npmUrl,
-      submitterName: args.submitterName,
-      submitterEmail: args.submitterEmail,
-      submitterDiscord: args.submitterDiscord,
-      demoUrl: args.demoUrl,
-      maintainerNames,
-      submittedAt: Date.now(),
-      reviewStatus: "pending",
-      visibility: "visible",
-      // Directory expansion fields
-      slug: finalSlug,
-      componentName: args.componentName,
-      category: args.category,
-      shortDescription: args.shortDescription,
-      longDescription: args.longDescription,
-      tags: args.tags,
-      videoUrl: args.videoUrl,
-      authorUsername: args.authorUsername,
-      authorAvatar: args.authorAvatar,
-      communitySubmitted: args.communitySubmitted,
-      // V2 generated content
-      generatedDescription: args.generatedDescription,
-      generatedUseCases: args.generatedUseCases,
-      generatedHowItWorks: args.generatedHowItWorks,
-      readmeIncludedMarkdown: args.readmeIncludedMarkdown,
-      readmeIncludeSource: args.readmeIncludeSource,
-      contentModelVersion: args.contentModelVersion,
-      skillMd: args.skillMd,
-    });
+    return await addPackageHelper(ctx, args);
   },
 });
 
+async function addPackageHelper(ctx: any, args: any): Promise<Id<"packages">> {
+  const maintainerNames = args.collaborators.map((c: any) => c.name).join(" ");
+
+  const existing = await ctx.db
+    .query("packages")
+    .withIndex("by_name", (q: any) => q.eq("name", args.name))
+    .first();
+
+  if (existing) {
+    return await updateExistingPackage(ctx, existing, args, maintainerNames);
+  }
+
+  return await insertNewPackage(ctx, args, maintainerNames);
+}
+
+async function updateExistingPackage(ctx: any, existing: any, args: any, maintainerNames: string): Promise<Id<"packages">> {
+  await ctx.db.patch("packages", existing._id, {
+    description: args.description,
+    installCommand: args.installCommand,
+    repositoryUrl: args.repositoryUrl,
+    homepageUrl: args.homepageUrl,
+    version: args.version,
+    license: args.license,
+    unpackedSize: args.unpackedSize,
+    totalFiles: args.totalFiles,
+    lastPublish: args.lastPublish,
+    weeklyDownloads: args.weeklyDownloads,
+    collaborators: args.collaborators,
+    maintainerNames,
+    npmUrl: args.npmUrl,
+    submittedAt: Date.now(),
+    reviewStatus: existing.reviewStatus ?? "pending",
+    visibility: existing.visibility ?? "visible",
+  });
+  return existing._id;
+}
+
+async function insertNewPackage(ctx: any, args: any, maintainerNames: string): Promise<Id<"packages">> {
+  let finalSlug = args.slug;
+  if (finalSlug) {
+    finalSlug = await generateUniqueSlug(ctx, finalSlug);
+  }
+
+  return await ctx.db.insert("packages", {
+    name: args.name,
+    description: args.description,
+    installCommand: args.installCommand,
+    repositoryUrl: args.repositoryUrl,
+    homepageUrl: args.homepageUrl,
+    version: args.version,
+    license: args.license,
+    unpackedSize: args.unpackedSize,
+    totalFiles: args.totalFiles,
+    lastPublish: args.lastPublish,
+    weeklyDownloads: args.weeklyDownloads,
+    collaborators: args.collaborators,
+    npmUrl: args.npmUrl,
+    submitterName: args.submitterName,
+    submitterEmail: args.submitterEmail,
+    submitterDiscord: args.submitterDiscord,
+    demoUrl: args.demoUrl,
+    maintainerNames,
+    submittedAt: Date.now(),
+    reviewStatus: "pending",
+    visibility: "visible",
+    slug: finalSlug,
+    componentName: args.componentName,
+    category: args.category,
+    shortDescription: args.shortDescription,
+    longDescription: args.longDescription,
+    tags: args.tags,
+    videoUrl: args.videoUrl,
+    authorUsername: args.authorUsername,
+    authorAvatar: args.authorAvatar,
+    communitySubmitted: args.communitySubmitted,
+    generatedDescription: args.generatedDescription,
+    generatedUseCases: args.generatedUseCases,
+    generatedHowItWorks: args.generatedHowItWorks,
+    readmeIncludedMarkdown: args.readmeIncludedMarkdown,
+    readmeIncludeSource: args.readmeIncludeSource,
+    contentModelVersion: args.contentModelVersion,
+    skillMd: args.skillMd,
+  });
+}
+
 // Admin mutation: Update npm data for a package (preserves submitter info, review status, etc.)
+// Compares before writing to avoid no-op patches that invalidate subscriptions.
+async function updateNpmDataHelper(ctx: any, args: any) {
+  const maintainerNames = args.collaborators.map((c: any) => c.name).join(" ");
+  const pkg = await ctx.db.get(args.packageId);
+  if (!pkg) return;
+
+  const newFields: Record<string, any> = {
+    description: args.description,
+    version: args.version,
+    license: args.license,
+    repositoryUrl: args.repositoryUrl,
+    homepageUrl: args.homepageUrl,
+    unpackedSize: args.unpackedSize,
+    totalFiles: args.totalFiles,
+    lastPublish: args.lastPublish,
+    weeklyDownloads: args.weeklyDownloads,
+    maintainerNames,
+  };
+
+  // Only include fields that actually changed (skip collaborators deep-compare for perf)
+  const patch: Record<string, any> = {};
+  for (const [key, value] of Object.entries(newFields)) {
+    if (pkg[key] !== value) {
+      patch[key] = value;
+    }
+  }
+
+  // Collaborators need a shallow JSON compare since they're arrays of objects
+  if (JSON.stringify(pkg.collaborators) !== JSON.stringify(args.collaborators)) {
+    patch.collaborators = args.collaborators;
+  }
+
+  if (Object.keys(patch).length === 0) return;
+  await ctx.db.patch(args.packageId, patch);
+}
+
+const npmDataArgs = {
+  packageId: v.id("packages"),
+  description: v.string(),
+  version: v.string(),
+  license: v.string(),
+  repositoryUrl: v.optional(v.string()),
+  homepageUrl: v.optional(v.string()),
+  unpackedSize: v.number(),
+  totalFiles: v.number(),
+  lastPublish: v.string(),
+  weeklyDownloads: v.number(),
+  collaborators: v.array(
+    v.object({
+      name: v.string(),
+      avatar: v.string(),
+    }),
+  ),
+};
+
 export const _updateNpmData = internalMutation({
-  args: {
-    packageId: v.id("packages"),
-    description: v.string(),
-    version: v.string(),
-    license: v.string(),
-    repositoryUrl: v.optional(v.string()),
-    homepageUrl: v.optional(v.string()),
-    unpackedSize: v.number(),
-    totalFiles: v.number(),
-    lastPublish: v.string(),
-    weeklyDownloads: v.number(),
-    collaborators: v.array(
-      v.object({
-        name: v.string(),
-        avatar: v.string(),
-      }),
-    ),
-  },
+  args: npmDataArgs,
   returns: v.null(),
   handler: async (ctx, args) => {
-    // Create denormalized maintainer names string for search
-    const maintainerNames = args.collaborators.map((c) => c.name).join(" ");
-
-    // Patch directly without reading first to avoid write conflicts
-    await ctx.db.patch("packages", args.packageId, {
-      description: args.description,
-      version: args.version,
-      license: args.license,
-      repositoryUrl: args.repositoryUrl,
-      homepageUrl: args.homepageUrl,
-      unpackedSize: args.unpackedSize,
-      totalFiles: args.totalFiles,
-      lastPublish: args.lastPublish,
-      weeklyDownloads: args.weeklyDownloads,
-      collaborators: args.collaborators,
-      maintainerNames,
-    });
-
+    await updateNpmDataHelper(ctx, args);
     return null;
   },
 });
@@ -1172,7 +1249,7 @@ export const updateNpmData = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await requireAdminIdentity(ctx);
-    const _: null = await ctx.runMutation(internal.packages._updateNpmData, args);
+    await updateNpmDataHelper(ctx, args);
     return null;
   },
 });
@@ -1194,7 +1271,7 @@ export const listPackages = query({
 
     // Get all packages and filter to only visible ones for public view
     // All submissions are visible by default (pending included), admins can hide/archive
-    const allPackages = await ctx.db.query("packages").collect();
+    const allPackages = await ctx.db.query("packages").take(1000);
 
     // Filter: show packages that are visible (or no visibility set = visible by default)
     // Hidden, archived, marked-for-deletion, and hideFromSubmissions packages are excluded
@@ -1242,8 +1319,17 @@ export const getAllPackages = query({
     }
 
     // Admin authenticated - return full data
-    const packages = await ctx.db.query("packages").collect();
+    const packages = await ctx.db.query("packages").take(1000);
     // Normalize data to ensure all required fields have default values
+    return packages.map(toAdminPackage);
+  },
+});
+
+export const _getAllPackages = internalQuery({
+  args: {},
+  returns: v.array(adminPackageValidator),
+  handler: async (ctx) => {
+    const packages = await ctx.db.query("packages").take(5000);
     return packages.map(toAdminPackage);
   },
 });
@@ -1253,70 +1339,57 @@ export const searchPackages = query({
   args: { searchTerm: v.string() },
   returns: v.array(publicPackageValidator),
   handler: async (ctx, args) => {
-    // If no search term, return all visible packages sorted by newest
     if (!args.searchTerm.trim()) {
-      const allPackages = await ctx.db.query("packages").collect();
-      const filtered = allPackages
-        .filter(
-          (pkg) =>
-            (!pkg.visibility || pkg.visibility === "visible") &&
-            !pkg.markedForDeletion &&
-            !pkg.hideFromSubmissions,
-        )
-        .sort((a, b) => b.submittedAt - a.submittedAt)
-        .slice(0, 50);
-      // SECURITY: Strip sensitive fields before returning to client
-      return filtered.map(toPublicPackage);
+      return await getDefaultVisiblePackages(ctx);
     }
-
-    // Search by name using Convex full-text search
-    const nameResults = await ctx.db
-      .query("packages")
-      .withSearchIndex("search_name", (q) => q.search("name", args.searchTerm))
-      .take(50);
-
-    // Search by description using Convex full-text search
-    const descriptionResults = await ctx.db
-      .query("packages")
-      .withSearchIndex("search_description", (q) =>
-        q.search("description", args.searchTerm),
-      )
-      .take(50);
-
-    // Search by maintainer names using Convex full-text search
-    const maintainerResults = await ctx.db
-      .query("packages")
-      .withSearchIndex("search_maintainers", (q) =>
-        q.search("maintainerNames", args.searchTerm),
-      )
-      .take(50);
-
-    // Combine results and deduplicate by _id
-    const seen = new Set<string>();
-    const combined: typeof nameResults = [];
-
-    for (const pkg of [
-      ...nameResults,
-      ...descriptionResults,
-      ...maintainerResults,
-    ]) {
-      if (!seen.has(pkg._id)) {
-        seen.add(pkg._id);
-        // Filter to only visible packages (not hidden, not marked for deletion, not hidden from submissions)
-        if (
-          (!pkg.visibility || pkg.visibility === "visible") &&
-          !pkg.markedForDeletion &&
-          !pkg.hideFromSubmissions
-        ) {
-          combined.push(pkg);
-        }
-      }
-    }
-
-    // SECURITY: Strip sensitive fields before returning to client
-    return combined.slice(0, 50).map(toPublicPackage);
+    const results = await searchAcrossIndexes(ctx, args.searchTerm);
+    return dedupeAndFilterResults(results).map(toPublicPackage);
   },
 });
+
+async function getDefaultVisiblePackages(ctx: any) {
+  const allPackages = await ctx.db.query("packages").take(1000);
+  return allPackages
+    .filter(isVisiblePackage)
+    .sort((a: any, b: any) => b.submittedAt - a.submittedAt)
+    .slice(0, 50)
+    .map(toPublicPackage);
+}
+
+function isVisiblePackage(pkg: any) {
+  return (
+    (!pkg.visibility || pkg.visibility === "visible") &&
+    !pkg.markedForDeletion &&
+    !pkg.hideFromSubmissions
+  );
+}
+
+async function searchAcrossIndexes(ctx: any, searchTerm: string) {
+  const [nameResults, descriptionResults, maintainerResults] = await Promise.all([
+    ctx.db.query("packages")
+      .withSearchIndex("search_name", (q: any) => q.search("name", searchTerm))
+      .take(50),
+    ctx.db.query("packages")
+      .withSearchIndex("search_description", (q: any) => q.search("description", searchTerm))
+      .take(50),
+    ctx.db.query("packages")
+      .withSearchIndex("search_maintainers", (q: any) => q.search("maintainerNames", searchTerm))
+      .take(50),
+  ]);
+  return [...nameResults, ...descriptionResults, ...maintainerResults];
+}
+
+function dedupeAndFilterResults(results: any[]) {
+  const seen = new Set<string>();
+  const combined: any[] = [];
+  for (const pkg of results) {
+    if (!seen.has(pkg._id) && isVisiblePackage(pkg)) {
+      seen.add(pkg._id);
+      combined.push(pkg);
+    }
+  }
+  return combined.slice(0, 50);
+}
 
 // Public query: Paginated submissions listing for Submit.tsx
 export const getSubmitPackagesPage = query({
@@ -1459,82 +1532,58 @@ export const adminSearchPackages = query({
   args: { searchTerm: v.string() },
   returns: v.array(adminPackageValidator),
   handler: async (ctx, args) => {
-    // SECURITY: Check if user is authenticated and is an admin
     const adminIdentity = await getAdminIdentity(ctx);
     if (!adminIdentity) {
       return [];
     }
 
-    // If no search term, return all packages sorted by newest
     if (!args.searchTerm.trim()) {
       const packages = await ctx.db
         .query("packages")
         .withIndex("by_submitted_at")
         .order("desc")
         .take(100);
-      // Normalize data to ensure all required fields have default values
       return packages.map(toAdminPackage);
     }
 
-    // Search by name using Convex full-text search
-    const nameResults = await ctx.db
-      .query("packages")
-      .withSearchIndex("search_name", (q) => q.search("name", args.searchTerm))
-      .take(100);
-
-    // Search by description using Convex full-text search
-    const descriptionResults = await ctx.db
-      .query("packages")
-      .withSearchIndex("search_description", (q) =>
-        q.search("description", args.searchTerm),
-      )
-      .take(100);
-
-    // Search by maintainer names using Convex full-text search
-    const maintainerResults = await ctx.db
-      .query("packages")
-      .withSearchIndex("search_maintainers", (q) =>
-        q.search("maintainerNames", args.searchTerm),
-      )
-      .take(100);
-
-    // Search by component display name (e.g. "Convex Agent")
-    const componentNameResults = await ctx.db
-      .query("packages")
-      .withSearchIndex("search_componentName", (q) =>
-        q.search("componentName", args.searchTerm),
-      )
-      .take(100);
-
-    // Search by repository URL (e.g. "gilhrpenner/convex-files")
-    const repoResults = await ctx.db
-      .query("packages")
-      .withSearchIndex("search_repositoryUrl", (q) =>
-        q.search("repositoryUrl", args.searchTerm),
-      )
-      .take(100);
-
-    // Combine results and deduplicate by _id
-    const seen = new Set<string>();
-    const combined: typeof nameResults = [];
-
-    for (const pkg of [
-      ...nameResults,
-      ...descriptionResults,
-      ...maintainerResults,
-      ...componentNameResults,
-      ...repoResults,
-    ]) {
-      if (!seen.has(pkg._id)) {
-        seen.add(pkg._id);
-        combined.push(pkg);
-      }
-    }
-
-    // Normalize data to ensure all required fields have default values
-    return combined.slice(0, 100).map(toAdminPackage);
+    const results = await adminSearchAcrossIndexes(ctx, args.searchTerm);
+    return dedupeResults(results).slice(0, 100).map(toAdminPackage);
   },
 });
+
+async function adminSearchAcrossIndexes(ctx: any, searchTerm: string) {
+  const [nameResults, descriptionResults, maintainerResults, componentNameResults, repoResults] =
+    await Promise.all([
+      ctx.db.query("packages")
+        .withSearchIndex("search_name", (q: any) => q.search("name", searchTerm))
+        .take(100),
+      ctx.db.query("packages")
+        .withSearchIndex("search_description", (q: any) => q.search("description", searchTerm))
+        .take(100),
+      ctx.db.query("packages")
+        .withSearchIndex("search_maintainers", (q: any) => q.search("maintainerNames", searchTerm))
+        .take(100),
+      ctx.db.query("packages")
+        .withSearchIndex("search_componentName", (q: any) => q.search("componentName", searchTerm))
+        .take(100),
+      ctx.db.query("packages")
+        .withSearchIndex("search_repositoryUrl", (q: any) => q.search("repositoryUrl", searchTerm))
+        .take(100),
+    ]);
+  return [...nameResults, ...descriptionResults, ...maintainerResults, ...componentNameResults, ...repoResults];
+}
+
+function dedupeResults(results: any[]) {
+  const seen = new Set<string>();
+  const combined: any[] = [];
+  for (const pkg of results) {
+    if (!seen.has(pkg._id)) {
+      seen.add(pkg._id);
+      combined.push(pkg);
+    }
+  }
+  return combined;
+}
 
 // SECURITY: Internal query for backend use only (e.g., AI review action)
 // Returns full package data including sensitive fields
@@ -1542,6 +1591,22 @@ export const _getPackage = internalQuery({
   args: { packageId: v.id("packages") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.packageId);
+  },
+});
+
+export const _getPackagesByIds = internalQuery({
+  args: { packageIds: v.array(v.id("packages")) },
+  handler: async (ctx, args) => {
+    const results = await Promise.all(
+      args.packageIds.map((id) => ctx.db.get(id)),
+    );
+    const map: Record<string, any> = {};
+    for (const pkg of results) {
+      if (pkg) {
+        map[pkg._id] = pkg;
+      }
+    }
+    return map;
   },
 });
 
@@ -1569,6 +1634,19 @@ export const _getPackageByName = internalQuery({
   },
 });
 
+// Combined query: check if package exists + get admin settings in one round trip
+export const _checkSubmitPrereqs = internalQuery({
+  args: { name: v.string() },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("packages")
+      .withIndex("by_name", (q) => q.eq("name", args.name))
+      .first();
+    const settings = await getAdminSettingsHelper(ctx);
+    return { existing: !!existing, settings };
+  },
+});
+
 // SECURITY: Public query - returns safe package data only
 export const getPackageByName = query({
   args: { name: v.string() },
@@ -1585,6 +1663,84 @@ export const getPackageByName = query({
 });
 
 // Internal mutation: Update review status
+type ReviewStatusArgs = {
+  packageId: Id<"packages">;
+  reviewStatus: "pending" | "in_review" | "approved" | "changes_requested" | "rejected";
+  reviewNotes?: string;
+  reviewedBy: string;
+};
+
+async function updateReviewStatusHelper(ctx: any, args: ReviewStatusArgs) {
+  const reviewedAt = Date.now();
+  await ctx.db.patch("packages", args.packageId, {
+    reviewStatus: args.reviewStatus,
+    reviewedBy: args.reviewedBy,
+    reviewedAt,
+    ...(args.reviewStatus === "approved" && { approvedAt: reviewedAt }),
+    ...(args.reviewNotes !== undefined && { reviewNotes: args.reviewNotes }),
+  });
+
+  let shouldAutoGenerateSeo =
+    args.reviewStatus === "approved" ||
+    args.reviewStatus === "pending" ||
+    args.reviewStatus === "in_review";
+
+  if (args.reviewStatus === "pending" || args.reviewStatus === "in_review") {
+    const autoGenerateOnReviewState = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q: any) =>
+        q.eq("key", "autoGenerateSeoOnPendingOrInReview"),
+      )
+      .first();
+    shouldAutoGenerateSeo = autoGenerateOnReviewState?.value || false;
+  }
+
+  if (shouldAutoGenerateSeo) {
+    const pkg = await ctx.db.get(args.packageId);
+    if (pkg && !pkg.seoGeneratedAt) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.seoContent.generateSeoContent,
+        { packageId: args.packageId },
+      );
+    }
+  }
+
+  if (args.reviewStatus === "approved") {
+    const pkg = await ctx.db.get(args.packageId);
+    if (pkg && pkg.visibility === "visible") {
+      const autoSendRewardSetting = await ctx.db
+        .query("adminSettings")
+        .withIndex("by_key", (q: any) => q.eq("key", "autoSendRewardOnApprove"))
+        .first();
+
+      if (autoSendRewardSetting?.value) {
+        const rewardStatus = pkg.rewardStatus;
+        if (rewardStatus !== "sent" && rewardStatus !== "delivered") {
+          const defaultAmountSetting = await ctx.db
+            .query("adminSettingsNumeric")
+            .withIndex("by_key", (q: any) => q.eq("key", "defaultRewardAmount"))
+            .first();
+          const amount = defaultAmountSetting?.value ?? 25;
+
+          await ctx.scheduler.runAfter(
+            0,
+            internal.payments.sendReward,
+            {
+              packageId: args.packageId,
+              amount,
+              sentBy: "auto",
+            },
+          );
+        }
+      }
+    }
+  }
+
+  // Recount denormalized category stats after status changes
+  await recountCategoryStats(ctx);
+}
+
 export const _updateReviewStatus = internalMutation({
   args: {
     packageId: v.id("packages"),
@@ -1596,82 +1752,11 @@ export const _updateReviewStatus = internalMutation({
       v.literal("rejected"),
     ),
     reviewNotes: v.optional(v.string()),
-    reviewedBy: v.string(), // Identifier for who reviewed (e.g., "AI" or admin name)
+    reviewedBy: v.string(),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const reviewedAt = Date.now();
-    // Patch directly without reading first to avoid write conflicts
-    await ctx.db.patch("packages", args.packageId, {
-      reviewStatus: args.reviewStatus,
-      reviewedBy: args.reviewedBy,
-      reviewedAt,
-      ...(args.reviewStatus === "approved" && { approvedAt: reviewedAt }),
-      ...(args.reviewNotes !== undefined && { reviewNotes: args.reviewNotes }),
-    });
-
-    // Auto-generate SEO content when approved, or on pending/in_review if enabled
-    let shouldAutoGenerateSeo =
-      args.reviewStatus === "approved" ||
-      args.reviewStatus === "pending" ||
-      args.reviewStatus === "in_review";
-
-    if (args.reviewStatus === "pending" || args.reviewStatus === "in_review") {
-      const autoGenerateOnReviewState = await ctx.db
-        .query("adminSettings")
-        .withIndex("by_key", (q) =>
-          q.eq("key", "autoGenerateSeoOnPendingOrInReview"),
-        )
-        .first();
-      shouldAutoGenerateSeo = autoGenerateOnReviewState?.value || false;
-    }
-
-    if (shouldAutoGenerateSeo) {
-      const pkg = await ctx.db.get(args.packageId);
-      if (pkg && !pkg.seoGeneratedAt) {
-        await ctx.scheduler.runAfter(
-          0,
-          internal.seoContent.generateSeoContent,
-          { packageId: args.packageId },
-        );
-      }
-    }
-
-    // Auto-send reward when approved + visible + enabled + not already paid
-    if (args.reviewStatus === "approved") {
-      const pkg = await ctx.db.get(args.packageId);
-      if (pkg && pkg.visibility === "visible") {
-        const autoSendRewardSetting = await ctx.db
-          .query("adminSettings")
-          .withIndex("by_key", (q) => q.eq("key", "autoSendRewardOnApprove"))
-          .first();
-
-        if (autoSendRewardSetting?.value) {
-          // Check if reward not already sent
-          const rewardStatus = pkg.rewardStatus;
-          if (rewardStatus !== "sent" && rewardStatus !== "delivered") {
-            // Get default reward amount
-            const defaultAmountSetting = await ctx.db
-              .query("adminSettingsNumeric")
-              .withIndex("by_key", (q) => q.eq("key", "defaultRewardAmount"))
-              .first();
-            const amount = defaultAmountSetting?.value ?? 25;
-
-            // Schedule reward send
-            await ctx.scheduler.runAfter(
-              0,
-              internal.payments.sendReward,
-              {
-                packageId: args.packageId,
-                amount,
-                sentBy: "auto",
-              },
-            );
-          }
-        }
-      }
-    }
-
+    await updateReviewStatusHelper(ctx, args);
     return null;
   },
 });
@@ -1693,7 +1778,7 @@ export const updateReviewStatus = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await requireAdminIdentity(ctx);
-    const _: null = await ctx.runMutation(internal.packages._updateReviewStatus, args);
+    await updateReviewStatusHelper(ctx, args);
     return null;
   },
 });
@@ -1714,6 +1799,7 @@ export const updateVisibility = mutation({
     await ctx.db.patch("packages", args.packageId, {
       visibility: args.visibility,
     });
+    await recountCategoryStats(ctx);
     return null;
   },
 });
@@ -1727,6 +1813,7 @@ export const deletePackage = mutation({
   handler: async (ctx, args) => {
     await requireAdminIdentity(ctx);
     await ctx.db.delete("packages", args.packageId);
+    await recountCategoryStats(ctx);
     return null;
   },
 });
@@ -1743,12 +1830,12 @@ export const toggleFeatured = mutation({
     // Get the package to check its current state
     const pkg = await ctx.db.get("packages", args.packageId);
     if (!pkg) {
-      throw new Error("Package not found");
+      throw new ConvexError("Package not found");
     }
 
     // Only approved packages can be featured
     if (pkg.reviewStatus !== "approved") {
-      throw new Error("Only approved packages can be featured");
+      throw new ConvexError("Only approved packages can be featured");
     }
 
     // Toggle featured status
@@ -1787,7 +1874,7 @@ export const toggleHideFromSubmissions = mutation({
     await requireAdminIdentity(ctx);
     const pkg = await ctx.db.get(args.packageId);
     if (!pkg) {
-      throw new Error("Package not found");
+      throw new ConvexError("Package not found");
     }
     await ctx.db.patch(args.packageId, {
       hideFromSubmissions: !pkg.hideFromSubmissions,
@@ -1897,11 +1984,11 @@ export const getPackagesByStatus = query({
     const status = args.reviewStatus || "all";
 
     if (status === "all") {
-      return await ctx.db.query("packages").collect();
+      return await ctx.db.query("packages").take(1000);
     }
 
     // Get all packages and filter by status (including undefined as pending)
-    const allPackages = await ctx.db.query("packages").collect();
+    const allPackages = await ctx.db.query("packages").take(1000);
 
     if (status === "pending") {
       // Treat undefined reviewStatus as pending
@@ -1941,7 +2028,7 @@ export const getPackageNotes = query({
         q.eq("packageId", args.packageId),
       )
       .order("desc")
-      .collect();
+      .take(1000);
 
     // Calculate reply counts for each note
     const notesWithReplies = await Promise.all(
@@ -1949,7 +2036,7 @@ export const getPackageNotes = query({
         const replies = await ctx.db
           .query("packageNotes")
           .withIndex("by_parent", (q) => q.eq("parentNoteId", note._id))
-          .collect();
+          .take(1000);
         return {
           ...note,
           replyCount: replies.length,
@@ -1968,8 +2055,8 @@ export const getPackageNoteCount = query({
   handler: async (ctx, args) => {
     const notes = await ctx.db
       .query("packageNotes")
-      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .take(1000);
     return notes.length;
   },
 });
@@ -1981,8 +2068,8 @@ export const getUnrepliedUserRequestCount = query({
   handler: async (ctx, args) => {
     const notes = await ctx.db
       .query("packageNotes")
-      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .take(1000);
 
     // Find user requests (notes starting with [User Request])
     const userRequestIds = new Set<string>();
@@ -2068,7 +2155,7 @@ export const deletePackageNote = mutation({
     }
 
     if (note.authorEmail !== admin.email) {
-      throw new Error("You can only delete your own notes");
+      throw new ConvexError("You can only delete your own notes");
     }
 
     await ctx.db.delete("packageNotes", args.noteId);
@@ -2085,8 +2172,8 @@ export const markNotesAsReadForAdmin = mutation({
 
     const notes = await ctx.db
       .query("packageNotes")
-      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .take(1000);
 
     // Mark user requests (not from @convex.dev emails) as admin-read
     const updates = notes
@@ -2108,8 +2195,8 @@ export const getUnreadUserNotesCount = query({
   handler: async (ctx, args) => {
     const notes = await ctx.db
       .query("packageNotes")
-      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .take(1000);
 
     // Count notes from non-admin users that haven't been read by admin
     return notes.filter(
@@ -2128,8 +2215,8 @@ export const markCommentsAsReadForAdmin = mutation({
 
     const comments = await ctx.db
       .query("packageComments")
-      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .take(1000);
 
     // Mark unread user messages as read for admin
     const updates = comments
@@ -2153,8 +2240,8 @@ export const getUnreadCommentsCount = query({
   handler: async (ctx, args) => {
     const comments = await ctx.db
       .query("packageComments")
-      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .take(1000);
 
     return comments.filter(
       (comment) =>
@@ -2165,13 +2252,23 @@ export const getUnreadCommentsCount = query({
   },
 });
 
+// Migration: Recount and backfill denormalized category counts
+export const backfillCategoryCounts = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    await recountCategoryStats(ctx);
+    return null;
+  },
+});
+
 // Migration: Backfill maintainerNames for existing packages
 export const backfillMaintainerNames = mutation({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
     // Get all packages without maintainerNames
-    const packages = await ctx.db.query("packages").collect();
+    const packages = await ctx.db.query("packages").take(10000);
     const packagesToUpdate = packages.filter((pkg) => !pkg.maintainerNames);
 
     // Update each package with maintainerNames derived from collaborators
@@ -2190,7 +2287,7 @@ export const backfillPackageReliabilityFields = mutation({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
-    const packages = await ctx.db.query("packages").collect();
+    const packages = await ctx.db.query("packages").take(10000);
     let updatedCount = 0;
 
     // Patch rows with missing defaults so directory sort/filter remains stable.
@@ -2239,6 +2336,12 @@ export const backfillPackageReliabilityFields = mutation({
 // ============ AI REVIEW FUNCTIONS ============
 
 // Update AI review status only (for "reviewing" state)
+async function updateAiReviewStatusHelper(ctx: any, args: { packageId: Id<"packages">; status: string }) {
+  await ctx.db.patch("packages", args.packageId, {
+    aiReviewStatus: args.status,
+  });
+}
+
 export const _updateAiReviewStatus = internalMutation({
   args: {
     packageId: v.id("packages"),
@@ -2253,10 +2356,7 @@ export const _updateAiReviewStatus = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    // Patch directly without reading first to avoid write conflicts
-    await ctx.db.patch("packages", args.packageId, {
-      aiReviewStatus: args.status,
-    });
+    await updateAiReviewStatusHelper(ctx, args);
     return null;
   },
 });
@@ -2276,12 +2376,21 @@ export const updateAiReviewStatus = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await requireAdminIdentity(ctx);
-    const _: null = await ctx.runMutation(internal.packages._updateAiReviewStatus, args);
+    await updateAiReviewStatusHelper(ctx, args);
     return null;
   },
 });
 
-// Update AI review result (after review completes)
+async function updateAiReviewResultHelper(ctx: any, args: any) {
+  await ctx.db.patch("packages", args.packageId, {
+    aiReviewStatus: args.status,
+    aiReviewSummary: args.summary,
+    aiReviewCriteria: args.criteria,
+    aiReviewedAt: Date.now(),
+    aiReviewError: args.error,
+  });
+}
+
 export const _updateAiReviewResult = internalMutation({
   args: {
     packageId: v.id("packages"),
@@ -2303,14 +2412,7 @@ export const _updateAiReviewResult = internalMutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    // Patch directly without reading first to avoid write conflicts
-    await ctx.db.patch("packages", args.packageId, {
-      aiReviewStatus: args.status,
-      aiReviewSummary: args.summary,
-      aiReviewCriteria: args.criteria,
-      aiReviewedAt: Date.now(),
-      aiReviewError: args.error,
-    });
+    await updateAiReviewResultHelper(ctx, args);
     return null;
   },
 });
@@ -2337,7 +2439,7 @@ export const updateAiReviewResult = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await requireAdminIdentity(ctx);
-    const _: null = await ctx.runMutation(internal.packages._updateAiReviewResult, args);
+    await updateAiReviewResultHelper(ctx, args);
     return null;
   },
 });
@@ -2357,7 +2459,7 @@ export const getAiReviewRunsForPackage = query({
       .query("aiReviewRuns")
       .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
       .order("desc")
-      .collect();
+      .take(1000);
   },
 });
 
@@ -2402,6 +2504,56 @@ export const _createAiReviewRun = internalMutation({
   },
 });
 
+// Batched mutation: update AI review result AND create review run in one transaction
+export const _saveAiReviewResultAndRun = internalMutation({
+  args: {
+    packageId: v.id("packages"),
+    status: v.union(
+      v.literal("passed"),
+      v.literal("failed"),
+      v.literal("partial"),
+      v.literal("error"),
+    ),
+    summary: v.string(),
+    criteria: v.array(aiReviewCriterionValidator),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    provider: v.optional(
+      v.union(
+        v.literal("anthropic"),
+        v.literal("openai"),
+        v.literal("gemini"),
+      ),
+    ),
+    model: v.optional(v.string()),
+    source: v.optional(v.string()),
+    rawOutput: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.packageId, {
+      aiReviewStatus: args.status,
+      aiReviewSummary: args.summary,
+      aiReviewCriteria: args.criteria,
+      aiReviewedAt: Date.now(),
+      aiReviewError: args.error,
+    });
+    await ctx.db.insert("aiReviewRuns", {
+      packageId: args.packageId,
+      createdAt: args.createdAt,
+      status: args.status,
+      summary: args.summary,
+      criteria: args.criteria,
+      error: args.error,
+      provider: args.provider,
+      model: args.model,
+      source: args.source,
+      rawOutput: args.rawOutput,
+    });
+    return null;
+  },
+});
+
 export const deleteAiReviewRun = mutation({
   args: {
     runId: v.id("aiReviewRuns"),
@@ -2422,7 +2574,7 @@ export const deleteAiReviewRun = mutation({
       .first();
 
     if (latestRun?._id === args.runId) {
-      throw new Error("Cannot delete the latest AI review snapshot");
+      throw new ConvexError("Cannot delete the latest AI review snapshot");
     }
 
     await ctx.db.delete(args.runId);
@@ -2431,86 +2583,100 @@ export const deleteAiReviewRun = mutation({
 });
 
 // Get admin settings for AI review, thumbnails, and related automation
+async function getAdminSettingsHelper(ctx: QueryCtx) {
+  const autoAiReview = await ctx.db
+    .query("adminSettings")
+    .withIndex("by_key", (q) => q.eq("key", "autoAiReview"))
+    .first();
+  const autoApproveOnPass = await ctx.db
+    .query("adminSettings")
+    .withIndex("by_key", (q) => q.eq("key", "autoApproveOnPass"))
+    .first();
+  const autoRejectOnFail = await ctx.db
+    .query("adminSettings")
+    .withIndex("by_key", (q) => q.eq("key", "autoRejectOnFail"))
+    .first();
+  const autoGenerateSeoOnReview = await ctx.db
+    .query("adminSettings")
+    .withIndex("by_key", (q) =>
+      q.eq("key", "autoGenerateSeoOnPendingOrInReview"),
+    )
+    .first();
+  const autoGenerateThumb = await ctx.db
+    .query("adminSettings")
+    .withIndex("by_key", (q) =>
+      q.eq("key", "autoGenerateThumbnailOnSubmit"),
+    )
+    .first();
+  const rotateTemplates = await ctx.db
+    .query("adminSettings")
+    .withIndex("by_key", (q) =>
+      q.eq("key", "rotateThumbnailTemplatesOnSubmit"),
+    )
+    .first();
+  const showRelated = await ctx.db
+    .query("adminSettings")
+    .withIndex("by_key", (q) =>
+      q.eq("key", "showRelatedOnDetailPage"),
+    )
+    .first();
+  const autoSendReward = await ctx.db
+    .query("adminSettings")
+    .withIndex("by_key", (q) =>
+      q.eq("key", "autoSendRewardOnApprove"),
+    )
+    .first();
+  const defaultRewardAmount = await ctx.db
+    .query("adminSettingsNumeric")
+    .withIndex("by_key", (q) =>
+      q.eq("key", "defaultRewardAmount"),
+    )
+    .first();
+  const apiAccessEnabled = await ctx.db
+    .query("adminSettings")
+    .withIndex("by_key", (q) => q.eq("key", "apiAccessEnabled"))
+    .first();
+
+  return {
+    autoAiReview: autoAiReview?.value || false,
+    autoApproveOnPass: autoApproveOnPass?.value || false,
+    autoRejectOnFail: autoRejectOnFail?.value || false,
+    autoGenerateSeoOnPendingOrInReview: autoGenerateSeoOnReview?.value || false,
+    autoGenerateThumbnailOnSubmit: autoGenerateThumb?.value || false,
+    rotateThumbnailTemplatesOnSubmit: rotateTemplates?.value || false,
+    showRelatedOnDetailPage: showRelated?.value ?? true,
+    autoSendRewardOnApprove: autoSendReward?.value || false,
+    defaultRewardAmount: defaultRewardAmount?.value ?? 25,
+    apiAccessEnabled: apiAccessEnabled?.value || false,
+  };
+}
+
+const adminSettingsReturnValidator = v.object({
+  autoAiReview: v.boolean(),
+  autoApproveOnPass: v.boolean(),
+  autoRejectOnFail: v.boolean(),
+  autoGenerateSeoOnPendingOrInReview: v.boolean(),
+  autoGenerateThumbnailOnSubmit: v.boolean(),
+  rotateThumbnailTemplatesOnSubmit: v.boolean(),
+  showRelatedOnDetailPage: v.boolean(),
+  autoSendRewardOnApprove: v.boolean(),
+  defaultRewardAmount: v.number(),
+  apiAccessEnabled: v.boolean(),
+});
+
 export const getAdminSettings = query({
   args: {},
-  returns: v.object({
-    autoAiReview: v.boolean(),
-    autoApproveOnPass: v.boolean(),
-    autoRejectOnFail: v.boolean(),
-    autoGenerateSeoOnPendingOrInReview: v.boolean(),
-    autoGenerateThumbnailOnSubmit: v.boolean(),
-    rotateThumbnailTemplatesOnSubmit: v.boolean(),
-    showRelatedOnDetailPage: v.boolean(),
-    autoSendRewardOnApprove: v.boolean(),
-    defaultRewardAmount: v.number(),
-    apiAccessEnabled: v.boolean(),
-  }),
+  returns: adminSettingsReturnValidator,
   handler: async (ctx) => {
-    const autoAiReview = await ctx.db
-      .query("adminSettings")
-      .withIndex("by_key", (q) => q.eq("key", "autoAiReview"))
-      .first();
-    const autoApproveOnPass = await ctx.db
-      .query("adminSettings")
-      .withIndex("by_key", (q) => q.eq("key", "autoApproveOnPass"))
-      .first();
-    const autoRejectOnFail = await ctx.db
-      .query("adminSettings")
-      .withIndex("by_key", (q) => q.eq("key", "autoRejectOnFail"))
-      .first();
-    const autoGenerateSeoOnReview = await ctx.db
-      .query("adminSettings")
-      .withIndex("by_key", (q) =>
-        q.eq("key", "autoGenerateSeoOnPendingOrInReview"),
-      )
-      .first();
-    const autoGenerateThumb = await ctx.db
-      .query("adminSettings")
-      .withIndex("by_key", (q) =>
-        q.eq("key", "autoGenerateThumbnailOnSubmit"),
-      )
-      .first();
-    const rotateTemplates = await ctx.db
-      .query("adminSettings")
-      .withIndex("by_key", (q) =>
-        q.eq("key", "rotateThumbnailTemplatesOnSubmit"),
-      )
-      .first();
-    const showRelated = await ctx.db
-      .query("adminSettings")
-      .withIndex("by_key", (q) =>
-        q.eq("key", "showRelatedOnDetailPage"),
-      )
-      .first();
-    const autoSendReward = await ctx.db
-      .query("adminSettings")
-      .withIndex("by_key", (q) =>
-        q.eq("key", "autoSendRewardOnApprove"),
-      )
-      .first();
-    const defaultRewardAmount = await ctx.db
-      .query("adminSettingsNumeric")
-      .withIndex("by_key", (q) =>
-        q.eq("key", "defaultRewardAmount"),
-      )
-      .first();
-    const apiAccessEnabled = await ctx.db
-      .query("adminSettings")
-      .withIndex("by_key", (q) => q.eq("key", "apiAccessEnabled"))
-      .first();
+    return await getAdminSettingsHelper(ctx);
+  },
+});
 
-    return {
-      autoAiReview: autoAiReview?.value || false,
-      autoApproveOnPass: autoApproveOnPass?.value || false,
-      autoRejectOnFail: autoRejectOnFail?.value || false,
-      autoGenerateSeoOnPendingOrInReview: autoGenerateSeoOnReview?.value || false,
-      autoGenerateThumbnailOnSubmit: autoGenerateThumb?.value || false,
-      rotateThumbnailTemplatesOnSubmit: rotateTemplates?.value || false,
-      showRelatedOnDetailPage: showRelated?.value ?? true,
-      autoSendRewardOnApprove: autoSendReward?.value || false,
-      defaultRewardAmount: defaultRewardAmount?.value ?? 25,
-      apiAccessEnabled: apiAccessEnabled?.value || false,
-    };
+export const _getAdminSettings = internalQuery({
+  args: {},
+  returns: adminSettingsReturnValidator,
+  handler: async (ctx) => {
+    return await getAdminSettingsHelper(ctx);
   },
 });
 
@@ -2552,7 +2718,7 @@ export const updateAdminSetting = mutation({
     }
 
     if (args.key === "autoAiReview" && args.value) {
-      const allPackages = await ctx.db.query("packages").collect();
+      const allPackages = await ctx.db.query("packages").take(10000);
       const packagesToQueue = allPackages.filter(
         (pkg) =>
           !!pkg.repositoryUrl &&
@@ -2560,19 +2726,17 @@ export const updateAdminSetting = mutation({
           pkg.aiReviewStatus !== "reviewing",
       );
 
-      await Promise.all(
-        packagesToQueue.map(async (pkg) => {
-          const _: null = await ctx.runMutation(internal.packages._updateReviewStatus, {
-            packageId: pkg._id,
-            reviewStatus: "in_review",
-            reviewedBy: "AI",
-            reviewNotes: "Auto AI review queued from settings",
-          });
-          await ctx.scheduler.runAfter(0, api.aiReview.runAiReview, {
-            packageId: pkg._id,
-          });
-        }),
-      );
+      for (const pkg of packagesToQueue) {
+        await updateReviewStatusHelper(ctx, {
+          packageId: pkg._id,
+          reviewStatus: "in_review",
+          reviewedBy: "AI",
+          reviewNotes: "Auto AI review queued from settings",
+        });
+        await ctx.scheduler.runAfter(0, internal.aiReview._runAiReview, {
+          packageId: pkg._id,
+        });
+      }
     }
 
     return null;
@@ -2660,7 +2824,7 @@ export const getPackageComments = query({
         q.eq("packageId", args.packageId),
       )
       .order("asc")
-      .collect();
+      .take(1000);
 
     if (args.includeInactive) {
       return comments;
@@ -2693,8 +2857,8 @@ export const getPackageCommentCount = query({
 
     const comments = await ctx.db
       .query("packageComments")
-      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .take(1000);
     return comments.filter(
       (comment) => comment.status === undefined || comment.status === "active",
     ).length;
@@ -2712,18 +2876,18 @@ export const addPackageComment = mutation({
     const identity = await ctx.auth.getUserIdentity();
     const userEmail = identity?.email ?? null;
     if (!userEmail) {
-      throw new Error("Authentication required");
+      throw new ConvexError("Authentication required");
     }
 
     const pkg = await ctx.db.get(args.packageId);
     if (!pkg) {
-      throw new Error("Package not found");
+      throw new ConvexError("Package not found");
     }
 
     const adminIdentity = await getAdminIdentity(ctx);
     const isAdmin = adminIdentity?.email.endsWith("@convex.dev") ?? false;
     if (!isAdmin && !userOwnsPackage(pkg, userEmail)) {
-      throw new Error("You can only message for your own submissions");
+      throw new ConvexError("You can only message for your own submissions");
     }
 
     // Insert a private thread message with read state.
@@ -2749,7 +2913,7 @@ export const deletePackageComment = mutation({
   handler: async (ctx, args) => {
     const userEmail = await getCurrentUserEmail(ctx);
     if (!userEmail) {
-      throw new Error("Authentication required");
+      throw new ConvexError("Authentication required");
     }
 
     const comment = await ctx.db.get(args.commentId);
@@ -2765,11 +2929,11 @@ export const deletePackageComment = mutation({
     const adminIdentity = await getAdminIdentity(ctx);
     const isAdmin = adminIdentity?.email.endsWith("@convex.dev") ?? false;
     if (!isAdmin && !userOwnsPackage(pkg, userEmail)) {
-      throw new Error("You can only manage messages on your own submissions");
+      throw new ConvexError("You can only manage messages on your own submissions");
     }
 
     if (comment.authorEmail !== userEmail) {
-      throw new Error("You can only delete your own messages");
+      throw new ConvexError("You can only delete your own messages");
     }
 
     await ctx.db.delete("packageComments", args.commentId);
@@ -2787,7 +2951,7 @@ export const updatePackageCommentStatus = mutation({
   handler: async (ctx, args) => {
     const userEmail = await getCurrentUserEmail(ctx);
     if (!userEmail) {
-      throw new Error("Authentication required");
+      throw new ConvexError("Authentication required");
     }
 
     const comment = await ctx.db.get(args.commentId);
@@ -2803,11 +2967,11 @@ export const updatePackageCommentStatus = mutation({
     const adminIdentity = await getAdminIdentity(ctx);
     const isAdmin = adminIdentity?.email.endsWith("@convex.dev") ?? false;
     if (!isAdmin && !userOwnsPackage(pkg, userEmail)) {
-      throw new Error("You can only manage messages on your own submissions");
+      throw new ConvexError("You can only manage messages on your own submissions");
     }
 
     if (comment.authorEmail !== userEmail) {
-      throw new Error("You can only update your own messages");
+      throw new ConvexError("You can only update your own messages");
     }
 
     await ctx.db.patch(comment._id, {
@@ -2894,7 +3058,7 @@ export const updateRefreshSetting = mutation({
 
 // Get refresh statistics for admin dashboard
 export const getRefreshStats = query({
-  args: {},
+  args: { now: v.number() },
   returns: v.object({
     packagesNeedingRefresh: v.number(),
     totalPackages: v.number(),
@@ -2912,28 +3076,24 @@ export const getRefreshStats = query({
       }),
     ),
   }),
-  handler: async (ctx) => {
+  handler: async (ctx, args) => {
     // Get refresh settings for interval
     const intervalSetting = await ctx.db
       .query("adminSettingsNumeric")
       .withIndex("by_key", (q) => q.eq("key", "refreshIntervalDays"))
       .first();
     const intervalDays = intervalSetting?.value || 3;
-    const staleThreshold = Date.now() - intervalDays * 24 * 60 * 60 * 1000;
+    const staleThreshold = args.now - intervalDays * 24 * 60 * 60 * 1000;
 
     // Get all approved/visible packages
     const allPackages = await ctx.db
       .query("packages")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("reviewStatus"), "approved"),
-          q.neq(q.field("visibility"), "archived"),
-        ),
-      )
-      .collect();
+      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+      .take(1000);
 
-    // Count packages needing refresh (never refreshed or older than threshold)
-    const needingRefresh = allPackages.filter(
+    // Exclude archived, then count packages needing refresh
+    const nonArchived = allPackages.filter((pkg) => pkg.visibility !== "archived");
+    const needingRefresh = nonArchived.filter(
       (pkg) => !pkg.lastRefreshedAt || pkg.lastRefreshedAt < staleThreshold,
     ).length;
 
@@ -2946,7 +3106,7 @@ export const getRefreshStats = query({
 
     return {
       packagesNeedingRefresh: needingRefresh,
-      totalPackages: allPackages.length,
+      totalPackages: nonArchived.length,
       lastRefreshRun: lastLog
         ? {
             runAt: lastLog.runAt,
@@ -3011,16 +3171,12 @@ export const _getStalePackages = internalQuery({
     // Get approved packages that need refresh
     const packages = await ctx.db
       .query("packages")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("reviewStatus"), "approved"),
-          q.neq(q.field("visibility"), "archived"),
-        ),
-      )
-      .collect();
+      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+      .take(5000);
 
-    // Filter and sort by staleness (never refreshed first, then oldest)
+    // Filter non-archived and sort by staleness (never refreshed first, then oldest)
     const stalePackages = packages
+      .filter((pkg) => pkg.visibility !== "archived")
       .filter(
         (pkg) =>
           !pkg.lastRefreshedAt || pkg.lastRefreshedAt < args.staleThreshold,
@@ -3054,18 +3210,15 @@ export const _getAllApprovedPackages = internalQuery({
   handler: async (ctx, args) => {
     const packages = await ctx.db
       .query("packages")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("reviewStatus"), "approved"),
-          q.neq(q.field("visibility"), "archived"),
-        ),
-      )
+      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
       .take(args.limit);
 
-    return packages.map((pkg) => ({
-      _id: pkg._id,
-      name: pkg.name,
-    }));
+    return packages
+      .filter((pkg) => pkg.visibility !== "archived")
+      .map((pkg) => ({
+        _id: pkg._id,
+        name: pkg.name,
+      }));
   },
 });
 
@@ -3079,16 +3232,15 @@ export const _getAllPackagesForRefresh = internalQuery({
     }),
   ),
   handler: async (ctx, args) => {
-    // Get all non-archived packages regardless of review status
-    const packages = await ctx.db
-      .query("packages")
-      .filter((q) => q.neq(q.field("visibility"), "archived"))
-      .take(args.limit);
+    // Get all packages then exclude archived in JS (no negation index available)
+    const packages = await ctx.db.query("packages").take(args.limit);
 
-    return packages.map((pkg) => ({
-      _id: pkg._id,
-      name: pkg.name,
-    }));
+    return packages
+      .filter((pkg) => pkg.visibility !== "archived")
+      .map((pkg) => ({
+        _id: pkg._id,
+        name: pkg.name,
+      }));
   },
 });
 
@@ -3167,7 +3319,7 @@ export const _cleanupOldRefreshLogs = internalMutation({
       .query("refreshLogs")
       .withIndex("by_run_at")
       .order("desc")
-      .collect();
+      .take(1000);
 
     // Delete logs beyond the 30th
     const toDelete = logs.slice(30);
@@ -3214,6 +3366,48 @@ export const _setPackageRefreshError = internalMutation({
   },
 });
 
+// Combined mutation to update npm data + refresh timestamp in one transaction
+export const _updateNpmDataAndTimestamp = internalMutation({
+  args: {
+    packageId: v.id("packages"),
+    description: v.string(),
+    version: v.string(),
+    license: v.string(),
+    repositoryUrl: v.optional(v.string()),
+    homepageUrl: v.optional(v.string()),
+    unpackedSize: v.number(),
+    totalFiles: v.number(),
+    lastPublish: v.string(),
+    weeklyDownloads: v.number(),
+    collaborators: v.array(
+      v.object({
+        name: v.string(),
+        avatar: v.string(),
+      }),
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const maintainerNames = args.collaborators.map((c) => c.name).join(" ");
+    await ctx.db.patch("packages", args.packageId, {
+      description: args.description,
+      version: args.version,
+      license: args.license,
+      repositoryUrl: args.repositoryUrl,
+      homepageUrl: args.homepageUrl,
+      unpackedSize: args.unpackedSize,
+      totalFiles: args.totalFiles,
+      lastPublish: args.lastPublish,
+      weeklyDownloads: args.weeklyDownloads,
+      collaborators: args.collaborators,
+      maintainerNames,
+      lastRefreshedAt: Date.now(),
+      refreshError: undefined,
+    });
+    return null;
+  },
+});
+
 // Internal action: Process a batch of packages
 export const _refreshPackageBatch = internalAction({
   args: {
@@ -3228,128 +3422,88 @@ export const _refreshPackageBatch = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    let succeeded = 0;
-    let failed = 0;
-    const errors: {
-      packageId: Id<"packages">;
-      packageName: string;
-      error: string;
-    }[] = [];
+    const existingPkgsMap: Record<string, any> = await ctx.runQuery(
+      internal.packages._getPackagesByIds,
+      { packageIds: args.packages.map((p) => p._id) },
+    );
 
-    for (const pkg of args.packages) {
-      try {
-        // Get the full package data to preserve existing URLs
-        const existingPkg = await ctx.runQuery(internal.packages._getPackage, {
-          packageId: pkg._id,
-        });
-
-        // Fetch fresh data from npm
-        const packageData: any = await ctx.runAction(
-          api.packages.fetchNpmPackage,
-          {
-            packageName: pkg.name,
-          },
-        );
-
-        // Preserve existing repositoryUrl and homepageUrl if already set
-        const repositoryUrl =
-          existingPkg?.repositoryUrl || packageData.repositoryUrl;
-        const homepageUrl = existingPkg?.homepageUrl || packageData.homepageUrl;
-
-        // Update the package with fresh npm data (preserving URLs)
-        await ctx.runMutation(internal.packages._updateNpmData, {
-          packageId: pkg._id,
-          description: packageData.description,
-          version: packageData.version,
-          license: packageData.license,
-          repositoryUrl,
-          homepageUrl,
-          unpackedSize: packageData.unpackedSize,
-          totalFiles: packageData.totalFiles,
-          lastPublish: packageData.lastPublish,
-          weeklyDownloads: packageData.weeklyDownloads,
-          collaborators: packageData.collaborators,
-        });
-
-        // Update refresh timestamp and clear any previous error
-        await ctx.runMutation(
-          internal.packages._updatePackageRefreshTimestamp,
-          {
-            packageId: pkg._id,
-            clearError: true,
-          },
-        );
-
-        succeeded++;
-      } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-
-        // Set error on package
-        await ctx.runMutation(internal.packages._setPackageRefreshError, {
-          packageId: pkg._id,
-          error: errorMessage,
-        });
-
-        errors.push({
-          packageId: pkg._id,
-          packageName: pkg.name,
-          error: errorMessage,
-        });
-        failed++;
-      }
-    }
-
-    // Update the refresh log with batch results
-    await ctx.runMutation(internal.packages._updateRefreshLogBatch, {
-      logId: args.logId,
-      succeeded,
-      failed,
-      errors,
-    });
-
-    // If this is the last batch, finalize the log
-    if (args.isLastBatch) {
-      await ctx.runMutation(internal.packages._finalizeRefreshLog, {
-        logId: args.logId,
-        status: "completed",
-      });
-
-      // Cleanup old logs
-      await ctx.runMutation(internal.packages._cleanupOldRefreshLogs, {});
-    }
-
+    const results = await processRefreshBatch(ctx, args.packages, existingPkgsMap);
+    await finalizeRefreshBatch(ctx, args.logId, results, args.isLastBatch);
     return null;
   },
 });
+
+type RefreshBatchResult = {
+  succeeded: number;
+  failed: number;
+  errors: Array<{ packageId: Id<"packages">; packageName: string; error: string }>;
+};
+
+async function processRefreshBatch(
+  ctx: any,
+  packages: Array<{ _id: Id<"packages">; name: string }>,
+  existingPkgsMap: Record<string, any>,
+): Promise<RefreshBatchResult> {
+  let succeeded = 0;
+  let failed = 0;
+  const errors: RefreshBatchResult["errors"] = [];
+
+  for (const pkg of packages) {
+    try {
+      const existingPkg = existingPkgsMap[pkg._id];
+      await fetchAndUpdateNpmData(ctx, pkg._id, { ...existingPkg, name: pkg.name });
+      succeeded++;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      await ctx.runMutation(internal.packages._setPackageRefreshError, {
+        packageId: pkg._id,
+        error: errorMessage,
+      });
+      errors.push({ packageId: pkg._id, packageName: pkg.name, error: errorMessage });
+      failed++;
+    }
+  }
+
+  return { succeeded, failed, errors };
+}
+
+async function finalizeRefreshBatch(
+  ctx: any,
+  logId: Id<"refreshLogs">,
+  results: RefreshBatchResult,
+  isLastBatch: boolean,
+) {
+  await ctx.runMutation(internal.packages._updateRefreshLogBatch, {
+    logId,
+    succeeded: results.succeeded,
+    failed: results.failed,
+    errors: results.errors,
+  });
+
+  if (isLastBatch) {
+    await ctx.runMutation(internal.packages._finalizeRefreshLog, {
+      logId,
+      status: "completed",
+    });
+    await ctx.runMutation(internal.packages._cleanupOldRefreshLogs, {});
+  }
+}
 
 // Internal action: Scheduled refresh check (called by cron daily)
 export const scheduledRefreshCheck = internalAction({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    // Check if auto-refresh is enabled
-    const enabledSetting = await ctx.runQuery(
-      internal.packages._getAutoRefreshEnabled,
-    );
-    if (!enabledSetting) {
+    const config = await ctx.runQuery(internal.packages._getRefreshConfig);
+    if (!config.enabled) {
       console.log("Auto-refresh is disabled, skipping scheduled refresh");
       return null;
     }
 
-    // Get the interval setting
-    const intervalDays = await ctx.runQuery(
-      internal.packages._getRefreshIntervalDays,
-    );
-    const staleThreshold = Date.now() - intervalDays * 24 * 60 * 60 * 1000;
-
-    // Get stale packages (max 100 per run)
+    const staleThreshold = Date.now() - config.intervalDays * 24 * 60 * 60 * 1000;
     const stalePackages = await ctx.runQuery(
       internal.packages._getStalePackages,
-      {
-        staleThreshold,
-        limit: 100,
-      },
+      { staleThreshold, limit: 100 },
     );
 
     if (stalePackages.length === 0) {
@@ -3358,41 +3512,39 @@ export const scheduledRefreshCheck = internalAction({
     }
 
     console.log(`Found ${stalePackages.length} stale packages to refresh`);
-
-    // Create refresh log
     const logId = await ctx.runMutation(internal.packages._createRefreshLog, {
       packagesProcessed: stalePackages.length,
       isManual: false,
     });
 
-    // Batch packages into groups of 10
-    const batchSize = 10;
-    const batches: (typeof stalePackages)[] = [];
-    for (let i = 0; i < stalePackages.length; i += batchSize) {
-      batches.push(stalePackages.slice(i, i + batchSize));
-    }
-
-    // Schedule each batch with staggered delays (5 seconds apart)
-    for (let i = 0; i < batches.length; i++) {
-      const delay = i * 5000; // 5 seconds between batches
-      const isLastBatch = i === batches.length - 1;
-
-      await ctx.scheduler.runAfter(
-        delay,
-        internal.packages._refreshPackageBatch,
-        {
-          packages: batches[i],
-          logId,
-          isLastBatch,
-        },
-      );
-    }
-
+    await scheduleRefreshBatches(ctx, stalePackages, logId);
     return null;
   },
 });
 
-// Internal query: Get auto-refresh enabled setting
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
+async function scheduleRefreshBatches(ctx: any, packages: any[], logId: Id<"refreshLogs">) {
+  const batches = chunkArray(packages, 10);
+  for (let i = 0; i < batches.length; i++) {
+    await ctx.scheduler.runAfter(
+      i * 5000,
+      internal.packages._refreshPackageBatch,
+      {
+        packages: batches[i],
+        logId,
+        isLastBatch: i === batches.length - 1,
+      },
+    );
+  }
+}
+
 export const _getAutoRefreshEnabled = internalQuery({
   args: {},
   returns: v.boolean(),
@@ -3405,7 +3557,6 @@ export const _getAutoRefreshEnabled = internalQuery({
   },
 });
 
-// Internal query: Get refresh interval days setting
 export const _getRefreshIntervalDays = internalQuery({
   args: {},
   returns: v.number(),
@@ -3418,7 +3569,45 @@ export const _getRefreshIntervalDays = internalQuery({
   },
 });
 
+// Combined query to get refresh settings + stale packages in one call
+export const _getRefreshConfig = internalQuery({
+  args: {},
+  returns: v.object({
+    enabled: v.boolean(),
+    intervalDays: v.number(),
+  }),
+  handler: async (ctx) => {
+    const enabledSetting = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q) => q.eq("key", "autoRefreshEnabled"))
+      .first();
+    const intervalSetting = await ctx.db
+      .query("adminSettingsNumeric")
+      .withIndex("by_key", (q) => q.eq("key", "refreshIntervalDays"))
+      .first();
+    return {
+      enabled: enabledSetting?.value || false,
+      intervalDays: intervalSetting?.value || 3,
+    };
+  },
+});
+
 // Action: Manual "Refresh Approved" trigger (bypasses staleness check, approved packages only)
+async function createLogAndScheduleRefresh(
+  ctx: any,
+  packages: { _id: Id<"packages">; name: string }[],
+): Promise<{ packagesQueued: number; logId: Id<"refreshLogs"> | null }> {
+  if (packages.length === 0) {
+    return { packagesQueued: 0, logId: null };
+  }
+  const logId: Id<"refreshLogs"> = await ctx.runMutation(
+    internal.packages._createRefreshLog,
+    { packagesProcessed: packages.length, isManual: true },
+  );
+  await scheduleRefreshBatches(ctx, packages, logId);
+  return { packagesQueued: packages.length, logId };
+}
+
 export const triggerManualRefreshAll = action({
   args: {},
   returns: v.object({
@@ -3429,58 +3618,14 @@ export const triggerManualRefreshAll = action({
     ctx,
   ): Promise<{ packagesQueued: number; logId: Id<"refreshLogs"> | null }> => {
     await requireAdminIdentity(ctx);
-
-    // Get all approved packages (max 100)
     const packages: { _id: Id<"packages">; name: string }[] =
       await ctx.runQuery(internal.packages._getAllApprovedPackages, {
         limit: 100,
       });
-
-    // Return gracefully if no approved packages found
-    if (packages.length === 0) {
-      return { packagesQueued: 0, logId: null };
-    }
-
-    // Create refresh log
-    const logId: Id<"refreshLogs"> = await ctx.runMutation(
-      internal.packages._createRefreshLog,
-      {
-        packagesProcessed: packages.length,
-        isManual: true,
-      },
-    );
-
-    // Batch packages into groups of 10
-    const batchSize = 10;
-    const batches: (typeof packages)[] = [];
-    for (let i = 0; i < packages.length; i += batchSize) {
-      batches.push(packages.slice(i, i + batchSize));
-    }
-
-    // Schedule each batch with staggered delays (5 seconds apart)
-    for (let i = 0; i < batches.length; i++) {
-      const delay = i * 5000; // 5 seconds between batches
-      const isLastBatch = i === batches.length - 1;
-
-      await ctx.scheduler.runAfter(
-        delay,
-        internal.packages._refreshPackageBatch,
-        {
-          packages: batches[i],
-          logId,
-          isLastBatch,
-        },
-      );
-    }
-
-    return {
-      packagesQueued: packages.length,
-      logId,
-    };
+    return await createLogAndScheduleRefresh(ctx, packages);
   },
 });
 
-// Action: Manual "Refresh All Packages" trigger (all packages regardless of status)
 export const triggerManualRefreshAllPackages = action({
   args: {},
   returns: v.object({
@@ -3491,54 +3636,11 @@ export const triggerManualRefreshAllPackages = action({
     ctx,
   ): Promise<{ packagesQueued: number; logId: Id<"refreshLogs"> | null }> => {
     await requireAdminIdentity(ctx);
-
-    // Get all packages regardless of status (max 100)
     const packages: { _id: Id<"packages">; name: string }[] =
       await ctx.runQuery(internal.packages._getAllPackagesForRefresh, {
         limit: 100,
       });
-
-    // Return gracefully if no packages found
-    if (packages.length === 0) {
-      return { packagesQueued: 0, logId: null };
-    }
-
-    // Create refresh log
-    const logId: Id<"refreshLogs"> = await ctx.runMutation(
-      internal.packages._createRefreshLog,
-      {
-        packagesProcessed: packages.length,
-        isManual: true,
-      },
-    );
-
-    // Batch packages into groups of 10
-    const batchSize = 10;
-    const batches: (typeof packages)[] = [];
-    for (let i = 0; i < packages.length; i += batchSize) {
-      batches.push(packages.slice(i, i + batchSize));
-    }
-
-    // Schedule each batch with staggered delays (5 seconds apart)
-    for (let i = 0; i < batches.length; i++) {
-      const delay = i * 5000; // 5 seconds between batches
-      const isLastBatch = i === batches.length - 1;
-
-      await ctx.scheduler.runAfter(
-        delay,
-        internal.packages._refreshPackageBatch,
-        {
-          packages: batches[i],
-          logId,
-          isLastBatch,
-        },
-      );
-    }
-
-    return {
-      packagesQueued: packages.length,
-      logId,
-    };
+    return await createLogAndScheduleRefresh(ctx, packages);
   },
 });
 
@@ -3570,6 +3672,74 @@ const directoryCardValidator = v.object({
 });
 
 // Public query: List approved+visible components for directory page
+function sortPackages(
+  packages: any[],
+  sortBy: string,
+  ratingMap?: Record<string, { sum: number; count: number }>,
+) {
+  if (sortBy === "newest") {
+    packages.sort(
+      (a, b) =>
+        (b.approvedAt ?? b.submittedAt ?? b._creationTime) -
+        (a.approvedAt ?? a.submittedAt ?? a._creationTime),
+    );
+  } else if (sortBy === "downloads") {
+    packages.sort((a, b) => b.weeklyDownloads - a.weeklyDownloads);
+  } else if (sortBy === "updated") {
+    packages.sort(
+      (a, b) =>
+        new Date(b.lastPublish).getTime() - new Date(a.lastPublish).getTime(),
+    );
+  } else if (sortBy === "rating" && ratingMap) {
+    packages.sort((a, b) => {
+      const aData = ratingMap[a._id as string];
+      const bData = ratingMap[b._id as string];
+      const aAvg = aData ? aData.sum / aData.count : 0;
+      const bAvg = bData ? bData.sum / bData.count : 0;
+      if (bAvg === aAvg) {
+        return (bData?.count || 0) - (aData?.count || 0);
+      }
+      return bAvg - aAvg;
+    });
+  } else if (sortBy === "verified") {
+    packages.sort((a, b) => {
+      const verifiedDelta =
+        Number(Boolean(b.convexVerified)) - Number(Boolean(a.convexVerified));
+      if (verifiedDelta !== 0) return verifiedDelta;
+      return (
+        (b.approvedAt ?? b.submittedAt ?? b._creationTime) -
+        (a.approvedAt ?? a.submittedAt ?? a._creationTime)
+      );
+    });
+  }
+}
+
+function toDirectoryCard(pkg: any) {
+  return {
+    _id: pkg._id,
+    _creationTime: pkg._creationTime,
+    name: pkg.name || "",
+    componentName: pkg.componentName,
+    description: pkg.description || "",
+    slug: pkg.slug,
+    category: pkg.category,
+    shortDescription: pkg.shortDescription,
+    thumbnailUrl: pkg.thumbnailUrl,
+    hideThumbnailInCategory: pkg.hideThumbnailInCategory,
+    convexVerified: pkg.convexVerified,
+    communitySubmitted: pkg.communitySubmitted,
+    authorUsername: pkg.authorUsername,
+    authorAvatar: pkg.authorAvatar,
+    weeklyDownloads: pkg.weeklyDownloads ?? 0,
+    repositoryUrl: pkg.repositoryUrl,
+    npmUrl: pkg.npmUrl || `https://www.npmjs.com/package/${pkg.name || ""}`,
+    installCommand: pkg.installCommand || `npm install ${pkg.name || ""}`,
+    featured: pkg.featured,
+    tags: pkg.tags,
+    demoUrl: pkg.demoUrl,
+  };
+}
+
 export const listApprovedComponents = query({
   args: {
     category: v.optional(v.string()),
@@ -3586,15 +3756,11 @@ export const listApprovedComponents = query({
   returns: v.array(directoryCardValidator),
   handler: async (ctx, args) => {
     let packages;
-
-    // Use category index when filtering by category
     if (args.category) {
       packages = await ctx.db
         .query("packages")
-        .withIndex("by_category", (q) => q.eq("category", args.category))
-        .collect();
-      // Keep category-filtered results aligned with global directory visibility/status rules.
-      // Also exclude packages marked for deletion.
+        .withIndex("by_category_and_visibility", (q) => q.eq("category", args.category))
+        .take(1000);
       packages = packages.filter(
         (pkg) =>
           pkg.reviewStatus === "approved" &&
@@ -3602,12 +3768,10 @@ export const listApprovedComponents = query({
           !pkg.markedForDeletion,
       );
     } else {
-      // Get all approved+visible packages
       packages = await ctx.db
         .query("packages")
-        .withIndex("by_review_status", (q) => q.eq("reviewStatus", "approved"))
-        .collect();
-      // Exclude packages marked for deletion
+        .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+        .take(1000);
       packages = packages.filter(
         (pkg) =>
           (!pkg.visibility || pkg.visibility === "visible") &&
@@ -3615,82 +3779,20 @@ export const listApprovedComponents = query({
       );
     }
 
-    // Sort
     const sortBy = args.sortBy || "newest";
-    if (sortBy === "newest") {
-      packages.sort(
-        (a, b) =>
-          (b.approvedAt ?? b.submittedAt ?? b._creationTime) -
-          (a.approvedAt ?? a.submittedAt ?? a._creationTime),
-      );
-    } else if (sortBy === "downloads") {
-      packages.sort((a, b) => b.weeklyDownloads - a.weeklyDownloads);
-    } else if (sortBy === "updated") {
-      packages.sort(
-        (a, b) =>
-          new Date(b.lastPublish).getTime() -
-          new Date(a.lastPublish).getTime(),
-      );
-    } else if (sortBy === "rating") {
-      // Fetch all ratings and compute average per package
-      const allRatings = await ctx.db.query("componentRatings").collect();
-      const ratingMap: Record<string, { sum: number; count: number }> = {};
+    let ratingMap: Record<string, { sum: number; count: number }> | undefined;
+    if (sortBy === "rating") {
+      const allRatings = await ctx.db.query("componentRatings").take(1000);
+      ratingMap = {};
       for (const r of allRatings) {
         const pid = r.packageId as string;
-        if (!ratingMap[pid]) {
-          ratingMap[pid] = { sum: 0, count: 0 };
-        }
+        if (!ratingMap[pid]) ratingMap[pid] = { sum: 0, count: 0 };
         ratingMap[pid].sum += r.rating;
         ratingMap[pid].count += 1;
       }
-      // Sort by average rating descending (unrated packages go last)
-      packages.sort((a, b) => {
-        const aData = ratingMap[a._id as string];
-        const bData = ratingMap[b._id as string];
-        const aAvg = aData ? aData.sum / aData.count : 0;
-        const bAvg = bData ? bData.sum / bData.count : 0;
-        // If averages are equal, sort by rating count (more ratings = higher confidence)
-        if (bAvg === aAvg) {
-          return (bData?.count || 0) - (aData?.count || 0);
-        }
-        return bAvg - aAvg;
-      });
-    } else if (sortBy === "verified") {
-      packages.sort((a, b) => {
-        const verifiedDelta =
-          Number(Boolean(b.convexVerified)) - Number(Boolean(a.convexVerified));
-        if (verifiedDelta !== 0) return verifiedDelta;
-        return (
-          (b.approvedAt ?? b.submittedAt ?? b._creationTime) -
-          (a.approvedAt ?? a.submittedAt ?? a._creationTime)
-        );
-      });
     }
-
-    // Return lightweight card data
-    return packages.map((pkg) => ({
-      _id: pkg._id,
-      _creationTime: pkg._creationTime,
-      name: pkg.name || "",
-      componentName: pkg.componentName,
-      description: pkg.description || "",
-      slug: pkg.slug,
-      category: pkg.category,
-      shortDescription: pkg.shortDescription,
-      thumbnailUrl: pkg.thumbnailUrl,
-      hideThumbnailInCategory: pkg.hideThumbnailInCategory,
-      convexVerified: pkg.convexVerified,
-      communitySubmitted: pkg.communitySubmitted,
-      authorUsername: pkg.authorUsername,
-      authorAvatar: pkg.authorAvatar,
-      weeklyDownloads: pkg.weeklyDownloads ?? 0,
-      repositoryUrl: pkg.repositoryUrl,
-      npmUrl: pkg.npmUrl || `https://www.npmjs.com/package/${pkg.name || ""}`,
-      installCommand: pkg.installCommand || `npm install ${pkg.name || ""}`,
-      featured: pkg.featured,
-      tags: pkg.tags,
-      demoUrl: pkg.demoUrl,
-    }));
+    sortPackages(packages, sortBy, ratingMap);
+    return packages.map(toDirectoryCard);
   },
 });
 
@@ -3741,6 +3843,40 @@ const relatedCardValidator = v.object({
 
 // Public query: Get up to 3 related components for a detail page
 // Matching strategy: same category > shared tags > highest downloads
+function scoreAndRankRelated(pkg: any, candidates: any[], limit: number) {
+  const pkgTags = new Set((pkg.tags ?? []).map((t: string) => t.toLowerCase()));
+  const scored = candidates.map((c) => {
+    let score = 0;
+    if (pkg.category && c.category === pkg.category) score += 10;
+    const cTags = (c.tags ?? []).map((t: string) => t.toLowerCase());
+    for (const t of cTags) {
+      if (pkgTags.has(t)) score += 3;
+    }
+    score += Math.min(c.weeklyDownloads / 10000, 2);
+    return { pkg: c, score };
+  });
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return b.pkg.weeklyDownloads - a.pkg.weeklyDownloads;
+  });
+  return scored.slice(0, limit).map((s) => ({
+    _id: s.pkg._id,
+    name: s.pkg.name || "",
+    componentName: s.pkg.componentName,
+    slug: s.pkg.slug,
+    shortDescription: s.pkg.shortDescription,
+    description: s.pkg.description || "",
+    category: s.pkg.category,
+    authorUsername: s.pkg.authorUsername,
+    authorAvatar: s.pkg.authorAvatar,
+    weeklyDownloads: s.pkg.weeklyDownloads ?? 0,
+    convexVerified: s.pkg.convexVerified,
+    communitySubmitted: s.pkg.communitySubmitted,
+    npmUrl: s.pkg.npmUrl || `https://www.npmjs.com/package/${s.pkg.name || ""}`,
+    repositoryUrl: s.pkg.repositoryUrl,
+  }));
+}
+
 export const getRelatedComponents = query({
   args: { packageId: v.id("packages") },
   returns: v.array(relatedCardValidator),
@@ -3748,19 +3884,16 @@ export const getRelatedComponents = query({
     const pkg = await ctx.db.get(args.packageId);
     if (!pkg) return [];
 
-    // Check admin setting
     const showRelated = await ctx.db
       .query("adminSettings")
       .withIndex("by_key", (q) => q.eq("key", "showRelatedOnDetailPage"))
       .first();
-    // Default to true when setting doesn't exist
     if (showRelated && !showRelated.value) return [];
 
-    // Get all approved+visible packages, excluding self
     const approved = await ctx.db
       .query("packages")
-      .withIndex("by_review_status", (q) => q.eq("reviewStatus", "approved"))
-      .collect();
+      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+      .take(1000);
 
     const candidates = approved.filter(
       (c) =>
@@ -3768,48 +3901,9 @@ export const getRelatedComponents = query({
         (!c.visibility || c.visibility === "visible") &&
         !c.markedForDeletion,
     );
-
     if (candidates.length === 0) return [];
 
-    const pkgTags = new Set((pkg.tags ?? []).map((t) => t.toLowerCase()));
-
-    // Score each candidate for relatedness
-    const scored = candidates.map((c) => {
-      let score = 0;
-      // Same category is the strongest signal
-      if (pkg.category && c.category === pkg.category) score += 10;
-      // Shared tags
-      const cTags = (c.tags ?? []).map((t) => t.toLowerCase());
-      for (const t of cTags) {
-        if (pkgTags.has(t)) score += 3;
-      }
-      // Small boost for higher downloads (normalized)
-      score += Math.min(c.weeklyDownloads / 10000, 2);
-      return { pkg: c, score };
-    });
-
-    // Sort by score desc, then downloads desc as tiebreaker
-    scored.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return b.pkg.weeklyDownloads - a.pkg.weeklyDownloads;
-    });
-
-    return scored.slice(0, 3).map((s) => ({
-      _id: s.pkg._id,
-      name: s.pkg.name || "",
-      componentName: s.pkg.componentName,
-      slug: s.pkg.slug,
-      shortDescription: s.pkg.shortDescription,
-      description: s.pkg.description || "",
-      category: s.pkg.category,
-      authorUsername: s.pkg.authorUsername,
-      authorAvatar: s.pkg.authorAvatar,
-      weeklyDownloads: s.pkg.weeklyDownloads ?? 0,
-      convexVerified: s.pkg.convexVerified,
-      communitySubmitted: s.pkg.communitySubmitted,
-      npmUrl: s.pkg.npmUrl || `https://www.npmjs.com/package/${s.pkg.name || ""}`,
-      repositoryUrl: s.pkg.repositoryUrl,
-    }));
+    return scoreAndRankRelated(pkg, candidates, 3);
   },
 });
 
@@ -3845,83 +3939,74 @@ const userSubmissionValidator = v.object({
 
 // Public query: Get submissions by the authenticated user's email
 // Returns packages submitted by the current user for profile page
+function mergeAndDedupePackages(primary: any[], additional: any[]) {
+  const seenIds = new Set(primary.map((p) => p._id));
+  const merged = [...primary];
+  for (const pkg of additional) {
+    if (!seenIds.has(pkg._id)) merged.push(pkg);
+  }
+  merged.sort((a, b) => b.submittedAt - a.submittedAt);
+  return merged;
+}
+
+function toSubmissionCard(pkg: any, unreadCount: number) {
+  return {
+    _id: pkg._id,
+    _creationTime: pkg._creationTime,
+    name: pkg.name,
+    componentName: pkg.componentName,
+    slug: pkg.slug,
+    reviewStatus: pkg.reviewStatus,
+    visibility: pkg.visibility,
+    submittedAt: pkg.submittedAt,
+    thumbnailUrl: pkg.thumbnailUrl,
+    shortDescription: pkg.shortDescription,
+    category: pkg.category,
+    unreadAdminReplies: unreadCount,
+    markedForDeletion: pkg.markedForDeletion,
+    markedForDeletionAt: pkg.markedForDeletionAt,
+    submittedShortDescription: pkg.submittedShortDescription,
+    submittedLongDescription: pkg.submittedLongDescription,
+  };
+}
+
 export const getMySubmissions = query({
   args: {},
   returns: v.array(userSubmissionValidator),
   handler: async (ctx) => {
-    // Get authenticated user email from database
     const userEmail = await getCurrentUserEmail(ctx);
-    if (!userEmail) {
-      return [];
-    }
+    if (!userEmail) return [];
 
-    // Query packages by submitter email
     const packagesBySubmitter = await ctx.db
       .query("packages")
       .withIndex("by_submitter_email", (q) => q.eq("submitterEmail", userEmail))
       .order("desc")
-      .collect();
+      .take(1000);
 
-    // Also find packages where user is in additionalEmails
-    // Since there's no index on additionalEmails, we do a filtered scan
-    // This is acceptable because the dataset is limited and this is a user-specific query
-    const allPackages = await ctx.db.query("packages").collect();
+    const allPackages = await ctx.db.query("packages").take(1000);
     const packagesByAdditionalEmail = allPackages.filter(
       (pkg) =>
         pkg.additionalEmails?.includes(userEmail) &&
         pkg.submitterEmail !== userEmail,
     );
 
-    // Merge and dedupe
-    const seenIds = new Set(packagesBySubmitter.map((p) => p._id));
-    const packages = [...packagesBySubmitter];
-    for (const pkg of packagesByAdditionalEmail) {
-      if (!seenIds.has(pkg._id)) {
-        packages.push(pkg);
-      }
-    }
+    const packages = mergeAndDedupePackages(packagesBySubmitter, packagesByAdditionalEmail);
 
-    // Sort by submittedAt descending
-    packages.sort((a, b) => b.submittedAt - a.submittedAt);
-
-    // Calculate unread admin replies for each package
-    const packagesWithUnread = await Promise.all(
+    return await Promise.all(
       packages.map(async (pkg) => {
         const comments = await ctx.db
           .query("packageComments")
-          .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
-          .collect();
-
-        // Count unread admin messages in active thread
+          .withIndex("by_package_and_created", (q) => q.eq("packageId", pkg._id))
+          .take(1000);
         const unreadCount = comments.filter(
-          (comment) =>
-            comment.authorEmail.endsWith("@convex.dev") &&
-            (comment.status === undefined || comment.status === "active") &&
-            comment.userHasRead === false,
+          (c) =>
+            c.authorEmail.endsWith("@convex.dev") &&
+            (c.status === undefined || c.status === "active") &&
+            c.userHasRead === false,
         ).length;
-
-        return {
-          _id: pkg._id,
-          _creationTime: pkg._creationTime,
-          name: pkg.name,
-          componentName: pkg.componentName,
-          slug: pkg.slug,
-          reviewStatus: pkg.reviewStatus,
-          visibility: pkg.visibility,
-          submittedAt: pkg.submittedAt,
-          thumbnailUrl: pkg.thumbnailUrl,
-          shortDescription: pkg.shortDescription,
-          category: pkg.category,
-          unreadAdminReplies: unreadCount,
-          markedForDeletion: pkg.markedForDeletion,
-          markedForDeletionAt: pkg.markedForDeletionAt,
-          submittedShortDescription: pkg.submittedShortDescription,
-          submittedLongDescription: pkg.submittedLongDescription,
-        };
+        return toSubmissionCard(pkg, unreadCount);
       }),
     );
-
-    return packagesWithUnread;
   },
 });
 
@@ -3937,16 +4022,16 @@ export const requestSubmissionRefresh = mutation({
     const identity = await ctx.auth.getUserIdentity();
     const userEmail = identity?.email ?? null;
     if (!userEmail) {
-      throw new Error("Authentication required");
+      throw new ConvexError("Authentication required");
     }
 
     // Verify the package belongs to this user
     const pkg = await ctx.db.get(args.packageId);
     if (!pkg) {
-      throw new Error("Package not found");
+      throw new ConvexError("Package not found");
     }
     if (!userOwnsPackage(pkg, userEmail)) {
-      throw new Error("You can only request refresh for your own submissions");
+      throw new ConvexError("You can only request refresh for your own submissions");
     }
 
     // Create a private user<->admin message
@@ -4003,7 +4088,7 @@ export const getMyPackageNotes = query({
         q.eq("packageId", args.packageId),
       )
       .order("asc")
-      .collect();
+      .take(1000);
 
     const visibleComments = args.includeInactive
       ? comments
@@ -4040,8 +4125,8 @@ export const getUnreadAdminReplyCount = query({
 
     const comments = await ctx.db
       .query("packageComments")
-      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .take(1000);
 
     return comments.filter(
       (comment) =>
@@ -4059,19 +4144,19 @@ export const markPackageNotesAsRead = mutation({
   handler: async (ctx, args) => {
     const userEmail = await getCurrentUserEmail(ctx);
     if (!userEmail) {
-      throw new Error("Authentication required");
+      throw new ConvexError("Authentication required");
     }
 
     // Verify package belongs to user
     const pkg = await ctx.db.get(args.packageId);
     if (!pkg || !userOwnsPackage(pkg, userEmail)) {
-      throw new Error("You can only access notes for your own submissions");
+      throw new ConvexError("You can only access notes for your own submissions");
     }
 
     const comments = await ctx.db
       .query("packageComments")
-      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .take(1000);
 
     // Mark unread admin messages as read
     const updates = comments
@@ -4099,16 +4184,16 @@ export const setMySubmissionVisibility = mutation({
   handler: async (ctx, args) => {
     const userEmail = await getCurrentUserEmail(ctx);
     if (!userEmail) {
-      throw new Error("Authentication required");
+      throw new ConvexError("Authentication required");
     }
 
     // Verify package belongs to user
     const pkg = await ctx.db.get(args.packageId);
     if (!pkg) {
-      throw new Error("Package not found");
+      throw new ConvexError("Package not found");
     }
     if (!userOwnsPackage(pkg, userEmail)) {
-      throw new Error("You can only modify your own submissions");
+      throw new ConvexError("You can only modify your own submissions");
     }
 
     // Users can only toggle between visible and hidden (not archived)
@@ -4127,16 +4212,16 @@ export const requestDeleteMySubmission = mutation({
   handler: async (ctx, args) => {
     const userEmail = await getCurrentUserEmail(ctx);
     if (!userEmail) {
-      throw new Error("Authentication required");
+      throw new ConvexError("Authentication required");
     }
 
     // Verify package belongs to user
     const pkg = await ctx.db.get(args.packageId);
     if (!pkg) {
-      throw new Error("Package not found");
+      throw new ConvexError("Package not found");
     }
     if (!userOwnsPackage(pkg, userEmail)) {
-      throw new Error("You can only delete your own submissions");
+      throw new ConvexError("You can only delete your own submissions");
     }
 
     // Mark for deletion instead of immediate delete
@@ -4161,15 +4246,15 @@ export const cancelDeleteMySubmission = mutation({
   handler: async (ctx, args) => {
     const userEmail = await getCurrentUserEmail(ctx);
     if (!userEmail) {
-      throw new Error("Authentication required");
+      throw new ConvexError("Authentication required");
     }
 
     const pkg = await ctx.db.get(args.packageId);
     if (!pkg) {
-      throw new Error("Package not found");
+      throw new ConvexError("Package not found");
     }
     if (!userOwnsPackage(pkg, userEmail)) {
-      throw new Error("You can only manage your own submissions");
+      throw new ConvexError("You can only manage your own submissions");
     }
 
     // Remove deletion mark
@@ -4196,36 +4281,36 @@ export const _permanentlyDeletePackage = internalMutation({
     // Delete associated notes
     const notes = await ctx.db
       .query("packageNotes")
-      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .take(10000);
     await Promise.all(notes.map((note) => ctx.db.delete(note._id)));
 
     // Delete associated comments
     const comments = await ctx.db
       .query("packageComments")
-      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .take(10000);
     await Promise.all(comments.map((comment) => ctx.db.delete(comment._id)));
 
     // Delete associated ratings
     const ratings = await ctx.db
       .query("componentRatings")
-      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .withIndex("by_package_and_session", (q) => q.eq("packageId", args.packageId))
+      .take(10000);
     await Promise.all(ratings.map((rating) => ctx.db.delete(rating._id)));
 
     // Delete thumbnail jobs
     const jobs = await ctx.db
       .query("thumbnailJobs")
-      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .take(10000);
     await Promise.all(jobs.map((job) => ctx.db.delete(job._id)));
 
     // Delete badge fetches
     const fetches = await ctx.db
       .query("badgeFetches")
       .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .take(10000);
     await Promise.all(fetches.map((fetch) => ctx.db.delete(fetch._id)));
 
     // Delete the package itself
@@ -4246,42 +4331,42 @@ export const adminPermanentlyDeletePackage = mutation({
 
     const pkg = await ctx.db.get(args.packageId);
     if (!pkg) {
-      throw new Error("Package not found");
+      throw new ConvexError("Package not found");
     }
 
     // Delete associated notes
     const notes = await ctx.db
       .query("packageNotes")
-      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .take(10000);
     await Promise.all(notes.map((note) => ctx.db.delete(note._id)));
 
     // Delete associated comments
     const comments = await ctx.db
       .query("packageComments")
-      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .take(10000);
     await Promise.all(comments.map((comment) => ctx.db.delete(comment._id)));
 
     // Delete associated ratings
     const ratings = await ctx.db
       .query("componentRatings")
-      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .withIndex("by_package_and_session", (q) => q.eq("packageId", args.packageId))
+      .take(10000);
     await Promise.all(ratings.map((rating) => ctx.db.delete(rating._id)));
 
     // Delete thumbnail jobs
     const jobs = await ctx.db
       .query("thumbnailJobs")
-      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .take(10000);
     await Promise.all(jobs.map((job) => ctx.db.delete(job._id)));
 
     // Delete badge fetches
     const fetches = await ctx.db
       .query("badgeFetches")
       .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .take(10000);
     await Promise.all(fetches.map((fetch) => ctx.db.delete(fetch._id)));
 
     // Delete the package itself
@@ -4313,7 +4398,7 @@ export const getPackagesMarkedForDeletion = query({
     const packages = await ctx.db
       .query("packages")
       .withIndex("by_marked_for_deletion", (q) => q.eq("markedForDeletion", true))
-      .collect();
+      .take(1000);
 
     return packages.map((pkg) => ({
       _id: pkg._id,
@@ -4390,75 +4475,52 @@ export const updateDeletionCleanupSetting = mutation({
 });
 
 // Internal action: Scheduled cleanup of packages marked for deletion
+async function deletePackageAndRelatedData(ctx: any, packageId: Id<"packages">) {
+  const tables: Array<{ table: string; index: string; field: string }> = [
+    { table: "packageNotes", index: "by_package_and_created", field: "packageId" },
+    { table: "packageComments", index: "by_package_and_created", field: "packageId" },
+    { table: "componentRatings", index: "by_package_and_session", field: "packageId" },
+    { table: "thumbnailJobs", index: "by_package_and_created", field: "packageId" },
+    { table: "badgeFetches", index: "by_package", field: "packageId" },
+  ];
+  for (const { table, index } of tables) {
+    const rows = await ctx.db
+      .query(table)
+      .withIndex(index, (q: any) => q.eq("packageId", packageId))
+      .take(10000);
+    await Promise.all(rows.map((r: any) => ctx.db.delete(r._id)));
+  }
+  await ctx.db.delete(packageId);
+}
+
 export const scheduledDeletionCleanup = internalMutation({
   args: {},
   returns: v.null(),
   handler: async (ctx) => {
-    // Check if auto-delete is enabled
     const autoDeleteSetting = await ctx.db
       .query("adminSettings")
       .withIndex("by_key", (q) => q.eq("key", "autoDeleteMarkedPackages"))
       .unique();
+    if (!autoDeleteSetting?.value) return null;
 
-    if (!autoDeleteSetting?.value) {
-      return null;
-    }
-
-    // Get interval setting
     const intervalSetting = await ctx.db
       .query("adminSettingsNumeric")
       .withIndex("by_key", (q) => q.eq("key", "deleteIntervalDays"))
       .unique();
-
     const intervalDays = intervalSetting?.value ?? 7;
     const cutoffTime = Date.now() - intervalDays * 24 * 60 * 60 * 1000;
 
-    // Get packages marked for deletion that are past the waiting period
     const packagesToDelete = await ctx.db
       .query("packages")
       .withIndex("by_marked_for_deletion", (q) => q.eq("markedForDeletion", true))
-      .collect();
-
-    const eligiblePackages = packagesToDelete.filter(
-      (pkg) => pkg.markedForDeletionAt && pkg.markedForDeletionAt < cutoffTime
+      .take(10000);
+    const eligible = packagesToDelete.filter(
+      (pkg) => pkg.markedForDeletionAt && pkg.markedForDeletionAt < cutoffTime,
     );
 
-    // Delete each eligible package
-    for (const pkg of eligiblePackages) {
-      // Delete associated data
-      const notes = await ctx.db
-        .query("packageNotes")
-        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
-        .collect();
-      await Promise.all(notes.map((note) => ctx.db.delete(note._id)));
-
-      const comments = await ctx.db
-        .query("packageComments")
-        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
-        .collect();
-      await Promise.all(comments.map((comment) => ctx.db.delete(comment._id)));
-
-      const ratings = await ctx.db
-        .query("componentRatings")
-        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
-        .collect();
-      await Promise.all(ratings.map((rating) => ctx.db.delete(rating._id)));
-
-      const jobs = await ctx.db
-        .query("thumbnailJobs")
-        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
-        .collect();
-      await Promise.all(jobs.map((job) => ctx.db.delete(job._id)));
-
-      const fetches = await ctx.db
-        .query("badgeFetches")
-        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
-        .collect();
-      await Promise.all(fetches.map((fetch) => ctx.db.delete(fetch._id)));
-
-      await ctx.db.delete(pkg._id);
+    for (const pkg of eligible) {
+      await deletePackageAndRelatedData(ctx, pkg._id);
     }
-
     return null;
   },
 });
@@ -4470,25 +4532,25 @@ export const deleteMyAccount = mutation({
   handler: async (ctx) => {
     const userEmail = await getCurrentUserEmail(ctx);
     if (!userEmail) {
-      throw new Error("Authentication required");
+      throw new ConvexError("Authentication required");
     }
 
     // Get all packages owned by user (not marked for deletion)
     const userPackages = await ctx.db
       .query("packages")
       .withIndex("by_submitter_email", (q) => q.eq("submitterEmail", userEmail))
-      .collect();
+      .take(10000);
 
     // Check if user has any active submissions (not marked for deletion)
     const activeSubmissions = userPackages.filter((pkg) => !pkg.markedForDeletion);
     if (activeSubmissions.length > 0) {
-      throw new Error(
+      throw new ConvexError(
         `You must delete all your components before deleting your account. You have ${activeSubmissions.length} active submission(s).`
       );
     }
 
     // Remove user from additionalEmails on packages they don't own
-    const allPackages = await ctx.db.query("packages").collect();
+    const allPackages = await ctx.db.query("packages").take(10000);
     const additionalEmailPackages = allPackages.filter(
       (pkg) =>
         pkg.additionalEmails?.includes(userEmail) &&
@@ -4512,6 +4574,48 @@ export const deleteMyAccount = mutation({
 });
 
 // Mutation: User updates their own submission fields
+function buildSubmissionUpdates(args: any, pkg: any) {
+  const updates: Record<string, string | string[] | number | undefined> = {};
+  const fields = [
+    "componentName", "shortDescription", "longDescription", "category", "tags",
+    "demoUrl", "videoUrl", "generatedDescription", "generatedUseCases",
+    "generatedHowItWorks", "readmeIncludedMarkdown", "readmeIncludeSource",
+  ] as const;
+  for (const f of fields) {
+    if (args[f] !== undefined) updates[f] = args[f];
+  }
+
+  if (
+    (args.generatedDescription || args.generatedUseCases || args.generatedHowItWorks) &&
+    !pkg.contentModelVersion
+  ) {
+    updates.contentModelVersion = 2;
+    updates.contentGeneratedAt = Date.now();
+    updates.contentGenerationStatus = "completed";
+  }
+
+  const desc = (args.generatedDescription ?? pkg.generatedDescription) || "";
+  const useCases = (args.generatedUseCases ?? pkg.generatedUseCases) || "";
+  const howItWorks = (args.generatedHowItWorks ?? pkg.generatedHowItWorks) || "";
+  if (desc && useCases && howItWorks) {
+    updates.skillMd = buildSkillMdFromContent(
+      {
+        name: pkg.name,
+        componentName: (args.componentName ?? pkg.componentName) || undefined,
+        shortDescription: (args.shortDescription ?? pkg.shortDescription) || undefined,
+        description: pkg.description,
+        repositoryUrl: pkg.repositoryUrl || undefined,
+        npmUrl: pkg.npmUrl,
+        demoUrl: (args.demoUrl ?? pkg.demoUrl) || undefined,
+        installCommand: pkg.installCommand,
+        slug: pkg.slug || undefined,
+      },
+      { description: desc, useCases, howItWorks },
+    );
+  }
+  return updates;
+}
+
 export const updateMySubmission = mutation({
   args: {
     packageId: v.id("packages"),
@@ -4533,67 +4637,18 @@ export const updateMySubmission = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const userEmail = await getCurrentUserEmail(ctx);
-    if (!userEmail) {
-      throw new Error("Authentication required");
-    }
+    if (!userEmail) throw new ConvexError("Authentication required");
 
     const pkg = await ctx.db.get(args.packageId);
-    if (!pkg) {
-      throw new Error("Package not found");
-    }
+    if (!pkg) throw new ConvexError("Package not found");
     if (!userOwnsPackage(pkg, userEmail)) {
-      throw new Error("You can only edit your own submissions");
+      throw new ConvexError("You can only edit your own submissions");
     }
 
-    const updates: Record<string, string | string[] | number | undefined> = {};
-    if (args.componentName !== undefined) updates.componentName = args.componentName;
-    if (args.shortDescription !== undefined) updates.shortDescription = args.shortDescription;
-    if (args.longDescription !== undefined) updates.longDescription = args.longDescription;
-    if (args.category !== undefined) updates.category = args.category;
-    if (args.tags !== undefined) updates.tags = args.tags;
-    if (args.demoUrl !== undefined) updates.demoUrl = args.demoUrl;
-    if (args.videoUrl !== undefined) updates.videoUrl = args.videoUrl;
-    if (args.generatedDescription !== undefined) updates.generatedDescription = args.generatedDescription;
-    if (args.generatedUseCases !== undefined) updates.generatedUseCases = args.generatedUseCases;
-    if (args.generatedHowItWorks !== undefined) updates.generatedHowItWorks = args.generatedHowItWorks;
-    if (args.readmeIncludedMarkdown !== undefined) updates.readmeIncludedMarkdown = args.readmeIncludedMarkdown;
-    if (args.readmeIncludeSource !== undefined) updates.readmeIncludeSource = args.readmeIncludeSource;
-
-    // If user is saving v2 content fields for the first time, set model version
-    if (
-      (args.generatedDescription || args.generatedUseCases || args.generatedHowItWorks) &&
-      !pkg.contentModelVersion
-    ) {
-      updates.contentModelVersion = 2;
-      updates.contentGeneratedAt = Date.now();
-      updates.contentGenerationStatus = "completed";
-    }
-
-    // Build skillMd when all three v2 content fields are present (new or existing)
-    const desc = (args.generatedDescription ?? pkg.generatedDescription) || "";
-    const useCases = (args.generatedUseCases ?? pkg.generatedUseCases) || "";
-    const howItWorks = (args.generatedHowItWorks ?? pkg.generatedHowItWorks) || "";
-    if (desc && useCases && howItWorks) {
-      updates.skillMd = buildSkillMdFromContent(
-        {
-          name: pkg.name,
-          componentName: (args.componentName ?? pkg.componentName) || undefined,
-          shortDescription: (args.shortDescription ?? pkg.shortDescription) || undefined,
-          description: pkg.description,
-          repositoryUrl: pkg.repositoryUrl || undefined,
-          npmUrl: pkg.npmUrl,
-          demoUrl: (args.demoUrl ?? pkg.demoUrl) || undefined,
-          installCommand: pkg.installCommand,
-          slug: pkg.slug || undefined,
-        },
-        { description: desc, useCases, howItWorks },
-      );
-    }
-
+    const updates = buildSubmissionUpdates(args, pkg);
     if (Object.keys(updates).length > 0) {
       await ctx.db.patch(args.packageId, updates);
     }
-
     return null;
   },
 });
@@ -4680,7 +4735,7 @@ export const getTotalUnreadAdminReplies = query({
       .withIndex("by_submitter_email", (q) =>
         q.eq("submitterEmail", userEmail),
       )
-      .collect();
+      .take(1000);
 
     if (packages.length === 0) return 0;
 
@@ -4689,8 +4744,8 @@ export const getTotalUnreadAdminReplies = query({
     for (const pkg of packages) {
       const comments = await ctx.db
         .query("packageComments")
-        .withIndex("by_package", (q) => q.eq("packageId", pkg._id))
-        .collect();
+        .withIndex("by_package_and_created", (q) => q.eq("packageId", pkg._id))
+        .take(1000);
       totalUnread += comments.filter(
         (comment) =>
           comment.authorEmail.endsWith("@convex.dev") &&
@@ -4703,8 +4758,8 @@ export const getTotalUnreadAdminReplies = query({
   },
 });
 
-// Public query: List categories from admin-managed table with component counts
-// Only returns enabled categories, sorted by admin-set sortOrder
+// Public query: List categories from admin-managed table with denormalized counts.
+// Reads only the categories table (no package scan). Counts are updated by mutations.
 export const listCategories = query({
   args: {},
   returns: v.array(
@@ -4717,43 +4772,17 @@ export const listCategories = query({
     }),
   ),
   handler: async (ctx) => {
-    // Read admin-managed categories (enabled only, sorted by sortOrder)
     const adminCategories = await ctx.db
       .query("categories")
-      .withIndex("by_sort_order")
-      .collect();
+      .withIndex("by_enabled_and_sortOrder", (q) => q.eq("enabled", true))
+      .take(1000);
 
-    const enabledCategories = adminCategories.filter((c) => c.enabled);
-
-    // Get all approved+visible packages
-    const packages = await ctx.db
-      .query("packages")
-      .withIndex("by_review_status", (q) => q.eq("reviewStatus", "approved"))
-      .collect();
-
-    const visible = packages.filter(
-      (pkg) => !pkg.visibility || pkg.visibility === "visible",
-    );
-
-    // Count packages per category
-    const categoryCountMap: Record<string, number> = {};
-    const categoryVerifiedCountMap: Record<string, number> = {};
-    for (const pkg of visible) {
-      if (!pkg.category) continue;
-      categoryCountMap[pkg.category] = (categoryCountMap[pkg.category] || 0) + 1;
-      if (pkg.convexVerified) {
-        categoryVerifiedCountMap[pkg.category] =
-          (categoryVerifiedCountMap[pkg.category] || 0) + 1;
-      }
-    }
-
-    // Return admin categories with their counts (preserves admin sortOrder)
-    return enabledCategories.map((cat) => ({
+    return adminCategories.map((cat) => ({
       category: cat.slug,
       label: cat.label,
       description: cat.description,
-      count: categoryCountMap[cat.slug] || 0,
-      verifiedCount: categoryVerifiedCountMap[cat.slug] || 0,
+      count: cat.packageCount ?? 0,
+      verifiedCount: cat.verifiedCount ?? 0,
     }));
   },
 });
@@ -4784,8 +4813,8 @@ export const getCategoryBySlug = query({
     // Count packages in this category
     const packages = await ctx.db
       .query("packages")
-      .withIndex("by_category", (q) => q.eq("category", args.slug))
-      .collect();
+      .withIndex("by_category_and_visibility", (q) => q.eq("category", args.slug))
+      .take(1000);
 
     const visible = packages.filter(
       (pkg) =>
@@ -4814,8 +4843,8 @@ export const getFeaturedComponents = query({
     // Get all approved packages and filter to featured+visible
     const packages = await ctx.db
       .query("packages")
-      .withIndex("by_review_status", (q) => q.eq("reviewStatus", "approved"))
-      .collect();
+      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+      .take(1000);
 
     const featured = packages.filter(
       (pkg) =>
@@ -4867,7 +4896,7 @@ export const generateUploadUrl = mutation({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Authentication required");
+      throw new ConvexError("Authentication required");
     }
     return await ctx.storage.generateUploadUrl();
   },
@@ -4985,6 +5014,50 @@ export const autoFillAuthorFromRepo = mutation({
 // ============ DIRECTORY EXPANSION: ADMIN MUTATIONS ============
 
 // Admin mutation: Update directory-specific component details
+function buildComponentDetailsPatch(updates: Record<string, unknown>) {
+  const patch: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(updates)) {
+    if (value !== undefined) patch[key] = value;
+  }
+  return patch;
+}
+
+async function validateAndApplySlug(
+  ctx: any,
+  patch: Record<string, unknown>,
+  slug: string | undefined,
+  packageId: Id<"packages">,
+) {
+  if (slug === undefined) return;
+  if (slug.trim() === "") {
+    patch.slug = undefined;
+  } else {
+    if (await isSlugTaken(ctx, slug, packageId)) {
+      throw new ConvexError(`Slug "${slug}" is already in use by another component.`);
+    }
+    patch.slug = slug;
+  }
+}
+
+async function validateAndApplyCategory(
+  ctx: any,
+  patch: Record<string, unknown>,
+  category: string | undefined,
+) {
+  if (category === undefined) return;
+  const normalized = category.trim().toLowerCase();
+  if (normalized === "") {
+    patch.category = undefined;
+  } else {
+    const existing = await ctx.db
+      .query("categories")
+      .withIndex("by_slug", (q: any) => q.eq("slug", normalized))
+      .first();
+    if (!existing) throw new ConvexError(`Category "${normalized}" does not exist.`);
+    patch.category = normalized;
+  }
+}
+
 export const updateComponentDetails = mutation({
   args: {
     packageId: v.id("packages"),
@@ -5010,63 +5083,18 @@ export const updateComponentDetails = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await requireAdminIdentity(ctx);
-
     const { packageId, clearThumbnail, clearCategory, slug, category, ...updates } = args;
-
-    // Build patch object with only defined fields
-    const patch: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(updates)) {
-      if (value !== undefined) {
-        patch[key] = value;
-      }
-    }
-
-    // Validate slug uniqueness if being updated
-    if (slug !== undefined) {
-      if (slug.trim() === "") {
-        patch.slug = undefined;
-      } else {
-        const slugTaken = await isSlugTaken(ctx, slug, packageId);
-        if (slugTaken) {
-          throw new Error(`Slug "${slug}" is already in use by another component.`);
-        }
-        patch.slug = slug;
-      }
-    }
-
-    // Normalize and validate category slugs against admin-managed categories.
-    if (category !== undefined) {
-      const normalizedCategory = category.trim().toLowerCase();
-      if (normalizedCategory === "") {
-        patch.category = undefined;
-      } else {
-        const existingCategory = await ctx.db
-          .query("categories")
-          .withIndex("by_slug", (q) => q.eq("slug", normalizedCategory))
-          .first();
-        if (!existingCategory) {
-          throw new Error(`Category "${normalizedCategory}" does not exist.`);
-        }
-        patch.category = normalizedCategory;
-      }
-    }
-
-    // Explicitly clear category when admin selects "None"
-    if (clearCategory) {
-      patch.category = undefined;
-    }
-
-    // Explicitly clear both URL and storage ID when requested from the editor.
+    const patch = buildComponentDetailsPatch(updates);
+    await validateAndApplySlug(ctx, patch, slug, packageId);
+    await validateAndApplyCategory(ctx, patch, category);
+    if (clearCategory) patch.category = undefined;
     if (clearThumbnail) {
       patch.thumbnailUrl = undefined;
       patch.thumbnailStorageId = undefined;
     }
-
-    // Patch directly without reading first to avoid write conflicts
     if (Object.keys(patch).length > 0) {
       await ctx.db.patch(packageId, patch);
     }
-
     return null;
   },
 });
@@ -5125,7 +5153,7 @@ export const updateSubmitterEmail = mutation({
 
     const email = args.submitterEmail.trim().toLowerCase();
     if (!email || !email.includes("@")) {
-      throw new Error("Invalid email address");
+      throw new ConvexError("Invalid email address");
     }
 
     await ctx.db.patch(args.packageId, { submitterEmail: email });
@@ -5197,11 +5225,97 @@ export const _listApprovedPackages = internalQuery({
   handler: async (ctx) => {
     const packages = await ctx.db
       .query("packages")
-      .withIndex("by_review_status", (q) => q.eq("reviewStatus", "approved"))
-      .collect();
+      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+      .take(5000);
     return packages.filter(
       (pkg) => !pkg.visibility || pkg.visibility === "visible",
     );
+  },
+});
+
+// Search across multiple search indexes and dedupe results
+async function searchPackagesByTerm(ctx: QueryCtx, searchTerm: string) {
+  const [nameHits, descHits, compNameHits] = await Promise.all([
+    ctx.db
+      .query("packages")
+      .withSearchIndex("search_name", (q) =>
+        q.search("name", searchTerm).eq("reviewStatus", "approved").eq("visibility", "visible"),
+      )
+      .take(100),
+    ctx.db
+      .query("packages")
+      .withSearchIndex("search_description", (q) =>
+        q.search("description", searchTerm).eq("reviewStatus", "approved").eq("visibility", "visible"),
+      )
+      .take(100),
+    ctx.db
+      .query("packages")
+      .withSearchIndex("search_componentName", (q) =>
+        q.search("componentName", searchTerm).eq("reviewStatus", "approved").eq("visibility", "visible"),
+      )
+      .take(100),
+  ]);
+
+  const seen = new Set<string>();
+  const results: any[] = [];
+  for (const pkg of [...nameHits, ...compNameHits, ...descHits]) {
+    if (seen.has(pkg._id) || pkg.markedForDeletion) continue;
+    seen.add(pkg._id);
+    results.push(pkg);
+  }
+  return results;
+}
+
+function toApiSearchCard(pkg: any) {
+  return {
+    slug: pkg.slug || "",
+    displayName: pkg.componentName || pkg.name,
+    packageName: pkg.name,
+    shortDescription: pkg.shortDescription,
+    category: pkg.category,
+    weeklyDownloads: pkg.weeklyDownloads || 0,
+    convexVerified: pkg.convexVerified || false,
+  };
+}
+
+// Internal query: Search approved+visible packages using search indexes (for REST API)
+export const _searchApprovedPackages = internalQuery({
+  args: {
+    searchTerm: v.string(),
+    category: v.optional(v.string()),
+    limit: v.number(),
+    offset: v.number(),
+  },
+  returns: v.object({
+    results: v.array(v.any()),
+    total: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    let packages: any[];
+
+    if (args.searchTerm.trim()) {
+      packages = await searchPackagesByTerm(ctx, args.searchTerm);
+    } else {
+      packages = await ctx.db
+        .query("packages")
+        .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+        .take(1000);
+      packages = packages.filter(
+        (pkg) =>
+          (!pkg.visibility || pkg.visibility === "visible") &&
+          !pkg.markedForDeletion,
+      );
+    }
+
+    if (args.category) {
+      packages = packages.filter((pkg: any) => pkg.category === args.category);
+    }
+
+    packages.sort((a: any, b: any) => (b.weeklyDownloads || 0) - (a.weeklyDownloads || 0));
+    const total = packages.length;
+    const paginated = packages.slice(args.offset, args.offset + args.limit);
+
+    return { results: paginated.map(toApiSearchCard), total };
   },
 });
 
@@ -5259,21 +5373,21 @@ export const _recordMcpApiRequest = internalMutation({
 
 // Admin query: Get badge fetch stats for a component
 export const getBadgeStats = query({
-  args: { packageId: v.id("packages") },
+  args: { packageId: v.id("packages"), now: v.number() },
   returns: v.object({
     last7Days: v.number(),
     last30Days: v.number(),
     total: v.number(),
   }),
   handler: async (ctx, args) => {
-    const now = Date.now();
+    const now = args.now;
     const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
     const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000;
 
     const allFetches = await ctx.db
       .query("badgeFetches")
       .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .take(1000);
 
     const last7 = allFetches.filter((f) => f.fetchedAt >= sevenDaysAgo).length;
     const last30 = allFetches.filter(
@@ -5300,8 +5414,8 @@ export const getComponentRating = query({
   handler: async (ctx, args) => {
     const ratings = await ctx.db
       .query("componentRatings")
-      .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
-      .collect();
+      .withIndex("by_package_and_session", (q) => q.eq("packageId", args.packageId))
+      .take(1000);
 
     if (ratings.length === 0) {
       return { average: 0, count: 0 };
@@ -5326,7 +5440,7 @@ export const rateComponent = mutation({
   handler: async (ctx, args) => {
     // Validate rating 1-5
     if (args.rating < 1 || args.rating > 5) {
-      throw new Error("Rating must be between 1 and 5");
+      throw new ConvexError("Rating must be between 1 and 5");
     }
 
     // Check for existing rating from this session
@@ -5386,7 +5500,7 @@ export const listEnabledDirectoryCategories = query({
     const cats = await ctx.db
       .query("categories")
       .withIndex("by_sort_order")
-      .collect();
+      .take(1000);
 
     return cats.filter((c) => c.enabled);
   },
@@ -5410,7 +5524,7 @@ export const listDirectoryCategories = query({
     const cats = await ctx.db
       .query("categories")
       .withIndex("by_sort_order")
-      .collect();
+      .take(1000);
 
     return cats.filter((c) => c.enabled);
   },
@@ -5436,11 +5550,30 @@ export const listAllDirectoryCategories = query({
     return await ctx.db
       .query("categories")
       .withIndex("by_sort_order")
-      .collect();
+      .take(1000);
   },
 });
 
 // Admin: Create or update a category
+async function updateExistingCategory(
+  ctx: any,
+  id: Id<"categories">,
+  normalizedSlug: string,
+  data: { label: string; description: string; sortOrder: number; enabled: boolean },
+): Promise<Id<"categories">> {
+  const existing = await ctx.db.get(id);
+  if (!existing) throw new ConvexError("Category not found.");
+  await ctx.db.patch(id, { slug: normalizedSlug, ...data });
+  if (existing.slug !== normalizedSlug) {
+    const related = await ctx.db
+      .query("packages")
+      .withIndex("by_category_and_visibility", (q: any) => q.eq("category", existing.slug))
+      .take(10000);
+    await Promise.all(related.map((pkg: any) => ctx.db.patch(pkg._id, { category: normalizedSlug })));
+  }
+  return id;
+}
+
 export const upsertCategory = mutation({
   args: {
     id: v.optional(v.id("categories")),
@@ -5453,55 +5586,19 @@ export const upsertCategory = mutation({
   returns: v.id("categories"),
   handler: async (ctx, args) => {
     await requireAdminIdentity(ctx);
-
     const normalizedSlug = args.slug.trim().toLowerCase();
-    const conflictingCategory = await ctx.db
+    const conflict = await ctx.db
       .query("categories")
       .withIndex("by_slug", (q) => q.eq("slug", normalizedSlug))
       .first();
-
-    if (conflictingCategory && conflictingCategory._id !== args.id) {
-      throw new Error(`Category slug "${normalizedSlug}" is already in use.`);
+    if (conflict && conflict._id !== args.id) {
+      throw new ConvexError(`Category slug "${normalizedSlug}" is already in use.`);
     }
-
+    const data = { label: args.label, description: args.description, sortOrder: args.sortOrder, enabled: args.enabled };
     if (args.id) {
-      const existingCategory = await ctx.db.get(args.id);
-      if (!existingCategory) {
-        throw new Error("Category not found.");
-      }
-
-      await ctx.db.patch(args.id, {
-        slug: normalizedSlug,
-        label: args.label,
-        description: args.description,
-        sortOrder: args.sortOrder,
-        enabled: args.enabled,
-      });
-
-      if (existingCategory.slug !== normalizedSlug) {
-        const relatedPackages = await ctx.db
-          .query("packages")
-          .withIndex("by_category", (q) => q.eq("category", existingCategory.slug))
-          .collect();
-
-        await Promise.all(
-          relatedPackages.map((pkg) =>
-            ctx.db.patch(pkg._id, {
-              category: normalizedSlug,
-            }),
-          ),
-        );
-      }
-
-      return args.id;
+      return await updateExistingCategory(ctx, args.id, normalizedSlug, data);
     }
-    return await ctx.db.insert("categories", {
-      slug: normalizedSlug,
-      label: args.label,
-      description: args.description,
-      sortOrder: args.sortOrder,
-      enabled: args.enabled,
-    });
+    return await ctx.db.insert("categories", { slug: normalizedSlug, ...data });
   },
 });
 
@@ -5519,8 +5616,8 @@ export const deleteCategory = mutation({
 
     const relatedPackages = await ctx.db
       .query("packages")
-      .withIndex("by_category", (q) => q.eq("category", existingCategory.slug))
-      .collect();
+      .withIndex("by_category_and_visibility", (q) => q.eq("category", existingCategory.slug))
+      .take(10000);
 
     await Promise.all(
       relatedPackages.map((pkg) =>
@@ -5639,69 +5736,43 @@ export const fetchGitHubIssues = action({
 
 // Public action: Fetch and cache GitHub issue counts for a package
 // Called on demand from the detail page; caches counts in the DB
+async function fetchGitHubIssueCounts(
+  owner: string,
+  repo: string,
+): Promise<{ openCount: number; closedCount: number }> {
+  const headers: Record<string, string> = {
+    Accept: "application/vnd.github.v3+json",
+    "User-Agent": "ConvexComponentsDirectory",
+  };
+  const token = process.env.GITHUB_TOKEN;
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const [openRes, closedRes] = await Promise.all([
+    fetch(`https://api.github.com/search/issues?q=repo:${owner}/${repo}+type:issue+state:open`, { headers }),
+    fetch(`https://api.github.com/search/issues?q=repo:${owner}/${repo}+type:issue+state:closed`, { headers }),
+  ]);
+
+  const openCount = openRes.ok ? ((await openRes.json()).total_count ?? 0) : 0;
+  const closedCount = closedRes.ok ? ((await closedRes.json()).total_count ?? 0) : 0;
+  return { openCount, closedCount };
+}
+
 export const refreshGitHubIssueCounts = action({
   args: { packageId: v.id("packages") },
-  returns: v.object({
-    openCount: v.number(),
-    closedCount: v.number(),
-  }),
+  returns: v.object({ openCount: v.number(), closedCount: v.number() }),
   handler: async (ctx, args) => {
-    // Get the package to read its repositoryUrl
-    const pkg = await ctx.runQuery(internal.packages._getPackage, {
-      packageId: args.packageId,
-    });
-
-    if (!pkg || !pkg.repositoryUrl) {
-      return { openCount: 0, closedCount: 0 };
-    }
+    const pkg = await ctx.runQuery(internal.packages._getPackage, { packageId: args.packageId });
+    if (!pkg || !pkg.repositoryUrl) return { openCount: 0, closedCount: 0 };
 
     const parsed = parseGitHubRepo(pkg.repositoryUrl);
-    if (!parsed) {
-      return { openCount: 0, closedCount: 0 };
-    }
+    if (!parsed) return { openCount: 0, closedCount: 0 };
 
-    const headers: Record<string, string> = {
-      Accept: "application/vnd.github.v3+json",
-      "User-Agent": "ConvexComponentsDirectory",
-    };
-
-    const token = process.env.GITHUB_TOKEN;
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-
-    // Fetch open and closed counts in parallel using search API (returns total_count)
-    const [openRes, closedRes] = await Promise.all([
-      fetch(
-        `https://api.github.com/search/issues?q=repo:${parsed.owner}/${parsed.repo}+type:issue+state:open`,
-        { headers },
-      ),
-      fetch(
-        `https://api.github.com/search/issues?q=repo:${parsed.owner}/${parsed.repo}+type:issue+state:closed`,
-        { headers },
-      ),
-    ]);
-
-    let openCount = 0;
-    let closedCount = 0;
-
-    if (openRes.ok) {
-      const openData = await openRes.json();
-      openCount = openData.total_count ?? 0;
-    }
-    if (closedRes.ok) {
-      const closedData = await closedRes.json();
-      closedCount = closedData.total_count ?? 0;
-    }
-
-    // Cache the counts in the database
+    const counts = await fetchGitHubIssueCounts(parsed.owner, parsed.repo);
     await ctx.runMutation(internal.packages._updateGitHubIssueCounts, {
       packageId: args.packageId,
-      openCount,
-      closedCount,
+      ...counts,
     });
-
-    return { openCount, closedCount };
+    return counts;
   },
 });
 
@@ -5739,7 +5810,7 @@ export const getPackagesWithoutSlugs = query({
   handler: async (ctx) => {
     await requireAdminIdentity(ctx);
 
-    const packages = await ctx.db.query("packages").collect();
+    const packages = await ctx.db.query("packages").take(1000);
 
     return packages
       .filter((pkg) => !pkg.slug || pkg.slug.trim() === "")
@@ -5787,7 +5858,7 @@ export const generateMissingSlugs = mutation({
   handler: async (ctx) => {
     await requireAdminIdentity(ctx);
 
-    const packages = await ctx.db.query("packages").collect();
+    const packages = await ctx.db.query("packages").take(10000);
 
     let generated = 0;
     let skipped = 0;
@@ -5828,7 +5899,7 @@ export const migrateAvatarUrls = mutation({
   handler: async (ctx) => {
     await requireAdminIdentity(ctx);
 
-    const packages = await ctx.db.query("packages").collect();
+    const packages = await ctx.db.query("packages").take(10000);
 
     let updated = 0;
     let skipped = 0;

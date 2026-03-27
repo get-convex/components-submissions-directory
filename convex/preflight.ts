@@ -29,21 +29,21 @@ export function normalizeRepoUrl(url: string): string {
 
 // Check if IP is rate limited (internal query for HTTP action)
 export const _checkRateLimit = internalQuery({
-  args: { hashedIp: v.string() },
+  args: { hashedIp: v.string(), now: v.number() },
   returns: v.object({
     allowed: v.boolean(),
     remaining: v.number(),
     resetAt: v.optional(v.number()),
   }),
   handler: async (ctx, args) => {
-    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    const oneHourAgo = args.now - 60 * 60 * 1000;
 
     const recentChecks = await ctx.db
       .query("preflightChecks")
       .withIndex("by_hashed_ip_and_created", (q) =>
         q.eq("hashedIp", args.hashedIp).gt("createdAt", oneHourAgo)
       )
-      .collect();
+      .take(1000);
 
     const count = recentChecks.length;
     const remaining = Math.max(0, MAX_CHECKS_PER_HOUR - count);
@@ -64,7 +64,7 @@ export const _checkRateLimit = internalQuery({
 
 // Check for cached result (internal query for HTTP action)
 export const _getCachedResult = internalQuery({
-  args: { normalizedRepoUrl: v.string() },
+  args: { normalizedRepoUrl: v.string(), now: v.number() },
   returns: v.union(
     v.object({
       status: v.union(
@@ -90,7 +90,7 @@ export const _getCachedResult = internalQuery({
     v.null()
   ),
   handler: async (ctx, args) => {
-    const now = Date.now();
+    const now = args.now;
 
     // Find a valid cached result
     const cached = await ctx.db
@@ -173,8 +173,9 @@ export const _hasInFlightCheck = internalQuery({
   handler: async (ctx, args) => {
     const pending = await ctx.db
       .query("preflightChecks")
-      .withIndex("by_hashed_ip_and_created", (q) => q.eq("hashedIp", args.hashedIp))
-      .filter((q) => q.eq(q.field("status"), "pending"))
+      .withIndex("by_hashed_ip_and_status", (q) =>
+        q.eq("hashedIp", args.hashedIp).eq("status", "pending")
+      )
       .first();
 
     return pending !== null;

@@ -4,7 +4,7 @@
 // Uses configurable AI providers (Anthropic, OpenAI, Gemini) to generate structured content.
 // Mutations live in seoContentDb.ts (mutations cannot be in "use node" files).
 
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { action, internalAction, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import Anthropic from "@anthropic-ai/sdk";
@@ -35,7 +35,7 @@ async function callAiProvider(
     });
     const textBlock = response.content.find((b) => b.type === "text");
     if (!textBlock || textBlock.type !== "text") {
-      throw new Error("No text content in Anthropic response");
+      throw new ConvexError("No text content in Anthropic response");
     }
     return textBlock.text;
   }
@@ -49,7 +49,7 @@ async function callAiProvider(
     });
     const content = response.choices[0]?.message?.content;
     if (!content) {
-      throw new Error("No content in OpenAI response");
+      throw new ConvexError("No content in OpenAI response");
     }
     return content;
   }
@@ -68,17 +68,17 @@ async function callAiProvider(
       },
     );
     if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.statusText}`);
+      throw new ConvexError(`Gemini API error: ${response.statusText}`);
     }
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) {
-      throw new Error("No text content in Gemini response");
+      throw new ConvexError("No text content in Gemini response");
     }
     return text;
   }
 
-  throw new Error(`Unknown provider: ${provider}`);
+  throw new ConvexError<string>(`Unknown provider: ${provider}`);
 }
 
 // ============ SEO CONTENT GENERATION ============
@@ -95,6 +95,7 @@ interface SeoContentResponse {
 type GitHubReadmeResult = {
   content: string;
   rawContent: string;
+  fullContent: string;
   sourceLabel: string;
 };
 
@@ -131,8 +132,9 @@ function encodeGitHubPath(path: string): string {
     .join("/");
 }
 
-function sanitizeReadmeForPrompt(readme: string): string {
-  const cleaned = readme
+// Clean README content (strip badges, HTML comments, images) without truncating
+function sanitizeReadme(readme: string): string {
+  return readme
     .replace(/\r/g, "")
     .replace(/<!--[\s\S]*?-->/g, "")
     .split("\n")
@@ -155,15 +157,13 @@ function sanitizeReadmeForPrompt(readme: string): string {
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
 
-  if (!cleaned) {
-    return "";
-  }
-
-  if (cleaned.length <= README_PROMPT_CHAR_LIMIT) {
-    return cleaned;
-  }
-
+// Sanitize and truncate README for AI prompt context
+function sanitizeReadmeForPrompt(readme: string): string {
+  const cleaned = sanitizeReadme(readme);
+  if (!cleaned) return "";
+  if (cleaned.length <= README_PROMPT_CHAR_LIMIT) return cleaned;
   return `${cleaned.slice(0, README_PROMPT_CHAR_LIMIT)}\n\n[README truncated for prompt length]`;
 }
 
@@ -177,7 +177,7 @@ async function fetchTextWithTimeout(
     signal: AbortSignal.timeout(timeoutMs),
   });
   if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+    throw new ConvexError(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
   }
   return await response.text();
 }
@@ -292,14 +292,15 @@ async function fetchGitHubReadme(
         continue;
       }
 
-      const content = sanitizeReadmeForPrompt(
-        await fetchTextWithTimeout(data.download_url, { headers }, 5000),
-      );
+      const rawText = await fetchTextWithTimeout(data.download_url, { headers }, 5000);
+      const full = sanitizeReadme(rawText);
+      const forPrompt = sanitizeReadmeForPrompt(rawText);
 
-      if (content) {
+      if (full) {
         return {
-          content: `From the ${path}\n\n${content}`,
-          rawContent: content,
+          content: `From the ${path}\n\n${forPrompt}`,
+          rawContent: forPrompt,
+          fullContent: full,
           sourceLabel: path,
         };
       }
@@ -528,133 +529,105 @@ function buildSkillMd(pkg: any, seoContent: SeoContentResponse): string {
 }
 
 // Internal action: Generate SEO content for a package using configured AI provider
+async function fetchSeoContext(ctx: any, pkg: any) {
+  const githubToken = process.env.GITHUB_TOKEN;
+  const [customPromptTemplate, providerSettings, githubReadme, convexDocsContext] =
+    await Promise.all([
+      ctx.runQuery(internal.aiSettings._getSeoActivePromptContent),
+      ctx.runQuery(internal.aiSettings._getProviderSettingsForFallback),
+      fetchGitHubReadme(pkg.repositoryUrl, githubToken),
+      fetchConvexDocsContext(),
+    ]);
+
+  const prompt = buildSeoPrompt(pkg, {
+    customTemplate: customPromptTemplate,
+    githubReadme: githubReadme?.content,
+    convexDocsContext,
+  });
+
+  console.log(
+    githubReadme?.sourceLabel
+      ? `SEO README grounding source: ${githubReadme.sourceLabel}`
+      : "SEO README grounding source: package metadata only",
+  );
+
+  return { prompt, providerSettings };
+}
+
+function buildSeoCandidates(providerSettings: any) {
+  return buildProviderCandidates({
+    adminProviders: providerSettings,
+    envKeys: {
+      anthropic: process.env.ANTHROPIC_API_KEY,
+      openai: process.env.CONVEX_OPENAI_API_KEY,
+      gemini: process.env.GEMINI_API_KEY ?? process.env.CONVEX_GEMINI_API_KEY,
+    },
+    defaultEnvModels: {
+      anthropic: "claude-sonnet-4-20250514",
+      openai: "gpt-4o",
+      gemini: "gemini-1.5-pro",
+    },
+  });
+}
+
+function parseSeoAiResponse(raw: string): SeoContentResponse {
+  let jsonStr = raw.trim();
+  if (jsonStr.startsWith("```")) {
+    jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+  }
+  const parsed: SeoContentResponse = JSON.parse(jsonStr);
+  if (
+    !parsed.valueProp ||
+    !Array.isArray(parsed.benefits) ||
+    !Array.isArray(parsed.useCases) ||
+    !Array.isArray(parsed.faq)
+  ) {
+    throw new ConvexError("AI response missing required fields");
+  }
+  return parsed;
+}
+
 export const generateSeoContent = internalAction({
   args: { packageId: v.id("packages") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    // Set status to generating
     await ctx.runMutation(internal.seoContentDb._updateSeoStatus, {
       packageId: args.packageId,
       status: "generating",
     });
 
     try {
-      // Fetch full package data
-      const pkg = await ctx.runQuery(internal.packages._getPackage, {
-        packageId: args.packageId,
-      });
+      const pkg = await ctx.runQuery(internal.packages._getPackage, { packageId: args.packageId });
+      if (!pkg) throw new ConvexError("Package not found");
 
-      if (!pkg) {
-        throw new Error("Package not found");
-      }
-
-      const githubToken = process.env.GITHUB_TOKEN;
-      const [customPromptTemplate, providerSettings, githubReadme, convexDocsContext] =
-        await Promise.all([
-          ctx.runQuery(internal.aiSettings._getSeoActivePromptContent),
-          ctx.runQuery(internal.aiSettings._getProviderSettingsForFallback),
-          fetchGitHubReadme(pkg.repositoryUrl, githubToken),
-          fetchConvexDocsContext(),
-        ]);
-
-      // Build the prompt with package data plus README and docs grounding.
-      const prompt = buildSeoPrompt(pkg, {
-        customTemplate: customPromptTemplate,
-        githubReadme: githubReadme?.content,
-        convexDocsContext,
-      });
-
-      if (githubReadme?.sourceLabel) {
-        console.log(`SEO README grounding source: ${githubReadme.sourceLabel}`);
-      } else {
-        console.log("SEO README grounding source: package metadata only");
-      }
-
-      // Run with automatic provider failover:
-      // active admin -> backup admin providers -> environment variables
-      const candidates = buildProviderCandidates({
-        adminProviders: providerSettings,
-        envKeys: {
-          anthropic: process.env.ANTHROPIC_API_KEY,
-          openai: process.env.CONVEX_OPENAI_API_KEY,
-          gemini: process.env.GEMINI_API_KEY ?? process.env.CONVEX_GEMINI_API_KEY,
-        },
-        defaultEnvModels: {
-          anthropic: "claude-sonnet-4-20250514",
-          openai: "gpt-4o",
-          gemini: "gemini-1.5-pro",
-        },
-      });
+      const { prompt, providerSettings } = await fetchSeoContext(ctx, pkg);
+      const candidates = buildSeoCandidates(providerSettings);
 
       const { result: aiResponseText, usedProvider, usedModel, usedSource } =
         await executeWithProviderFallback({
           candidates,
-          run: async (candidate) =>
-            callAiProvider(
-              candidate.provider,
-              candidate.apiKey,
-              candidate.model,
-              prompt,
-            ),
+          run: async (c) => callAiProvider(c.provider, c.apiKey, c.model, prompt),
         });
-      console.log(
-        `SEO provider selected: ${usedProvider} (${usedSource}) model=${usedModel}`,
-      );
+      console.log(`SEO provider selected: ${usedProvider} (${usedSource}) model=${usedModel}`);
 
-      // Parse JSON from response (strip markdown fences if present)
-      let jsonStr = aiResponseText.trim();
-      if (jsonStr.startsWith("```")) {
-        jsonStr = jsonStr
-          .replace(/^```(?:json)?\n?/, "")
-          .replace(/\n?```$/, "");
-      }
-
-      const parsed: SeoContentResponse = JSON.parse(jsonStr);
-
-      // Validate required fields
-      if (
-        !parsed.valueProp ||
-        !Array.isArray(parsed.benefits) ||
-        !Array.isArray(parsed.useCases) ||
-        !Array.isArray(parsed.faq)
-      ) {
-        throw new Error("AI response missing required fields");
-      }
-
-      // Build resource links from package data + any AI suggested links
+      const parsed = parseSeoAiResponse(aiResponseText);
       const resourceLinks = buildResourceLinks(pkg, parsed.resourceLinks);
-
-      // Build SKILL.md content from parsed SEO data
       const skillMd = buildSkillMd(pkg, parsed);
 
-      // Save generated content to the database
       await ctx.runMutation(internal.seoContentDb._saveSeoContent, {
         packageId: args.packageId,
         valueProp: parsed.valueProp.slice(0, 160),
         benefits: parsed.benefits.slice(0, 4),
-        useCases: parsed.useCases.slice(0, 4).map((uc) => ({
-          query: uc.query,
-          answer: uc.answer,
-        })),
-        faq: parsed.faq.slice(0, 5).map((f) => ({
-          question: f.question,
-          answer: f.answer,
-        })),
+        useCases: parsed.useCases.slice(0, 4).map((uc) => ({ query: uc.query, answer: uc.answer })),
+        faq: parsed.faq.slice(0, 5).map((f) => ({ question: f.question, answer: f.answer })),
         resourceLinks,
         skillMd,
       });
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error("SEO content generation failed:", errorMessage);
-
-      // Save error state
-      await ctx.runMutation(internal.seoContentDb._setSeoError, {
-        packageId: args.packageId,
-        error: errorMessage,
-      });
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      console.error("SEO content generation failed:", msg);
+      await ctx.runMutation(internal.seoContentDb._setSeoError, { packageId: args.packageId, error: msg });
     }
-
     return null;
   },
 });
@@ -851,6 +824,46 @@ function buildContentPrompt(
 }
 
 // Internal action: Generate v2 component directory content
+async function fetchContentContext(ctx: any, pkg: any) {
+  const githubToken = process.env.GITHUB_TOKEN;
+  const [customPromptTemplate, providerSettings, githubReadme, convexDocsContext] =
+    await Promise.all([
+      ctx.runQuery(internal.aiSettings._getSeoActivePromptContent),
+      ctx.runQuery(internal.aiSettings._getProviderSettingsForFallback),
+      fetchGitHubReadme(pkg.repositoryUrl, githubToken),
+      fetchConvexDocsContext(),
+    ]);
+
+  const fullReadmeContent = githubReadme?.fullContent || "";
+  const readmeBlock = extractReadmeIncludeBlock(fullReadmeContent);
+
+  const prompt = buildContentPrompt(pkg, {
+    customTemplate: customPromptTemplate,
+    githubReadme: githubReadme?.content,
+    convexDocsContext,
+  });
+
+  console.log(
+    githubReadme?.sourceLabel
+      ? `Content README source: ${githubReadme.sourceLabel}`
+      : "Content README source: metadata only",
+  );
+
+  return { prompt, providerSettings, readmeBlock };
+}
+
+function parseContentAiResponse(raw: string): ContentGenerationResponse {
+  let jsonStr = raw.trim();
+  if (jsonStr.startsWith("```")) {
+    jsonStr = jsonStr.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "");
+  }
+  const parsed: ContentGenerationResponse = JSON.parse(jsonStr);
+  if (!parsed.description || !parsed.useCases || !parsed.howItWorks) {
+    throw new ConvexError("AI response missing required content fields");
+  }
+  return parsed;
+}
+
 export const generateDirectoryContent = internalAction({
   args: { packageId: v.id("packages") },
   returns: v.null(),
@@ -861,82 +874,20 @@ export const generateDirectoryContent = internalAction({
     });
 
     try {
-      const pkg = await ctx.runQuery(internal.packages._getPackage, {
-        packageId: args.packageId,
-      });
+      const pkg = await ctx.runQuery(internal.packages._getPackage, { packageId: args.packageId });
+      if (!pkg) throw new ConvexError("Package not found");
 
-      if (!pkg) {
-        throw new Error("Package not found");
-      }
-
-      const githubToken = process.env.GITHUB_TOKEN;
-      const [customPromptTemplate, providerSettings, githubReadme, convexDocsContext] =
-        await Promise.all([
-          ctx.runQuery(internal.aiSettings._getSeoActivePromptContent),
-          ctx.runQuery(internal.aiSettings._getProviderSettingsForFallback),
-          fetchGitHubReadme(pkg.repositoryUrl, githubToken),
-          fetchConvexDocsContext(),
-        ]);
-
-      // Extract README include block for storage (use rawContent without the prompt prefix)
-      const rawReadmeContent = githubReadme?.rawContent || "";
-      const readmeBlock = extractReadmeIncludeBlock(rawReadmeContent);
-
-      const prompt = buildContentPrompt(pkg, {
-        customTemplate: customPromptTemplate,
-        githubReadme: githubReadme?.content,
-        convexDocsContext,
-      });
-
-      if (githubReadme?.sourceLabel) {
-        console.log(`Content README source: ${githubReadme.sourceLabel}`);
-      } else {
-        console.log("Content README source: metadata only");
-      }
-
-      const candidates = buildProviderCandidates({
-        adminProviders: providerSettings,
-        envKeys: {
-          anthropic: process.env.ANTHROPIC_API_KEY,
-          openai: process.env.CONVEX_OPENAI_API_KEY,
-          gemini: process.env.GEMINI_API_KEY ?? process.env.CONVEX_GEMINI_API_KEY,
-        },
-        defaultEnvModels: {
-          anthropic: "claude-sonnet-4-20250514",
-          openai: "gpt-4o",
-          gemini: "gemini-1.5-pro",
-        },
-      });
+      const { prompt, providerSettings, readmeBlock } = await fetchContentContext(ctx, pkg);
+      const candidates = buildSeoCandidates(providerSettings);
 
       const { result: aiResponseText, usedProvider, usedModel, usedSource } =
         await executeWithProviderFallback({
           candidates,
-          run: async (candidate) =>
-            callAiProvider(
-              candidate.provider,
-              candidate.apiKey,
-              candidate.model,
-              prompt,
-            ),
+          run: async (c) => callAiProvider(c.provider, c.apiKey, c.model, prompt),
         });
-      console.log(
-        `Content provider: ${usedProvider} (${usedSource}) model=${usedModel}`,
-      );
+      console.log(`Content provider: ${usedProvider} (${usedSource}) model=${usedModel}`);
 
-      let jsonStr = aiResponseText.trim();
-      if (jsonStr.startsWith("```")) {
-        jsonStr = jsonStr
-          .replace(/^```(?:json)?\n?/, "")
-          .replace(/\n?```$/, "");
-      }
-
-      const parsed: ContentGenerationResponse = JSON.parse(jsonStr);
-
-      if (!parsed.description || !parsed.useCases || !parsed.howItWorks) {
-        throw new Error("AI response missing required content fields");
-      }
-
-      // Also generate skill from old SEO if it exists, or from new content
+      const parsed = parseContentAiResponse(aiResponseText);
       const skillMd = buildSkillMdFromContent(pkg, parsed);
 
       await ctx.runMutation(internal.seoContentDb._saveGeneratedContent, {
@@ -949,16 +900,10 @@ export const generateDirectoryContent = internalAction({
         skillMd,
       });
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      console.error("Content generation failed:", errorMessage);
-
-      await ctx.runMutation(internal.seoContentDb._setContentError, {
-        packageId: args.packageId,
-        error: errorMessage,
-      });
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      console.error("Content generation failed:", msg);
+      await ctx.runMutation(internal.seoContentDb._setContentError, { packageId: args.packageId, error: msg });
     }
-
     return null;
   },
 });
@@ -977,7 +922,72 @@ export const regenerateDirectoryContent = action({
   },
 });
 
+// Internal action: Fetch and update only the README without regenerating AI content
+export const refreshReadme = internalAction({
+  args: { packageId: v.id("packages") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    try {
+      const pkg = await ctx.runQuery(internal.packages._getPackage, { packageId: args.packageId });
+      if (!pkg) throw new ConvexError("Package not found");
+      if (!pkg.repositoryUrl) throw new ConvexError("No repository URL");
+
+      const githubToken = process.env.GITHUB_TOKEN;
+      const githubReadme = await fetchGitHubReadme(pkg.repositoryUrl, githubToken);
+      const fullReadmeContent = githubReadme?.fullContent || "";
+      const readmeBlock = extractReadmeIncludeBlock(fullReadmeContent);
+
+      await ctx.runMutation(internal.seoContentDb._updateReadmeOnly, {
+        packageId: args.packageId,
+        readmeIncludedMarkdown: readmeBlock?.markdown?.slice(0, 20000) || undefined,
+        readmeIncludeSource: readmeBlock?.source,
+      });
+
+      console.log(
+        githubReadme?.sourceLabel
+          ? `README refresh: ${githubReadme.sourceLabel} (${fullReadmeContent.length} chars)`
+          : "README refresh: no README found",
+      );
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      console.error("README refresh failed:", msg);
+    }
+    return null;
+  },
+});
+
+// Public action: Admin triggers README-only refresh
+export const refreshReadmeContent = action({
+  args: { packageId: v.id("packages") },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    await ctx.scheduler.runAfter(0, internal.seoContent.refreshReadme, {
+      packageId: args.packageId,
+    });
+    return null;
+  },
+});
+
 // Public action: Preview content generation without saving (for submit form)
+async function fetchPreviewContext(ctx: any, repoUrl: string): Promise<{
+  customPromptTemplate: string | null;
+  providerSettings: any;
+  githubReadme: { content?: string; rawContent?: string; fullContent?: string; sourceLabel?: string } | null;
+  convexDocsContext: string | null;
+  readmeBlock: { markdown?: string; source?: "markers" | "full" } | null;
+}> {
+  const githubToken = process.env.GITHUB_TOKEN;
+  const [customPromptTemplate, providerSettings, githubReadme, convexDocsContext] =
+    await Promise.all([
+      ctx.runQuery(internal.aiSettings._getSeoActivePromptContent),
+      ctx.runQuery(internal.aiSettings._getProviderSettingsForFallback),
+      fetchGitHubReadme(repoUrl, githubToken),
+      fetchConvexDocsContext(),
+    ]);
+  const readmeBlock = extractReadmeIncludeBlock(githubReadme?.fullContent || "");
+  return { customPromptTemplate, providerSettings, githubReadme, convexDocsContext, readmeBlock };
+}
+
 export const previewDirectoryContent = action({
   args: {
     repositoryUrl: v.string(),
@@ -991,80 +1001,38 @@ export const previewDirectoryContent = action({
     useCases: v.string(),
     howItWorks: v.string(),
     readmeIncludedMarkdown: v.optional(v.string()),
-    readmeIncludeSource: v.optional(
-      v.union(v.literal("markers"), v.literal("full")),
-    ),
+    readmeIncludeSource: v.optional(v.union(v.literal("markers"), v.literal("full"))),
   }),
   handler: async (ctx, args) => {
     const userKey = await requireContentGenerationUserKey(ctx);
     await enforceContentGenerationRateLimit(ctx, userKey, args.source);
 
-    const githubToken = process.env.GITHUB_TOKEN;
-    const [customPromptTemplate, providerSettings, githubReadme, convexDocsContext] =
-      await Promise.all([
-        ctx.runQuery(internal.aiSettings._getSeoActivePromptContent),
-        ctx.runQuery(internal.aiSettings._getProviderSettingsForFallback),
-        fetchGitHubReadme(args.repositoryUrl, githubToken),
-        fetchConvexDocsContext(),
-      ]);
+    const { customPromptTemplate, providerSettings, githubReadme, convexDocsContext, readmeBlock } =
+      await fetchPreviewContext(ctx, args.repositoryUrl);
 
-    const readmeBlock = extractReadmeIncludeBlock(
-      githubReadme?.rawContent || "",
-    );
-
+    const pkgName = extractPackageNameFromNpmUrl(args.npmUrl);
     const fakePkg = {
       componentName: args.componentName,
-      name: extractPackageNameFromNpmUrl(args.npmUrl),
+      name: pkgName,
       shortDescription: args.shortDescription,
       repositoryUrl: args.repositoryUrl,
       npmUrl: args.npmUrl,
-      installCommand: `npm install ${extractPackageNameFromNpmUrl(args.npmUrl)}`,
+      installCommand: `npm install ${pkgName}`,
     };
 
     const prompt = buildContentPrompt(fakePkg, {
-      customTemplate: customPromptTemplate,
+      customTemplate: customPromptTemplate ?? undefined,
       githubReadme: githubReadme?.content,
-      convexDocsContext,
+      convexDocsContext: convexDocsContext ?? undefined,
     });
 
-    const candidates = buildProviderCandidates({
-      adminProviders: providerSettings,
-      envKeys: {
-        anthropic: process.env.ANTHROPIC_API_KEY,
-        openai: process.env.CONVEX_OPENAI_API_KEY,
-        gemini: process.env.GEMINI_API_KEY ?? process.env.CONVEX_GEMINI_API_KEY,
-      },
-      defaultEnvModels: {
-        anthropic: "claude-sonnet-4-20250514",
-        openai: "gpt-4o",
-        gemini: "gemini-1.5-pro",
-      },
-    });
-
+    const candidates = buildSeoCandidates(providerSettings);
     const { result: aiResponseText } = await executeWithProviderFallback({
       candidates,
-      run: async (candidate) =>
-        callAiProvider(
-          candidate.provider,
-          candidate.apiKey,
-          candidate.model,
-          prompt,
-        ),
+      run: async (c) => callAiProvider(c.provider, c.apiKey, c.model, prompt),
     });
 
-    let jsonStr = aiResponseText.trim();
-    if (jsonStr.startsWith("```")) {
-      jsonStr = jsonStr
-        .replace(/^```(?:json)?\n?/, "")
-        .replace(/\n?```$/, "");
-    }
-
-    const parsed: ContentGenerationResponse = JSON.parse(jsonStr);
-
-    if (!parsed.description || !parsed.useCases || !parsed.howItWorks) {
-      throw new Error("AI response missing required content fields");
-    }
-
+    const parsed = parseContentAiResponse(aiResponseText);
     return {
       description: parsed.description,
       useCases: parsed.useCases,
@@ -1080,7 +1048,7 @@ async function requireContentGenerationUserKey(ctx: ActionCtx): Promise<string> 
   const userKey = identity?.subject ?? identity?.email?.trim().toLowerCase();
 
   if (!userKey) {
-    throw new Error("Authentication required to generate content. Please sign in first.");
+    throw new ConvexError("Authentication required to generate content. Please sign in first.");
   }
 
   return userKey;
@@ -1093,13 +1061,14 @@ async function enforceContentGenerationRateLimit(
 ): Promise<void> {
   const rateLimit = await ctx.runQuery(internal.contentGenerationLimits._checkRateLimit, {
     userKey,
+    now: Date.now(),
   });
 
   if (!rateLimit.allowed) {
     const resetMessage = rateLimit.resetAt
       ? ` Try again after ${new Date(rateLimit.resetAt).toLocaleString()}.`
       : "";
-    throw new Error(
+    throw new ConvexError(
       `Content generation is limited to once per hour per account. Please only regenerate when really needed and edit the current draft when you can.${resetMessage}`,
     );
   }

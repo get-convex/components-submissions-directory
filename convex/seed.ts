@@ -2,8 +2,9 @@
 // Run via CLI: npx convex run seed:seedOfficialComponents
 // Or with args: npx convex run seed:seedOfficialComponents '{"dryRun": true}'
 import { internalAction, internalMutation } from "./_generated/server";
-import { internal, api } from "./_generated/api";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { fetchNpmPackageHandler } from "./packages";
 
 // Official component data from convex.dev/components (sourced from components.ts)
 // Each component can optionally specify featured: true for homepage featuring
@@ -70,6 +71,59 @@ function isFirstParty(repo: string, npmPackage: string): boolean {
 }
 
 // Internal mutation: Insert or update a single official component
+async function patchExistingOfficialComponent(ctx: any, existing: any, args: any) {
+  await ctx.db.patch(existing._id, {
+    slug: existing.slug || args.slug,
+    category: existing.category || args.category,
+    shortDescription: existing.shortDescription || args.shortDescription,
+    componentName: existing.componentName || args.componentName,
+    featured: args.featured ?? existing.featured,
+    convexVerified: args.convexVerified,
+    reviewStatus: existing.reviewStatus || args.reviewStatus,
+    visibility: existing.visibility || "visible",
+    description: args.description,
+    version: args.version,
+    license: args.license,
+    unpackedSize: args.unpackedSize,
+    totalFiles: args.totalFiles,
+    lastPublish: args.lastPublish,
+    weeklyDownloads: args.weeklyDownloads,
+    collaborators: args.collaborators,
+    repositoryUrl: args.repositoryUrl,
+  });
+  return { id: existing._id, action: "updated" as const };
+}
+
+async function insertNewOfficialComponent(ctx: any, args: any) {
+  const maintainerNames = args.collaborators.map((c: any) => c.name).join(" ");
+  const id = await ctx.db.insert("packages", {
+    name: args.name,
+    description: args.description,
+    installCommand: args.installCommand,
+    repositoryUrl: args.repositoryUrl,
+    npmUrl: args.npmUrl,
+    version: args.version,
+    license: args.license,
+    unpackedSize: args.unpackedSize,
+    totalFiles: args.totalFiles,
+    lastPublish: args.lastPublish,
+    weeklyDownloads: args.weeklyDownloads,
+    collaborators: args.collaborators,
+    maintainerNames,
+    submittedAt: Date.now(),
+    slug: args.slug,
+    category: args.category,
+    shortDescription: args.shortDescription,
+    componentName: args.componentName,
+    featured: args.featured,
+    convexVerified: args.convexVerified,
+    reviewStatus: args.reviewStatus,
+    visibility: "visible",
+    submitterName: "Convex Team",
+  });
+  return { id, action: "created" as const };
+}
+
 export const _upsertOfficialComponent = internalMutation({
   args: {
     name: v.string(),
@@ -105,71 +159,83 @@ export const _upsertOfficialComponent = internalMutation({
     action: v.union(v.literal("created"), v.literal("updated")),
   }),
   handler: async (ctx, args) => {
-    // Check if already exists by name
     const existing = await ctx.db
       .query("packages")
       .withIndex("by_name", (q) => q.eq("name", args.name))
       .first();
 
     if (existing) {
-      // Update with directory fields if not already set, preserve existing reviewStatus
-      await ctx.db.patch(existing._id, {
-        slug: existing.slug || args.slug,
-        category: existing.category || args.category,
-        shortDescription: existing.shortDescription || args.shortDescription,
-        componentName: existing.componentName || args.componentName,
-        featured: args.featured ?? existing.featured,
-        convexVerified: args.convexVerified,
-        // Preserve existing reviewStatus and visibility
-        reviewStatus: existing.reviewStatus || args.reviewStatus,
-        visibility: existing.visibility || "visible",
-        // Update npm data
-        description: args.description,
-        version: args.version,
-        license: args.license,
-        unpackedSize: args.unpackedSize,
-        totalFiles: args.totalFiles,
-        lastPublish: args.lastPublish,
-        weeklyDownloads: args.weeklyDownloads,
-        collaborators: args.collaborators,
-        repositoryUrl: args.repositoryUrl,
-      });
-      return { id: existing._id, action: "updated" as const };
+      return await patchExistingOfficialComponent(ctx, existing, args);
     }
-
-    // Insert new component
-    const maintainerNames = args.collaborators.map((c) => c.name).join(" ");
-    const id = await ctx.db.insert("packages", {
-      name: args.name,
-      description: args.description,
-      installCommand: args.installCommand,
-      repositoryUrl: args.repositoryUrl,
-      npmUrl: args.npmUrl,
-      version: args.version,
-      license: args.license,
-      unpackedSize: args.unpackedSize,
-      totalFiles: args.totalFiles,
-      lastPublish: args.lastPublish,
-      weeklyDownloads: args.weeklyDownloads,
-      collaborators: args.collaborators,
-      maintainerNames,
-      submittedAt: Date.now(),
-      slug: args.slug,
-      category: args.category,
-      shortDescription: args.shortDescription,
-      componentName: args.componentName,
-      featured: args.featured,
-      convexVerified: args.convexVerified,
-      reviewStatus: args.reviewStatus,
-      visibility: "visible",
-      // Mark as Convex Team submission
-      submitterName: "Convex Team",
-    });
-    return { id, action: "created" as const };
+    return await insertNewOfficialComponent(ctx, args);
   },
 });
 
-// Main seed action: fetches npm data for each component and inserts into DB
+function buildDryRunResult(reviewStatus: string) {
+  const wouldImport = OFFICIAL_COMPONENTS.map((comp) => ({
+    npmPackage: comp.npmPackage,
+    title: comp.title,
+    category: comp.category,
+  }));
+  console.log(`Dry run: ${OFFICIAL_COMPONENTS.length} components would be imported as "${reviewStatus}"`);
+  return {
+    total: OFFICIAL_COMPONENTS.length,
+    created: 0,
+    updated: 0,
+    failed: 0,
+    dryRun: true,
+    wouldImport,
+  };
+}
+
+async function seedSingleComponent(ctx: any, comp: any, reviewStatus: string) {
+  const npmData: any = await fetchNpmPackageHandler(ctx, { packageName: comp.npmPackage });
+  const slug = comp.id;
+  return await ctx.runMutation(internal.seed._upsertOfficialComponent, {
+    name: comp.npmPackage,
+    description: comp.description,
+    installCommand: npmData.installCommand || `npm install ${comp.npmPackage}`,
+    repositoryUrl: comp.repo,
+    npmUrl: npmData.npmUrl || `https://www.npmjs.com/package/${encodeURIComponent(comp.npmPackage)}`,
+    slug,
+    category: comp.category,
+    shortDescription: comp.description.slice(0, 200),
+    componentName: comp.title,
+    featured: comp.featured,
+    convexVerified: isFirstParty(comp.repo, comp.npmPackage),
+    reviewStatus,
+    version: npmData.version || "0.0.0",
+    license: npmData.license || "Unknown",
+    unpackedSize: npmData.unpackedSize || 0,
+    totalFiles: npmData.totalFiles || 0,
+    lastPublish: npmData.lastPublish || new Date().toISOString(),
+    weeklyDownloads: npmData.weeklyDownloads || 0,
+    collaborators: npmData.collaborators || [],
+  });
+}
+
+async function seedAllComponents(ctx: any, reviewStatus: string) {
+  let created = 0;
+  let updated = 0;
+  let failed = 0;
+  for (const comp of OFFICIAL_COMPONENTS) {
+    try {
+      const result = await seedSingleComponent(ctx, comp, reviewStatus);
+      if (result.action === "created") {
+        created++;
+        console.log(`Created: ${comp.npmPackage} (slug: ${comp.id}, status: ${reviewStatus})`);
+      } else {
+        updated++;
+        console.log(`Updated: ${comp.npmPackage} (slug: ${comp.id})`);
+      }
+    } catch (error) {
+      failed++;
+      console.error(`Failed to seed ${comp.npmPackage}: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  }
+  return { created, updated, failed };
+}
+
 export const seedOfficialComponents = internalAction({
   args: {
     // If true, new components are imported as pending for admin review
@@ -193,86 +259,17 @@ export const seedOfficialComponents = internalAction({
   }),
   handler: async (ctx, args) => {
     const dryRun = args.dryRun ?? false;
-    const importAsPending = args.importAsPending ?? false;
-    const reviewStatus = importAsPending ? "pending" : "approved";
+    const reviewStatus = (args.importAsPending ?? false) ? "pending" : "approved";
 
-    // Dry run mode: return what would be imported
     if (dryRun) {
-      const wouldImport = OFFICIAL_COMPONENTS.map((comp) => ({
-        npmPackage: comp.npmPackage,
-        title: comp.title,
-        category: comp.category,
-      }));
-      console.log(`Dry run: ${OFFICIAL_COMPONENTS.length} components would be imported as "${reviewStatus}"`);
-      return {
-        total: OFFICIAL_COMPONENTS.length,
-        created: 0,
-        updated: 0,
-        failed: 0,
-        dryRun: true,
-        wouldImport,
-      };
+      return buildDryRunResult(reviewStatus);
     }
 
-    let created = 0;
-    let updated = 0;
-    let failed = 0;
-
-    for (const comp of OFFICIAL_COMPONENTS) {
-      try {
-        // Fetch live npm data
-        const npmData: any = await ctx.runAction(api.packages.fetchNpmPackage, {
-          packageName: comp.npmPackage,
-        });
-
-        // Use existing id as slug (preserves current URLs)
-        const slug = comp.id;
-
-        const result = await ctx.runMutation(internal.seed._upsertOfficialComponent, {
-          name: comp.npmPackage,
-          description: comp.description,
-          installCommand: npmData.installCommand || `npm install ${comp.npmPackage}`,
-          repositoryUrl: comp.repo,
-          npmUrl: npmData.npmUrl || `https://www.npmjs.com/package/${encodeURIComponent(comp.npmPackage)}`,
-          slug,
-          category: comp.category,
-          shortDescription: comp.description.slice(0, 200),
-          componentName: comp.title,
-          featured: comp.featured,
-          convexVerified: isFirstParty(comp.repo, comp.npmPackage),
-          reviewStatus,
-          version: npmData.version || "0.0.0",
-          license: npmData.license || "Unknown",
-          unpackedSize: npmData.unpackedSize || 0,
-          totalFiles: npmData.totalFiles || 0,
-          lastPublish: npmData.lastPublish || new Date().toISOString(),
-          weeklyDownloads: npmData.weeklyDownloads || 0,
-          collaborators: npmData.collaborators || [],
-        });
-
-        if (result.action === "created") {
-          created++;
-          console.log(`Created: ${comp.npmPackage} (slug: ${slug}, status: ${reviewStatus})`);
-        } else {
-          updated++;
-          console.log(`Updated: ${comp.npmPackage} (slug: ${slug})`);
-        }
-      } catch (error) {
-        failed++;
-        const msg = error instanceof Error ? error.message : "Unknown error";
-        console.error(`Failed to seed ${comp.npmPackage}: ${msg}`);
-      }
-    }
-
-    console.log(`Seed complete: ${created} created, ${updated} updated, ${failed} failed out of ${OFFICIAL_COMPONENTS.length}`);
-
-    return {
-      total: OFFICIAL_COMPONENTS.length,
-      created,
-      updated,
-      failed,
-      dryRun: false,
-    };
+    const counts = await seedAllComponents(ctx, reviewStatus);
+    console.log(
+      `Seed complete: ${counts.created} created, ${counts.updated} updated, ${counts.failed} failed out of ${OFFICIAL_COMPONENTS.length}`,
+    );
+    return { total: OFFICIAL_COMPONENTS.length, ...counts, dryRun: false };
   },
 });
 

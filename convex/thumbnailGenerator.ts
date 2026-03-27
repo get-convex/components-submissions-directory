@@ -2,7 +2,7 @@
 
 // Node action for composing 16:9 thumbnails from template + logo
 // Uses Jimp for image composition and @resvg/resvg-wasm for SVG rendering
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
@@ -38,6 +38,45 @@ export const generateThumbnailForPackage = action({
 });
 
 // Internal worker used by the public admin action.
+async function resolveTemplate(ctx: any, templateId?: Id<"thumbnailTemplates">) {
+  const template = templateId
+    ? await ctx.runQuery(internal.thumbnails._getTemplateById, { templateId })
+    : await ctx.runQuery(internal.thumbnails._getDefaultTemplate, {});
+  if (!template) throw new ConvexError("No template found. Upload a background template first.");
+  return template;
+}
+
+async function loadLogoPngBuffer(ctx: any, logoData: any): Promise<Buffer | undefined> {
+  if (!logoData) return undefined;
+  const logoUrl = await ctx.storage.getUrl(logoData.logoStorageId);
+  if (!logoUrl) return undefined;
+  const logoResponse = await fetch(logoUrl);
+  const logoArrayBuffer = await logoResponse.arrayBuffer();
+  const contentType = logoResponse.headers.get("content-type") || "";
+  const isSvg =
+    contentType.includes("svg") ||
+    contentType.includes("xml") ||
+    new TextDecoder().decode(logoArrayBuffer.slice(0, 100)).trimStart().startsWith("<");
+  return isSvg ? await svgToPngBuffer(Buffer.from(logoArrayBuffer)) : Buffer.from(logoArrayBuffer);
+}
+
+async function composeAndUploadThumbnail(ctx: any, template: any, logoPngBuffer: Buffer | undefined) {
+  const bgUrl = await ctx.storage.getUrl(template.storageId);
+  if (!bgUrl) throw new ConvexError("Could not resolve template URL from storage");
+  const bgResponse = await fetch(bgUrl);
+  const bgArrayBuffer = await bgResponse.arrayBuffer();
+  const resultBuffer = await composeThumbnail(
+    Buffer.from(bgArrayBuffer),
+    logoPngBuffer,
+    template.safeAreaX,
+    template.safeAreaY,
+    template.safeAreaWidth,
+    template.safeAreaHeight,
+  );
+  const blob = new Blob([resultBuffer], { type: "image/png" });
+  return await ctx.storage.store(blob);
+}
+
 export const _generateThumbnailForPackage = internalAction({
   args: {
     packageId: v.id("packages"),
@@ -45,87 +84,30 @@ export const _generateThumbnailForPackage = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    // Create job record
     const jobId: Id<"thumbnailJobs"> = await ctx.runMutation(
       internal.thumbnails._createThumbnailJob,
       { packageId: args.packageId, templateId: args.templateId },
     );
 
     try {
-      await ctx.runMutation(internal.thumbnails._updateThumbnailJob, {
-        jobId,
-        status: "processing",
-      });
+      await ctx.runMutation(internal.thumbnails._updateThumbnailJob, { jobId, status: "processing" });
 
-      // Get logo (optional for admin-triggered generation)
-      const logoData = await ctx.runQuery(
-        internal.thumbnails._getPackageLogo,
-        { packageId: args.packageId },
-      );
+      const [logoData, template] = await Promise.all([
+        ctx.runQuery(internal.thumbnails._getPackageLogo, { packageId: args.packageId }),
+        resolveTemplate(ctx, args.templateId),
+      ]);
 
-      // Get template
-      let template;
-      if (args.templateId) {
-        template = await ctx.runQuery(internal.thumbnails._getTemplateById, {
-          templateId: args.templateId,
-        });
-      } else {
-        template = await ctx.runQuery(
-          internal.thumbnails._getDefaultTemplate,
-          {},
-        );
-      }
-      if (!template)
-        throw new Error("No template found. Upload a background template first.");
+      // #region agent log
+      fetch("http://127.0.0.1:7557/ingest/496d4f8a-92e4-4a9c-a7be-0c1a3758fbbe",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"10e84f"},body:JSON.stringify({sessionId:"10e84f",runId:"pre-fix",hypothesisId:"H2",location:"convex/thumbnailGenerator.ts:99",message:"manual thumbnail worker resolved template and logo prereqs",data:{packageId:args.packageId,jobId,requestedTemplateId:args.templateId ?? null,resolvedTemplateId:template._id,hasLogoData:Boolean(logoData),logoStorageId:logoData?.logoStorageId ?? null},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
 
-      // Load background and optional logo
-      const bgUrl = await ctx.storage.getUrl(template.storageId);
-      if (!bgUrl) throw new Error("Could not resolve template URL from storage");
+      const logoPngBuffer = await loadLogoPngBuffer(ctx, logoData);
+      const storageId = await composeAndUploadThumbnail(ctx, template, logoPngBuffer);
 
-      const bgResponse = await fetch(bgUrl);
-      const bgArrayBuffer = await bgResponse.arrayBuffer();
+      // #region agent log
+      fetch("http://127.0.0.1:7557/ingest/496d4f8a-92e4-4a9c-a7be-0c1a3758fbbe",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"10e84f"},body:JSON.stringify({sessionId:"10e84f",runId:"pre-fix",hypothesisId:"H3",location:"convex/thumbnailGenerator.ts:103",message:"manual thumbnail worker composed and uploaded image",data:{packageId:args.packageId,jobId,resolvedTemplateId:template._id,hasLogoPngBuffer:Boolean(logoPngBuffer),storageId},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
 
-      let logoPngBuffer: Buffer | undefined;
-      if (logoData) {
-        const logoUrl = await ctx.storage.getUrl(logoData.logoStorageId);
-        if (logoUrl) {
-          const logoResponse = await fetch(logoUrl);
-          const logoArrayBuffer = await logoResponse.arrayBuffer();
-
-          // Detect SVG content type
-          const logoContentType = logoResponse.headers.get("content-type") || "";
-          const isSvg =
-            logoContentType.includes("svg") ||
-            logoContentType.includes("xml") ||
-            new TextDecoder()
-              .decode(logoArrayBuffer.slice(0, 100))
-              .trimStart()
-              .startsWith("<");
-
-          // Convert logo to PNG buffer if SVG
-          if (isSvg) {
-            logoPngBuffer = await svgToPngBuffer(Buffer.from(logoArrayBuffer));
-          } else {
-            logoPngBuffer = Buffer.from(logoArrayBuffer);
-          }
-        }
-      }
-
-      // Compose the thumbnail
-      const resultBuffer = await composeThumbnail(
-        Buffer.from(bgArrayBuffer),
-        logoPngBuffer,
-        template.safeAreaX,
-        template.safeAreaY,
-        template.safeAreaWidth,
-        template.safeAreaHeight,
-      );
-
-      // Upload result to Convex storage
-      const blob = new Blob([resultBuffer], { type: "image/png" });
-      const storageId = await ctx.storage.store(blob);
-
-      // Save to package
       await ctx.runMutation(internal.thumbnails._saveGeneratedThumbnail, {
         packageId: args.packageId,
         storageId,
@@ -133,101 +115,52 @@ export const _generateThumbnailForPackage = internalAction({
         generatedBy: "admin",
       });
 
-      await ctx.runMutation(internal.thumbnails._updateThumbnailJob, {
-        jobId,
-        status: "completed",
-      });
+      // #region agent log
+      fetch("http://127.0.0.1:7557/ingest/496d4f8a-92e4-4a9c-a7be-0c1a3758fbbe",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"10e84f"},body:JSON.stringify({sessionId:"10e84f",runId:"pre-fix",hypothesisId:"H1",location:"convex/thumbnailGenerator.ts:111",message:"manual thumbnail worker saved package thumbnail metadata",data:{packageId:args.packageId,jobId,storageId,templateId:template._id},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      await ctx.runMutation(internal.thumbnails._updateThumbnailJob, { jobId, status: "completed" });
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Unknown error";
-      await ctx.runMutation(internal.thumbnails._updateThumbnailJob, {
-        jobId,
-        status: "failed",
-        error: msg,
-      });
+      // #region agent log
+      fetch("http://127.0.0.1:7557/ingest/496d4f8a-92e4-4a9c-a7be-0c1a3758fbbe",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"10e84f"},body:JSON.stringify({sessionId:"10e84f",runId:"pre-fix",hypothesisId:"H1",location:"convex/thumbnailGenerator.ts:115",message:"manual thumbnail worker failed",data:{packageId:args.packageId,jobId,error:msg},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      await ctx.runMutation(internal.thumbnails._updateThumbnailJob, { jobId, status: "failed", error: msg });
       throw error;
     }
-
     return null;
   },
 });
 
 // ============ INTERNAL ACTION: Auto-generation on submit ============
 
+async function checkAutoGenPrereqs(ctx: any, packageId: Id<"packages">) {
+  const enabled: boolean = await ctx.runQuery(internal.thumbnails._getAutoGenerateThumbnailEnabled, {});
+  if (!enabled) return null;
+  const logoData = await ctx.runQuery(internal.thumbnails._getPackageLogo, { packageId });
+  if (!logoData) return null;
+  const template = await ctx.runQuery(internal.thumbnails._getTemplateForSubmit, { packageId });
+  if (!template) return null;
+  return { logoData, template };
+}
+
 export const _autoGenerateThumbnail = internalAction({
   args: { packageId: v.id("packages") },
   returns: v.null(),
   handler: async (ctx, args) => {
-    // Check if auto-generate is enabled
-    const enabled: boolean = await ctx.runQuery(
-      internal.thumbnails._getAutoGenerateThumbnailEnabled,
-      {},
-    );
-    if (!enabled) return null;
+    const prereqs = await checkAutoGenPrereqs(ctx, args.packageId);
+    if (!prereqs) return null;
+    const { logoData, template } = prereqs;
 
-    // Get logo
-    const logoData = await ctx.runQuery(
-      internal.thumbnails._getPackageLogo,
-      { packageId: args.packageId },
-    );
-    if (!logoData) return null;
-
-    // Get default template or rotated template (based on admin setting)
-    const template = await ctx.runQuery(
-      internal.thumbnails._getTemplateForSubmit,
-      { packageId: args.packageId },
-    );
-    if (!template) return null;
-
-    // Create job
     const jobId: Id<"thumbnailJobs"> = await ctx.runMutation(
       internal.thumbnails._createThumbnailJob,
       { packageId: args.packageId, templateId: template._id },
     );
 
     try {
-      await ctx.runMutation(internal.thumbnails._updateThumbnailJob, {
-        jobId,
-        status: "processing",
-      });
+      await ctx.runMutation(internal.thumbnails._updateThumbnailJob, { jobId, status: "processing" });
 
-      const [logoUrl, bgUrl] = await Promise.all([
-        ctx.storage.getUrl(logoData.logoStorageId),
-        ctx.storage.getUrl(template.storageId),
-      ]);
-      if (!logoUrl || !bgUrl) throw new Error("Could not resolve image URLs");
-
-      const [logoRes, bgRes] = await Promise.all([
-        fetch(logoUrl),
-        fetch(bgUrl),
-      ]);
-      const [logoAB, bgAB] = await Promise.all([
-        logoRes.arrayBuffer(),
-        bgRes.arrayBuffer(),
-      ]);
-
-      const logoContentType = logoRes.headers.get("content-type") || "";
-      const isSvg =
-        logoContentType.includes("svg") ||
-        new TextDecoder().decode(logoAB.slice(0, 100)).trimStart().startsWith("<");
-
-      let logoPngBuffer: Buffer;
-      if (isSvg) {
-        logoPngBuffer = await svgToPngBuffer(Buffer.from(logoAB));
-      } else {
-        logoPngBuffer = Buffer.from(logoAB);
-      }
-
-      const resultBuffer = await composeThumbnail(
-        Buffer.from(bgAB),
-        logoPngBuffer,
-        template.safeAreaX,
-        template.safeAreaY,
-        template.safeAreaWidth,
-        template.safeAreaHeight,
-      );
-
-      const blob = new Blob([resultBuffer], { type: "image/png" });
-      const storageId = await ctx.storage.store(blob);
+      const logoPngBuffer = await loadLogoPngBuffer(ctx, logoData);
+      const storageId = await composeAndUploadThumbnail(ctx, template, logoPngBuffer);
 
       await ctx.runMutation(internal.thumbnails._saveGeneratedThumbnail, {
         packageId: args.packageId,
@@ -235,20 +168,11 @@ export const _autoGenerateThumbnail = internalAction({
         templateId: template._id,
         generatedBy: "auto",
       });
-
-      await ctx.runMutation(internal.thumbnails._updateThumbnailJob, {
-        jobId,
-        status: "completed",
-      });
+      await ctx.runMutation(internal.thumbnails._updateThumbnailJob, { jobId, status: "completed" });
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Unknown error";
-      await ctx.runMutation(internal.thumbnails._updateThumbnailJob, {
-        jobId,
-        status: "failed",
-        error: msg,
-      });
+      await ctx.runMutation(internal.thumbnails._updateThumbnailJob, { jobId, status: "failed", error: msg });
     }
-
     return null;
   },
 });
@@ -312,7 +236,6 @@ export const regenerateSelectedThumbnails = action({
 });
 
 
-// Internal: generate thumbnail with specific or default template (for batch)
 export const _autoGenerateThumbnailWithTemplate = internalAction({
   args: {
     packageId: v.id("packages"),
@@ -320,23 +243,10 @@ export const _autoGenerateThumbnailWithTemplate = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    // Logo is optional for batch. If missing, generate template-only thumbnail.
-    const logoData = await ctx.runQuery(
-      internal.thumbnails._getPackageLogo,
-      { packageId: args.packageId },
-    );
-
-    let template;
-    if (args.templateId) {
-      template = await ctx.runQuery(internal.thumbnails._getTemplateById, {
-        templateId: args.templateId,
-      });
-    } else {
-      template = await ctx.runQuery(
-        internal.thumbnails._getDefaultTemplate,
-        {},
-      );
-    }
+    const [logoData, template] = await Promise.all([
+      ctx.runQuery(internal.thumbnails._getPackageLogo, { packageId: args.packageId }),
+      resolveTemplate(ctx, args.templateId).catch(() => null),
+    ]);
     if (!template) return null;
 
     const jobId: Id<"thumbnailJobs"> = await ctx.runMutation(
@@ -345,50 +255,10 @@ export const _autoGenerateThumbnailWithTemplate = internalAction({
     );
 
     try {
-      await ctx.runMutation(internal.thumbnails._updateThumbnailJob, {
-        jobId,
-        status: "processing",
-      });
+      await ctx.runMutation(internal.thumbnails._updateThumbnailJob, { jobId, status: "processing" });
 
-      const bgUrl = await ctx.storage.getUrl(template.storageId);
-      if (!bgUrl) throw new Error("Could not resolve template URL");
-      const bgRes = await fetch(bgUrl);
-      const bgAB = await bgRes.arrayBuffer();
-
-      let logoPngBuffer: Buffer | undefined;
-      if (logoData) {
-        const logoUrl = await ctx.storage.getUrl(logoData.logoStorageId);
-        if (logoUrl) {
-          const logoRes = await fetch(logoUrl);
-          const logoAB = await logoRes.arrayBuffer();
-
-          const logoContentType = logoRes.headers.get("content-type") || "";
-          const isSvg =
-            logoContentType.includes("svg") ||
-            new TextDecoder()
-              .decode(logoAB.slice(0, 100))
-              .trimStart()
-              .startsWith("<");
-
-          if (isSvg) {
-            logoPngBuffer = await svgToPngBuffer(Buffer.from(logoAB));
-          } else {
-            logoPngBuffer = Buffer.from(logoAB);
-          }
-        }
-      }
-
-      const result = await composeThumbnail(
-        Buffer.from(bgAB),
-        logoPngBuffer,
-        template.safeAreaX,
-        template.safeAreaY,
-        template.safeAreaWidth,
-        template.safeAreaHeight,
-      );
-
-      const blob = new Blob([result], { type: "image/png" });
-      const storageId = await ctx.storage.store(blob);
+      const logoPngBuffer = await loadLogoPngBuffer(ctx, logoData);
+      const storageId = await composeAndUploadThumbnail(ctx, template, logoPngBuffer);
 
       await ctx.runMutation(internal.thumbnails._saveGeneratedThumbnail, {
         packageId: args.packageId,
@@ -396,20 +266,11 @@ export const _autoGenerateThumbnailWithTemplate = internalAction({
         templateId: template._id,
         generatedBy: "batch",
       });
-
-      await ctx.runMutation(internal.thumbnails._updateThumbnailJob, {
-        jobId,
-        status: "completed",
-      });
+      await ctx.runMutation(internal.thumbnails._updateThumbnailJob, { jobId, status: "completed" });
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Unknown error";
-      await ctx.runMutation(internal.thumbnails._updateThumbnailJob, {
-        jobId,
-        status: "failed",
-        error: msg,
-      });
+      await ctx.runMutation(internal.thumbnails._updateThumbnailJob, { jobId, status: "failed", error: msg });
     }
-
     return null;
   },
 });

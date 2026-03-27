@@ -1,6 +1,6 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import { buildComponentUrls } from "../shared/componentUrls";
 import { resolveApiCaller, rateLimitHeaders, type ApiCallerResult } from "./apiKeys";
 
@@ -12,8 +12,7 @@ http.route({
   path: "/api/export-csv",
   method: "GET",
   handler: httpAction(async (ctx) => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const packages = await ctx.runQuery(api.packages.getAllPackages as any);
+    const packages = await ctx.runQuery(internal.packages._getAllPackages);
 
     const headers = [
       "name",
@@ -581,6 +580,63 @@ function svgHeaders(): Record<string, string> {
   };
 }
 
+// CORS preflight handler for content endpoints
+function contentOptionsHandler() {
+  return httpAction(async () => {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Accept",
+        "Access-Control-Max-Age": "86400",
+      },
+    });
+  });
+}
+
+http.route({
+  path: "/api/badge",
+  method: "OPTIONS",
+  handler: contentOptionsHandler(),
+});
+
+http.route({
+  path: "/api/markdown",
+  method: "OPTIONS",
+  handler: contentOptionsHandler(),
+});
+
+http.route({
+  path: "/api/markdown-index",
+  method: "OPTIONS",
+  handler: contentOptionsHandler(),
+});
+
+http.route({
+  path: "/api/component-llms",
+  method: "OPTIONS",
+  handler: contentOptionsHandler(),
+});
+
+http.route({
+  path: "/api/llms.txt",
+  method: "OPTIONS",
+  handler: contentOptionsHandler(),
+});
+
+http.route({
+  path: "/api/export-csv",
+  method: "OPTIONS",
+  handler: contentOptionsHandler(),
+});
+
+http.route({
+  path: "/api/sitemap.xml",
+  method: "OPTIONS",
+  handler: contentOptionsHandler(),
+});
+
 // ============ MCP API ENDPOINTS ============
 // Read-only MCP tools for agent and CLI consumption
 
@@ -726,7 +782,7 @@ async function enforceRateLimit(
   return { caller };
 }
 
-function logApiRequest(
+async function logApiRequest(
   ctx: Parameters<Parameters<typeof httpAction>[0]>[0],
   request: Request,
   caller: ApiCallerResult,
@@ -736,7 +792,7 @@ function logApiRequest(
   slug?: string,
   searchQuery?: string,
 ) {
-  ctx.runMutation(internal.packages._recordMcpApiRequest, {
+  await ctx.runMutation(internal.packages._recordMcpApiRequest, {
     endpoint,
     slug,
     query: searchQuery,
@@ -768,54 +824,18 @@ http.route({
     );
     const offset = parseInt(url.searchParams.get("offset") || "0", 10);
 
-    const packages = await ctx.runQuery(
-      internal.packages._listApprovedPackages,
+    // Use search indexes instead of loading all packages and filtering in JS
+    const { results, total } = await ctx.runQuery(
+      internal.packages._searchApprovedPackages,
+      {
+        searchTerm: query,
+        category: category || undefined,
+        limit,
+        offset,
+      },
     );
 
-    let filtered = packages;
-    if (query) {
-      const q = query.toLowerCase();
-      filtered = filtered.filter((pkg: any) => {
-        const name = (pkg.name || "").toLowerCase();
-        const componentName = (pkg.componentName || "").toLowerCase();
-        const desc = (
-          pkg.shortDescription ||
-          pkg.description ||
-          ""
-        ).toLowerCase();
-        const tags = (pkg.tags || []).join(" ").toLowerCase();
-        return (
-          name.includes(q) ||
-          componentName.includes(q) ||
-          desc.includes(q) ||
-          tags.includes(q)
-        );
-      });
-    }
-
-    if (category) {
-      filtered = filtered.filter((pkg: any) => pkg.category === category);
-    }
-
-    filtered.sort(
-      (a: any, b: any) =>
-        (b.weeklyDownloads || 0) - (a.weeklyDownloads || 0),
-    );
-
-    const total = filtered.length;
-    const paginated = filtered.slice(offset, offset + limit);
-
-    const results = paginated.map((pkg: any) => ({
-      slug: pkg.slug || "",
-      displayName: pkg.componentName || pkg.name,
-      packageName: pkg.name,
-      shortDescription: pkg.shortDescription,
-      category: pkg.category,
-      weeklyDownloads: pkg.weeklyDownloads || 0,
-      convexVerified: pkg.convexVerified || false,
-    }));
-
-    logApiRequest(ctx, request, caller, "search", 200, startTime, undefined, query || undefined);
+    await logApiRequest(ctx, request, caller, "search", 200, startTime, undefined, query || undefined);
 
     return new Response(
       JSON.stringify({
@@ -847,7 +867,7 @@ http.route({
     const slug = url.searchParams.get("slug") || "";
 
     if (!slug) {
-      logApiRequest(ctx, request, caller, "detail", 400, startTime);
+      await logApiRequest(ctx, request, caller, "detail", 400, startTime);
       return new Response(
         JSON.stringify({ error: "Missing slug parameter" }),
         { status: 400, headers: apiJsonHeaders(caller.rateLimit) },
@@ -859,14 +879,14 @@ http.route({
     });
 
     if (!pkg || pkg.visibility === "hidden" || pkg.visibility === "archived") {
-      logApiRequest(ctx, request, caller, "detail", 404, startTime, slug);
+      await logApiRequest(ctx, request, caller, "detail", 404, startTime, slug);
       return new Response(
         JSON.stringify({ error: "Component not found" }),
         { status: 404, headers: apiJsonHeaders(caller.rateLimit) },
       );
     }
 
-    logApiRequest(ctx, request, caller, "detail", 200, startTime, slug);
+    await logApiRequest(ctx, request, caller, "detail", 200, startTime, slug);
 
     return new Response(
       JSON.stringify({ component: buildMcpProfile(pkg) }),
@@ -895,7 +915,7 @@ http.route({
     const slug = url.searchParams.get("slug") || "";
 
     if (!slug) {
-      logApiRequest(ctx, request, caller, "install", 400, startTime);
+      await logApiRequest(ctx, request, caller, "install", 400, startTime);
       return new Response(
         JSON.stringify({ error: "Missing slug parameter" }),
         { status: 400, headers: apiJsonHeaders(caller.rateLimit) },
@@ -907,7 +927,7 @@ http.route({
     });
 
     if (!pkg || pkg.visibility === "hidden" || pkg.visibility === "archived") {
-      logApiRequest(ctx, request, caller, "install", 404, startTime, slug);
+      await logApiRequest(ctx, request, caller, "install", 404, startTime, slug);
       return new Response(
         JSON.stringify({ error: "Component not found" }),
         { status: 404, headers: apiJsonHeaders(caller.rateLimit) },
@@ -916,7 +936,7 @@ http.route({
 
     const command = pkg.installCommand || `npm install ${pkg.name}`;
 
-    logApiRequest(ctx, request, caller, "install", 200, startTime, slug);
+    await logApiRequest(ctx, request, caller, "install", 200, startTime, slug);
 
     return new Response(
       JSON.stringify({
@@ -950,7 +970,7 @@ http.route({
     const slug = url.searchParams.get("slug") || "";
 
     if (!slug) {
-      logApiRequest(ctx, request, caller, "docs", 400, startTime);
+      await logApiRequest(ctx, request, caller, "docs", 400, startTime);
       return new Response(
         JSON.stringify({ error: "Missing slug parameter" }),
         { status: 400, headers: apiJsonHeaders(caller.rateLimit) },
@@ -962,7 +982,7 @@ http.route({
     });
 
     if (!pkg || pkg.visibility === "hidden" || pkg.visibility === "archived") {
-      logApiRequest(ctx, request, caller, "docs", 404, startTime, slug);
+      await logApiRequest(ctx, request, caller, "docs", 404, startTime, slug);
       return new Response(
         JSON.stringify({ error: "Component not found" }),
         { status: 404, headers: apiJsonHeaders(caller.rateLimit) },
@@ -971,7 +991,7 @@ http.route({
 
     const componentLinks = buildComponentUrls(slug, DIRECTORY_ORIGIN);
 
-    logApiRequest(ctx, request, caller, "docs", 200, startTime, slug);
+    await logApiRequest(ctx, request, caller, "docs", 200, startTime, slug);
 
     return new Response(
       JSON.stringify({
@@ -1026,7 +1046,7 @@ http.route({
       }),
     );
 
-    logApiRequest(ctx, request, caller, "categories", 200, startTime);
+    await logApiRequest(ctx, request, caller, "categories", 200, startTime);
 
     return new Response(JSON.stringify({ categories }), {
       status: 200,
@@ -1051,7 +1071,7 @@ http.route({
     if (result.response) return result.response;
     const { caller } = result;
 
-    logApiRequest(ctx, request, caller, "info", 200, startTime);
+    await logApiRequest(ctx, request, caller, "info", 200, startTime);
 
     return new Response(
       JSON.stringify({
@@ -1184,6 +1204,7 @@ http.route({
       // Check rate limit
       const rateLimitCheck = await ctx.runQuery(internal.preflight._checkRateLimit, {
         hashedIp,
+        now: Date.now(),
       });
 
       if (!rateLimitCheck.allowed) {
@@ -1224,6 +1245,7 @@ http.route({
       // Check for cached result
       const cachedResult = await ctx.runQuery(internal.preflight._getCachedResult, {
         normalizedRepoUrl: normalizedUrl,
+        now: Date.now(),
       });
 
       if (cachedResult) {

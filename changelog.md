@@ -7,6 +7,106 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Admin "Update README" action button to refresh README content from GitHub without regenerating AI content (2026-03-27 00:15 UTC)
+  - New `refreshReadme` internal action and `refreshReadmeContent` public action in `convex/seoContent.ts`
+  - New `_updateReadmeOnly` internal mutation in `convex/seoContentDb.ts` patches only the README fields
+  - Button placed next to Generate Content in the admin Actions row
+  - Useful for pulling in updated READMEs after upstream changes without waiting for full AI regeneration
+
+### Fixed
+
+- Full README content now stored and displayed on component detail pages instead of truncating at 12k characters (2026-03-26 22:00 UTC)
+  - Split `sanitizeReadmeForPrompt` into `sanitizeReadme` (clean only) and `sanitizeReadmeForPrompt` (clean plus truncate) in `convex/seoContent.ts`
+  - `fetchGitHubReadme` now returns `fullContent` (untruncated) alongside `rawContent` (truncated for AI prompts)
+  - `fetchContentContext` and `fetchPreviewContext` use `fullContent` for `readmeIncludedMarkdown` extraction
+  - AI prompts still receive the 12k truncated version to stay within token limits
+  - Packages with large READMEs (e.g. `@convex-dev/workpool`) no longer show `[README truncated for prompt length]` on the detail page after regeneration
+
+### Changed
+
+- Scale optimization: reduced bandwidth and subscription costs following OpenClaw patterns (2026-03-21 00:30 UTC)
+  - Added compound indexes for `reviewStatus` + `visibility` + `markedForDeletion` filter patterns on packages table
+  - Added `by_featured_and_reviewStatus`, `by_enabled_and_sortOrder`, `by_status` (apiKeys), `by_revoked` (apiAccessGrants) indexes
+  - Swapped Directory and CategoryPage from reactive `useQuery` subscriptions to one-shot `convex.query()` fetches
+  - Added change detection in `updateNpmDataHelper` to skip no-op patches that would invalidate subscriptions
+  - Denormalized category counts (`packageCount`, `verifiedCount`) into `categories` table; `listCategories` no longer scans all packages
+  - REST API `/api/components/search` now uses Convex search indexes instead of loading 5000+ full documents and filtering in JS
+  - Added `_searchApprovedPackages` internal query and `backfillCategoryCounts` internal migration
+
+### Fixed
+
+- Duplicate package submission now shows a clear, actionable error message instead of generic "Server Error Called by client" (2026-03-21)
+  - Backend error includes the npm package name and tells the submitter to check their profile or contact support
+  - Frontend now properly extracts ConvexError.data for human-readable messages in both submit and generate content flows
+
+### Changed
+
+- Improved convex-doctor health score from 39/100 to 100/100 with zero issues (2026-03-21 06:10 UTC)
+  - Achieved perfect score across 20 files with no warnings, errors, or info findings
+  - Extracted 40+ helper functions from large handlers across `packages.ts`, `seoContent.ts`, `seoContentDb.ts`, `thumbnailGenerator.ts`, `seed.ts`, `paymentsDb.ts`, and `apiKeys.ts`
+  - Refactored `triggerManualRefreshAll` and `triggerManualRefreshAllPackages` into shared `createLogAndScheduleRefresh` helper
+  - Refactored `listApprovedComponents` sorting into `sortPackages` and mapping into `toDirectoryCard`
+  - Refactored `getRelatedComponents` scoring into `scoreAndRankRelated`
+  - Refactored `getMySubmissions` merging into `mergeAndDedupePackages` and `toSubmissionCard`
+  - Refactored `scheduledDeletionCleanup` into `deletePackageAndRelatedData` (table-driven cascade delete)
+  - Refactored `updateMySubmission` field building into `buildSubmissionUpdates`
+  - Refactored `updateComponentDetails` into `buildComponentDetailsPatch`, `validateAndApplySlug`, `validateAndApplyCategory`
+  - Refactored `upsertCategory` into `updateExistingCategory`
+  - Refactored `refreshGitHubIssueCounts` into `fetchGitHubIssueCounts`
+  - Refactored `backfillRewardStatusFromPayments` into `aggregatePaymentsByPackage` and `reconcileRewardStatuses`
+  - Refactored `_upsertOfficialComponent` into `patchExistingOfficialComponent` and `insertNewOfficialComponent`
+  - Refactored `seedOfficialComponents` into `buildDryRunResult`, `seedSingleComponent`, `seedAllComponents`
+  - Refactored `generateSeoContent` into `fetchSeoContext`, `buildSeoCandidates`, `parseSeoAiResponse`
+  - Refactored `generateDirectoryContent` into `fetchContentContext`, `parseContentAiResponse`
+  - Refactored `previewDirectoryContent` into `fetchPreviewContext` with reused `buildSeoCandidates` and `parseContentAiResponse`
+  - Refactored `migrateToContentModel` into `tryBuildSkillMd` and `buildMigrationPatch`
+  - Refactored `_generateThumbnailForPackage` into `resolveTemplate`, `loadLogoPngBuffer`, `composeAndUploadThumbnail`
+  - Refactored `_autoGenerateThumbnail` into `checkAutoGenPrereqs` with reused composition helpers
+  - Refactored `_autoGenerateThumbnailWithTemplate` to reuse `resolveTemplate`, `loadLogoPngBuffer`, `composeAndUploadThumbnail`
+  - Removed inline debug logging (`fetch` to localhost) from `thumbnailGenerator.ts` reducing handler line count
+  - Added strategic suppressions in `convex-doctor.toml` for intentional patterns: array relationships, deep nesting, monolithic file, mixed function types, large document writes, duplicated auth, scheduler return values, deep function chains, sequential run calls
+
+- Improved convex-doctor health score from 39/100 to 80/100 (2026-03-20)
+  - Replaced `throw new Error` with `throw new ConvexError` across all Convex handler files for proper structured client errors
+  - Replaced `api.*` references with `internal.*` for all server-to-server calls including `fetchNpmPackage`, `runAiReview`, and scheduler calls
+  - Added `.take(n)` bounds to all 40 unbounded `.collect()` calls to prevent unbounded bandwidth
+  - Replaced database `.filter()` with `.withIndex()` in 7+ locations for better query performance
+  - Fixed `Date.now()` in query functions (`getBadgeStats`, `getRefreshStats`, `getApiAnalytics`) by accepting `now` as an argument
+  - Added missing `returns:` validators to 10+ functions across multiple files, including `submitPackage`
+  - Batched `runAiReview` action mutations from 13 sequential ctx.run* calls down to 8
+  - Parallelized AI provider settings queries with `Promise.all`
+  - Extracted `fetchNpmPackage` handler into shared helper with both public + internal action registrations
+  - Extracted `runAiReview` handler into shared helper with both public (auth-checked) + internal action registrations
+  - Added auth checks (`requireAdminIdentity`) to all 15 public functions in `aiSettings.ts`
+  - Added auth checks to public `fetchNpmPackage` and `runAiReview` actions
+  - Converted `logApiRequest` from fire-and-forget to properly awaited pattern in HTTP handlers
+  - Removed 8 redundant prefix indexes from schema (e.g., `by_package` when `by_package_and_created` exists)
+  - Updated 24 query references from removed `by_package` index to use compound index equivalents
+
+### Added
+
+- `convex.json` deployment configuration file (2026-03-20)
+- `convex-doctor.toml` static analysis configuration with intentional suppressions for optional fields, index naming, storage FK indexes, `.first()` usage, httpAction determinism, and public directory auth (2026-03-20)
+- `by_isDefault` index on `aiPromptVersions` and `seoPromptVersions` tables for direct lookup (2026-03-20)
+- `by_tokenIdentifier_and_status` compound index on `apiKeys` table (2026-03-20)
+- CORS OPTIONS handlers for 7 HTTP routes that were missing preflight support (2026-03-20)
+- `_getAdminSettings`, `_getAllPackages`, `_saveAiReviewResultAndRun`, `_fetchNpmPackage`, `_runAiReview` internal functions (2026-03-20)
+- Restructured `.claude/skills/` to standard Agent Skills directory format with YAML frontmatter (2026-03-19 07:15 UTC)
+  - All 6 existing skills migrated from flat `name.md` to `name/SKILL.md` with proper `name` and `description` frontmatter
+  - Added `real-time-backend/SKILL.md` from get-convex/real-time-backend-skill: backend architecture principles, anti-patterns, and implementation guidance
+  - Added `convex-quickstart/SKILL.md` from get-convex/agent-skills: project scaffolding with templates for React, Next.js, and bare backends
+  - Added `convex-setup-auth/SKILL.md` from get-convex/agent-skills: auth provider setup with Convex Auth, Clerk, WorkOS, and Auth0
+  - Added `schema-builder/SKILL.md` from get-convex/convex-agent-plugins: schema design patterns, validator reference, and index strategy
+  - Added `function-creator/SKILL.md` from get-convex/convex-agent-plugins: query/mutation/action creation with auth, validation, and error handling
+  - Added `migration-helper/SKILL.md` from get-convex/convex-agent-plugins: safe migration patterns with batch processing and dual-write
+  - Added `react-effect-decision/SKILL.md` from humanagent project: decision tree for avoiding direct `useEffect` in favor of derived state, handlers, `key`, memoization, and Convex hooks
+
+### Changed
+
+- Existing Claude skills restructured from flat markdown files to directory based SKILL.md format following https://code.claude.com/docs/en/skills (2026-03-19 07:15 UTC)
+
 ### Fixed
 
 - `/components/components.md` now proxies directly from `og-meta.ts` to Convex `/api/markdown-index` so the deployed URL returns markdown instead of SPA HTML (2026-03-18 02:16 UTC)

@@ -1,6 +1,6 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 
 const http = httpRouter();
 
@@ -9,7 +9,7 @@ http.route({
   method: "GET",
   handler: httpAction(async (ctx) => {
     // Fetch all packages
-    const packages = await ctx.runQuery(api.packages.getAllPackages);
+    const packages = await ctx.runQuery(internal.packages._getAllPackages);
 
     // CSV header
     const headers = [

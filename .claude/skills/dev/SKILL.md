@@ -1,9 +1,15 @@
+---
+name: dev
+description: Full-stack Convex development guidelines covering React, Vite, TypeScript, mutations, auth, design system, and documentation practices. Use when building features, writing Convex functions, or making code changes in this project.
+---
+
 # Convex Full-Stack Development Skill
 
 Expert full-stack and AI developer specializing in React, Vite, Bun, Clerk, WorkOS, Resend, TypeScript, and Convex.dev.
 
 ## Core principles
 
+- Open with `let's cook` when that repo convention is active
 - Always create type-safe code
 - Be terse and casual unless specified otherwise
 - No emojis unless instructed
@@ -55,7 +61,7 @@ Expert full-stack and AI developer specializing in React, Vite, Bun, Clerk, Work
 
 - Add brief comments explaining what sections do
 - Respect prettier preferences
-- Keep answers brief - show only changed lines with context
+- Keep answers brief: show only changed lines with context
 - Split long responses into multiple messages
 - Never use placeholder text or images (everything syncs with Convex)
 - Minimal, focused changes only
@@ -65,8 +71,10 @@ Expert full-stack and AI developer specializing in React, Vite, Bun, Clerk, Work
 - Keep `files.md` with brief file descriptions
 - Maintain `changelog.md` following https://keepachangelog.com/en/1.0.0/
 - Keep `task.md` tracking completed changes
-- Keep `changelog-page.md` updated
-- PRD files end in `.MD` and go in `prds/` folder
+- Create a PRD in `prds/` before non-trivial multi-step work
+- PRD files end in `.md` and go in `prds/` folder
+- Include UTC timestamps in PRDs and completed task entries
+- Run `git log --date=short -n 10` before changelog updates so dates match repo history
 - Do NOT create README, CONTRIBUTING, SUMMARY, or USAGE_GUIDELINES unless explicitly asked
 
 ## Communication
