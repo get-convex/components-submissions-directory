@@ -41,7 +41,7 @@ const categoriesWithLinks: FooterCategory[] = [
       },
       { label: "Convex for Claw", href: "https://convex.dev/claw" },
       { label: "Champions", href: "https://convex.dev/champions" },
-      { label: "Changelog", href: "https://convex.dev/releases" },
+      { label: "Changelog", href: "https://ship.convex.dev/" },
       { label: "Podcast", href: "https://convex.dev/podcast" },
       {
         label: "LLMs.txt",
@@ -125,8 +125,7 @@ export default function Footer() {
             href="https://convex.dev"
             target="_blank"
             rel="noopener noreferrer"
-            className="col-span-2 md:col-span-4 lg:col-span-5 xl:col-span-1 xl:row-span-2 hover:opacity-80 transition-opacity"
-          >
+            className="col-span-2 md:col-span-4 lg:col-span-5 xl:col-span-1 xl:row-span-2 hover:opacity-80 transition-opacity">
             <img
               src="/components/logo.svg"
               alt="Convex"
@@ -144,8 +143,7 @@ export default function Footer() {
                 category.name === "Social"
                   ? "lg:col-start-5 xl:col-span-2 xl:col-start-6"
                   : "xl:row-span-2"
-              }`}
-            >
+              }`}>
               <span className="text-sm leading-tight tracking-wide text-[#767983]">
                 {category.name}
               </span>
@@ -156,8 +154,7 @@ export default function Footer() {
                     href={link.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center text-[0.9375rem] leading-tight transition-colors hover:text-[#9799a4]"
-                  >
+                    className="flex items-center text-[0.9375rem] leading-tight transition-colors hover:text-[#9799a4]">
                     {link.icon && (
                       <img
                         src={link.icon}

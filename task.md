@@ -2,7 +2,17 @@
 
 ## to do
 
-Session updates complete on 2026-03-27 00:15 UTC.
+Session updates complete on 2026-03-27 01:00 UTC.
+
+- [x] Remove 20k character cap on stored README content (2026-03-27 01:00 UTC)
+  - Removed `.slice(0, 20000)` from both save paths in `convex/seoContent.ts`
+  - Full README now stored without any character limit
+  - Files changed: `convex/seoContent.ts`
+
+- [x] Fix README not showing on components without AI content (2026-03-27 00:45 UTC)
+  - Moved `readmeIncludedMarkdown` rendering outside v2 content gate in `src/pages/ComponentDetail.tsx`
+  - README now displays independently of `contentModelVersion === 2 && generatedDescription`
+  - Files changed: `src/pages/ComponentDetail.tsx`
 
 - [x] Add admin Update README action button (2026-03-27 00:15 UTC)
   - Added `refreshReadme` internal action and `refreshReadmeContent` public action in `convex/seoContent.ts`

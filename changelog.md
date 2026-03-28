@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Button placed next to Generate Content in the admin Actions row
   - Useful for pulling in updated READMEs after upstream changes without waiting for full AI regeneration
 
+### Changed
+
+- Removed 20k character cap on stored README content so full READMEs display without truncation (2026-03-27 01:00 UTC)
+  - Removed `.slice(0, 20000)` from both `generateDirectoryContent` and `refreshReadme` save paths in `convex/seoContent.ts`
+  - Convex string fields support up to 1MB, so no practical limit is needed
+- README section on component detail page now renders independently of v2 AI content generation (2026-03-27 00:45 UTC)
+  - Moved `readmeIncludedMarkdown` rendering outside the `contentModelVersion === 2 && generatedDescription` gate in `src/pages/ComponentDetail.tsx`
+  - Components with only a README (no AI content yet) now show the README on their detail page
+
 ### Fixed
 
 - Full README content now stored and displayed on component detail pages instead of truncating at 12k characters (2026-03-26 22:00 UTC)
@@ -22,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `fetchGitHubReadme` now returns `fullContent` (untruncated) alongside `rawContent` (truncated for AI prompts)
   - `fetchContentContext` and `fetchPreviewContext` use `fullContent` for `readmeIncludedMarkdown` extraction
   - AI prompts still receive the 12k truncated version to stay within token limits
-  - Packages with large READMEs (e.g. `@convex-dev/workpool`) no longer show `[README truncated for prompt length]` on the detail page after regeneration
+  - Packages with large READMEs (e.g. `@convex-dev/workflow`) no longer show `[README truncated for prompt length]` on the detail page after regeneration
 
 ### Changed
 

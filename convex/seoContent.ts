@@ -9,10 +9,7 @@ import { action, internalAction, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import {
-  buildProviderCandidates,
-  executeWithProviderFallback,
-} from "./aiProviderFallback";
+import { buildProviderCandidates, executeWithProviderFallback } from "./aiProviderFallback";
 import {
   DEFAULT_SEO_PROMPT_TEMPLATE,
   DEFAULT_CONTENT_PROMPT_TEMPLATE,
@@ -24,7 +21,7 @@ async function callAiProvider(
   provider: "anthropic" | "openai" | "gemini",
   apiKey: string,
   model: string,
-  prompt: string,
+  prompt: string
 ): Promise<string> {
   if (provider === "anthropic") {
     const client = new Anthropic({ apiKey });
@@ -65,7 +62,7 @@ async function callAiProvider(
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: { maxOutputTokens: 2000 },
         }),
-      },
+      }
     );
     if (!response.ok) {
       throw new ConvexError(`Gemini API error: ${response.statusText}`);
@@ -170,7 +167,7 @@ function sanitizeReadmeForPrompt(readme: string): string {
 async function fetchTextWithTimeout(
   url: string,
   init?: RequestInit,
-  timeoutMs = 5000,
+  timeoutMs = 5000
 ): Promise<string> {
   const response = await fetch(url, {
     ...init,
@@ -191,7 +188,7 @@ function dedupeStrings(values: string[]): string[] {
 }
 
 function parseGitHubReadmeTarget(
-  repoUrl: string,
+  repoUrl: string
 ): { owner: string; repo: string; paths: string[]; ref?: string } | null {
   const normalizedUrl = repoUrl
     .replace(/^git\+/, "")
@@ -254,7 +251,7 @@ function parseGitHubReadmeTarget(
 
 async function fetchGitHubReadme(
   repoUrl?: string,
-  githubToken?: string,
+  githubToken?: string
 ): Promise<GitHubReadmeResult | null> {
   if (!repoUrl) {
     return null;
@@ -329,7 +326,7 @@ function extractRelevantConvexDocLines(llmsText: string): string[] {
     .filter((line) => line.startsWith("- ["));
 
   const matched = lines.filter((line) =>
-    RELEVANT_DOC_PATH_HINTS.some((pathHint) => line.includes(pathHint)),
+    RELEVANT_DOC_PATH_HINTS.some((pathHint) => line.includes(pathHint))
   );
 
   return matched.slice(0, 8);
@@ -365,7 +362,7 @@ function buildTriggerContexts(
   category: string,
   tags: string[],
   seoContent: SeoContentResponse,
-  displayName: string,
+  displayName: string
 ): string {
   const contexts: string[] = [];
 
@@ -415,8 +412,7 @@ function buildSkillMd(pkg: any, seoContent: SeoContentResponse): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 
-  const valueProp =
-    seoContent.valueProp || pkg.shortDescription || pkg.description || "";
+  const valueProp = seoContent.valueProp || pkg.shortDescription || pkg.description || "";
   const category = pkg.category || "development";
   const tags: string[] = pkg.tags || [];
   const repoUrl = pkg.repositoryUrl || "";
@@ -424,12 +420,7 @@ function buildSkillMd(pkg: any, seoContent: SeoContentResponse): string {
   const installCmd = pkg.installCommand || `npm install ${pkg.name}`;
 
   // Build "pushy" trigger contexts per Anthropic guidelines
-  const triggerContexts = buildTriggerContexts(
-    category,
-    tags,
-    seoContent,
-    displayName,
-  );
+  const triggerContexts = buildTriggerContexts(category, tags, seoContent, displayName);
 
   const lines: string[] = [];
 
@@ -448,7 +439,7 @@ function buildSkillMd(pkg: any, seoContent: SeoContentResponse): string {
   lines.push("## Instructions");
   lines.push("");
   lines.push(
-    `Use ${displayName} to ${valueProp.toLowerCase().replace(/\.$/, "")}. This Convex component integrates directly with your backend.`,
+    `Use ${displayName} to ${valueProp.toLowerCase().replace(/\.$/, "")}. This Convex component integrates directly with your backend.`
   );
   lines.push("");
 
@@ -485,13 +476,9 @@ function buildSkillMd(pkg: any, seoContent: SeoContentResponse): string {
   // When NOT to use section (per Anthropic guidelines to prevent over-triggering)
   lines.push("## When NOT to use");
   lines.push("");
-  lines.push(
-    "- When a simpler built-in solution exists for your specific use case",
-  );
+  lines.push("- When a simpler built-in solution exists for your specific use case");
   lines.push("- If you are not using Convex as your backend");
-  lines.push(
-    `- When the functionality provided by ${displayName} is not needed`,
-  );
+  lines.push(`- When the functionality provided by ${displayName} is not needed`);
   lines.push("");
 
   // FAQ as troubleshooting
@@ -519,9 +506,7 @@ function buildSkillMd(pkg: any, seoContent: SeoContentResponse): string {
     lines.push(`- [Live demo](${pkg.demoUrl})`);
   }
   if (pkg.slug) {
-    lines.push(
-      `- [Convex Components Directory](https://www.convex.dev/components/${pkg.slug})`,
-    );
+    lines.push(`- [Convex Components Directory](https://www.convex.dev/components/${pkg.slug})`);
   }
   lines.push("- [Convex documentation](https://docs.convex.dev)");
 
@@ -548,7 +533,7 @@ async function fetchSeoContext(ctx: any, pkg: any) {
   console.log(
     githubReadme?.sourceLabel
       ? `SEO README grounding source: ${githubReadme.sourceLabel}`
-      : "SEO README grounding source: package metadata only",
+      : "SEO README grounding source: package metadata only"
   );
 
   return { prompt, providerSettings };
@@ -603,11 +588,15 @@ export const generateSeoContent = internalAction({
       const { prompt, providerSettings } = await fetchSeoContext(ctx, pkg);
       const candidates = buildSeoCandidates(providerSettings);
 
-      const { result: aiResponseText, usedProvider, usedModel, usedSource } =
-        await executeWithProviderFallback({
-          candidates,
-          run: async (c) => callAiProvider(c.provider, c.apiKey, c.model, prompt),
-        });
+      const {
+        result: aiResponseText,
+        usedProvider,
+        usedModel,
+        usedSource,
+      } = await executeWithProviderFallback({
+        candidates,
+        run: async (c) => callAiProvider(c.provider, c.apiKey, c.model, prompt),
+      });
       console.log(`SEO provider selected: ${usedProvider} (${usedSource}) model=${usedModel}`);
 
       const parsed = parseSeoAiResponse(aiResponseText);
@@ -626,7 +615,10 @@ export const generateSeoContent = internalAction({
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Unknown error";
       console.error("SEO content generation failed:", msg);
-      await ctx.runMutation(internal.seoContentDb._setSeoError, { packageId: args.packageId, error: msg });
+      await ctx.runMutation(internal.seoContentDb._setSeoError, {
+        packageId: args.packageId,
+        error: msg,
+      });
     }
     return null;
   },
@@ -654,7 +646,7 @@ function buildSeoPrompt(
     customTemplate?: string;
     githubReadme?: string;
     convexDocsContext?: string;
-  },
+  }
 ): string {
   const displayName = pkg.componentName || pkg.name || "Unknown Component";
   const category = pkg.category || "general";
@@ -666,15 +658,14 @@ function buildSeoPrompt(
   const npmUrl = pkg.npmUrl || "";
   const demoUrl = pkg.demoUrl || "";
   const githubReadme =
-    options?.githubReadme ||
-    "README unavailable. Fall back to component metadata only.";
-  const convexDocsContext =
-    options?.convexDocsContext || buildFallbackConvexDocsContext();
+    options?.githubReadme || "README unavailable. Fall back to component metadata only.";
+  const convexDocsContext = options?.convexDocsContext || buildFallbackConvexDocsContext();
 
   // Use custom template if provided and not empty, otherwise use default
-  const template = options?.customTemplate && options.customTemplate.trim()
-    ? options.customTemplate
-    : DEFAULT_SEO_PROMPT_TEMPLATE;
+  const template =
+    options?.customTemplate && options.customTemplate.trim()
+      ? options.customTemplate
+      : DEFAULT_SEO_PROMPT_TEMPLATE;
 
   // Replace placeholders with actual values
   return template
@@ -695,7 +686,7 @@ function buildSeoPrompt(
 // Build consistent resource links from package data
 function buildResourceLinks(
   pkg: any,
-  aiLinks: { label: string; url: string }[] = [],
+  aiLinks: { label: string; url: string }[] = []
 ): { label: string; url: string }[] {
   const links: { label: string; url: string }[] = [];
 
@@ -744,8 +735,7 @@ function buildResourceLinks(
 
 const README_INCLUDE_START = "<!-- START: Include on https://convex.dev/components -->";
 const README_INCLUDE_END = "<!-- END: Include on https://convex.dev/components -->";
-const CONVEX_BADGE_REGEX =
-  /\[!\[Convex Component\][^\]]*\]\([^)]*\)\]\([^)]*\)\s*/g;
+const CONVEX_BADGE_REGEX = /\[!\[Convex Component\][^\]]*\]\([^)]*\)\]\([^)]*\)\s*/g;
 
 interface ContentGenerationResponse {
   description: string;
@@ -754,7 +744,7 @@ interface ContentGenerationResponse {
 }
 
 function extractReadmeIncludeBlock(
-  readmeContent: string,
+  readmeContent: string
 ): { markdown: string; source: "markers" | "full" } | null {
   if (!readmeContent) return null;
 
@@ -762,9 +752,7 @@ function extractReadmeIncludeBlock(
   const endIdx = readmeContent.indexOf(README_INCLUDE_END);
 
   if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-    const extracted = readmeContent
-      .slice(startIdx + README_INCLUDE_START.length, endIdx)
-      .trim();
+    const extracted = readmeContent.slice(startIdx + README_INCLUDE_START.length, endIdx).trim();
     if (extracted) {
       return {
         markdown: stripConvexBadge(extracted),
@@ -789,7 +777,7 @@ function buildContentPrompt(
     customTemplate?: string;
     githubReadme?: string;
     convexDocsContext?: string;
-  },
+  }
 ): string {
   const displayName = pkg.componentName || pkg.name || "Unknown Component";
   const category = pkg.category || "general";
@@ -800,14 +788,13 @@ function buildContentPrompt(
   const npmUrl = pkg.npmUrl || "";
   const demoUrl = pkg.demoUrl || "";
   const githubReadme =
-    options?.githubReadme ||
-    "README unavailable. Fall back to component metadata only.";
-  const convexDocsContext =
-    options?.convexDocsContext || buildFallbackConvexDocsContext();
+    options?.githubReadme || "README unavailable. Fall back to component metadata only.";
+  const convexDocsContext = options?.convexDocsContext || buildFallbackConvexDocsContext();
 
-  const template = options?.customTemplate && options.customTemplate.trim()
-    ? options.customTemplate
-    : DEFAULT_CONTENT_PROMPT_TEMPLATE;
+  const template =
+    options?.customTemplate && options.customTemplate.trim()
+      ? options.customTemplate
+      : DEFAULT_CONTENT_PROMPT_TEMPLATE;
 
   return template
     .replace(/\{\{displayName\}\}/g, displayName)
@@ -846,7 +833,7 @@ async function fetchContentContext(ctx: any, pkg: any) {
   console.log(
     githubReadme?.sourceLabel
       ? `Content README source: ${githubReadme.sourceLabel}`
-      : "Content README source: metadata only",
+      : "Content README source: metadata only"
   );
 
   return { prompt, providerSettings, readmeBlock };
@@ -880,11 +867,15 @@ export const generateDirectoryContent = internalAction({
       const { prompt, providerSettings, readmeBlock } = await fetchContentContext(ctx, pkg);
       const candidates = buildSeoCandidates(providerSettings);
 
-      const { result: aiResponseText, usedProvider, usedModel, usedSource } =
-        await executeWithProviderFallback({
-          candidates,
-          run: async (c) => callAiProvider(c.provider, c.apiKey, c.model, prompt),
-        });
+      const {
+        result: aiResponseText,
+        usedProvider,
+        usedModel,
+        usedSource,
+      } = await executeWithProviderFallback({
+        candidates,
+        run: async (c) => callAiProvider(c.provider, c.apiKey, c.model, prompt),
+      });
       console.log(`Content provider: ${usedProvider} (${usedSource}) model=${usedModel}`);
 
       const parsed = parseContentAiResponse(aiResponseText);
@@ -895,14 +886,17 @@ export const generateDirectoryContent = internalAction({
         generatedDescription: parsed.description.slice(0, 2000),
         generatedUseCases: parsed.useCases.slice(0, 4000),
         generatedHowItWorks: parsed.howItWorks.slice(0, 4000),
-        readmeIncludedMarkdown: readmeBlock?.markdown?.slice(0, 20000) || undefined,
+        readmeIncludedMarkdown: readmeBlock?.markdown || undefined,
         readmeIncludeSource: readmeBlock?.source,
         skillMd,
       });
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Unknown error";
       console.error("Content generation failed:", msg);
-      await ctx.runMutation(internal.seoContentDb._setContentError, { packageId: args.packageId, error: msg });
+      await ctx.runMutation(internal.seoContentDb._setContentError, {
+        packageId: args.packageId,
+        error: msg,
+      });
     }
     return null;
   },
@@ -913,11 +907,9 @@ export const regenerateDirectoryContent = action({
   args: { packageId: v.id("packages") },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
-    await ctx.scheduler.runAfter(
-      0,
-      internal.seoContent.generateDirectoryContent,
-      { packageId: args.packageId },
-    );
+    await ctx.scheduler.runAfter(0, internal.seoContent.generateDirectoryContent, {
+      packageId: args.packageId,
+    });
     return null;
   },
 });
@@ -939,14 +931,14 @@ export const refreshReadme = internalAction({
 
       await ctx.runMutation(internal.seoContentDb._updateReadmeOnly, {
         packageId: args.packageId,
-        readmeIncludedMarkdown: readmeBlock?.markdown?.slice(0, 20000) || undefined,
+        readmeIncludedMarkdown: readmeBlock?.markdown || undefined,
         readmeIncludeSource: readmeBlock?.source,
       });
 
       console.log(
         githubReadme?.sourceLabel
           ? `README refresh: ${githubReadme.sourceLabel} (${fullReadmeContent.length} chars)`
-          : "README refresh: no README found",
+          : "README refresh: no README found"
       );
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Unknown error";
@@ -969,10 +961,18 @@ export const refreshReadmeContent = action({
 });
 
 // Public action: Preview content generation without saving (for submit form)
-async function fetchPreviewContext(ctx: any, repoUrl: string): Promise<{
+async function fetchPreviewContext(
+  ctx: any,
+  repoUrl: string
+): Promise<{
   customPromptTemplate: string | null;
   providerSettings: any;
-  githubReadme: { content?: string; rawContent?: string; fullContent?: string; sourceLabel?: string } | null;
+  githubReadme: {
+    content?: string;
+    rawContent?: string;
+    fullContent?: string;
+    sourceLabel?: string;
+  } | null;
   convexDocsContext: string | null;
   readmeBlock: { markdown?: string; source?: "markers" | "full" } | null;
 }> {
@@ -1057,7 +1057,7 @@ async function requireContentGenerationUserKey(ctx: ActionCtx): Promise<string> 
 async function enforceContentGenerationRateLimit(
   ctx: ActionCtx,
   userKey: string,
-  source: "submit" | "profile",
+  source: "submit" | "profile"
 ): Promise<void> {
   const rateLimit = await ctx.runQuery(internal.contentGenerationLimits._checkRateLimit, {
     userKey,
@@ -1069,7 +1069,7 @@ async function enforceContentGenerationRateLimit(
       ? ` Try again after ${new Date(rateLimit.resetAt).toLocaleString()}.`
       : "";
     throw new ConvexError(
-      `Content generation is limited to once per hour per account. Please only regenerate when really needed and edit the current draft when you can.${resetMessage}`,
+      `Content generation is limited to once per hour per account. Please only regenerate when really needed and edit the current draft when you can.${resetMessage}`
     );
   }
 
@@ -1083,4 +1083,3 @@ function extractPackageNameFromNpmUrl(npmUrl: string): string {
   const match = npmUrl.match(/npmjs\.com\/package\/((?:@[^/]+\/)?[^/?#]+)/);
   return match ? decodeURIComponent(match[1]) : "";
 }
-
