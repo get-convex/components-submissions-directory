@@ -324,7 +324,7 @@ Auto-generated files by Convex: `api.d.ts`, `api.js`, `dataModel.d.ts`, `server.
 
 ### `src/main.tsx`
 
-Application entry point. Sets up Convex React client with a custom Connect OAuth provider (`ConnectAuthProvider`) and `ConvexProviderWithAuthKit` token bridge. Includes global Footer component with 50px top padding. All routes live under `/components/*` and root redirects now normalize back to `/components/` for Vite base-path safety:
+Application entry point. Sets up Convex React client with a custom Connect OAuth provider (`ConnectAuthProvider`) and `ConvexProviderWithAuthKit` token bridge. Disables browser scroll restoration (`history.scrollRestoration = "manual"`) and scrolls to top on init so every full-page navigation starts at the top. Includes global Footer component with 50px top padding. All routes live under `/components/*` and root redirects now normalize back to `/components/` for Vite base-path safety:
 - `/components/` = Directory (approved components, public)
 - `/components/categories/:slug` = CategoryPage (category landing page with pagination, public)
 - `/components/submissions` = Submit.tsx (submissions directory with table view, public)
@@ -384,7 +384,7 @@ Main package submission interface. Compact toolbar, package submission form, sea
 
 ### `src/pages/Directory.tsx`
 
-Component directory listing page at `/components/`. Features shared Header component, search, sort (newest, downloads, updated, rating, and verified), category sidebar, featured section, component cards grid, submit link, ChallengeBanner (above FAQ), and FAQSection at the bottom. No auth required to view. Sidebar uses `sticky top-20` positioning so Submit button remains visible below the header when scrolling. Category sections show 12 cards maximum with "View all" link to category landing page (`/components/categories/:slug`). Desktop sidebar categories and mobile category pills now use direct links to category landing pages instead of the old in-page filtered directory state, and the root "All" link now points to `/components/`.
+Component directory listing page at `/components/`. Features shared Header component, search, sort (newest, downloads, updated, rating, and verified), category sidebar, featured section, component cards grid, submit link, ChallengeBanner (above FAQ), and FAQSection at the bottom. No auth required to view. Sidebar uses `sticky top-20` positioning so Submit button remains visible below the header when scrolling. Category sections show 12 cards maximum with "View all" link to category landing page (`/components/categories/:slug`). Desktop sidebar categories and mobile category pills now use direct links to category landing pages instead of the old in-page filtered directory state, and the root "All" link now points to `/components/`. Typing in the search bar scrolls the page to the top so filtered results are immediately visible.
 
 ### `src/pages/CategoryPage.tsx`
 
@@ -399,6 +399,7 @@ Category landing page at `/components/categories/:slug`. Features:
 - Paginated component grid (24 per page)
 - Previous/Next pagination controls with page indicator
 - Breadcrumb and back-to-all links normalized to `/components/`
+- Search scrolls page to top so filtered results are immediately visible
 - FAQSection at the bottom
 - 404 handling for invalid or disabled categories
 

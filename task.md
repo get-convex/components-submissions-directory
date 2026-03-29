@@ -2,6 +2,11 @@
 
 ## to do
 
+- [x] Fix search scroll and navigation scroll-to-top bugs (2026-03-28 20:00 UTC)
+  - Added `window.scrollTo({ top: 0, behavior: "smooth" })` in Directory.tsx and CategoryPage.tsx when search term changes
+  - Set `history.scrollRestoration = "manual"` and `window.scrollTo(0, 0)` in main.tsx to prevent browser restoring old scroll positions on full-page navigation
+  - Files changed: `src/main.tsx`, `src/pages/Directory.tsx`, `src/pages/CategoryPage.tsx`
+
 Session updates complete on 2026-03-27 01:00 UTC.
 
 - [x] Remove 20k character cap on stored README content (2026-03-27 01:00 UTC)

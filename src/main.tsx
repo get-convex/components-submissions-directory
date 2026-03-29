@@ -185,6 +185,10 @@ function AuthCallback() {
   );
 }
 
+// Prevent browser from restoring previous scroll position on full-page navigations
+history.scrollRestoration = "manual";
+window.scrollTo(0, 0);
+
 createRoot(document.getElementById("root")!).render(
   <CookiesProvider>
     <PostHogProvider>

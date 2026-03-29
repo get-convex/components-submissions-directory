@@ -60,6 +60,9 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
   // Reset page when search or sort changes
   useEffect(() => {
     setCurrentPage(1);
+    if (searchTerm) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }, [searchTerm, sortBy]);
 
   // One-shot fetches for public catalog data (no reactive subscription overhead)

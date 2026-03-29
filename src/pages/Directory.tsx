@@ -62,6 +62,9 @@ export default function Directory() {
   // Reset section paging when major directory controls change.
   useEffect(() => {
     setVisibleBySection({});
+    if (searchTerm) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }, [searchTerm, sortBy, gridColumns]);
 
   // One-shot fetches for public catalog data (no reactive subscription overhead)

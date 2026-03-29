@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Search results now scroll to top when typing in the search box while scrolled down on Directory and Category pages (2026-03-28 20:00 UTC)
+  - Added smooth scroll-to-top in the existing `useEffect` that resets paging state on search term change
+  - Files changed: `src/pages/Directory.tsx`, `src/pages/CategoryPage.tsx`
+- Page now starts at top when navigating between categories or clicking back to the directory (2026-03-28 20:00 UTC)
+  - Set `history.scrollRestoration = "manual"` in `src/main.tsx` to disable browser auto-restoring previous scroll positions
+  - Added `window.scrollTo(0, 0)` on app init so every full-page navigation starts at the top
+  - File changed: `src/main.tsx`
+
 ### Added
 
 - Admin "Update README" action button to refresh README content from GitHub without regenerating AI content (2026-03-27 00:15 UTC)
