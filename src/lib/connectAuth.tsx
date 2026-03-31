@@ -108,6 +108,8 @@ export function ConnectAuthProvider({ children }: { children: React.ReactNode })
     const token = session?.token;
     const sessionId = token ? parseJwtPayload(token)?.sid : undefined;
     persistSession(null);
+    sessionStorage.removeItem(OAUTH_STATE_KEY);
+    sessionStorage.removeItem(PKCE_VERIFIER_KEY);
 
     const returnTo = window.location.origin + "/components";
     if (typeof sessionId === "string") {
@@ -200,16 +202,19 @@ export function ConnectAuthProvider({ children }: { children: React.ReactNode })
             access_token?: string;
             id_token?: string;
           };
-          const token = data.id_token ?? data.access_token;
+          const accessToken = data.access_token;
+          const idToken = data.id_token;
+          const token = accessToken ?? idToken;
           if (!token) {
             throw new Error("Token response missing JWT token");
           }
 
-          const derived = userFromToken(token);
+          const profile = userFromToken(idToken ?? accessToken ?? token);
+          const expiry = userFromToken(token);
           persistSession({
             token,
-            expiresAtMs: derived.expiresAtMs,
-            user: derived.user,
+            expiresAtMs: expiry.expiresAtMs,
+            user: profile.user,
           });
         } catch {
           persistSession(null);
