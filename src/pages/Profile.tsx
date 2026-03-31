@@ -24,7 +24,6 @@ import {
   User,
   PencilSimple,
   Trash,
-  SignOut,
   Star,
   Prohibit,
   Copy,
@@ -1332,7 +1331,7 @@ function SubmissionCard({
 
 export default function Profile() {
   const basePath = useBasePath();
-  const { isAuthenticated, isLoading: authLoading, signIn, signOut } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, signIn } = useAuth();
   const user = useQuery(api.auth.loggedInUser);
   const submissions = useQuery(api.packages.getMySubmissions, isAuthenticated ? {} : "skip");
   const apiAccessStatus = useQuery(api.apiKeys.getMyApiAccessStatus, isAuthenticated ? {} : "skip");
@@ -1451,23 +1450,13 @@ export default function Profile() {
         </div>
 
         {/* Profile info */}
-        <div className="flex items-center justify-between gap-4 mb-8 p-4 rounded-lg border border-border bg-white">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-button text-white flex items-center justify-center text-lg font-medium">
-              {user?.email?.[0]?.toUpperCase() || "U"}
-            </div>
-            <div>
-              <h1 className="text-lg font-medium text-text-primary">My Profile</h1>
-              <p className="text-sm text-text-secondary">{user?.email}</p>
-            </div>
+        <div className="flex items-center gap-4 mb-8">
+          <div className="w-12 h-12 rounded-full bg-button text-white flex items-center justify-center text-lg font-medium">
+            {user?.email?.[0]?.toUpperCase() || "U"}
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => signOut()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
-              <SignOut size={14} />
-              Sign Out
-            </button>
+          <div>
+            <h1 className="text-lg font-medium text-text-primary">My Profile</h1>
+            <p className="text-sm text-text-secondary">{user?.email}</p>
           </div>
         </div>
 

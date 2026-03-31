@@ -6,7 +6,7 @@ import { useCallback } from "react";
 
 export function useAuth() {
   const { isLoading, isAuthenticated } = useConvexAuth();
-  const { signIn, signOut } = useConnectAuth();
+  const { signIn } = useConnectAuth();
 
   const handleSignIn = useCallback(() => signIn(), [signIn]);
 
@@ -14,6 +14,5 @@ export function useAuth() {
     isLoading,
     isAuthenticated,
     signIn: handleSignIn,
-    signOut,
   };
 }
