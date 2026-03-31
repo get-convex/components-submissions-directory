@@ -2542,7 +2542,7 @@ function StatusLegend() {
 }
 
 export default function Admin() {
-  const { isAuthenticated, isLoading: authLoading, signIn, signOut } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, signIn } = useAuth();
   const loggedInUser = useQuery(api.auth.loggedInUser);
   const isAdmin = useQuery(api.auth.isAdmin);
   const [searchTerm, setSearchTerm] = useState("");

@@ -3,7 +3,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState, useRef, useEffect } from "react";
 import {
-  SignOut,
+  ArrowSquareOut,
   User,
   CaretDown,
   List,
@@ -22,7 +22,7 @@ function useBasePath() {
 
 export default function Header() {
   const basePath = useBasePath();
-  const { isAuthenticated, isLoading: authLoading, signIn, signOut } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, signIn } = useAuth();
   const user = useQuery(api.auth.loggedInUser);
   const isAdmin = useQuery(api.auth.isAdmin);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -178,15 +178,15 @@ export default function Header() {
                       <User size={16} />
                       My Submissions
                     </a>
-                    <button
-                      onClick={() => {
-                        setUserMenuOpen(false);
-                        signOut();
-                      }}
+                    <a
+                      href="https://dashboard.convex.dev"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setUserMenuOpen(false)}
                       className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
-                      <SignOut size={16} />
-                      Sign Out
-                    </button>
+                      <ArrowSquareOut size={16} />
+                      Convex Dashboard
+                    </a>
                   </div>
                 )}
               </div>
