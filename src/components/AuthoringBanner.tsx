@@ -50,7 +50,7 @@ export function AuthoringBanner({ className = "" }: AuthoringBannerProps) {
         </div>
 
         <a
-          href="https://www.convex.dev/components/challenge"
+          href="https://www.convex.dev/component-authoring"
           target="_blank"
           rel="noopener noreferrer"
           className="shrink-0 inline-flex items-center justify-center rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all hover:brightness-110"
