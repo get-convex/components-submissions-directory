@@ -384,7 +384,7 @@ Main package submission interface. Compact toolbar, package submission form, sea
 
 ### `src/pages/Directory.tsx`
 
-Component directory listing page at `/components/`. Features shared Header component, search, sort (newest, downloads, updated, rating, and verified), category sidebar, featured section, component cards grid, submit link, ChallengeBanner (above FAQ), and FAQSection at the bottom. No auth required to view. Sidebar uses `sticky top-20` positioning so Submit button remains visible below the header when scrolling. Category sections show 12 cards maximum with "View all" link to category landing page (`/components/categories/:slug`). Desktop sidebar categories and mobile category pills now use direct links to category landing pages instead of the old in-page filtered directory state, and the root "All" link now points to `/components/`. Typing in the search bar scrolls the page to the top so filtered results are immediately visible.
+Component directory listing page at `/components/`. Features shared Header component, search, sort (newest, downloads, updated, rating, and verified), category sidebar, featured section, component cards grid, submit link, AuthoringBanner (above FAQ), and FAQSection at the bottom. No auth required to view. Sidebar uses `sticky top-20` positioning so Submit button remains visible below the header when scrolling. Category sections show 12 cards maximum with "View all" link to category landing page (`/components/categories/:slug`). Desktop sidebar categories and mobile category pills now use direct links to category landing pages instead of the old in-page filtered directory state, and the root "All" link now points to `/components/`. Typing in the search bar scrolls the page to the top so filtered results are immediately visible.
 
 ### `src/pages/CategoryPage.tsx`
 
@@ -550,9 +550,9 @@ Reusable search input with clear button.
 
 Reusable "Convex Verified" badge component with green background styling.
 
-### `src/components/ChallengeBanner.tsx`
+### `src/components/AuthoringBanner.tsx`
 
-Promotional banner for the Component Authoring Challenge. Dark background with grid pattern (uses `/banner-grid.svg`), white title, gray description, and "Learn more" button with pink/magenta glow border. Responsive layout with column stacking on mobile. Placed at the bottom of the Directory page above the footer.
+Promotional banner for Component Authoring. Dark background with inline SVG grid texture, white title, gray description, and "Learn more" button with pink/magenta border. Responsive layout with column stacking on mobile. Placed at the bottom of the Directory page above the FAQ.
 
 ### `src/components/CommunityBadge.tsx`
 

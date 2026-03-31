@@ -7,7 +7,7 @@ import { CategorySidebar } from "../components/CategorySidebar";
 import { SearchBar } from "../components/SearchBar";
 import Header from "../components/Header";
 import { FAQSection } from "../components/FAQSection";
-import { ChallengeBanner } from "../components/ChallengeBanner";
+import { AuthoringBanner } from "../components/AuthoringBanner";
 import { setPageTitle, setPageDescription } from "../lib/seo";
 import { CaretSortIcon, ChevronDownIcon } from "@radix-ui/react-icons";
 import { Robot, FileText, ArrowSquareOut } from "@phosphor-icons/react";
@@ -576,8 +576,8 @@ export default function Directory() {
               </>
             ) : null}
 
-            {/* Challenge Banner */}
-            <ChallengeBanner className="mt-12 mb-10" />
+            {/* Authoring Banner */}
+            <AuthoringBanner className="mt-12 mb-10" />
 
             {/* FAQ Section */}
             <FAQSection />
