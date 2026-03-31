@@ -36,6 +36,16 @@ const PKCE_VERIFIER_KEY = "connectPkceVerifier";
 const OAUTH_STATE_KEY = "connectOauthState";
 const RETURN_PATH_KEY = "authReturnPath";
 
+function readStoredSession(): StoredSession | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as StoredSession;
+  } catch {
+    return null;
+  }
+}
+
 const ConnectAuthContext = createContext<ConnectAuthContextValue | null>(null);
 
 function base64UrlEncode(bytes: Uint8Array): string {
@@ -56,6 +66,17 @@ async function sha256Base64Url(input: string): Promise<string> {
   const bytes = new TextEncoder().encode(input);
   const hashBuffer = await crypto.subtle.digest("SHA-256", bytes);
   return base64UrlEncode(new Uint8Array(hashBuffer));
+}
+
+/** `sid` from access token JWT; WorkOS may use `session_id` in some tokens. */
+function sidFromJwt(jwt: string | undefined): string | undefined {
+  if (!jwt) return undefined;
+  const payload = parseJwtPayload(jwt);
+  if (!payload) return undefined;
+  const sid = payload.sid ?? payload.session_id;
+  if (typeof sid === "string") return sid;
+  if (typeof sid === "number") return String(sid);
+  return undefined;
 }
 
 function parseJwtPayload(token: string): Record<string, unknown> | null {
@@ -129,33 +150,39 @@ export function ConnectAuthProvider({
   }, []);
 
   const signOut = useCallback(() => {
-    const sidFromAccess = session?.accessToken
-      ? parseJwtPayload(session.accessToken)?.sid
-      : undefined;
-    const sidFromPrimary = session?.token
-      ? parseJwtPayload(session.token)?.sid
-      : undefined;
-    const rawSid =
-      typeof sidFromAccess === "string"
-        ? sidFromAccess
-        : typeof sidFromPrimary === "string"
-          ? sidFromPrimary
-          : undefined;
-    const sessionId = rawSid;
+    // Prefer localStorage so we still have JWTs if React state is stale (and merge with session).
+    const effective = readStoredSession() ?? session;
+    const sessionId =
+      sidFromJwt(effective?.accessToken) ?? sidFromJwt(effective?.token);
+
     persistSession(null);
     sessionStorage.removeItem(OAUTH_STATE_KEY);
     sessionStorage.removeItem(PKCE_VERIFIER_KEY);
 
-    const returnTo = window.location.origin + "/components";
+    const returnToRaw = import.meta.env.VITE_WORKOS_LOGOUT_RETURN_TO as
+      | string
+      | undefined;
+    // Omit return_to to use the default from WorkOS Dashboard (helps if dynamic URL is not allowlisted).
+    const returnTo =
+      returnToRaw === "default"
+        ? undefined
+        : returnToRaw?.trim() || `${window.location.origin}/components`;
+
     if (sessionId) {
       const logoutUrl = new URL(
         "https://api.workos.com/user_management/sessions/logout"
       );
       logoutUrl.searchParams.set("session_id", sessionId);
-      logoutUrl.searchParams.set("return_to", returnTo);
+      if (returnTo) {
+        logoutUrl.searchParams.set("return_to", returnTo);
+      }
       window.location.assign(logoutUrl.toString());
     } else {
-      window.location.assign(returnTo);
+      // No JWTs (e.g. storage was cleared): app session is gone but WorkOS SSO cookies may remain.
+      // User must sign in again to get tokens, then sign out — or clear site cookies for WorkOS / AuthKit.
+      window.location.assign(
+        returnTo ?? `${window.location.origin}/components`
+      );
     }
   }, [persistSession, session]);
 
