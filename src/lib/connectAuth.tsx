@@ -1,11 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 type ConnectUser = {
   email?: string;
@@ -23,10 +16,7 @@ type ConnectAuthContextValue = {
 };
 
 type StoredSession = {
-  /** JWT for Convex (prefer id_token so `aud` matches auth.config). */
   token: string;
-  /** OAuth access token; `sid` for WorkOS logout is here, not always on id_token. */
-  accessToken?: string;
   expiresAtMs?: number;
   user: ConnectUser | null;
 };
@@ -36,24 +26,11 @@ const PKCE_VERIFIER_KEY = "connectPkceVerifier";
 const OAUTH_STATE_KEY = "connectOauthState";
 const RETURN_PATH_KEY = "authReturnPath";
 
-function readStoredSession(): StoredSession | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as StoredSession;
-  } catch {
-    return null;
-  }
-}
-
 const ConnectAuthContext = createContext<ConnectAuthContextValue | null>(null);
 
 function base64UrlEncode(bytes: Uint8Array): string {
   const binary = Array.from(bytes, (b) => String.fromCharCode(b)).join("");
-  return btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
 function randomString(byteLength = 32): string {
@@ -68,36 +45,19 @@ async function sha256Base64Url(input: string): Promise<string> {
   return base64UrlEncode(new Uint8Array(hashBuffer));
 }
 
-/** `sid` from access token JWT; WorkOS may use `session_id` in some tokens. */
-function sidFromJwt(jwt: string | undefined): string | undefined {
-  if (!jwt) return undefined;
-  const payload = parseJwtPayload(jwt);
-  if (!payload) return undefined;
-  const sid = payload.sid ?? payload.session_id;
-  if (typeof sid === "string") return sid;
-  if (typeof sid === "number") return String(sid);
-  return undefined;
-}
-
 function parseJwtPayload(token: string): Record<string, unknown> | null {
   const parts = token.split(".");
   if (parts.length < 2) return null;
   try {
     const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const padded = payload.padEnd(
-      payload.length + ((4 - (payload.length % 4)) % 4),
-      "="
-    );
+    const padded = payload.padEnd(payload.length + ((4 - (payload.length % 4)) % 4), "=");
     return JSON.parse(atob(padded)) as Record<string, unknown>;
   } catch {
     return null;
   }
 }
 
-function userFromToken(token: string): {
-  user: ConnectUser | null;
-  expiresAtMs?: number;
-} {
+function userFromToken(token: string): { user: ConnectUser | null; expiresAtMs?: number } {
   const payload = parseJwtPayload(token);
   if (!payload) return { user: null };
 
@@ -108,8 +68,7 @@ function userFromToken(token: string): {
     user: {
       email: typeof payload.email === "string" ? payload.email : undefined,
       name: typeof payload.name === "string" ? payload.name : undefined,
-      pictureUrl:
-        typeof payload.picture === "string" ? payload.picture : undefined,
+      pictureUrl: typeof payload.picture === "string" ? payload.picture : undefined,
       sub: typeof payload.sub === "string" ? payload.sub : undefined,
     },
     expiresAtMs,
@@ -126,17 +85,13 @@ function getRequiredEnv(name: string, value: string | undefined): string {
 function getWorkosDomain(): string {
   const raw = getRequiredEnv(
     "VITE_WORKOS_AUTHKIT_DOMAIN",
-    import.meta.env.VITE_WORKOS_AUTHKIT_DOMAIN as string | undefined
+    import.meta.env.VITE_WORKOS_AUTHKIT_DOMAIN as string | undefined,
   ).trim();
   const withoutProtocol = raw.replace(/^https?:\/\//, "").replace(/\/+$/, "");
   return withoutProtocol;
 }
 
-export function ConnectAuthProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function ConnectAuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<StoredSession | null>(null);
 
@@ -150,50 +105,31 @@ export function ConnectAuthProvider({
   }, []);
 
   const signOut = useCallback(() => {
-    // Prefer localStorage so we still have JWTs if React state is stale (and merge with session).
-    const effective = readStoredSession() ?? session;
-    const sessionId =
-      sidFromJwt(effective?.accessToken) ?? sidFromJwt(effective?.token);
-
+    const token = session?.token;
+    const sessionId = token ? parseJwtPayload(token)?.sid : undefined;
     persistSession(null);
-    sessionStorage.removeItem(OAUTH_STATE_KEY);
-    sessionStorage.removeItem(PKCE_VERIFIER_KEY);
 
-    const returnToRaw = import.meta.env.VITE_WORKOS_LOGOUT_RETURN_TO as
-      | string
-      | undefined;
-    // Omit return_to to use the default from WorkOS Dashboard (helps if dynamic URL is not allowlisted).
-    const returnTo =
-      returnToRaw === "default"
-        ? undefined
-        : returnToRaw?.trim() || `${window.location.origin}/components`;
-
-    if (sessionId) {
+    const returnTo = window.location.origin + "/components";
+    if (typeof sessionId === "string") {
       const logoutUrl = new URL(
-        "https://api.workos.com/user_management/sessions/logout"
+        "https://api.workos.com/user_management/sessions/logout",
       );
       logoutUrl.searchParams.set("session_id", sessionId);
-      if (returnTo) {
-        logoutUrl.searchParams.set("return_to", returnTo);
-      }
+      logoutUrl.searchParams.set("return_to", returnTo);
       window.location.assign(logoutUrl.toString());
     } else {
-      // No JWTs (e.g. storage was cleared): app session is gone but WorkOS SSO cookies may remain.
-      // User must sign in again to get tokens, then sign out — or clear site cookies for WorkOS / AuthKit.
-      window.location.assign(
-        returnTo ?? `${window.location.origin}/components`
-      );
+      window.location.assign(returnTo);
     }
   }, [persistSession, session]);
 
   const signIn = useCallback(async () => {
     const clientId = getRequiredEnv(
       "VITE_WORKOS_CLIENT_ID",
-      import.meta.env.VITE_WORKOS_CLIENT_ID as string | undefined
+      import.meta.env.VITE_WORKOS_CLIENT_ID as string | undefined,
     );
     const redirectUri = getRequiredEnv(
       "VITE_WORKOS_REDIRECT_URI",
-      import.meta.env.VITE_WORKOS_REDIRECT_URI as string | undefined
+      import.meta.env.VITE_WORKOS_REDIRECT_URI as string | undefined,
     );
     const domain = getWorkosDomain();
 
@@ -218,12 +154,8 @@ export function ConnectAuthProvider({
 
   useEffect(() => {
     const hydrate = async () => {
-      const redirectUri = import.meta.env.VITE_WORKOS_REDIRECT_URI as
-        | string
-        | undefined;
-      const clientId = import.meta.env.VITE_WORKOS_CLIENT_ID as
-        | string
-        | undefined;
+      const redirectUri = import.meta.env.VITE_WORKOS_REDIRECT_URI as string | undefined;
+      const clientId = import.meta.env.VITE_WORKOS_CLIENT_ID as string | undefined;
 
       if (!redirectUri || !clientId) {
         setIsLoading(false);
@@ -233,20 +165,14 @@ export function ConnectAuthProvider({
       const current = new URL(window.location.href);
       const code = current.searchParams.get("code");
       const state = current.searchParams.get("state");
-      const isCallbackRoute =
-        current.pathname === new URL(redirectUri).pathname;
+      const isCallbackRoute = current.pathname === new URL(redirectUri).pathname;
 
       // Handle callback exchange first
       if (isCallbackRoute && code) {
         try {
           const expectedState = sessionStorage.getItem(OAUTH_STATE_KEY);
           const verifier = sessionStorage.getItem(PKCE_VERIFIER_KEY);
-          if (
-            !expectedState ||
-            !verifier ||
-            !state ||
-            state !== expectedState
-          ) {
+          if (!expectedState || !verifier || !state || state !== expectedState) {
             throw new Error("Invalid OAuth callback state");
           }
 
@@ -274,21 +200,16 @@ export function ConnectAuthProvider({
             access_token?: string;
             id_token?: string;
           };
-          const accessToken = data.access_token;
-          const idToken = data.id_token;
-          // Convex expects the id_token JWT (aud matches client); access_token can differ.
-          const token = idToken ?? accessToken;
+          const token = data.id_token ?? data.access_token;
           if (!token) {
             throw new Error("Token response missing JWT token");
           }
 
-          const profile = userFromToken(idToken ?? accessToken ?? token);
-          const expiry = userFromToken(token);
+          const derived = userFromToken(token);
           persistSession({
             token,
-            accessToken: data.access_token,
-            expiresAtMs: expiry.expiresAtMs,
-            user: profile.user,
+            expiresAtMs: derived.expiresAtMs,
+            user: derived.user,
           });
         } catch {
           persistSession(null);
@@ -297,8 +218,7 @@ export function ConnectAuthProvider({
           sessionStorage.removeItem(PKCE_VERIFIER_KEY);
           setIsLoading(false);
 
-          const returnPath =
-            localStorage.getItem(RETURN_PATH_KEY) || "/components/submit";
+          const returnPath = localStorage.getItem(RETURN_PATH_KEY) || "/components/submit";
           localStorage.removeItem(RETURN_PATH_KEY);
           window.location.replace(returnPath);
         }
@@ -350,14 +270,10 @@ export function ConnectAuthProvider({
       signIn,
       signOut,
     }),
-    [getAccessToken, isLoading, session?.user, signIn, signOut]
+    [getAccessToken, isLoading, session?.user, signIn, signOut],
   );
 
-  return (
-    <ConnectAuthContext.Provider value={value}>
-      {children}
-    </ConnectAuthContext.Provider>
-  );
+  return <ConnectAuthContext.Provider value={value}>{children}</ConnectAuthContext.Provider>;
 }
 
 export function useConnectAuth() {
