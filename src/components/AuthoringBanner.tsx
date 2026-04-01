@@ -1,9 +1,9 @@
-// Promotional banner for the Component Authoring Challenge
-interface ChallengeBannerProps {
+// Promotional banner for Component Authoring
+interface AuthoringBannerProps {
   className?: string;
 }
 
-export function ChallengeBanner({ className = "" }: ChallengeBannerProps) {
+export function AuthoringBanner({ className = "" }: AuthoringBannerProps) {
   return (
     <section
       className={`relative overflow-hidden rounded-xl ${className}`}
@@ -41,15 +41,16 @@ export function ChallengeBanner({ className = "" }: ChallengeBannerProps) {
       <div className="relative z-10 flex min-h-[120px] flex-col items-start justify-center gap-4 px-7 py-7 sm:flex-row sm:items-center sm:justify-between sm:px-10 sm:py-8">
         <div>
           <h2 className="mb-1 text-xl font-bold text-white sm:text-2xl">
-            Component Authoring Challenge
+            Component Authoring
           </h2>
           <p className="max-w-sm text-sm leading-snug text-[rgb(185,177,170)]">
-            Build a reusable component for developers to{"\n"}drop into their projects. Win prizes. Get featured.
+            Build a reusable component for developers to drop into their
+            projects.
           </p>
         </div>
 
         <a
-          href="https://www.convex.dev/components/challenge"
+          href="https://www.convex.dev/component-authoring"
           target="_blank"
           rel="noopener noreferrer"
           className="shrink-0 inline-flex items-center justify-center rounded-full px-6 py-2.5 text-sm font-medium text-white transition-all hover:brightness-110"
