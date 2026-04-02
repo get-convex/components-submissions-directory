@@ -28,8 +28,9 @@ import {
   Star,
   Info,
   Browser,
+  Shield,
 } from "@phosphor-icons/react";
-import { ExternalLinkIcon as RadixExternalLinkIcon } from "@radix-ui/react-icons";
+import { ExternalLinkIcon as RadixExternalLinkIcon, Cross2Icon, GitHubLogoIcon } from "@radix-ui/react-icons";
 
 // Get base path for links (always /components)
 function useBasePath() {
@@ -1897,6 +1898,269 @@ function LoadingSkeleton() {
   );
 }
 
+// Security report modal (matches ComponentDetail.tsx pattern)
+function SubmitSecurityReportModal({
+  onClose,
+  scanData,
+  repositoryUrl,
+}: {
+  onClose: () => void;
+  scanData: {
+    status: string;
+    summary?: string;
+    findingCount: number;
+    providerCount: number;
+    lastScannedAt?: number;
+    findings: Array<{
+      severity: string;
+      title: string;
+      description: string;
+      recommendation: string;
+      provider: string;
+    }>;
+    recommendations: string[];
+    providerStatuses: {
+      socket?: string;
+      snyk?: string;
+    };
+  };
+  repositoryUrl?: string;
+}) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  useEffect(() => {
+    const prevBody = document.body.style.overflow;
+    const prevHtml = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevBody;
+      document.documentElement.style.overflow = prevHtml;
+    };
+  }, []);
+
+  const githubIssuesUrl = repositoryUrl
+    ? `${repositoryUrl.replace(/\/$/, "")}/issues`
+    : null;
+
+  const providerNames: Record<string, string> = {
+    socket: "Socket.dev",
+    snyk: "Snyk",
+  };
+  const providerUrls: Record<string, string> = {
+    socket: "https://socket.dev",
+    snyk: "https://snyk.io",
+  };
+  const scannedDateLabel = scanData.lastScannedAt
+    ? new Date(scanData.lastScannedAt).toLocaleDateString()
+    : null;
+  const modalStatusLabel =
+    scanData.status === "not_scanned"
+      ? "Not scanned"
+      : scanData.status === "safe"
+        ? scannedDateLabel
+          ? `Safe as of ${scannedDateLabel}`
+          : "Safe"
+        : "Alerts";
+  const scanStateLabel =
+    scanData.status === "not_scanned"
+      ? "Not yet scanned"
+      : scanData.lastScannedAt
+        ? `Scanned ${new Date(scanData.lastScannedAt).toLocaleDateString()}`
+        : "Scanned";
+  const hasFindings = scanData.findings.length > 0 || scanData.recommendations.length > 0;
+
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex items-start justify-center p-4 pt-8 sm:pt-12"
+      aria-modal="true"
+      role="dialog"
+    >
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-[121] max-h-[calc(100vh-4rem)] w-full max-w-md overflow-y-auto rounded-container border border-border bg-white p-6 shadow-lg">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
+          aria-label="Close security report"
+        >
+          <Cross2Icon className="w-4 h-4" />
+        </button>
+
+        <div className="mb-5 pr-8">
+          <div className="flex items-center gap-2 mb-1">
+            <Shield size={20} weight="bold" className="text-text-secondary" />
+            <h2 className="text-lg font-medium text-text-primary">Security Analyze</h2>
+          </div>
+          <p className="text-sm text-text-primary mt-1">Status: {modalStatusLabel}</p>
+          <p className="text-sm text-text-secondary mt-1">{scanStateLabel}</p>
+        </div>
+
+        <div className="space-y-4">
+          {scanData.status === "not_scanned" && (
+            <section className="rounded-lg border border-border bg-bg-secondary px-3 py-3">
+              <p className="text-sm text-text-secondary leading-relaxed">
+                This component has not been scanned yet. Review the repository and package details
+                before installing it.
+              </p>
+            </section>
+          )}
+
+          {Object.entries(scanData.providerStatuses).some(([, v]) => v) && (
+            <section>
+              <h3 className="text-xs font-medium uppercase tracking-wider text-text-primary mb-2">
+                Providers
+              </h3>
+              <p className="mb-2 text-xs text-text-secondary">
+                You can run your own scan with the providers below.
+              </p>
+              <div className="space-y-1">
+                {Object.entries(scanData.providerStatuses).map(([key, status]) => {
+                  if (!status) return null;
+                  const providerLabel = providerNames[key] || key;
+                  const providerUrl = providerUrls[key];
+                  return (
+                    <div key={key} className="text-sm">
+                      {providerUrl ? (
+                        <a
+                          href={providerUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-text-primary hover:underline"
+                          title={`Open ${providerLabel} to run your own scan`}
+                        >
+                          {providerLabel}
+                          <RadixExternalLinkIcon className="w-3 h-3 text-text-secondary" />
+                        </a>
+                      ) : (
+                        <span className="text-text-primary">{providerLabel}</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {scanData.recommendations.length > 0 && (
+            <section>
+              <h3 className="text-xs font-medium uppercase tracking-wider text-text-primary mb-1.5">
+                Recommendations
+              </h3>
+              <ul className="list-disc list-inside space-y-1">
+                {scanData.recommendations.map((rec, idx) => (
+                  <li key={idx} className="text-xs text-text-secondary">
+                    {rec}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {hasFindings && (
+            <section>
+              <h3 className="text-xs font-medium uppercase tracking-wider text-text-primary mb-1.5">
+                Contact the component author
+              </h3>
+              <p className="text-sm text-text-secondary leading-relaxed">
+                For security concerns, dependency issues, or vulnerability reports, contact the
+                component author through the GitHub repository.
+              </p>
+              {githubIssuesUrl ? (
+                <a
+                  href={githubIssuesUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-1.5 text-sm text-text-primary hover:underline"
+                >
+                  <GitHubLogoIcon className="w-4 h-4" />
+                  Open GitHub Issues
+                  <RadixExternalLinkIcon className="w-3 h-3 text-text-secondary" />
+                </a>
+              ) : repositoryUrl ? (
+                <a
+                  href={repositoryUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-1.5 text-sm text-text-primary hover:underline"
+                >
+                  <GitHubLogoIcon className="w-4 h-4" />
+                  View repository
+                  <RadixExternalLinkIcon className="w-3 h-3 text-text-secondary" />
+                </a>
+              ) : (
+                <p className="mt-2 text-xs text-text-secondary">
+                  If no repository link is listed here, use the package links provided by the author.
+                </p>
+              )}
+            </section>
+          )}
+
+          <section className="rounded-lg border border-border bg-bg-secondary px-3 py-3">
+            <h3 className="text-xs font-medium text-text-primary mb-1">Third party component notice</h3>
+            <p className="text-xs text-text-secondary leading-relaxed">
+              This is a community or third-party component. It is not maintained by Convex and does not
+              undergo the same level of review as official Convex packages. Use at your own discretion.
+            </p>
+          </section>
+        </div>
+
+        <div className="mt-5 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Security button that loads scan data on demand
+function SecurityAnalyzeButton({ packageId, repositoryUrl }: { packageId: string; repositoryUrl?: string }) {
+  const [showModal, setShowModal] = useState(false);
+  const scanData = useQuery(api.packages.getLatestSecurityScan, {
+    packageId: packageId as any,
+  });
+
+  if (!scanData) return null;
+
+  const label = scanData.status === "scanning"
+    ? "Scanning..."
+    : scanData.status === "not_scanned"
+      ? "Security"
+      : "Security";
+
+  return (
+    <>
+      <Tooltip content="View security scan report" position="right">
+        <button
+          onClick={() => setShowModal(true)}
+          disabled={scanData.status === "scanning"}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Shield size={16} />
+          {label}
+        </button>
+      </Tooltip>
+      {showModal && (
+        <SubmitSecurityReportModal
+          onClose={() => setShowModal(false)}
+          scanData={scanData}
+          repositoryUrl={repositoryUrl}
+        />
+      )}
+    </>
+  );
+}
+
 // Condensed package row component
 function PackageRow({
   package: pkg,
@@ -2201,6 +2465,7 @@ function PackageRow({
                 </a>
               </Tooltip>
             )}
+            <SecurityAnalyzeButton packageId={pkg._id} repositoryUrl={pkg.repositoryUrl} />
           </div>
 
           {/* Badge snippet for README - show only when slug exists */}

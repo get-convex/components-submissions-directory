@@ -939,6 +939,13 @@ export const submitPackage = action({
       await ctx.scheduler.runAfter(0, internal.aiReview._runAiReview, { packageId });
     }
 
+    // Auto security scan on submission (if enabled and repo URL present)
+    if (prereqs.settings.autoSecurityScan && args.repositoryUrl) {
+      await ctx.scheduler.runAfter(0, internal.securityScan._runSecurityScan, {
+        packageId,
+      });
+    }
+
     return packageId;
   },
 });
@@ -2594,6 +2601,353 @@ export const deleteAiReviewRun = mutation({
   },
 });
 
+// ============ SECURITY SCAN MUTATIONS & QUERIES ============
+
+const securityFindingValidator = v.object({
+  provider: v.union(v.literal("socket"), v.literal("snyk"), v.literal("devin")),
+  severity: v.union(
+    v.literal("critical"),
+    v.literal("high"),
+    v.literal("medium"),
+    v.literal("low"),
+    v.literal("info"),
+  ),
+  title: v.string(),
+  description: v.string(),
+  recommendation: v.string(),
+});
+
+const providerResultsValidator = v.object({
+  socket: v.optional(
+    v.object({
+      status: v.string(),
+      score: v.optional(v.number()),
+      issueCount: v.optional(v.number()),
+      rawSummary: v.optional(v.string()),
+    }),
+  ),
+  snyk: v.optional(
+    v.object({
+      status: v.string(),
+      vulnerabilityCount: v.optional(v.number()),
+      criticalCount: v.optional(v.number()),
+      highCount: v.optional(v.number()),
+      rawSummary: v.optional(v.string()),
+    }),
+  ),
+  devin: v.optional(
+    v.object({
+      status: v.string(),
+      sessionId: v.optional(v.string()),
+      sessionUrl: v.optional(v.string()),
+      findingCount: v.optional(v.number()),
+      rawSummary: v.optional(v.string()),
+    }),
+  ),
+});
+
+const securityScanRunValidator = v.object({
+  _id: v.id("securityScanRuns"),
+  _creationTime: v.number(),
+  packageId: v.id("packages"),
+  createdAt: v.number(),
+  status: v.union(
+    v.literal("safe"),
+    v.literal("unsafe"),
+    v.literal("warning"),
+    v.literal("error"),
+  ),
+  summary: v.string(),
+  findings: v.array(securityFindingValidator),
+  recommendations: v.array(v.string()),
+  providerResults: providerResultsValidator,
+  error: v.optional(v.string()),
+  triggeredBy: v.optional(v.string()),
+});
+
+// Set scanning status on package
+export const _updateSecurityScanStatus = internalMutation({
+  args: {
+    packageId: v.id("packages"),
+    status: v.union(
+      v.literal("not_scanned"),
+      v.literal("scanning"),
+      v.literal("safe"),
+      v.literal("unsafe"),
+      v.literal("warning"),
+      v.literal("error"),
+    ),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.packageId, {
+      securityScanStatus: args.status,
+    });
+    return null;
+  },
+});
+
+// Save security scan result and create run history in one transaction
+export const _saveSecurityScanResultAndRun = internalMutation({
+  args: {
+    packageId: v.id("packages"),
+    status: v.union(
+      v.literal("safe"),
+      v.literal("unsafe"),
+      v.literal("warning"),
+      v.literal("error"),
+    ),
+    summary: v.string(),
+    findings: v.array(securityFindingValidator),
+    recommendations: v.array(v.string()),
+    providerResults: providerResultsValidator,
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    triggeredBy: v.optional(v.string()),
+    socketScanStatus: v.optional(v.string()),
+    snykScanStatus: v.optional(v.string()),
+    devinScanStatus: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    // Update denormalized package fields
+    await ctx.db.patch(args.packageId, {
+      securityScanStatus: args.status,
+      securityScanSummary: args.summary,
+      securityScanUpdatedAt: args.createdAt,
+      securityScanError: args.error,
+      socketScanStatus: args.socketScanStatus,
+      snykScanStatus: args.snykScanStatus,
+      devinScanStatus: args.devinScanStatus,
+    });
+    // Insert history row
+    await ctx.db.insert("securityScanRuns", {
+      packageId: args.packageId,
+      createdAt: args.createdAt,
+      status: args.status,
+      summary: args.summary,
+      findings: args.findings,
+      recommendations: args.recommendations,
+      providerResults: args.providerResults,
+      error: args.error,
+      triggeredBy: args.triggeredBy,
+    });
+    return null;
+  },
+});
+
+// Admin query: get security scan runs for a package
+export const getSecurityScanRunsForPackage = query({
+  args: {
+    packageId: v.id("packages"),
+  },
+  returns: v.array(securityScanRunValidator),
+  handler: async (ctx, args) => {
+    const adminIdentity = await getAdminIdentity(ctx);
+    if (!adminIdentity) {
+      return [];
+    }
+    return await ctx.db
+      .query("securityScanRuns")
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
+      .order("desc")
+      .take(100);
+  },
+});
+
+// Public query: latest security scan for sidebar display (safe fields only)
+export const getLatestSecurityScan = query({
+  args: {
+    packageId: v.id("packages"),
+  },
+  returns: v.union(
+    v.null(),
+    v.object({
+      status: v.union(
+        v.literal("not_scanned"),
+        v.literal("scanning"),
+        v.literal("safe"),
+        v.literal("unsafe"),
+        v.literal("warning"),
+        v.literal("error"),
+      ),
+      summary: v.optional(v.string()),
+      findingCount: v.number(),
+      providerCount: v.number(),
+      lastScannedAt: v.optional(v.number()),
+      // Findings for public modal display
+      findings: v.array(
+        v.object({
+          severity: v.string(),
+          title: v.string(),
+          description: v.string(),
+          recommendation: v.string(),
+          provider: v.string(),
+        }),
+      ),
+      recommendations: v.array(v.string()),
+      providerStatuses: v.object({
+        socket: v.optional(v.string()),
+        snyk: v.optional(v.string()),
+        devin: v.optional(v.string()),
+      }),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) return null;
+
+    if (!pkg.securityScanStatus || pkg.securityScanStatus === "not_scanned") {
+      return {
+        status: "not_scanned" as const,
+        findingCount: 0,
+        providerCount: 0,
+        findings: [],
+        recommendations: [],
+        providerStatuses: {},
+      };
+    }
+
+    // Get latest run for findings detail
+    const latestRun = await ctx.db
+      .query("securityScanRuns")
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
+      .order("desc")
+      .first();
+
+    const providerCount = [
+      pkg.socketScanStatus,
+      pkg.snykScanStatus,
+      pkg.devinScanStatus,
+    ].filter(Boolean).length;
+
+    return {
+      status: pkg.securityScanStatus,
+      summary: pkg.securityScanSummary,
+      findingCount: latestRun?.findings?.length ?? 0,
+      providerCount,
+      lastScannedAt: pkg.securityScanUpdatedAt,
+      findings: (latestRun?.findings ?? []).map((f) => ({
+        severity: f.severity,
+        title: f.title,
+        description: f.description,
+        recommendation: f.recommendation,
+        provider: f.provider,
+      })),
+      recommendations: latestRun?.recommendations ?? [],
+      providerStatuses: {
+        socket: pkg.socketScanStatus,
+        snyk: pkg.snykScanStatus,
+        devin: pkg.devinScanStatus,
+      },
+    };
+  },
+});
+
+// Admin query: security scan backlog stats for the settings panel
+export const getSecurityScanBacklogStats = query({
+  args: {},
+  returns: v.object({
+    total: v.number(),
+    unscanned: v.number(),
+    scanning: v.number(),
+    scanned: v.number(),
+    errorCount: v.number(),
+  }),
+  handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
+    const packages = await ctx.db.query("packages").take(10000);
+    const withRepo = packages.filter((pkg) => !!pkg.repositoryUrl);
+    let unscanned = 0;
+    let scanning = 0;
+    let scanned = 0;
+    let errorCount = 0;
+    for (const pkg of withRepo) {
+      const status = pkg.securityScanStatus;
+      if (!status || status === "not_scanned") {
+        unscanned++;
+      } else if (status === "scanning") {
+        scanning++;
+      } else if (status === "error") {
+        errorCount++;
+      } else {
+        scanned++;
+      }
+    }
+    return { total: withRepo.length, unscanned, scanning, scanned, errorCount };
+  },
+});
+
+// Admin mutation: queue a batch of unscanned packages for security scanning
+export const runSecurityScanBacklog = mutation({
+  args: { batchSize: v.optional(v.number()) },
+  returns: v.object({ queued: v.number() }),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+    const limit = args.batchSize ?? 20;
+    const packages = await ctx.db.query("packages").take(10000);
+    const eligible = packages.filter(
+      (pkg) =>
+        !!pkg.repositoryUrl &&
+        (!pkg.securityScanStatus ||
+          pkg.securityScanStatus === "not_scanned" ||
+          pkg.securityScanStatus === "error"),
+    );
+    const batch = eligible.slice(0, limit);
+    for (const pkg of batch) {
+      await ctx.db.patch(pkg._id, { securityScanStatus: "scanning" as const });
+      await ctx.scheduler.runAfter(
+        0,
+        internal.securityScan._runSecurityScan,
+        { packageId: pkg._id },
+      );
+    }
+    return { queued: batch.length };
+  },
+});
+
+// Internal action target for scheduled security scans
+export const scheduledSecurityScanCheck = internalMutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    const settings = await getAdminSettingsHelper(ctx);
+    const scheduleDays = settings.securityScanScheduleDays;
+    if (scheduleDays <= 0) return null;
+
+    const anyProviderEnabled =
+      settings.enableSocketScan ||
+      settings.enableSnykScan;
+    if (!anyProviderEnabled) return null;
+
+    const cutoff = Date.now() - scheduleDays * 24 * 60 * 60 * 1000;
+
+    // Find packages that need scanning (have repo URL, stale or never scanned)
+    const allPackages = await ctx.db.query("packages").take(10000);
+    const eligible = allPackages.filter(
+      (pkg) =>
+        !!pkg.repositoryUrl &&
+        pkg.securityScanStatus !== "scanning" &&
+        (!pkg.securityScanUpdatedAt || pkg.securityScanUpdatedAt < cutoff),
+    );
+
+    // Queue up to 20 scans per run to avoid overwhelming providers
+    const batch = eligible.slice(0, 20);
+    for (const pkg of batch) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.securityScan._runSecurityScan,
+        { packageId: pkg._id },
+      );
+    }
+    return null;
+  },
+});
+
 // Get admin settings for AI review, thumbnails, and related automation
 async function getAdminSettingsHelper(ctx: QueryCtx) {
   const autoAiReview = await ctx.db
@@ -2648,6 +3002,23 @@ async function getAdminSettingsHelper(ctx: QueryCtx) {
     .query("adminSettings")
     .withIndex("by_key", (q) => q.eq("key", "apiAccessEnabled"))
     .first();
+  // Security scan provider toggles
+  const enableSocketScan = await ctx.db
+    .query("adminSettings")
+    .withIndex("by_key", (q) => q.eq("key", "enableSocketScan"))
+    .first();
+  const enableSnykScan = await ctx.db
+    .query("adminSettings")
+    .withIndex("by_key", (q) => q.eq("key", "enableSnykScan"))
+    .first();
+  const autoSecurityScan = await ctx.db
+    .query("adminSettings")
+    .withIndex("by_key", (q) => q.eq("key", "autoSecurityScan"))
+    .first();
+  const securityScanScheduleDays = await ctx.db
+    .query("adminSettingsNumeric")
+    .withIndex("by_key", (q) => q.eq("key", "securityScanScheduleDays"))
+    .first();
 
   return {
     autoAiReview: autoAiReview?.value || false,
@@ -2660,6 +3031,11 @@ async function getAdminSettingsHelper(ctx: QueryCtx) {
     autoSendRewardOnApprove: autoSendReward?.value || false,
     defaultRewardAmount: defaultRewardAmount?.value ?? 25,
     apiAccessEnabled: apiAccessEnabled?.value || false,
+    enableSocketScan: enableSocketScan?.value || false,
+    enableSnykScan: enableSnykScan?.value || false,
+    enableDevinScan: false,
+    autoSecurityScan: autoSecurityScan?.value || false,
+    securityScanScheduleDays: securityScanScheduleDays?.value ?? 0,
   };
 }
 
@@ -2674,6 +3050,11 @@ const adminSettingsReturnValidator = v.object({
   autoSendRewardOnApprove: v.boolean(),
   defaultRewardAmount: v.number(),
   apiAccessEnabled: v.boolean(),
+  enableSocketScan: v.boolean(),
+  enableSnykScan: v.boolean(),
+  enableDevinScan: v.boolean(),
+  autoSecurityScan: v.boolean(),
+  securityScanScheduleDays: v.number(),
 });
 
 export const getAdminSettings = query({
@@ -2705,6 +3086,10 @@ export const updateAdminSetting = mutation({
       v.literal("showRelatedOnDetailPage"),
       v.literal("autoSendRewardOnApprove"),
       v.literal("apiAccessEnabled"),
+      v.literal("enableSocketScan"),
+      v.literal("enableSnykScan"),
+      v.literal("enableDevinScan"),
+      v.literal("autoSecurityScan"),
     ),
     value: v.boolean(),
   },
@@ -2760,6 +3145,7 @@ export const updateAdminSettingNumeric = mutation({
   args: {
     key: v.union(
       v.literal("defaultRewardAmount"),
+      v.literal("securityScanScheduleDays"),
     ),
     value: v.number(),
   },
@@ -5569,6 +5955,8 @@ export const listAllDirectoryCategories = query({
       description: v.string(),
       sortOrder: v.number(),
       enabled: v.boolean(),
+      packageCount: v.optional(v.number()),
+      verifiedCount: v.optional(v.number()),
     }),
   ),
   handler: async (ctx) => {

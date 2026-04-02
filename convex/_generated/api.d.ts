@@ -21,6 +21,7 @@ import type * as payments from "../payments.js";
 import type * as paymentsDb from "../paymentsDb.js";
 import type * as preflight from "../preflight.js";
 import type * as router from "../router.js";
+import type * as securityScan from "../securityScan.js";
 import type * as seed from "../seed.js";
 import type * as slack from "../slack.js";
 import type * as seoContent from "../seoContent.js";
@@ -48,6 +49,7 @@ declare const fullApi: ApiFromModules<{
   paymentsDb: typeof paymentsDb;
   preflight: typeof preflight;
   router: typeof router;
+  securityScan: typeof securityScan;
   seed: typeof seed;
   slack: typeof slack;
   seoContent: typeof seoContent;

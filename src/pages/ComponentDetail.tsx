@@ -32,7 +32,7 @@ import {
   Cross2Icon,
 } from "@radix-ui/react-icons";
 import { AgentInstallSection } from "../components/AgentInstallSection";
-import { FileArrowDown, ClipboardText, DiscordLogo } from "@phosphor-icons/react";
+import { FileArrowDown, ClipboardText, DiscordLogo, ShieldCheck, ShieldWarning, Shield } from "@phosphor-icons/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -409,6 +409,290 @@ function ComponentHelpModal({
   );
 }
 
+// Security scan sidebar box + modal for public component detail page
+function SecurityScanBox({
+  packageId,
+  repositoryUrl,
+  showModal,
+  onShowModalChange,
+}: {
+  packageId: string;
+  repositoryUrl?: string;
+  showModal: boolean;
+  onShowModalChange: (open: boolean) => void;
+}) {
+  const scanData = useQuery(api.packages.getLatestSecurityScan, {
+    packageId: packageId as any,
+  });
+
+  if (!scanData) return null;
+
+  if (scanData.status === "scanning") {
+    return (
+      <div className="flex items-center gap-2 py-1">
+        <Shield size={14} weight="bold" className="text-text-secondary" />
+        <span className="text-xs font-medium text-text-secondary">Scanning...</span>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => onShowModalChange(true)}
+        className="inline-flex items-center gap-2 py-1 text-text-secondary hover:text-text-primary transition-colors"
+      >
+        <Shield size={14} weight="bold" />
+        <span className="text-xs font-medium">Security Analyze</span>
+      </button>
+
+      {showModal && (
+        <SecurityReportModal
+          onClose={() => onShowModalChange(false)}
+          scanData={scanData}
+          repositoryUrl={repositoryUrl}
+        />
+      )}
+    </>
+  );
+}
+
+function SecurityReportModal({
+  onClose,
+  scanData,
+  repositoryUrl,
+}: {
+  onClose: () => void;
+  scanData: {
+    status: string;
+    summary?: string;
+    findingCount: number;
+    providerCount: number;
+    lastScannedAt?: number;
+    findings: Array<{
+      severity: string;
+      title: string;
+      description: string;
+      recommendation: string;
+      provider: string;
+    }>;
+    recommendations: string[];
+    providerStatuses: {
+      socket?: string;
+      snyk?: string;
+    };
+  };
+  repositoryUrl?: string;
+}) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  useEffect(() => {
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+    };
+  }, []);
+
+  const githubIssuesUrl = repositoryUrl
+    ? `${repositoryUrl.replace(/\/$/, "")}/issues`
+    : null;
+
+  const providerNames: Record<string, string> = {
+    socket: "Socket.dev",
+    snyk: "Snyk",
+  };
+  const providerUrls: Record<string, string> = {
+    socket: "https://socket.dev",
+    snyk: "https://snyk.io",
+  };
+  const scannedDateLabel = scanData.lastScannedAt
+    ? new Date(scanData.lastScannedAt).toLocaleDateString()
+    : null;
+  const modalStatusLabel =
+    scanData.status === "not_scanned"
+      ? "Not scanned"
+      : scanData.status === "safe"
+        ? scannedDateLabel
+          ? `Safe as of ${scannedDateLabel}`
+          : "Safe"
+        : "Alerts";
+  const scanStateLabel =
+    scanData.status === "not_scanned"
+      ? "Not yet scanned"
+      : scanData.lastScannedAt
+        ? `Scanned ${new Date(scanData.lastScannedAt).toLocaleDateString()}`
+        : "Scanned";
+  const hasFindings = scanData.findings.length > 0 || scanData.recommendations.length > 0;
+
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex items-start justify-center p-4 pt-8 sm:pt-12"
+      aria-modal="true"
+      role="dialog"
+    >
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-[121] max-h-[calc(100vh-4rem)] w-full max-w-md overflow-y-auto rounded-container border border-border bg-white p-6 shadow-lg">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
+          aria-label="Close security report"
+        >
+          <Cross2Icon className="w-4 h-4" />
+        </button>
+
+        {/* Header */}
+        <div className="mb-5 pr-8">
+          <div className="flex items-center gap-2 mb-1">
+            <Shield size={20} weight="bold" className="text-text-secondary" />
+            <h2 className="text-lg font-medium text-text-primary">Security Analyze</h2>
+          </div>
+          <p className="text-sm text-text-primary mt-1">Status: {modalStatusLabel}</p>
+          <p className="text-sm text-text-secondary mt-1">{scanStateLabel}</p>
+        </div>
+
+        <div className="space-y-4">
+          {scanData.status === "not_scanned" && (
+            <section className="rounded-lg border border-border bg-bg-secondary px-3 py-3">
+              <p className="text-sm text-text-secondary leading-relaxed">
+                This component has not been scanned yet. Review the repository and package details
+                before installing it.
+              </p>
+            </section>
+          )}
+
+          {/* Providers */}
+          {Object.entries(scanData.providerStatuses).some(([, v]) => v) && (
+            <section>
+              <h3 className="text-xs font-medium uppercase tracking-wider text-text-primary mb-2">
+                Providers
+              </h3>
+              <p className="mb-2 text-xs text-text-secondary">
+                You can run your own scan with the providers below.
+              </p>
+              <div className="space-y-1">
+                {Object.entries(scanData.providerStatuses).map(([key, status]) => {
+                  if (!status) return null;
+                  const providerLabel = providerNames[key] || key;
+                  const providerUrl = providerUrls[key];
+                  return (
+                    <div key={key} className="text-sm">
+                      {providerUrl ? (
+                        <a
+                          href={providerUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-text-primary hover:underline"
+                          title={`Open ${providerLabel} to run your own scan`}
+                        >
+                          {providerLabel}
+                          <ExternalLinkIcon className="w-3 h-3 text-text-secondary" />
+                        </a>
+                      ) : (
+                        <span className="text-text-primary">{providerLabel}</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* Recommendations */}
+          {scanData.recommendations.length > 0 && (
+            <section>
+              <h3 className="text-xs font-medium uppercase tracking-wider text-text-primary mb-1.5">
+                Recommendations
+              </h3>
+              <ul className="list-disc list-inside space-y-1">
+                {scanData.recommendations.map((rec, idx) => (
+                  <li key={idx} className="text-xs text-text-secondary">
+                    {rec}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {/* Contact the component author when findings exist */}
+          {hasFindings && (
+            <section>
+              <h3 className="text-xs font-medium uppercase tracking-wider text-text-primary mb-1.5">
+                Contact the component author
+              </h3>
+              <p className="text-sm text-text-secondary leading-relaxed">
+                For security concerns, dependency issues, or vulnerability reports, contact the
+                component author through the GitHub repository.
+              </p>
+              {githubIssuesUrl ? (
+                <a
+                  href={githubIssuesUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-1.5 text-sm text-text-primary hover:underline"
+                >
+                  <GitHubLogoIcon className="w-4 h-4" />
+                  Open GitHub Issues
+                  <ExternalLinkIcon className="w-3 h-3 text-text-secondary" />
+                </a>
+              ) : repositoryUrl ? (
+                <a
+                  href={repositoryUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-1.5 text-sm text-text-primary hover:underline"
+                >
+                  <GitHubLogoIcon className="w-4 h-4" />
+                  View repository
+                  <ExternalLinkIcon className="w-3 h-3 text-text-secondary" />
+                </a>
+              ) : (
+                <p className="mt-2 text-xs text-text-secondary">
+                  If no repository link is listed here, use the package links provided by the author.
+                </p>
+              )}
+            </section>
+          )}
+
+          {/* Third party component notice */}
+          <section className="rounded-lg border border-border bg-bg-secondary px-3 py-3">
+            <h3 className="text-xs font-medium uppercase tracking-wider text-text-primary mb-1.5">
+              Third party component notice
+            </h3>
+            <p className="text-xs text-text-secondary leading-relaxed">
+              Community and third party components are provided by their authors. Convex does not
+              review, maintain, support, warrant, or assume responsibility for third party
+              components, including their code, security, licensing, behavior, or ongoing
+              availability. Review the source, license, and documentation before installing or using
+              any community component.
+            </p>
+          </section>
+        </div>
+
+        <div className="mt-5 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // GitHub issue shape (matches backend validator)
 interface GitHubIssue {
   number: number;
@@ -442,6 +726,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
   const [badgeCopied, setBadgeCopied] = useState(false);
   const [copyMenuOpen, setCopyMenuOpen] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showSecurityReportModal, setShowSecurityReportModal] = useState(false);
   const [pageCopied, setPageCopied] = useState(false);
   const [skillCopied, setSkillCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -467,6 +752,12 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  useEffect(() => {
+    if (showSecurityReportModal) {
+      setCopyMenuOpen(false);
+    }
+  }, [showSecurityReportModal]);
 
   // Set SEO meta tags + JSON-LD structured data (SoftwareSourceCode + FAQPage)
   useEffect(() => {
@@ -861,6 +1152,14 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               </button>
             </div>
 
+            {/* Security scan report box */}
+            <SecurityScanBox
+              packageId={component._id}
+              repositoryUrl={component.repositoryUrl}
+              showModal={showSecurityReportModal}
+              onShowModalChange={setShowSecurityReportModal}
+            />
+
             {/* Back to Components (bottom of sidebar) */}
             <a
               href={basePath}
@@ -917,62 +1216,66 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 </>
               )}
 
-              {/* Markdown dropdown */}
-              <span className="text-text-secondary/40">|</span>
-              <div className="relative" ref={menuRef}>
-                <button
-                  onClick={() => setCopyMenuOpen(!copyMenuOpen)}
-                  className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors">
-                  {pageCopied ? (
-                    <CheckIcon className="w-3.5 h-3.5 text-green-600" />
-                  ) : (
-                    <ClipboardIcon className="w-3.5 h-3.5" />
-                  )}
-                  {pageCopied ? "Copied" : "Markdown"}
-                  <ChevronDownIcon className="w-3 h-3" />
-                </button>
+              {!showSecurityReportModal && (
+                <>
+                  {/* Markdown dropdown */}
+                  <span className="text-text-secondary/40">|</span>
+                  <div className="relative" ref={menuRef}>
+                    <button
+                      onClick={() => setCopyMenuOpen(!copyMenuOpen)}
+                      className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors">
+                      {pageCopied ? (
+                        <CheckIcon className="w-3.5 h-3.5 text-green-600" />
+                      ) : (
+                        <ClipboardIcon className="w-3.5 h-3.5" />
+                      )}
+                      {pageCopied ? "Copied" : "Markdown"}
+                      <ChevronDownIcon className="w-3 h-3" />
+                    </button>
 
-                {copyMenuOpen && (
-                  <div className="absolute left-0 top-full mt-1 w-56 rounded-lg bg-white shadow-hover py-1 z-20">
-                    <button
-                      onClick={openMarkdownFile}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
-                      <ExternalLinkIcon className="w-3.5 h-3.5 text-text-secondary" />
-                      Open markdown file
-                    </button>
-                    <button
-                      onClick={handleCopyMarkdown}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
-                      <FileTextIcon className="w-3.5 h-3.5 text-text-secondary" />
-                      Copy as Markdown
-                    </button>
-                    <button
-                      onClick={handleCopyPageUrl}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
-                      <CopyIcon className="w-3.5 h-3.5 text-text-secondary" />
-                      Copy page URL
-                    </button>
-                    <button
-                      onClick={() => openInAi("chatgpt")}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
-                      <ExternalLinkIcon className="w-3.5 h-3.5 text-text-secondary" />
-                      Open in ChatGPT
-                    </button>
-                    <button
-                      onClick={() => openInAi("claude")}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
-                      <ExternalLinkIcon className="w-3.5 h-3.5 text-text-secondary" />
-                      Open in Claude
-                    </button>
-                    <button
-                      onClick={() => openInAi("perplexity")}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
-                      <ExternalLinkIcon className="w-3.5 h-3.5 text-text-secondary" />
-                      Open in Perplexity
-                    </button>
+                    {copyMenuOpen && (
+                      <div className="absolute left-0 top-full mt-1 w-56 rounded-lg bg-white shadow-hover py-1 z-20">
+                        <button
+                          onClick={openMarkdownFile}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                          <ExternalLinkIcon className="w-3.5 h-3.5 text-text-secondary" />
+                          Open markdown file
+                        </button>
+                        <button
+                          onClick={handleCopyMarkdown}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                          <FileTextIcon className="w-3.5 h-3.5 text-text-secondary" />
+                          Copy as Markdown
+                        </button>
+                        <button
+                          onClick={handleCopyPageUrl}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                          <CopyIcon className="w-3.5 h-3.5 text-text-secondary" />
+                          Copy page URL
+                        </button>
+                        <button
+                          onClick={() => openInAi("chatgpt")}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                          <ExternalLinkIcon className="w-3.5 h-3.5 text-text-secondary" />
+                          Open in ChatGPT
+                        </button>
+                        <button
+                          onClick={() => openInAi("claude")}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                          <ExternalLinkIcon className="w-3.5 h-3.5 text-text-secondary" />
+                          Open in Claude
+                        </button>
+                        <button
+                          onClick={() => openInAi("perplexity")}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                          <ExternalLinkIcon className="w-3.5 h-3.5 text-text-secondary" />
+                          Open in Perplexity
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              )}
 
               {/* Download Skill button - only shows if SKILL.md has been generated */}
               {showAgentContent && component.skillMd && (

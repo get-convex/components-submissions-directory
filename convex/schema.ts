@@ -230,6 +230,24 @@ const applicationTables = {
       ),
     ),
     rewardTotalAmount: v.optional(v.number()),
+
+    // --- Security scan fields (denormalized latest snapshot) ---
+    securityScanStatus: v.optional(
+      v.union(
+        v.literal("not_scanned"),
+        v.literal("scanning"),
+        v.literal("safe"),
+        v.literal("unsafe"),
+        v.literal("warning"),
+        v.literal("error"),
+      ),
+    ),
+    securityScanSummary: v.optional(v.string()),
+    securityScanUpdatedAt: v.optional(v.number()),
+    securityScanError: v.optional(v.string()),
+    socketScanStatus: v.optional(v.string()),
+    snykScanStatus: v.optional(v.string()),
+    devinScanStatus: v.optional(v.string()),
   })
     .index("by_name", ["name"])
     .index("by_submitted_at", ["submittedAt"])
@@ -328,6 +346,69 @@ const applicationTables = {
     rawOutput: v.optional(v.string()),
   })
     .index("by_package_and_created", ["packageId", "createdAt"]),
+
+  // Historical security scan runs for admin audit and comparison
+  securityScanRuns: defineTable({
+    packageId: v.id("packages"),
+    createdAt: v.number(),
+    status: v.union(
+      v.literal("safe"),
+      v.literal("unsafe"),
+      v.literal("warning"),
+      v.literal("error"),
+    ),
+    summary: v.string(),
+    findings: v.array(
+      v.object({
+        provider: v.union(
+          v.literal("socket"),
+          v.literal("snyk"),
+          v.literal("devin"),
+        ),
+        severity: v.union(
+          v.literal("critical"),
+          v.literal("high"),
+          v.literal("medium"),
+          v.literal("low"),
+          v.literal("info"),
+        ),
+        title: v.string(),
+        description: v.string(),
+        recommendation: v.string(),
+      }),
+    ),
+    recommendations: v.array(v.string()),
+    providerResults: v.object({
+      socket: v.optional(
+        v.object({
+          status: v.string(),
+          score: v.optional(v.number()),
+          issueCount: v.optional(v.number()),
+          rawSummary: v.optional(v.string()),
+        }),
+      ),
+      snyk: v.optional(
+        v.object({
+          status: v.string(),
+          vulnerabilityCount: v.optional(v.number()),
+          criticalCount: v.optional(v.number()),
+          highCount: v.optional(v.number()),
+          rawSummary: v.optional(v.string()),
+        }),
+      ),
+      devin: v.optional(
+        v.object({
+          status: v.string(),
+          sessionId: v.optional(v.string()),
+          sessionUrl: v.optional(v.string()),
+          findingCount: v.optional(v.number()),
+          rawSummary: v.optional(v.string()),
+        }),
+      ),
+    }),
+    error: v.optional(v.string()),
+    triggeredBy: v.optional(v.string()),
+  }).index("by_package_and_created", ["packageId", "createdAt"]),
 
   // Reward payments tracking (Tremendous integration)
   payments: defineTable({

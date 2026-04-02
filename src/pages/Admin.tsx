@@ -62,6 +62,8 @@ import {
   Key,
   ChartBar,
   ShieldCheck,
+  ShieldWarning,
+  Shield,
   ToggleLeft,
   ToggleRight,
   FileText,
@@ -111,6 +113,12 @@ const ADMIN_SETTINGS_SECTIONS: Array<AdminSettingsSection> = [
     label: "Submit Listing Settings",
     shortLabel: "Submit",
     icon: <Files size={14} weight="bold" />,
+  },
+  {
+    id: "settings-security-scan",
+    label: "Security Scan Settings",
+    shortLabel: "Security",
+    icon: <ShieldCheck size={14} weight="bold" />,
   },
   {
     id: "settings-ai-review",
@@ -2142,6 +2150,8 @@ ${aiReviewError ? `\n### Error\n${aiReviewError}` : ""}
   );
 }
 
+type ReviewHistoryTab = "ai" | "security";
+
 function AiReviewHistoryPanel({
   packageId,
   packageName,
@@ -2156,10 +2166,12 @@ function AiReviewHistoryPanel({
   reviewedBy?: string;
 }) {
   const reviewRuns = useQuery(api.packages.getAiReviewRunsForPackage, { packageId });
+  const securityRuns = useQuery(api.packages.getSecurityScanRunsForPackage, { packageId });
   const deleteAiReviewRun = useMutation(api.packages.deleteAiReviewRun);
   const [selectedRunId, setSelectedRunId] = useState<Id<"aiReviewRuns"> | null>(null);
   const [runToDelete, setRunToDelete] = useState<Id<"aiReviewRuns"> | null>(null);
   const [isDeletingRun, setIsDeletingRun] = useState(false);
+  const [activeTab, setActiveTab] = useState<ReviewHistoryTab>("ai");
 
   useEffect(() => {
     if (!isOpen || !reviewRuns) return;
@@ -2251,22 +2263,175 @@ function AiReviewHistoryPanel({
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
       <div className="absolute inset-y-0 right-0 w-full max-w-5xl bg-white border-l border-border shadow-xl">
         <div className="flex h-full flex-col">
-          <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
-            <div>
-              <h3 className="text-lg font-normal text-text-primary">AI Review History</h3>
-              <p className="mt-1 text-sm text-text-secondary">
-                {packageName} has {runs.length} saved AI review
-                {runs.length === 1 ? "" : "s"}.
-              </p>
+          <div className="border-b border-border px-6 py-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-normal text-text-primary">Review History</h3>
+                <p className="mt-1 text-sm text-text-secondary">
+                  {packageName}
+                </p>
+              </div>
+              <button
+                onClick={onClose}
+                className="rounded-full p-1 text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+              >
+                <X size={16} />
+              </button>
             </div>
-            <button
-              onClick={onClose}
-              className="rounded-full p-1 text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
-            >
-              <X size={16} />
-            </button>
+            {/* Tab switcher */}
+            <div className="flex gap-1 mt-3">
+              <button
+                onClick={() => setActiveTab("ai")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+                  activeTab === "ai"
+                    ? "bg-text-primary text-white border-text-primary"
+                    : "border-border text-text-secondary hover:bg-bg-hover"
+                }`}
+              >
+                AI Reviews
+                <span className="ml-1.5 inline-flex min-w-4 items-center justify-center rounded-full bg-white/20 px-1 text-[10px]">
+                  {reviewRuns?.length ?? 0}
+                </span>
+              </button>
+              <button
+                onClick={() => setActiveTab("security")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${
+                  activeTab === "security"
+                    ? "bg-text-primary text-white border-text-primary"
+                    : "border-border text-text-secondary hover:bg-bg-hover"
+                }`}
+              >
+                Security Scans
+                <span className="ml-1.5 inline-flex min-w-4 items-center justify-center rounded-full bg-white/20 px-1 text-[10px]">
+                  {securityRuns?.length ?? 0}
+                </span>
+              </button>
+            </div>
           </div>
 
+          {/* Security Scans Tab */}
+          {activeTab === "security" && (
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {securityRuns === undefined ? (
+                <div className="text-sm text-text-secondary py-8">
+                  Loading security scan history...
+                </div>
+              ) : securityRuns.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border bg-bg-primary px-4 py-6 text-center">
+                  <ShieldCheck size={24} weight="bold" className="mx-auto text-text-secondary mb-2" />
+                  <p className="text-sm text-text-primary">No security scans yet</p>
+                  <p className="mt-1 text-xs text-text-secondary">
+                    Run a security scan from the Review row to get started.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {securityRuns.map((run) => {
+                    const statusColors: Record<string, string> = {
+                      safe: "bg-green-500/10 text-green-600 border-green-500/20",
+                      unsafe: "bg-red-500/10 text-red-600 border-red-500/20",
+                      warning: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
+                      error: "bg-red-500/10 text-red-600 border-red-500/20",
+                    };
+                    return (
+                      <div
+                        key={run._id}
+                        className="rounded-lg border border-border bg-white p-4 space-y-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${statusColors[run.status] || statusColors.error}`}
+                            >
+                              {run.status === "safe" && <ShieldCheck size={12} weight="bold" className="mr-1" />}
+                              {run.status === "unsafe" && <ShieldWarning size={12} weight="bold" className="mr-1" />}
+                              {run.status === "warning" && <ShieldWarning size={12} weight="bold" className="mr-1" />}
+                              {run.status.charAt(0).toUpperCase() + run.status.slice(1)}
+                            </span>
+                            <span className="text-xs text-text-secondary">
+                              {run.findings.length} finding{run.findings.length !== 1 ? "s" : ""}
+                            </span>
+                          </div>
+                          <time className="text-xs text-text-secondary">
+                            {new Date(run.createdAt).toLocaleString()}
+                          </time>
+                        </div>
+
+                        <p className="text-sm text-text-primary">{run.summary}</p>
+
+                        {/* Provider breakdown */}
+                        <div className="flex gap-2 flex-wrap">
+                          {run.providerResults.socket && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-full border border-border text-text-secondary">
+                              Socket: {run.providerResults.socket.status}
+                              {run.providerResults.socket.rawSummary && ` (${run.providerResults.socket.rawSummary})`}
+                            </span>
+                          )}
+                          {run.providerResults.snyk && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-full border border-border text-text-secondary">
+                              Snyk: {run.providerResults.snyk.status}
+                              {run.providerResults.snyk.rawSummary && ` (${run.providerResults.snyk.rawSummary})`}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Findings list */}
+                        {run.findings.length > 0 && (
+                          <div className="space-y-1.5">
+                            <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">Findings</p>
+                            {run.findings.map((finding, idx) => {
+                              const severityColors: Record<string, string> = {
+                                critical: "text-red-700 bg-red-50",
+                                high: "text-red-600 bg-red-50",
+                                medium: "text-yellow-700 bg-yellow-50",
+                                low: "text-blue-600 bg-blue-50",
+                                info: "text-gray-600 bg-gray-50",
+                              };
+                              return (
+                                <div key={idx} className="flex items-start gap-2 text-xs">
+                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium uppercase ${severityColors[finding.severity] || severityColors.info}`}>
+                                    {finding.severity}
+                                  </span>
+                                  <div>
+                                    <span className="font-medium text-text-primary">
+                                      {finding.title}
+                                    </span>
+                                    <span className="text-text-secondary ml-1">
+                                      ({finding.provider})
+                                    </span>
+                                    <p className="text-text-secondary mt-0.5">{finding.description}</p>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Recommendations */}
+                        {run.recommendations.length > 0 && (
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">Recommendations</p>
+                            <ul className="list-disc list-inside space-y-0.5">
+                              {run.recommendations.map((rec, idx) => (
+                                <li key={idx} className="text-xs text-text-secondary">{rec}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {run.error && (
+                          <p className="text-xs text-red-600">{run.error}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* AI Reviews Tab */}
+          {activeTab === "ai" && (
           <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)]">
             <div className="border-b border-border lg:border-b-0 lg:border-r">
               <div className="max-h-[36vh] overflow-y-auto lg:max-h-full">
@@ -2491,6 +2656,7 @@ function AiReviewHistoryPanel({
               )}
             </div>
           </div>
+          )}
         </div>
       </div>
 
@@ -2877,6 +3043,11 @@ function InlineActions({
   const aiReviewRuns = useQuery(api.packages.getAiReviewRunsForPackage, {
     packageId,
   });
+  const securityScanRuns = useQuery(api.packages.getSecurityScanRunsForPackage, {
+    packageId,
+  });
+  const runSecurityScan = useAction(api.securityScan.runSecurityScan);
+  const [isScanning, setIsScanning] = useState(false);
   const autoFillAuthor = useMutation(api.packages.autoFillAuthorFromRepo);
   const regenerateSeo = useAction(api.seoContent.regenerateDirectoryContent);
   const refreshReadme = useAction(api.seoContent.refreshReadmeContent);
@@ -2889,6 +3060,8 @@ function InlineActions({
   const hideFromSubmissions = currentHideFromSubmissions || false;
   const rewardHistoryCount = rewardPayments?.length ?? 0;
   const aiReviewHistoryCount = aiReviewRuns?.length ?? 0;
+  const securityScanHistoryCount = securityScanRuns?.length ?? 0;
+  const combinedReviewHistoryCount = aiReviewHistoryCount + securityScanHistoryCount;
   const rewardTotalSent =
     rewardPayments?.reduce((total, payment) => {
       if (payment.status === "sent" || payment.status === "delivered") {
@@ -3615,6 +3788,81 @@ function InlineActions({
           </div>
         </div>
 
+        {/* Review Row - AI Review, Security Scan, Review History */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
+          <span className="text-xs font-medium text-text-secondary w-16 shrink-0">
+            Review
+          </span>
+          <div className="flex gap-1 flex-wrap items-center">
+            {/* AI Review Button */}
+            <AiReviewButton
+              packageId={packageId}
+              packageName={packageName}
+              repositoryUrl={repositoryUrl}
+            />
+            {/* Security Scan Button */}
+            <Tooltip
+              content={
+                !repositoryUrl
+                  ? "No repository URL available for security scan"
+                  : isScanning
+                    ? "Security scan in progress..."
+                    : "Run security scan (Socket.dev + Snyk)"
+              }
+            >
+              <button
+                onClick={async () => {
+                  if (isScanning || !repositoryUrl) return;
+                  setIsScanning(true);
+                  try {
+                    await runSecurityScan({ packageId });
+                    toast.success("Security scan started!");
+                  } catch (error) {
+                    toast.error("Security scan failed");
+                  } finally {
+                    setIsScanning(false);
+                  }
+                }}
+                disabled={isScanning || !repositoryUrl}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all disabled:opacity-50 ${
+                  isScanning
+                    ? "bg-blue-100 text-blue-700 border-blue-200"
+                    : "border-green-200 text-green-700 hover:bg-green-50"
+                }`}
+              >
+                <ShieldCheck size={14} weight="bold" />
+                <span className="hidden sm:inline">
+                  {isScanning ? "Scanning..." : "Security Scan"}
+                </span>
+              </button>
+            </Tooltip>
+            {/* Combined Review History (AI + Security) */}
+            <Tooltip
+              content={
+                aiReviewRuns === undefined && securityScanRuns === undefined
+                  ? "Loading review history"
+                  : combinedReviewHistoryCount === 0
+                    ? "No review runs yet"
+                    : `View review history (${combinedReviewHistoryCount})`
+              }
+            >
+              <button
+                onClick={() => setShowAiReviewHistory(true)}
+                disabled={aiReviewRuns === undefined && securityScanRuns === undefined}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-all disabled:opacity-50"
+              >
+                <ClockCounterClockwise size={14} weight="bold" />
+                <span className="hidden sm:inline">Review history</span>
+                <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-bg-hover px-1.5 py-0.5 text-[10px] text-text-primary">
+                  {aiReviewRuns === undefined && securityScanRuns === undefined
+                    ? "..."
+                    : combinedReviewHistoryCount}
+                </span>
+              </button>
+            </Tooltip>
+          </div>
+        </div>
+
         {/* Visibility Buttons + Notes */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 pb-2">
           <span className="text-xs font-medium text-text-secondary w-16 shrink-0">
@@ -3622,7 +3870,6 @@ function InlineActions({
           </span>
           <div className="flex gap-1 flex-wrap">
             {isArchivedView ? (
-              // Show Unarchive button for archived packages
               <Tooltip content="Restore package to main list">
                 <button
                   onClick={handleUnarchive}
@@ -3634,7 +3881,6 @@ function InlineActions({
                 </button>
               </Tooltip>
             ) : (
-              // Show normal visibility buttons
               visibilityButtons.map((btn) => (
                 <Tooltip key={btn.value} content={btn.tooltip}>
                   <button
@@ -3652,7 +3898,7 @@ function InlineActions({
                 </Tooltip>
               ))
             )}
-            {/* Featured Button - only for approved packages */}
+            {/* Featured Button */}
             <Tooltip
               content={
                 status !== "approved"
@@ -3679,7 +3925,6 @@ function InlineActions({
                 </span>
               </button>
             </Tooltip>
-            {/* Featured Sort Order - only shown when featured */}
             {featured && (
               <Tooltip content="Lower numbers appear first in Featured section">
                 <div className="flex items-center gap-1">
@@ -3718,45 +3963,18 @@ function InlineActions({
                 </span>
               </button>
             </Tooltip>
-            {/* Notes Button - admin only (internal) */}
+            {/* Notes Button */}
             <NotesButton
               packageId={packageId}
               packageName={packageName}
               userEmail={userEmail}
             />
-            {/* Comments Button - private user/admin messages */}
+            {/* Comments Button */}
             <CommentsButton
               packageId={packageId}
               packageName={packageName}
               userEmail={userEmail}
             />
-            {/* AI Review Button */}
-            <AiReviewButton
-              packageId={packageId}
-              packageName={packageName}
-              repositoryUrl={repositoryUrl}
-            />
-            <Tooltip
-              content={
-                aiReviewRuns === undefined
-                  ? "Loading AI review history"
-                  : aiReviewHistoryCount === 0
-                    ? "No saved AI review runs yet"
-                    : `View AI review history (${aiReviewHistoryCount})`
-              }
-            >
-              <button
-                onClick={() => setShowAiReviewHistory(true)}
-                disabled={aiReviewRuns === undefined}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-all disabled:opacity-50"
-              >
-                <ClockCounterClockwise size={14} weight="bold" />
-                <span className="hidden sm:inline">Review history</span>
-                <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-bg-hover px-1.5 py-0.5 text-[10px] text-text-primary">
-                  {aiReviewRuns === undefined ? "..." : aiReviewHistoryCount}
-                </span>
-              </button>
-            </Tooltip>
           </div>
 
           {/* Delete Button */}
@@ -4772,6 +4990,250 @@ function SubmitListingSettingsPanel() {
               </button>
             ))}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Security Scan Settings Panel
+function SecurityScanSettingsPanel() {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const settings = useQuery(api.packages.getAdminSettings);
+  const updateSetting = useMutation(api.packages.updateAdminSetting);
+  const updateNumericSetting = useMutation(api.packages.updateAdminSettingNumeric);
+  const backlogStats = useQuery(api.packages.getSecurityScanBacklogStats);
+  const runBacklog = useMutation(api.packages.runSecurityScanBacklog);
+  const [isQueueing, setIsQueueing] = useState(false);
+  const [backlogBatchSize, setBacklogBatchSize] = useState(20);
+
+  if (!settings) return null;
+
+  const handleToggle = async (
+    key: "enableSocketScan" | "enableSnykScan" | "autoSecurityScan",
+    currentValue: boolean,
+  ) => {
+    try {
+      await updateSetting({ key, value: !currentValue });
+      toast.success("Setting updated");
+    } catch (error) {
+      toast.error("Failed to update setting");
+    }
+  };
+
+  const handleScheduleChange = async (days: number) => {
+    try {
+      await updateNumericSetting({ key: "securityScanScheduleDays", value: days });
+      toast.success("Schedule updated");
+    } catch (error) {
+      toast.error("Failed to update schedule");
+    }
+  };
+
+  const anyProviderEnabled =
+    settings.enableSocketScan || settings.enableSnykScan;
+
+  return (
+    <div className="bg-white rounded-lg border border-border overflow-hidden mb-6">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-bg-hover transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <ShieldCheck size={16} weight="bold" className="text-green-600" />
+          <span className="text-sm font-medium text-text-primary">
+            Security Scan Settings
+          </span>
+        </div>
+        {isExpanded ? (
+          <CaretUp size={16} weight="bold" className="text-text-secondary" />
+        ) : (
+          <CaretDown size={16} weight="bold" className="text-text-secondary" />
+        )}
+      </button>
+      {isExpanded && (
+        <div className="px-4 pb-4 space-y-4 border-t border-border pt-4">
+          <p className="text-xs text-text-secondary">
+            Configure which security scan providers to use and when to run them.
+            Each provider requires API credentials set in Convex environment variables.
+          </p>
+
+          {/* Provider toggles */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-text-primary">Socket.dev</p>
+                <p className="text-xs text-text-secondary">
+                  Supply chain scanning. Requires SOCKET_API_KEY.
+                </p>
+              </div>
+              <button
+                onClick={() => handleToggle("enableSocketScan", settings.enableSocketScan)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  settings.enableSocketScan ? "bg-blue-600" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    settings.enableSocketScan ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-text-primary">Snyk</p>
+                <p className="text-xs text-text-secondary">
+                  Vulnerability monitoring. Requires SNYK_TOKEN + SNYK_ORG_ID.
+                </p>
+              </div>
+              <button
+                onClick={() => handleToggle("enableSnykScan", settings.enableSnykScan)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  settings.enableSnykScan ? "bg-blue-600" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    settings.enableSnykScan ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+
+          </div>
+
+          {/* Automation settings */}
+          <div className="border-t border-border pt-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-text-primary">
+                  Auto scan on submission
+                </p>
+                <p className="text-xs text-text-secondary">
+                  Automatically run security scan when a new package is submitted.
+                </p>
+              </div>
+              <button
+                onClick={() => handleToggle("autoSecurityScan", settings.autoSecurityScan)}
+                disabled={!anyProviderEnabled}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
+                  settings.autoSecurityScan ? "bg-blue-600" : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    settings.autoSecurityScan ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-text-primary">
+                  Scan schedule
+                </p>
+                <p className="text-xs text-text-secondary">
+                  How often to re-scan packages with repository URLs.
+                </p>
+              </div>
+              <select
+                value={settings.securityScanScheduleDays}
+                onChange={(e) => handleScheduleChange(Number(e.target.value))}
+                disabled={!anyProviderEnabled}
+                className="text-xs border border-border rounded px-2 py-1.5 bg-white text-text-primary disabled:opacity-50"
+              >
+                <option value={0}>Manual only</option>
+                <option value={3}>Every 3 days</option>
+                <option value={5}>Every 5 days</option>
+                <option value={7}>Every 7 days</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Backlog queue */}
+          {anyProviderEnabled && backlogStats && (
+            <div className="border-t border-border pt-3 space-y-3">
+              <div>
+                <p className="text-sm font-medium text-text-primary mb-2">
+                  Security scan backlog
+                </p>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {backlogStats.unscanned > 0 && (
+                    <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 rounded">
+                      {backlogStats.unscanned} unscanned
+                    </span>
+                  )}
+                  {backlogStats.scanning > 0 && (
+                    <span className="px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-700 rounded">
+                      {backlogStats.scanning} scanning
+                    </span>
+                  )}
+                  {backlogStats.scanned > 0 && (
+                    <span className="px-1.5 py-0.5 text-[10px] font-medium bg-green-100 text-green-700 rounded">
+                      {backlogStats.scanned} scanned
+                    </span>
+                  )}
+                  {backlogStats.errorCount > 0 && (
+                    <span className="px-1.5 py-0.5 text-[10px] font-medium bg-red-100 text-red-700 rounded">
+                      {backlogStats.errorCount} errors
+                    </span>
+                  )}
+                  <span className="px-1.5 py-0.5 text-[10px] font-medium bg-gray-100 text-gray-600 rounded">
+                    {backlogStats.total} with repo
+                  </span>
+                </div>
+
+                {backlogStats.unscanned > 0 || backlogStats.errorCount > 0 ? (
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <select
+                      value={backlogBatchSize}
+                      onChange={(e) => setBacklogBatchSize(Number(e.target.value))}
+                      className="text-xs border border-border rounded px-2 py-1.5 bg-white text-text-primary"
+                    >
+                      <option value={5}>5</option>
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                    <button
+                      onClick={async () => {
+                        setIsQueueing(true);
+                        try {
+                          const result = await runBacklog({ batchSize: backlogBatchSize });
+                          toast.success(`Queued ${result.queued} packages for security scanning`);
+                        } catch {
+                          toast.error("Failed to queue security scans");
+                        } finally {
+                          setIsQueueing(false);
+                        }
+                      }}
+                      disabled={isQueueing}
+                      className="px-3 py-1.5 text-xs font-medium rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors disabled:opacity-50"
+                    >
+                      {isQueueing ? "Queueing..." : `Scan next ${Math.min(backlogBatchSize, backlogStats.unscanned + backlogStats.errorCount)}`}
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm text-green-600 flex items-center gap-2">
+                    <CheckCircle size={14} />
+                    All packages with repositories have been scanned.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {!anyProviderEnabled && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+              <p className="text-xs text-amber-700">
+                Enable at least one provider to use security scanning features.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -8689,6 +9151,10 @@ function AdminDashboard({
 
               <div id="settings-submit-listing" className="scroll-mt-28">
                 <SubmitListingSettingsPanel />
+              </div>
+
+              <div id="settings-security-scan" className="scroll-mt-28">
+                <SecurityScanSettingsPanel />
               </div>
 
               <div id="settings-ai-review" className="scroll-mt-28">

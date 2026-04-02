@@ -94,6 +94,17 @@ After submitting, you can:
 4. Update fields, regenerate content, or edit the README preview
 5. Submit changes for re-review if needed
 
+## Security scan report
+
+Each component on the submissions page has a "Security" button in the expanded action row (next to npm, Repo, Website, Demo). Clicking it opens a security report modal showing:
+
+- Scan status (not scanned, safe, warnings, or alerts)
+- Provider links to Socket.dev and Snyk
+- Recommendations from the latest scan
+- Contact author section linking to GitHub Issues
+
+Security scans are run by admins. If a component has not been scanned, the modal shows a notice to review the repository manually.
+
 ## Submissions page pagination
 
 The public submissions page at `/components/submissions` supports pagination:

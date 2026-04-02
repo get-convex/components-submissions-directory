@@ -36,4 +36,14 @@ crons.cron(
   {},
 );
 
+// Run daily at 5 AM UTC to check for packages needing security scans
+// Gated by securityScanScheduleDays setting (0 = disabled)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+crons.cron(
+  "scheduled-security-scan",
+  "0 5 * * *",
+  internal.packages.scheduledSecurityScanCheck as any,
+  {},
+);
+
 export default crons;

@@ -28,6 +28,7 @@ import adminDashboardDoc from "../docs/admin-dashboard.md?raw";
 import adminPackagesDoc from "../docs/admin-packages.md?raw";
 import adminReviewDoc from "../docs/admin-review.md?raw";
 import adminAiReviewDoc from "../docs/admin-ai-review.md?raw";
+import adminSecurityScanDoc from "../docs/admin-security-scan.md?raw";
 import adminSeoDoc from "../docs/admin-seo.md?raw";
 import adminThumbnailsDoc from "../docs/admin-thumbnails.md?raw";
 import adminSettingsDoc from "../docs/admin-settings.md?raw";
@@ -54,6 +55,7 @@ const docs: DocSection[] = [
   { id: "admin-packages", title: "Package Management", content: adminPackagesDoc, group: "admin-guide" },
   { id: "admin-review", title: "Review Workflow", content: adminReviewDoc, group: "admin-guide" },
   { id: "admin-ai-review", title: "AI Review System", content: adminAiReviewDoc, group: "admin-guide" },
+  { id: "admin-security-scan", title: "Security Scanning", content: adminSecurityScanDoc, group: "admin-guide" },
   { id: "admin-seo", title: "SEO Content", content: adminSeoDoc, group: "admin-guide" },
   { id: "admin-thumbnails", title: "Thumbnails", content: adminThumbnailsDoc, group: "admin-guide" },
   { id: "admin-settings", title: "Settings", content: adminSettingsDoc, group: "admin-guide" },
