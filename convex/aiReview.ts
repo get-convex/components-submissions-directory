@@ -817,23 +817,6 @@ export const runPreflightCheck = internalAction({
   },
 });
 
-// Notify team via Slack of a completed AI review.
-async function scheduleSlackAiReviewComplete(
-  ctx: any,
-  pkg: { name: string; slug?: string },
-  status: string,
-  summary: string,
-) {
-  const slug = pkg.slug ?? pkg.name;
-  const sum = summary.length > 280 ? `${summary.slice(0, 280)}...` : summary;
-  const text =
-    `AI review completed: ${pkg.name}\n` +
-    `Status: ${status}\n` +
-    `Summary: ${sum}\n` +
-    `https://www.convex.dev/components/${slug}`;
-  await ctx.scheduler.runAfter(0, internal.slack.sendMessage, { text });
-}
-
 // Run AI review using configured provider (Anthropic, OpenAI, or Gemini)
 // Uses the shared runReviewOnRepo helper but persists results to the package record
 async function runAiReviewHandler(ctx: any, args: { packageId: any }) {
@@ -877,7 +860,6 @@ async function runAiReviewHandler(ctx: any, args: { packageId: any }) {
           source: undefined,
           rawOutput: undefined,
         });
-        await scheduleSlackAiReviewComplete(ctx, pkg, "partial", summary);
         return null;
       }
 
@@ -909,8 +891,6 @@ async function runAiReviewHandler(ctx: any, args: { packageId: any }) {
         source: result.source,
         rawOutput: result.rawOutput,
       });
-
-      await scheduleSlackAiReviewComplete(ctx, pkg, result.status, result.summary);
 
       const settings = await ctx.runQuery(internal.packages._getAdminSettings);
       if (settings.autoAiReview) {
@@ -949,17 +929,6 @@ async function runAiReviewHandler(ctx: any, args: { packageId: any }) {
         source: undefined,
         rawOutput: undefined,
       });
-      const pkgForSlack = await ctx.runQuery(internal.packages._getPackage, {
-        packageId: args.packageId,
-      });
-      if (pkgForSlack) {
-        await scheduleSlackAiReviewComplete(
-          ctx,
-          pkgForSlack,
-          "error",
-          `${summary}: ${message}`,
-        );
-      }
       return null;
     }
 }

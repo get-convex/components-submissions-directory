@@ -2732,6 +2732,25 @@ export const _saveSecurityScanResultAndRun = internalMutation({
       error: args.error,
       triggeredBy: args.triggeredBy,
     });
+
+    // Notify via Slack when a security scan finishes.
+    const pkg = await ctx.db.get(args.packageId);
+    if (pkg) {
+      const slugForUrl = pkg.slug ?? pkg.name;
+      const displayName = pkg.componentName ?? pkg.name;
+      const sum =
+        args.summary.length > 280 ? `${args.summary.slice(0, 280)}...` : args.summary;
+      const slackText =
+        `Security scan completed\n` +
+        `${displayName} (${pkg.name})\n` +
+        `Status: ${args.status}\n` +
+        `Summary: ${sum}\n` +
+        `https://www.convex.dev/components/${slugForUrl}` +
+        (pkg.repositoryUrl ? `\nRepo: ${pkg.repositoryUrl}` : "");
+      await ctx.scheduler.runAfter(0, internal.slack.sendMessage, {
+        text: slackText,
+      });
+    }
     return null;
   },
 });

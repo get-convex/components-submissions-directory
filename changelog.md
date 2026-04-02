@@ -96,8 +96,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Slack notifications for directory activity (2026-04-02 12:00 UTC)
-  - `slack.sendMessage` posts to `SLACK_WEBHOOK_URL`; scheduled from: new submissions (`submitPackage`), new private messages (`addPackageComment`), completed AI reviews (`convex/aiReview.ts`), completed preflight checks (`/api/preflight` in `convex/http.ts`)
-  - Files: `convex/slack.ts`, `convex/packages.ts`, `convex/aiReview.ts`, `convex/http.ts`
+  - `slack.sendMessage` posts to `SLACK_WEBHOOK_URL`; scheduled from: new submissions (`submitPackage`), new private messages (`addPackageComment`), completed security scans (`_saveSecurityScanResultAndRun` in `convex/packages.ts` after Socket/Snyk runs)
+  - Files: `convex/slack.ts`, `convex/packages.ts`
 
 - Admin "Update README" action button to refresh README content from GitHub without regenerating AI content (2026-03-27 00:15 UTC)
   - New `refreshReadme` internal action and `refreshReadmeContent` public action in `convex/seoContent.ts`
