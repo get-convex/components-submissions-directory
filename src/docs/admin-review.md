@@ -130,6 +130,18 @@ Pending deletions appear in the admin Deletion tab with the time remaining and w
 
 When a component is approved (or in review), admins can send gift card rewards via the Send Reward button in the Actions row. The button is disabled for packages not in `in_review` or `approved` status.
 
+## Review row
+
+The Review row in the expanded package view provides:
+
+| Action | Description |
+|--------|-------------|
+| AI Review | Run or view AI review results |
+| Security Scan | Queue a security scan using Socket.dev and Snyk |
+| Review history | Open tabbed panel with AI review and security scan history |
+
+The Review history button shows a combined count of all review and scan runs. The panel has separate tabs for AI Reviews and Security Scans. See [Security scanning](/components/documentation/admin-security-scan) for provider configuration and backlog scanning.
+
 ## Notes for reviewers
 
 Use the Notes panel to add internal reviewer notes:

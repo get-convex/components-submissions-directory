@@ -134,6 +134,20 @@ View and manage directory categories.
 
 When a category slug is edited, package category references are migrated. When a category is deleted, package category references are cleared so public category pages do not orphan records.
 
+### Security Scan Settings
+
+Configure security scanning providers and automation. See [Security scanning](/components/documentation/admin-security-scan) for full details.
+
+| Setting | Description |
+|---------|-------------|
+| Socket.dev | Toggle Socket.dev supply chain scanning |
+| Snyk | Toggle Snyk vulnerability monitoring |
+| Auto scan on submission | Run scans on new packages automatically |
+| Scan schedule | Manual only, every 3, 5, or 7 days |
+| Backlog queue | Batch scan unscanned packages (configurable batch size) |
+
+Environment variables required: `SOCKET_API_KEY`, `SNYK_TOKEN`, `SNYK_ORG_ID`.
+
 ### Display Settings
 
 Control public page features.
@@ -178,6 +192,9 @@ Some settings fall back to environment variables when not configured in the dash
 | Tremendous API key | `TREMENDOUS_API_KEY` |
 | Tremendous campaign ID | `TREMENDOUS_CAMPAIGN_ID` |
 | Tremendous funding source | `TREMENDOUS_FUNDING_SOURCE_ID` |
+| Socket.dev API key | `SOCKET_API_KEY` |
+| Snyk token | `SNYK_TOKEN` |
+| Snyk organization | `SNYK_ORG_ID` |
 
 Dashboard settings take precedence over environment variables.
 

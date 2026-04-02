@@ -71,6 +71,7 @@ Click a row to expand and see:
 - **Author info** - Collapsible section with submitter name, email, Discord, additional emails
 - **Actions row** - Quick actions (above Status row)
 - **Status row** - Review status controls
+- **Review row** - AI Review button, Security Scan button, and combined Review history (AI reviews + security scans in tabbed panel)
 - **Visibility row** - Show/hide controls
 - **Featured row** - Featured toggle and sort order
 - **AI Review panel** - Collapsible results with status icon, summary, and criteria checklist

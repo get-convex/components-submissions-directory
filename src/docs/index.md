@@ -22,6 +22,7 @@ The Convex Components Directory is a curated catalog of open-source backend comp
 - [Package management](/components/documentation/admin-packages) - Managing packages
 - [Review workflow](/components/documentation/admin-review) - Review process
 - [AI review](/components/documentation/admin-ai-review) - Automated AI reviews
+- [Security scanning](/components/documentation/admin-security-scan) - Security scan providers and backlog queue
 - [SEO content](/components/documentation/admin-seo) - SEO and content generation
 - [Thumbnails](/components/documentation/admin-thumbnails) - Thumbnail management
 - [Settings](/components/documentation/admin-settings) - Admin settings

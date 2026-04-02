@@ -2,6 +2,71 @@
 
 ## to do
 
+- [x] Add security scanning documentation to src/docs (2026-04-02 07:30 UTC)
+  - Created `src/docs/admin-security-scan.md` with full coverage of providers, scanning modes, settings, results, public visibility, env vars, data model, and troubleshooting
+  - Registered in `src/pages/Documentation.tsx` with import and docs array entry
+  - Updated `src/docs/index.md`, `admin-settings.md`, `admin-dashboard.md`, `admin-review.md`, `component-detail.md`, and `submit.md` with security scan references
+  - Files changed: `src/docs/admin-security-scan.md` (new), `src/pages/Documentation.tsx`, `src/docs/index.md`, `src/docs/admin-settings.md`, `src/docs/admin-dashboard.md`, `src/docs/admin-review.md`, `src/docs/component-detail.md`, `src/docs/submit.md`
+
+- [x] Move "How to get help" above Security Analyze in ComponentDetail.tsx sidebar (2026-04-02 06:00 UTC)
+  - Swapped sidebar order so "How to get help" renders before the security scan box
+  - Removed scan date subtitle from all SecurityScanBox states (not_scanned, scanning, scanned)
+  - Simplified to a single-line clickable "Security Analyze" label
+  - Files changed: `src/pages/ComponentDetail.tsx`
+
+- [x] Add configurable batch size to security scan backlog (2026-04-02 05:45 UTC)
+  - Replaced hardcoded batch size of 20 with a dropdown selector (5, 10, 20, 50, 100)
+  - Files changed: `src/pages/Admin.tsx`
+
+- [x] Fix duplicate ExternalLinkIcon declaration in Submit.tsx (2026-04-02 05:30 UTC)
+  - Removed duplicate `ExternalLinkIcon` import from `@radix-ui/react-icons`, used existing `RadixExternalLinkIcon` alias
+  - Files changed: `src/pages/Submit.tsx`
+
+- [x] Fix TypeScript error in runSecurityScanBacklog filter (2026-04-02 05:25 UTC)
+  - Removed redundant `!== "scanning"` check that TS flagged as unreachable after prior conditions
+  - Files changed: `convex/packages.ts`
+
+- [x] Add Security Analyze button and modal on Submit.tsx next to Demo (2026-04-02 05:15 UTC)
+  - Added `Shield` icon import and `SubmitSecurityReportModal` + `SecurityAnalyzeButton` components to Submit.tsx
+  - Button appears in expanded action row for every package, loads scan data via `getLatestSecurityScan`
+  - Modal matches ComponentDetail.tsx style: providers, recommendations, contact author, third party notice
+  - Files changed: `src/pages/Submit.tsx`
+
+- [x] Add security scan backlog queue and tracker in Admin settings (2026-04-02 05:15 UTC)
+  - Added `getSecurityScanBacklogStats` query to `convex/packages.ts` with badge-style counts
+  - Added `runSecurityScanBacklog` mutation that queues unscanned/errored packages
+  - Added backlog section to `SecurityScanSettingsPanel` in Admin.tsx with configurable batch size and progress badges
+  - Files changed: `convex/packages.ts`, `src/pages/Admin.tsx`
+
+- [x] Remove Devin AI integration from security scan UI and orchestrator (2026-04-02 04:15 UTC)
+  - Removed Devin toggle from Admin.tsx settings, provider badge from review history, and tooltip text
+  - Removed Devin provider names/URLs from ComponentDetail.tsx security report modal
+  - Removed Devin task from securityScan.ts orchestrator and result saving
+  - Hardcoded `enableDevinScan: false` in packages.ts, removed from scheduled scan provider check
+  - Schema fields kept for backward compat with existing scan runs
+  - Socket.dev and Snyk unaffected, typecheck and lint clean
+
+- [x] Fix Devin v3 session request shape after `session_links` validation error (2026-04-02 01:30 UTC)
+  - Confirmed Convex now uses a v3 style `cog_` Devin key instead of the legacy `apk_` key family
+  - Root cause: `convex/securityScan.ts` was sending `advanced_mode: "analyze"` on session creation, but Devin requires `session_links` for analyze mode and returns `422`
+  - Removed the invalid `advanced_mode` field, typechecked with `npx tsc --noEmit`, and verified direct v3 session creation now gets past validation
+  - Current external blocker is Devin org billing: `403 {"detail":"Your organization has a billing error. Error: renew_subscription"}`
+  - Files changed: `convex/securityScan.ts`
+
+- [x] Fix Devin security scan auth messaging and public security modal behavior (2026-04-02 01:13 UTC)
+  - Confirmed direct Devin v3 session creation returns `403 Unauthorized` with current Convex env vars on `convex-elevenlabs`
+  - Current `DEVIN_API_KEY` in Convex uses the legacy `apk_` key family, so `convex/securityScan.ts` now returns a clear action message for legacy Devin keys and preserves provider error text in stored scan summaries
+  - Updated `src/pages/ComponentDetail.tsx` to lock document scroll while the security modal is open, raise the modal stacking order, and hide the findings list from the public modal
+  - Re-ran the `convex-elevenlabs` scan, verified Devin still shows `error` until the key is replaced, and verified `npx tsc --noEmit` plus `ReadLints`
+  - PRD: `prds/security-scan-devin-modal-followup.md`
+
+- [x] Fix Socket.dev security scan endpoint and response parsing (2026-04-01 22:05 UTC)
+  - Root cause: `convex/securityScan.ts` was calling `https://api.socket.dev/v0/report/supported`, which returns `404 API route not found`
+  - Switched Socket lookup to `https://api.socket.dev/v0/purl?alerts=true&compact=true`
+  - Updated parsing to handle Socket's `application/x-ndjson` response and treat empty successful responses as no alerts instead of a scan failure
+  - Verified by rerunning the `@convex-dev/stripe` scan and confirming `socket` now stores `safe` in Convex
+  - Files changed: `convex/securityScan.ts`
+
 - [x] Fix search scroll and navigation scroll-to-top bugs (2026-03-28 20:00 UTC)
   - Added `window.scrollTo({ top: 0, behavior: "smooth" })` in Directory.tsx and CategoryPage.tsx when search term changes
   - Set `history.scrollRestoration = "manual"` and `window.scrollTo(0, 0)` in main.tsx to prevent browser restoring old scroll positions on full-page navigation
@@ -754,6 +819,13 @@ Acceptance checks:
 - [ ] - [ ] add payments api
 
 ## completed
+
+- [x] Refine ComponentDetail security scan sidebar and modal copy (2026-04-02 00:24 UTC)
+  - Updated `src/pages/ComponentDetail.tsx` so the sidebar now uses the neutral `Security Analyze` label and shows only scan presence plus date
+  - Removed `safe` or `unsafe` style status labels from the sidebar and provider rows, added provider site links, and moved the scan date above the provider list in the modal
+  - Kept a modal-only status line using neutral labels: `Confirmed`, `Not scanned`, and `Alerts`
+  - Hid the header Markdown dropdown while the security modal is open and made the unscanned state open the same modal
+  - Verified with `ReadLints` on `src/pages/ComponentDetail.tsx`
 
 - [x] Restructure `.claude/skills/` to proper directory format and add Convex community skills (2026-03-19 07:15 UTC)
   - Migrated 6 existing flat skills (`dev.md`, `gitrules.md`, `help.md`, `sec-check.md`, `workflow.md`, `write.md`) to `skill-name/SKILL.md` directories with YAML frontmatter per Agent Skills spec

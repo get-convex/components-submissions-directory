@@ -7,7 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Security scanning documentation page and docs updates (2026-04-02 07:30 UTC)
+  - New `src/docs/admin-security-scan.md` covering providers, manual/batch/auto/scheduled scanning, settings, results, public visibility, env vars, data model, and troubleshooting
+  - Registered new doc in `src/pages/Documentation.tsx` under Admin Guide section
+  - Updated `src/docs/index.md` with Security scanning link
+  - Updated `src/docs/admin-settings.md` with Security Scan Settings panel and env variables
+  - Updated `src/docs/admin-dashboard.md` with Review row in expanded package view
+  - Updated `src/docs/admin-review.md` with Review row section for AI Review, Security Scan, and Review history
+  - Updated `src/docs/component-detail.md` with Security Analyze sidebar entry and modal section
+  - Updated `src/docs/submit.md` with Security scan report section
+
+- Security Analyze button and modal on Submit page for each component (2026-04-02 05:15 UTC)
+  - New "Security" button in the expanded action buttons row next to Demo, matching existing secondary button style
+  - Opens a security report modal with scan status, providers, recommendations, and contact author section
+  - Uses `getLatestSecurityScan` query per expanded row for on-demand loading
+
+- Security scan backlog queue and tracker in Admin Security Scan Settings (2026-04-02 05:15 UTC)
+  - New `getSecurityScanBacklogStats` query returns counts: unscanned, scanning, scanned, errors, total with repo
+  - New `runSecurityScanBacklog` mutation queues unscanned/errored packages per batch
+  - Backlog section shows badge counts, configurable batch size dropdown (5/10/20/50/100), and a "Scan next N" button
+  - Shows green checkmark when all packages with repos have been scanned
+
+### Removed
+
+- Devin AI integration removed from security scan system (2026-04-02 04:15 UTC)
+  - Removed Devin AI toggle from Admin.tsx Security Scan Settings panel
+  - Removed Devin provider display from ComponentDetail.tsx security report modal
+  - Removed Devin from securityScan.ts orchestrator task list so it never runs
+  - Hardcoded `enableDevinScan: false` in admin settings helper
+  - Removed Devin from scheduled scan provider check
+  - Schema fields kept optional for backward compatibility with existing scan history
+  - Socket.dev and Snyk continue to work as before
+
+### Changed
+
+- Moved "How to get help" above Security Analyze in ComponentDetail.tsx sidebar (2026-04-02 06:00 UTC)
+  - Removed scan date subtitle from the Security Analyze sidebar box
+  - Simplified the security box to a single-line clickable label without status text
+
+- Refined the public Component Detail security scan UI to use neutral scan language and provider links (2026-04-02 00:24 UTC)
+  - Updated `src/pages/ComponentDetail.tsx` so the sidebar now shows `Security Analyze` with only scan presence and date
+  - Renamed the modal title to `Security Analyze`, moved the scan date above the providers list, and linked providers to their external scan sites
+  - Removed `safe` or `unsafe` wording from the sidebar and provider rows while keeping a modal-only status line with `Confirmed`, `Not scanned`, and `Alerts`
+  - Made the unscanned state open the same modal and hid the page Markdown dropdown while the modal is open
+
+### Added
+
+- Security scan system with Socket.dev and Snyk integration (2026-03-31 22:30 UTC)
+  - New `convex/securityScan.ts` with provider adapters, parallel execution via `Promise.allSettled`, and normalized finding model
+  - New `securityScanRuns` table for historical scan audit trail
+  - Security scan fields on `packages` table (denormalized latest snapshot: `securityScanStatus`, `securityScanSummary`, etc.)
+  - Admin settings: per-provider toggles (`enableSocketScan`, `enableSnykScan`), auto-scan on submission, configurable schedule (manual/3/5/7 days)
+  - New "Review" row in Admin.tsx between Status and Visibility with AI Review, Security Scan, and combined Review history buttons
+  - Security Scan Settings panel in admin settings with provider toggles and schedule dropdown
+  - Review history panel now has tabs for AI Reviews and Security Scans
+  - Public security report box in ComponentDetail.tsx sidebar (between ratings and "How to get help") with shield icons
+  - Security report modal matching existing design: provider results, recommendations, contact author section, third party notice
+  - Scheduled security scan cron (daily at 5 AM UTC, gated by `securityScanScheduleDays` setting)
+  - Auto security scan on submission when `autoSecurityScan` is enabled
+  - Convex env vars needed: `SOCKET_API_KEY`, `SNYK_TOKEN`, `SNYK_ORG_ID`
+
 ### Fixed
+
+- Socket.dev security scans now use the documented PURL endpoint and parse Socket's NDJSON response correctly (2026-04-01 22:05 UTC)
+  - Root cause: `convex/securityScan.ts` was calling `/v0/report/supported`, which returns `404 API route not found`
+  - Switched to `/v0/purl?alerts=true&compact=true` with bearer auth
+  - Updated parsing to handle `application/x-ndjson` responses and empty success bodies without turning them into `socket: error`
+  - Verified by rerunning the `@convex-dev/stripe` security scan and confirming Convex now stores `socket: safe`
 
 - Search results now scroll to top when typing in the search box while scrolled down on Directory and Category pages (2026-03-28 20:00 UTC)
   - Added smooth scroll-to-top in the existing `useEffect` that resets paging state on search term change
