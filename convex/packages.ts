@@ -5928,6 +5928,8 @@ export const listAllDirectoryCategories = query({
       description: v.string(),
       sortOrder: v.number(),
       enabled: v.boolean(),
+      packageCount: v.optional(v.number()),
+      verifiedCount: v.optional(v.number()),
     }),
   ),
   handler: async (ctx) => {

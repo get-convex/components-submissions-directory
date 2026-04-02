@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix production crash on `listAllDirectoryCategories` return validator (2026-04-02 08:00 UTC)
+  - Return validator was missing `packageCount` and `verifiedCount` optional fields that exist on the `categories` schema
+  - When any category had denormalized counts populated, the strict validator rejected the response and threw a server error
+  - Added `packageCount: v.optional(v.number())` and `verifiedCount: v.optional(v.number())` to the return validator
+  - File changed: `convex/packages.ts`
+
 ### Added
 
 - Security scanning documentation page and docs updates (2026-04-02 07:30 UTC)

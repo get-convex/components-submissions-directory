@@ -2,6 +2,11 @@
 
 ## to do
 
+- [x] Fix listAllDirectoryCategories return validator missing optional fields (2026-04-02 08:00 UTC)
+  - Production crash: categories with `packageCount`/`verifiedCount` fields failed the strict return validator
+  - Added `packageCount: v.optional(v.number())` and `verifiedCount: v.optional(v.number())` to match schema
+  - File changed: `convex/packages.ts`
+
 - [x] Add security scanning documentation to src/docs (2026-04-02 07:30 UTC)
   - Created `src/docs/admin-security-scan.md` with full coverage of providers, scanning modes, settings, results, public visibility, env vars, data model, and troubleshooting
   - Registered in `src/pages/Documentation.tsx` with import and docs array entry
