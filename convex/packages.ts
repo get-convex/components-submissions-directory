@@ -917,6 +917,18 @@ export const submitPackage = action({
 
     const packageId: Id<"packages"> = await ctx.runMutation(internal.packages._addPackage, insertData);
 
+    // Notify team via Slack of new component submission. The message is
+    // scheduled but not awaited, so will not block the submission process.
+    const inserted = await ctx.runQuery(internal.packages._getPackage, { packageId });
+    const slugForUrl = inserted?.slug ?? packageName;
+    const slackText =
+      `New component submission\n` +
+      `${validated.componentName} (${packageName})\n` +
+      `https://www.convex.dev/components/${slugForUrl}\n` +
+      `Repo: ${validated.repositoryUrl}\n` +
+      `npm: ${validated.npmUrl}`;
+    await ctx.scheduler.runAfter(0, internal.slack.sendMessage, { text: slackText });
+
     if (prereqs.settings.autoAiReview && args.repositoryUrl) {
       const _: null = await ctx.runMutation(internal.packages._updateReviewStatus, {
         packageId,
@@ -2720,6 +2732,25 @@ export const _saveSecurityScanResultAndRun = internalMutation({
       error: args.error,
       triggeredBy: args.triggeredBy,
     });
+
+    // Notify via Slack when a security scan finishes.
+    const pkg = await ctx.db.get(args.packageId);
+    if (pkg) {
+      const slugForUrl = pkg.slug ?? pkg.name;
+      const displayName = pkg.componentName ?? pkg.name;
+      const sum =
+        args.summary.length > 280 ? `${args.summary.slice(0, 280)}...` : args.summary;
+      const slackText =
+        `Security scan completed\n` +
+        `${displayName} (${pkg.name})\n` +
+        `Status: ${args.status}\n` +
+        `Summary: ${sum}\n` +
+        `https://www.convex.dev/components/${slugForUrl}` +
+        (pkg.repositoryUrl ? `\nRepo: ${pkg.repositoryUrl}` : "");
+      await ctx.scheduler.runAfter(0, internal.slack.sendMessage, {
+        text: slackText,
+      });
+    }
     return null;
   },
 });
@@ -3277,7 +3308,7 @@ export const addPackageComment = mutation({
     }
 
     // Insert a private thread message with read state.
-    return await ctx.db.insert("packageComments", {
+    const commentId = await ctx.db.insert("packageComments", {
       packageId: args.packageId,
       content: args.content,
       authorEmail: userEmail,
@@ -3287,6 +3318,21 @@ export const addPackageComment = mutation({
       userHasRead: !isAdmin,
       status: "active",
     });
+
+    // Notify via Slack when a submitter sends a new message.
+    if (!isAdmin) {
+      const slugForUrl = pkg.slug ?? pkg.name;
+      const preview =
+        args.content.length > 200 ? `${args.content.slice(0, 200)}...` : args.content;
+      const slackText =
+        `New private message on ${pkg.componentName ?? pkg.name} (${pkg.name})\n` +
+        `From: Submitter (${userEmail})\n` +
+        `https://www.convex.dev/components/${slugForUrl}\n` +
+        `Preview: ${preview}`;
+      await ctx.scheduler.runAfter(0, internal.slack.sendMessage, { text: slackText });
+    }
+
+    return commentId;
   },
 });
 

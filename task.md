@@ -2,6 +2,10 @@
 
 ## to do
 
+- [x] Slack notification on new component submission (2026-04-02 12:00 UTC)
+  - `internal.slack.sendMessage` in `convex/slack.ts`; `submitPackage` schedules after `_addPackage`; env `SLACK_WEBHOOK_URL`
+  - Files: `convex/slack.ts`, `convex/packages.ts`, `convex/_generated/api.d.ts`, `prds/slack-submission-notifications.md`, `changelog.md`, `files.md`
+
 - [x] Fix listAllDirectoryCategories return validator missing optional fields (2026-04-02 08:00 UTC)
   - Production crash: categories with `packageCount`/`verifiedCount` fields failed the strict return validator
   - Added `packageCount: v.optional(v.number())` and `verifiedCount: v.optional(v.number())` to match schema

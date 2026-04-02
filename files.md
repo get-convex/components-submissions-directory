@@ -225,6 +225,10 @@ Seed script for importing official Convex components from convex.dev/components.
 Run via CLI: `npx convex run seed:seedOfficialComponents '{"importAsPending": true}'`
 Production: `npx convex run --prod seed:seedOfficialComponents '{"importAsPending": true}'`
 
+### `convex/slack.ts`
+
+Internal Slack notifications: `sendMessage` (`internalAction`) POSTs `{ text }` to `SLACK_WEBHOOK_URL`. No-op if unset. Errors are logged only. Scheduled from `submitPackage` (new submissions), `addPackageComment` (private messages from the submitter only—not admin replies), and `packages._saveSecurityScanResultAndRun` when a security scan finishes.
+
 ### `convex/thumbnails.ts`
 
 Thumbnail template management and generation API. Contains admin CRUD mutations for background templates (create, update, delete, reorder, set default), internal queries/mutations for logo and template data, thumbnail job tracking, and a cleanup job for failed jobs. Internal mutations omit `returns:` validators per Convex best practices (TypeScript inference suffices). All queries and mutations run in the default Convex runtime.

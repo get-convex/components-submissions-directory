@@ -23,6 +23,7 @@ import type * as preflight from "../preflight.js";
 import type * as router from "../router.js";
 import type * as securityScan from "../securityScan.js";
 import type * as seed from "../seed.js";
+import type * as slack from "../slack.js";
 import type * as seoContent from "../seoContent.js";
 import type * as seoContentDb from "../seoContentDb.js";
 import type * as thumbnailGenerator from "../thumbnailGenerator.js";
@@ -50,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   router: typeof router;
   securityScan: typeof securityScan;
   seed: typeof seed;
+  slack: typeof slack;
   seoContent: typeof seoContent;
   seoContentDb: typeof seoContentDb;
   thumbnailGenerator: typeof thumbnailGenerator;
