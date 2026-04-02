@@ -1283,6 +1283,21 @@ http.route({
         criteria: result.criteria,
       });
 
+      // Notify via Slack of a finished preflight check.
+      const preflightSummary =
+        result.summary.length > 280
+          ? `${result.summary.slice(0, 280)}...`
+          : result.summary;
+      const preflightSlackText =
+        `Preflight check completed\n` +
+        `Repo: ${body.repoUrl}\n` +
+        `Status: ${result.status}\n` +
+        `Summary: ${preflightSummary}` +
+        (identity.email ? `\nRun by: ${identity.email}` : "");
+      await ctx.scheduler.runAfter(0, internal.slack.sendMessage, {
+        text: preflightSlackText,
+      });
+
       return new Response(
         JSON.stringify({
           status: result.status,

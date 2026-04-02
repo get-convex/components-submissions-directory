@@ -223,7 +223,7 @@ Production: `npx convex run --prod seed:seedOfficialComponents '{"importAsPendin
 
 ### `convex/slack.ts`
 
-Internal Slack notifications: `sendMessage` (`internalAction`) POSTs `{ text }` to `SLACK_WEBHOOK_URL`. No-op if unset. Errors are logged only. `submitPackage` schedules it after a new package insert; reuse for other flows later.
+Internal Slack notifications: `sendMessage` (`internalAction`) POSTs `{ text }` to `SLACK_WEBHOOK_URL`. No-op if unset. Errors are logged only. Scheduled from `submitPackage` (new submissions), `addPackageComment` (private messages from the submitter only—not admin replies), `aiReview.runAiReviewHandler` (AI review finished), and `http.ts` `/api/preflight` after a live preflight check completes.
 
 ### `convex/thumbnails.ts`
 

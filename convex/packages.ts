@@ -2903,7 +2903,7 @@ export const addPackageComment = mutation({
     }
 
     // Insert a private thread message with read state.
-    return await ctx.db.insert("packageComments", {
+    const commentId = await ctx.db.insert("packageComments", {
       packageId: args.packageId,
       content: args.content,
       authorEmail: userEmail,
@@ -2913,6 +2913,21 @@ export const addPackageComment = mutation({
       userHasRead: !isAdmin,
       status: "active",
     });
+
+    // Notify via Slack when a submitter sends a new message.
+    if (!isAdmin) {
+      const slugForUrl = pkg.slug ?? pkg.name;
+      const preview =
+        args.content.length > 200 ? `${args.content.slice(0, 200)}...` : args.content;
+      const slackText =
+        `New private message on ${pkg.componentName ?? pkg.name} (${pkg.name})\n` +
+        `From: Submitter (${userEmail})\n` +
+        `https://www.convex.dev/components/${slugForUrl}\n` +
+        `Preview: ${preview}`;
+      await ctx.scheduler.runAfter(0, internal.slack.sendMessage, { text: slackText });
+    }
+
+    return commentId;
   },
 });
 
