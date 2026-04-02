@@ -2,6 +2,10 @@
 
 ## to do
 
+- [x] Slack notification on new component submission (2026-04-02 12:00 UTC)
+  - `internal.slack.sendMessage` in `convex/slack.ts`; `submitPackage` schedules after `_addPackage`; env `SLACK_WEBHOOK_URL`
+  - Files: `convex/slack.ts`, `convex/packages.ts`, `convex/_generated/api.d.ts`, `prds/slack-submission-notifications.md`, `changelog.md`, `files.md`
+
 - [x] Fix search scroll and navigation scroll-to-top bugs (2026-03-28 20:00 UTC)
   - Added `window.scrollTo({ top: 0, behavior: "smooth" })` in Directory.tsx and CategoryPage.tsx when search term changes
   - Set `history.scrollRestoration = "manual"` and `window.scrollTo(0, 0)` in main.tsx to prevent browser restoring old scroll positions on full-page navigation

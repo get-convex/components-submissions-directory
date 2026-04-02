@@ -917,6 +917,18 @@ export const submitPackage = action({
 
     const packageId: Id<"packages"> = await ctx.runMutation(internal.packages._addPackage, insertData);
 
+    // Notify team via Slack of new component submission. The message is
+    // scheduled but not awaited, so will not block the submission process.
+    const inserted = await ctx.runQuery(internal.packages._getPackage, { packageId });
+    const slugForUrl = inserted?.slug ?? packageName;
+    const slackText =
+      `New component submission\n` +
+      `${validated.componentName} (${packageName})\n` +
+      `https://www.convex.dev/components/${slugForUrl}\n` +
+      `Repo: ${validated.repositoryUrl}\n` +
+      `npm: ${validated.npmUrl}`;
+    await ctx.scheduler.runAfter(0, internal.slack.sendMessage, { text: slackText });
+
     if (prereqs.settings.autoAiReview && args.repositoryUrl) {
       const _: null = await ctx.runMutation(internal.packages._updateReviewStatus, {
         packageId,

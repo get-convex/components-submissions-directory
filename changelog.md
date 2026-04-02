@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Slack notification when a new component is submitted (2026-04-02 12:00 UTC)
+  - Internal action `slack.sendMessage` posts to `SLACK_WEBHOOK_URL`; `submitPackage` schedules it after insert
+  - Files: `convex/slack.ts`, `convex/packages.ts`
+
 - Admin "Update README" action button to refresh README content from GitHub without regenerating AI content (2026-03-27 00:15 UTC)
   - New `refreshReadme` internal action and `refreshReadmeContent` public action in `convex/seoContent.ts`
   - New `_updateReadmeOnly` internal mutation in `convex/seoContentDb.ts` patches only the README fields
