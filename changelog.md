@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix infinite re-render loop on Admin API tab causing spinner and 1,300+ console logs (2026-04-03 14:10 UTC)
+  - `Date.now()` called in render body caused `useQuery` args to change every frame, triggering React "Too many re-renders" error
+  - Stabilized timestamp with `useMemo` rounded to nearest minute so query args stay stable
+  - Replaced `.take(1000)` + JS `.filter()` in `countKeysAndGrants` with `by_status` index query
+  - Files changed: `src/pages/Admin.tsx`, `convex/apiKeys.ts`
+
 - Fix production crash on `listAllDirectoryCategories` return validator (2026-04-02 08:00 UTC)
   - Return validator was missing `packageCount` and `verifiedCount` optional fields that exist on the `categories` schema
   - When any category had denormalized counts populated, the strict validator rejected the response and threw a server error

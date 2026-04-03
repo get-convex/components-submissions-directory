@@ -8060,8 +8060,11 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
   const [granting, setGranting] = useState<string | null>(null);
   const [revoking, setRevoking] = useState<string | null>(null);
 
+  // Round to nearest minute so the query args stay stable across renders
+  const stableNow = useMemo(() => Math.floor(Date.now() / 60_000) * 60_000, []);
+
   const updateSetting = useMutation(api.packages.updateAdminSetting);
-  const apiAnalytics = useQuery(api.apiKeys.getApiAnalytics, { now: Date.now() });
+  const apiAnalytics = useQuery(api.apiKeys.getApiAnalytics, { now: stableNow });
   const apiGrants = useQuery(api.apiKeys.listApiAccessGrants);
   const searchResults = useQuery(
     api.apiKeys.searchSubmitters,

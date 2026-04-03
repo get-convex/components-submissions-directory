@@ -650,10 +650,14 @@ function aggregateApiLogs(apiLogs: any[], day: number) {
 }
 
 async function countKeysAndGrants(ctx: any) {
-  const activeKeys = await ctx.db.query("apiKeys").take(1000);
-  const totalActiveKeys = activeKeys.filter((k: any) => k.status === "active").length;
+  const activeKeys = await ctx.db
+    .query("apiKeys")
+    .withIndex("by_status", (q: any) => q.eq("status", "active"))
+    .collect();
+  const totalActiveKeys = activeKeys.length;
 
-  const grants = await ctx.db.query("apiAccessGrants").take(1000);
+  // No index on `revoked`, but grants are admin-managed and low-volume
+  const grants = await ctx.db.query("apiAccessGrants").collect();
   const totalGrantedUsers = grants.filter((g: any) => !g.revoked).length;
 
   return { totalActiveKeys, totalGrantedUsers };

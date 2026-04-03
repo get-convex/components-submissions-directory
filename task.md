@@ -2,6 +2,12 @@
 
 ## to do
 
+- [x] Fix infinite re-render loop on Admin API tab (2026-04-03 14:10 UTC)
+  - Root cause: `Date.now()` called directly in render body caused Convex `useQuery` to re-subscribe on every render
+  - Stabilized `now` arg with `useMemo` rounded to nearest minute
+  - Fixed `countKeysAndGrants` to use `by_status` index instead of `.take(1000)` + JS `.filter()`
+  - Files changed: `src/pages/Admin.tsx`, `convex/apiKeys.ts`
+
 - [x] Slack notification on new component submission (2026-04-02 12:00 UTC)
   - `internal.slack.sendMessage` in `convex/slack.ts`; `submitPackage` schedules after `_addPackage`; env `SLACK_WEBHOOK_URL`
   - Files: `convex/slack.ts`, `convex/packages.ts`, `convex/_generated/api.d.ts`, `prds/slack-submission-notifications.md`, `changelog.md`, `files.md`
