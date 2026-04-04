@@ -2,6 +2,12 @@
 
 ## to do
 
+- [x] Remove status labels from public Security Analyze modals (2026-04-04 00:30 UTC)
+  - Removed "Status: Safe as of..." / "Alerts" / "Not scanned" line from both public modals
+  - Now shows only "Not yet scanned" or "Scanned [date]" with no safe/warning/unsafe wording
+  - Admin reports unchanged
+  - Files changed: `src/pages/ComponentDetail.tsx`, `src/pages/Submit.tsx`
+
 - [x] Fix infinite re-render loop on Admin API tab (2026-04-03 14:10 UTC)
   - Root cause: `Date.now()` called directly in render body caused Convex `useQuery` to re-subscribe on every render
   - Stabilized `now` arg with `useMemo` rounded to nearest minute

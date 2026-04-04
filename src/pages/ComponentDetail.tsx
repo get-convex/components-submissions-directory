@@ -517,17 +517,6 @@ function SecurityReportModal({
     socket: "https://socket.dev",
     snyk: "https://snyk.io",
   };
-  const scannedDateLabel = scanData.lastScannedAt
-    ? new Date(scanData.lastScannedAt).toLocaleDateString()
-    : null;
-  const modalStatusLabel =
-    scanData.status === "not_scanned"
-      ? "Not scanned"
-      : scanData.status === "safe"
-        ? scannedDateLabel
-          ? `Safe as of ${scannedDateLabel}`
-          : "Safe"
-        : "Alerts";
   const scanStateLabel =
     scanData.status === "not_scanned"
       ? "Not yet scanned"
@@ -558,7 +547,6 @@ function SecurityReportModal({
             <Shield size={20} weight="bold" className="text-text-secondary" />
             <h2 className="text-lg font-medium text-text-primary">Security Analyze</h2>
           </div>
-          <p className="text-sm text-text-primary mt-1">Status: {modalStatusLabel}</p>
           <p className="text-sm text-text-secondary mt-1">{scanStateLabel}</p>
         </div>
 

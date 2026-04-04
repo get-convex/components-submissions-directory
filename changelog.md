@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Remove status labels from public Security Analyze modals (2026-04-04 00:30 UTC)
+  - Removed "Status: Safe as of..." / "Status: Alerts" / "Status: Not scanned" line from ComponentDetail.tsx and Submit.tsx modals
+  - Public modals now show only "Not yet scanned" or "Scanned [date]" with no safe/warning/unsafe indicator
+  - Admin Security Analyze reports and status kept unchanged
+  - Files changed: `src/pages/ComponentDetail.tsx`, `src/pages/Submit.tsx`
+
 ### Fixed
 
 - Fix infinite re-render loop on Admin API tab causing spinner and 1,300+ console logs (2026-04-03 14:10 UTC)
