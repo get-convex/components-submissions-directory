@@ -2,6 +2,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Toaster, toast } from "sonner";
 import { useState, useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { Id } from "../../convex/_generated/dataModel";
 import { useDirectoryCategories } from "../lib/categories";
 import Header from "../components/Header";
@@ -1965,7 +1966,11 @@ function SubmitSecurityReportModal({
         : "Scanned";
   const hasFindings = scanData.findings.length > 0 || scanData.recommendations.length > 0;
 
-  return (
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
     <div
       className="fixed inset-0 z-[120] flex items-start justify-center p-4 pt-8 sm:pt-12"
       aria-modal="true"
@@ -2107,7 +2112,8 @@ function SubmitSecurityReportModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -2463,4 +2469,3 @@ function PackageRow({
     </div>
   );
 }
-

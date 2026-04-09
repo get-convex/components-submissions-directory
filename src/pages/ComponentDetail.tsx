@@ -33,6 +33,7 @@ import {
 } from "@radix-ui/react-icons";
 import { AgentInstallSection } from "../components/AgentInstallSection";
 import { FileArrowDown, ClipboardText, DiscordLogo, ShieldCheck, ShieldWarning, Shield } from "@phosphor-icons/react";
+import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -525,7 +526,11 @@ function SecurityReportModal({
         : "Scanned";
   const hasFindings = scanData.findings.length > 0 || scanData.recommendations.length > 0;
 
-  return (
+  if (typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
     <div
       className="fixed inset-0 z-[120] flex items-start justify-center p-4 pt-8 sm:pt-12"
       aria-modal="true"
@@ -677,7 +682,8 @@ function SecurityReportModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
