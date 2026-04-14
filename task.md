@@ -2,6 +2,19 @@
 
 ## to do
 
+- [x] Add admin analytics dashboard (2026-04-13 21:00 UTC)
+  - Created `convex/dashboard.ts` with `getDashboardStats` admin-gated query (aggregated counts, download sums, per-author breakdown, monthly timeline)
+  - Created `src/pages/Dashboard.tsx` with stat cards, filterable components table, author summary, monthly timeline, filters/sorting, refresh
+  - Added `/dashboard` route in `src/main.tsx`
+  - Added Dashboard nav link (with ChartBar icon) in `src/components/Header.tsx` for admin users (desktop + mobile)
+  - UI matches app design system: `bg-bg-primary` background, white cards/tables
+  - Refresh button wired to `triggerManualRefreshAll` action to pull live npm data
+  - Custom date range picker (From/To date inputs) alongside preset date filters
+  - Author filter changed to multi-select exclusion checklist (hide/show individual authors, bulk show all / hide all)
+  - Removed investor references from dashboard copy
+  - Info banner about live data and post-deploy refresh
+  - Files: `convex/dashboard.ts` (new), `src/pages/Dashboard.tsx` (new), `src/main.tsx`, `src/components/Header.tsx`, `files.md`, `changelog.md`
+
 - [x] Remove status labels from public Security Analyze modals (2026-04-04 00:30 UTC)
   - Removed "Status: Safe as of..." / "Alerts" / "Not scanned" line from both public modals
   - Now shows only "Not yet scanned" or "Scanned [date]" with no safe/warning/unsafe wording

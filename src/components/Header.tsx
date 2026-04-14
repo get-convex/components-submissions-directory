@@ -12,6 +12,7 @@ import {
   House,
   GearSix,
   BookOpen,
+  ChartBar,
 } from "@phosphor-icons/react";
 import { FileTextIcon } from "@radix-ui/react-icons";
 
@@ -79,6 +80,12 @@ export default function Header() {
                     className="flex items-center gap-1 text-sm font-medium text-text-primary hover:text-text-secondary transition-colors">
                     <BookOpen size={14} />
                     Docs
+                  </a>
+                  <a
+                    href={`${basePath}/dashboard`}
+                    className="flex items-center gap-1 text-sm font-medium text-text-primary hover:text-text-secondary transition-colors">
+                    <ChartBar size={14} />
+                    Dashboard
                   </a>
                 </>
               )}
@@ -222,6 +229,12 @@ export default function Header() {
                   className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-primary hover:bg-bg-hover rounded-lg transition-colors">
                   <BookOpen size={14} />
                   Docs
+                </a>
+                <a
+                  href={`${basePath}/dashboard`}
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-primary hover:bg-bg-hover rounded-lg transition-colors">
+                  <ChartBar size={14} />
+                  Dashboard
                 </a>
               </>
             )}

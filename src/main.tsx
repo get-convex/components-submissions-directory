@@ -14,6 +14,7 @@ import Profile from "./pages/Profile";
 import ProfileEditSubmission from "./pages/ProfileEditSubmission";
 import ComponentDetail from "./pages/ComponentDetail";
 import Documentation from "./pages/Documentation";
+import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import Footer from "./components/Footer";
 import PostHogProvider from "./components/PostHogProvider";
@@ -93,6 +94,11 @@ function Router() {
   if (segments[0] === "documentation") {
     const section = segments.length >= 2 ? segments[1] : undefined;
     return <Documentation section={section} />;
+  }
+
+  // Dashboard route (admin only, handled in component)
+  if (segments[0] === "dashboard") {
+    return <Dashboard />;
   }
 
   // Badge routes are handled server-side (Convex HTTP), never reach here

@@ -122,6 +122,10 @@ Per-user API key management for the Components REST API. Contains public mutatio
 
 Authentication and admin helper utilities based on `ctx.auth.getUserIdentity()`. Exposes `loggedInUser` and `isAdmin` queries plus `requireAdminIdentity` and `getAdminIdentity` helpers that enforce `@convex.dev` admin access using email claims from WorkOS JWTs.
 
+### `convex/dashboard.ts`
+
+Admin-gated `getDashboardStats` query that returns pre-aggregated component analytics: total/approved counts, community vs get-convex splits, get-convex since Oct 2025, pre-Oct 2025 counts, total/community/team weekly downloads, per-author breakdown (name, avatar, count, downloads, team flag), and monthly submission timeline with community/team splits. Uses `getAdminIdentity` from `./auth` and returns empty defaults for non-admins.
+
 ### `convex/auth.config.ts`
 
 JWT provider configuration for WorkOS Connect token validation. Uses `WORKOS_CLIENT_ID` and `WORKOS_AUTHKIT_DOMAIN` with a `customJwt` provider (`issuer=https://<domain>`, `jwks=https://<domain>/oauth2/jwks`).
@@ -478,6 +482,10 @@ User profile page for managing submitted components. Accessible at `/profile`. F
 ### `src/pages/ProfileEditSubmission.tsx`
 
 Dedicated full-page editor for a user's own submission at `/profile/edit/:packageId`. Reuses the v2 generated content flow from submit, includes a back link to the profile page, keeps the same ownership-protected backend queries and mutations, uses the submissions-directory width shell with white bordered cards, and gives submitters a wider editing workspace for generated text, README preview, and package metadata updates. Generated-content textareas are vertically resizable, and regeneration now opens the same warning modal plus shared once-per-hour cooldown behavior used on submit. The Description, Use Cases, and How it Works sections use a side-by-side layout on desktop (editor left, live markdown preview right) that stacks on mobile, with labeled Edit and Preview panes and independent scroll constraints. The Package, Repo, and npm info box values are clickable links (Package links to the detail page, Repo and npm open in new tabs).
+
+### `src/pages/Dashboard.tsx`
+
+Component analytics dashboard at `/dashboard` (requires @convex.dev email). Shows stat cards (total components, community, get-convex, get-convex since Oct 2025, total weekly downloads, pre-Oct 2025), filterable components table with sortable columns, author summary table with download totals, and monthly submission timeline with community/team split bars. Filters include search, type (all/community/get-convex), date range with custom date picker (From/To), and multi-select author exclusion checklist (hide/show individual authors). Refresh button triggers `triggerManualRefreshAll` to pull live npm data. Auth gate matches Admin.tsx pattern. Uses `bg-bg-primary` background with white cards matching app design system.
 
 ### `src/pages/Admin.tsx`
 

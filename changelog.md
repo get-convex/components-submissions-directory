@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Admin analytics dashboard at `/components/dashboard` for team reporting (2026-04-13 21:00 UTC)
+  - Stat cards: total components, community count, get-convex count, get-convex since Oct 2025, total weekly downloads, pre-Oct 2025 count
+  - Sortable components table with columns for name, author, type, submitted date, weekly downloads, last published, review status
+  - Author summary table with component count, total downloads, and team/community badge per author
+  - Monthly submission timeline with stacked bars showing get-convex vs community splits
+  - Filters: search by name/author, type (all/community/get-convex), date range with custom date picker, multi-select author exclusion checklist
+  - Refresh button wired to `triggerManualRefreshAll` to pull live npm download data
+  - Admin-only auth gate (@convex.dev emails), `bg-bg-primary` background matching app design system
+  - Dashboard link added to Header nav (desktop + mobile) next to Docs for admin users
+  - Info banner explaining live data and post-deploy refresh workflow
+  - New backend query `convex/dashboard.ts` with server-side aggregation
+  - Files: `convex/dashboard.ts` (new), `src/pages/Dashboard.tsx` (new), `src/main.tsx`, `src/components/Header.tsx`
+
 ### Changed
 
 - Remove status labels from public Security Analyze modals (2026-04-04 00:30 UTC)
