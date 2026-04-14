@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Community approved/rejected stats and review status filter on dashboard (2026-04-13 22:15 UTC)
+  - New stat cards: "Community Approved" and "Community Rejected" with counts and sublabels
+  - New "Status" dropdown filter (All / Approved / Not approved / Pending / In review / Changes requested / Rejected) integrates with existing filters
+  - Updated `component-report.html` with approval/rejection counts, per-row status badges, and status filter/sort controls
+  - Files: `src/pages/Dashboard.tsx`, `component-report.html`
+
 - Admin analytics dashboard at `/components/dashboard` for team reporting (2026-04-13 21:00 UTC)
   - Stat cards: total components, community count, get-convex count, get-convex since Oct 2025, total weekly downloads, pre-Oct 2025 count
   - Sortable components table with columns for name, author, type, submitted date, weekly downloads, last published, review status

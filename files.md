@@ -485,7 +485,7 @@ Dedicated full-page editor for a user's own submission at `/profile/edit/:packag
 
 ### `src/pages/Dashboard.tsx`
 
-Component analytics dashboard at `/dashboard` (requires @convex.dev email). Shows stat cards (total components, community, get-convex, get-convex since Oct 2025, total weekly downloads, pre-Oct 2025), filterable components table with sortable columns, author summary table with download totals, and monthly submission timeline with community/team split bars. Filters include search, type (all/community/get-convex), date range with custom date picker (From/To), and multi-select author exclusion checklist (hide/show individual authors). Refresh button triggers `triggerManualRefreshAll` to pull live npm data. Auth gate matches Admin.tsx pattern. Uses `bg-bg-primary` background with white cards matching app design system.
+Component analytics dashboard at `/dashboard` (requires @convex.dev email). Shows stat cards (total components, community, community approved, community rejected, get-convex, get-convex since Oct 2025, total weekly downloads, pre-Oct 2025), filterable components table with sortable columns, author summary table with download totals, and monthly submission timeline with community/team split bars. Filters include search, type (all/community/get-convex), review status (all/approved/not approved/pending/in review/changes requested/rejected), date range with custom date picker (From/To), and multi-select author exclusion checklist (hide/show individual authors). Refresh button triggers `triggerManualRefreshAll` to pull live npm data. Auth gate matches Admin.tsx pattern. Uses `bg-bg-primary` background with white cards matching app design system.
 
 ### `src/pages/Admin.tsx`
 

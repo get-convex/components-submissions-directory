@@ -21,6 +21,7 @@ import {
   CalendarBlank,
   Info,
   CaretDown,
+  XCircle,
 } from "@phosphor-icons/react";
 
 function useBasePath() {
@@ -82,6 +83,7 @@ type SortField = "name" | "author" | "downloads" | "submittedAt" | "lastPublish"
 type SortDir = "asc" | "desc";
 type TypeFilter = "all" | "community" | "convex-team";
 type DateFilter = "all" | "pre-oct-2025" | "oct-2025-plus" | "custom";
+type StatusFilter = "all" | "approved" | "not-approved" | "rejected" | "pending" | "in_review" | "changes_requested";
 
 // ─── Stat Card ──────────────────────────────────────────────────────
 function StatCard({
@@ -256,6 +258,7 @@ export default function Dashboard() {
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [customDateFrom, setCustomDateFrom] = useState("");
   const [customDateTo, setCustomDateTo] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [excludedAuthors, setExcludedAuthors] = useState<Set<string>>(new Set());
   const [authorDropdownOpen, setAuthorDropdownOpen] = useState(false);
   const [sortField, setSortField] = useState<SortField>("downloads");
@@ -297,6 +300,15 @@ export default function Dashboard() {
       (p) => p.visibility !== "archived" && !p.markedForDeletion,
     );
   }, [allPackages]);
+
+  // Community approval breakdown
+  const communityApprovalStats = useMemo(() => {
+    const communityPkgs = activePackages.filter((p) => !isConvexTeamPackage(p));
+    const approved = communityPkgs.filter((p) => p.reviewStatus === "approved").length;
+    const rejected = communityPkgs.filter((p) => p.reviewStatus === "rejected").length;
+    const other = communityPkgs.length - approved - rejected;
+    return { total: communityPkgs.length, approved, rejected, other };
+  }, [activePackages]);
 
   // Unique authors for filter dropdown
   const authorOptions = useMemo(() => {
@@ -346,6 +358,15 @@ export default function Dashboard() {
       list = list.filter((p) => !excludedAuthors.has(resolveAuthor(p)));
     }
 
+    // Review status
+    if (statusFilter === "approved") {
+      list = list.filter((p) => p.reviewStatus === "approved");
+    } else if (statusFilter === "not-approved") {
+      list = list.filter((p) => p.reviewStatus !== "approved");
+    } else if (statusFilter !== "all") {
+      list = list.filter((p) => (p.reviewStatus || "pending") === statusFilter);
+    }
+
     // Sort
     const dir = sortDir === "asc" ? 1 : -1;
     list = [...list].sort((a, b) => {
@@ -366,7 +387,7 @@ export default function Dashboard() {
     });
 
     return list;
-  }, [activePackages, search, typeFilter, dateFilter, customFromTs, customToTs, excludedAuthors, sortField, sortDir]);
+  }, [activePackages, search, typeFilter, dateFilter, customFromTs, customToTs, excludedAuthors, statusFilter, sortField, sortDir]);
 
   // Author summary from stats query
   const authorSummary = useMemo(() => {
@@ -471,7 +492,7 @@ export default function Dashboard() {
 
             {/* ── Stat Cards ─────────────────────────────────────── */}
             {stats ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
                 <StatCard
                   label="Total Components"
                   value={stats.total}
@@ -482,7 +503,19 @@ export default function Dashboard() {
                   label="Community"
                   value={stats.community}
                   icon={<UsersThree size={14} />}
-                  sublabel={`${formatNumber(stats.communityDownloads)} wk downloads`}
+                  sublabel={`${communityApprovalStats.approved} approved, ${communityApprovalStats.total - communityApprovalStats.approved} not`}
+                />
+                <StatCard
+                  label="Community Approved"
+                  value={communityApprovalStats.approved}
+                  icon={<CheckCircle size={14} />}
+                  sublabel={`of ${communityApprovalStats.total} community`}
+                />
+                <StatCard
+                  label="Community Rejected"
+                  value={communityApprovalStats.rejected}
+                  icon={<XCircle size={14} />}
+                  sublabel={`${communityApprovalStats.other} in review/pending`}
                 />
                 <StatCard
                   label="get-convex"
@@ -554,6 +587,24 @@ export default function Dashboard() {
                     <option value="all">All</option>
                     <option value="community">Community</option>
                     <option value="convex-team">get-convex</option>
+                  </select>
+                </div>
+
+                {/* Review Status */}
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1">Status</label>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+                    className="px-3 py-1.5 rounded-lg border border-border text-sm bg-white focus:outline-none focus:ring-1 focus:ring-button"
+                  >
+                    <option value="all">All statuses</option>
+                    <option value="approved">Approved</option>
+                    <option value="not-approved">Not approved</option>
+                    <option value="pending">Pending</option>
+                    <option value="in_review">In review</option>
+                    <option value="changes_requested">Changes requested</option>
+                    <option value="rejected">Rejected</option>
                   </select>
                 </div>
 
@@ -675,11 +726,12 @@ export default function Dashboard() {
                 </div>
 
                 {/* Clear */}
-                {(search || typeFilter !== "all" || dateFilter !== "all" || excludedAuthors.size > 0) && (
+                {(search || typeFilter !== "all" || statusFilter !== "all" || dateFilter !== "all" || excludedAuthors.size > 0) && (
                   <button
                     onClick={() => {
                       setSearch("");
                       setTypeFilter("all");
+                      setStatusFilter("all");
                       setDateFilter("all");
                       setCustomDateFrom("");
                       setCustomDateTo("");

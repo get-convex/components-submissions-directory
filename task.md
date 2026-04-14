@@ -2,6 +2,13 @@
 
 ## to do
 
+- [x] Add community approved/rejected stats and review status filter to dashboard (2026-04-13 22:15 UTC)
+  - Added "Community Approved" and "Community Rejected" stat cards to Dashboard
+  - Added "Status" dropdown filter (All / Approved / Not approved / Pending / In review / Changes requested / Rejected)
+  - Status filter integrates with existing type, date, and author filters and clears with the Clear button
+  - Updated `component-report.html` with community approval/rejection counts, status badges, and a filter/sort dropdown
+  - Files: `src/pages/Dashboard.tsx`, `component-report.html`
+
 - [x] Add admin analytics dashboard (2026-04-13 21:00 UTC)
   - Created `convex/dashboard.ts` with `getDashboardStats` admin-gated query (aggregated counts, download sums, per-author breakdown, monthly timeline)
   - Created `src/pages/Dashboard.tsx` with stat cards, filterable components table, author summary, monthly timeline, filters/sorting, refresh
