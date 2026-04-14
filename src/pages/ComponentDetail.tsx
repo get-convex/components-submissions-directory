@@ -1,6 +1,6 @@
 // Component detail page at /components/:slug
 // Layout: narrow sidebar left with thumbnail + metadata, content right
-import { useEffect, useState, useRef, useMemo, useCallback, type ReactNode } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback, Component, type ErrorInfo, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -38,6 +38,28 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import rehypeRaw from "rehype-raw";
+
+class MarkdownErrorBoundary extends Component<
+  { children: ReactNode; label: string },
+  { hasError: boolean; error: string }
+> {
+  constructor(props: { children: ReactNode; label: string }) {
+    super(props);
+    this.state = { hasError: false, error: "" };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error(`[MarkdownErrorBoundary:${this.props.label}]`, error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return null;
+    }
+    return this.props.children;
+  }
+}
 
 const AI_READ_PROMPT = "Read this URL and summarize it:";
 
@@ -1470,13 +1492,15 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                       Use cases
                     </h2>
                     <div className="markdown-body">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkBreaks]}
-                        rehypePlugins={[rehypeRaw]}
-                        components={{ ...markdownComponents, a: renderMarkdownLink } as never}
-                      >
-                        {component.generatedUseCases}
-                      </ReactMarkdown>
+                      <MarkdownErrorBoundary label="Use cases">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkBreaks]}
+                          rehypePlugins={[rehypeRaw]}
+                          components={{ ...markdownComponents, a: renderMarkdownLink } as never}
+                        >
+                          {component.generatedUseCases}
+                        </ReactMarkdown>
+                      </MarkdownErrorBoundary>
                     </div>
                   </section>
                 )}
@@ -1487,13 +1511,15 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                       How it works
                     </h2>
                     <div className="markdown-body">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkBreaks]}
-                        rehypePlugins={[rehypeRaw]}
-                        components={{ ...markdownComponents, a: renderMarkdownLink } as never}
-                      >
-                        {component.generatedHowItWorks}
-                      </ReactMarkdown>
+                      <MarkdownErrorBoundary label="How it works">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm, remarkBreaks]}
+                          rehypePlugins={[rehypeRaw]}
+                          components={{ ...markdownComponents, a: renderMarkdownLink } as never}
+                        >
+                          {component.generatedHowItWorks}
+                        </ReactMarkdown>
+                      </MarkdownErrorBoundary>
                     </div>
                   </section>
                 )}
@@ -1514,13 +1540,15 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 <hr className="border-border my-6" />
                 <h3 className="text-base font-semibold text-text-primary mb-4">From the README.md</h3>
                 <div className="markdown-body">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkBreaks]}
-                    rehypePlugins={[rehypeRaw]}
-                    components={{ ...markdownComponents, a: renderMarkdownLink } as never}
-                  >
-                    {component.readmeIncludedMarkdown}
-                  </ReactMarkdown>
+                  <MarkdownErrorBoundary label="README markdown">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkBreaks]}
+                      rehypePlugins={[rehypeRaw]}
+                      components={{ ...markdownComponents, a: renderMarkdownLink } as never}
+                    >
+                      {component.readmeIncludedMarkdown}
+                    </ReactMarkdown>
+                  </MarkdownErrorBoundary>
                 </div>
               </section>
             )}
@@ -1537,6 +1565,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 {/* Long description markdown content (v1 only) */}
                 {component.contentModelVersion !== 2 && component.longDescription && (
                   <div className="markdown-body mb-6">
+                    <MarkdownErrorBoundary label="Long description">
                     <ReactMarkdown
                       remarkPlugins={[remarkGfm, remarkBreaks]}
                       rehypePlugins={[rehypeRaw]}
@@ -1573,6 +1602,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                       } as never}>
                       {component.longDescription}
                     </ReactMarkdown>
+                    </MarkdownErrorBoundary>
                   </div>
                 )}
 

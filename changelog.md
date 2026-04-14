@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Crons component page crash on production (2026-04-14)
+  - Added `PageErrorBoundary` in `src/main.tsx` wrapping `ComponentDetail` to catch query and rendering errors
+  - Added `MarkdownErrorBoundary` in `src/pages/ComponentDetail.tsx` wrapping all `ReactMarkdown` sections
+  - Plain text code blocks (no language tag) now render as `<pre>` instead of PierreFile syntax highlighter to prevent potential hangs on Unicode box-drawing characters
+  - Files: `src/main.tsx`, `src/pages/ComponentDetail.tsx`, `src/components/CodeBlock.tsx`
+
 ### Removed
 
 - Pre-Oct 2025 stat card from admin dashboard (2026-04-14)

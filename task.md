@@ -2,6 +2,13 @@
 
 ## to do
 
+- [x] Fix crons component page crash on production (2026-04-14 13:15 UTC)
+  - Added `PageErrorBoundary` in `src/main.tsx` wrapping `ComponentDetail` route to catch useQuery and rendering errors
+  - Added `MarkdownErrorBoundary` in `src/pages/ComponentDetail.tsx` around all `ReactMarkdown` sections
+  - Refactored `CodeBlock.tsx` to render plain text code blocks as simple `<pre>` instead of PierreFile highlighter (prevents hangs on Unicode box-drawing ASCII art)
+  - Removed localhost-only debug instrumentation from previous session
+  - Files: `src/main.tsx`, `src/pages/ComponentDetail.tsx`, `src/components/CodeBlock.tsx`
+
 - [x] Dashboard improvements: remove Pre-Oct 2025 card, add all-time downloads, add CSV/PDF export (2026-04-14 00:30 UTC)
   - Removed Pre-Oct 2025 stat card from `convex/dashboard.ts` and `src/pages/Dashboard.tsx`
   - Added `allTimeDownloads` optional field to packages schema, fetched from npm API during refresh

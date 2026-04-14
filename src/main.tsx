@@ -1,5 +1,6 @@
 import { createRoot } from "react-dom/client";
-import { useEffect, useMemo, useState } from "react";
+import { Component, useEffect, useMemo, useState } from "react";
+import type { ErrorInfo, ReactNode } from "react";
 import { ConvexReactClient } from "convex/react";
 import { useConvexAuth } from "convex/react";
 import { ConvexProviderWithAuthKit } from "@convex-dev/workos";
@@ -22,6 +23,43 @@ import CookieBanner from "./components/CookieBanner";
 import { isReservedRoute, parseSlugFromPath } from "./lib/slugs";
 import { ConnectAuthProvider, useConnectAuth } from "./lib/connectAuth";
 import { CookiesProvider } from "react-cookie";
+
+class PageErrorBoundary extends Component<
+  { children: ReactNode; fallback?: ReactNode },
+  { hasError: boolean; error: string }
+> {
+  constructor(props: { children: ReactNode; fallback?: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: "" };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[PageErrorBoundary]", error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      if (this.props.fallback) return this.props.fallback;
+      return (
+        <div className="min-h-[400px] flex items-center justify-center p-8">
+          <div className="text-center max-w-md">
+            <p className="text-sm text-text-secondary mb-4">
+              Something went wrong loading this page.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors"
+            >
+              Reload page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const DIRECTORY_ROOT_HREF = "/components/";
 
@@ -120,7 +158,11 @@ function Router() {
   if (segments.length <= 2 && !isReservedRoute(segments[0])) {
     const slug = parseSlugFromPath(segments);
     if (slug) {
-      return <ComponentDetail slug={slug} />;
+      return (
+        <PageErrorBoundary>
+          <ComponentDetail slug={slug} />
+        </PageErrorBoundary>
+      );
     }
   }
 
