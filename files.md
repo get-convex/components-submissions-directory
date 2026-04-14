@@ -372,7 +372,7 @@ Shared header component with auth state management. Uses `useAuth()` from `src/l
 
 ### `src/components/FAQSection.tsx`
 
-Reusable FAQ section component displayed on the Directory page (below components). Displays 8 frequently asked questions:
+Reusable FAQ section component displayed on the Directory and SubmitForm pages. Displays 11 frequently asked questions:
 - What happens after I submit? (rolling basis review with authoring guidelines link)
 - What are the requirements? (npm, GitHub, authoring guidelines)
 - How are components sandboxed? (Convex runtime data isolation)
@@ -381,6 +381,9 @@ Reusable FAQ section component displayed on the Directory page (below components
 - Do components cost money to use? (open source, usage-based)
 - Can I update my submission? (link to profile page)
 - Where can I learn more? (link to Components documentation)
+- How do I report a component? (takedown process, contact Convex)
+- Who decides if a component gets removed? (Convex team, submitter notified)
+- What is the review flow? (pending > AI review > manual review > approved)
 
 ### `src/components/Footer.tsx`
 

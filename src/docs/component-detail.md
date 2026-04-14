@@ -20,7 +20,7 @@ The detail page has two columns:
 - **Repository link** - GitHub repo link
 - **Rating** - Star rating system
 - **How to get help** - Small modal trigger for support guidance
-- **Security Analyze** - Opens a security report modal with scan status, providers, and recommendations
+- **Community scan via Socket.dev** - Opens a security report modal with scan status, providers, and recommendations
 
 ### Main content
 
@@ -90,17 +90,17 @@ The "How to get help" modal in the sidebar:
 - Links to the Convex community at `https://convex.dev/community`
 - Shows a third-party component notice for community submissions
 
-## Security Analyze
+## Community scan via Socket.dev
 
-The "Security Analyze" link in the sidebar opens a modal showing the latest security scan results for the component:
+The "Community scan via Socket.dev" link in the sidebar opens a modal showing the latest security scan results for the component:
 
-- **Status** line indicating whether the component has been scanned and the result
+- **Status** line indicating whether the component has been scanned and the scan date
 - **Providers** section listing Socket.dev and Snyk with links to run your own scan
 - **Recommendations** from the automated scan (when available)
 - **Contact the component author** section with a link to GitHub Issues (shown when findings or recommendations exist)
 - **Third-party component notice** reminding users that community components are not maintained by Convex
 
-If the component has not been scanned yet, the modal shows a notice to review the repository manually.
+The label is intentionally attributed to Socket.dev to make it clear the scan is a community service, not a Convex endorsement. If the component has not been scanned yet, the modal shows a notice to review the repository manually.
 
 ## Rating system
 

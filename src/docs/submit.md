@@ -117,6 +117,24 @@ The public submissions page at `/components/submissions` supports pagination:
 
 The default page size is controlled in the admin Settings panel under "Submit Listing Settings."
 
+## Frequently asked questions
+
+### Do contributors agree to any terms when submitting?
+
+By submitting a component, you confirm that you have permission to submit it and that it complies with the directory guidelines. There is no formal contributor license agreement (CLA), license grant, or indemnification at this time. Components remain under their original open source license. Convex does not claim ownership of submitted components.
+
+### How do I report a component for security issues, license violations, or IP infringement?
+
+Contact Convex (email devx at convex) with the component name, the reason for the report, and any supporting details. The Convex team reviews every report and may remove, delist, or request changes. Urgent security issues are prioritized.
+
+### Who decides if a component gets removed?
+
+The Convex team makes the final call on all takedown requests. Components may be removed for security vulnerabilities, license violations, IP infringement, or guideline violations. The submitter is notified when a component is removed or delisted.
+
+### What is the review flow from submission to listed?
+
+Your component enters a pending queue, may receive an automated AI review, then gets a manual review by the Convex team. Approved components go live in the public directory. If changes are needed, you get notified and can update from your profile page. Most submissions are processed within a few business days.
+
 ## Common rejection reasons
 
 - Missing or invalid npm package

@@ -7,7 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix security report modal stacking on component detail and submissions pages (2026-04-13)
+  - Modal rendered inside sticky sidebar created a local stacking context, letting main content code blocks overlap it
+  - Wrapped `SecurityReportModal` and `SubmitSecurityReportModal` in `createPortal(..., document.body)` so they mount at document root
+  - Ref: [PR #22](https://github.com/get-convex/components-submissions-directory/pull/22)
+  - Files: `src/pages/ComponentDetail.tsx`, `src/pages/Submit.tsx`
+
+### Changed
+
+- Renamed "Security Analyze" to "Community scan via Socket" on component detail and submissions pages (2026-04-13)
+  - Removed shield icon from sidebar button and modal header in `ComponentDetail.tsx` and `Submit.tsx`
+  - Removed scan date from public security modals (admin still sees dates)
+  - Reframed label to attribute scan to Socket, not Convex
+  - Files: `src/pages/ComponentDetail.tsx`, `src/pages/Submit.tsx`
+
 ### Added
+
+- Takedown, removal, and review flow FAQ items added to public FAQ section and documentation (2026-04-13)
+  - New FAQ entries: report flagged components (contact Convex), who decides removal, review flow
+  - Added to `src/components/FAQSection.tsx` (Directory and SubmitForm pages)
+  - Added to `src/docs/submit.md` (admin Documentation page)
+  - Updated `src/docs/component-detail.md`, `src/docs/admin-security-scan.md`, `src/docs/index.md` to reflect renamed scan label
+  - Files: `src/components/FAQSection.tsx`, `src/docs/submit.md`, `src/docs/component-detail.md`, `src/docs/admin-security-scan.md`, `src/docs/index.md`
 
 - Community approved/rejected stats and review status filter on dashboard (2026-04-13 22:15 UTC)
   - New stat cards: "Community Approved" and "Community Rejected" with counts and sublabels

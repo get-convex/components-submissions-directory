@@ -2,6 +2,7 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Toaster, toast } from "sonner";
 import { useState, useEffect, useRef, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { Id } from "../../convex/_generated/dataModel";
 import { useDirectoryCategories } from "../lib/categories";
 import Header from "../components/Header";
@@ -28,7 +29,6 @@ import {
   Star,
   Info,
   Browser,
-  Shield,
 } from "@phosphor-icons/react";
 import { ExternalLinkIcon as RadixExternalLinkIcon, Cross2Icon, GitHubLogoIcon } from "@radix-ui/react-icons";
 
@@ -1957,12 +1957,6 @@ function SubmitSecurityReportModal({
     socket: "https://socket.dev",
     snyk: "https://snyk.io",
   };
-  const scanStateLabel =
-    scanData.status === "not_scanned"
-      ? "Not yet scanned"
-      : scanData.lastScannedAt
-        ? `Scanned ${new Date(scanData.lastScannedAt).toLocaleDateString()}`
-        : "Scanned";
   const hasFindings = scanData.findings.length > 0 || scanData.recommendations.length > 0;
 
   return (
@@ -1982,11 +1976,7 @@ function SubmitSecurityReportModal({
         </button>
 
         <div className="mb-5 pr-8">
-          <div className="flex items-center gap-2 mb-1">
-            <Shield size={20} weight="bold" className="text-text-secondary" />
-            <h2 className="text-lg font-medium text-text-primary">Security Analyze</h2>
-          </div>
-          <p className="text-sm text-text-secondary mt-1">{scanStateLabel}</p>
+          <h2 className="text-lg font-medium text-text-primary">Community scan via Socket</h2>
         </div>
 
         <div className="space-y-4">
@@ -2134,17 +2124,18 @@ function SecurityAnalyzeButton({ packageId, repositoryUrl }: { packageId: string
           disabled={scanData.status === "scanning"}
           className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Shield size={16} />
           {label}
         </button>
       </Tooltip>
-      {showModal && (
-        <SubmitSecurityReportModal
-          onClose={() => setShowModal(false)}
-          scanData={scanData}
-          repositoryUrl={repositoryUrl}
-        />
-      )}
+      {showModal &&
+        createPortal(
+          <SubmitSecurityReportModal
+            onClose={() => setShowModal(false)}
+            scanData={scanData}
+            repositoryUrl={repositoryUrl}
+          />,
+          document.body,
+        )}
     </>
   );
 }

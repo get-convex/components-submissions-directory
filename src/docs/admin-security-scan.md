@@ -91,17 +91,19 @@ Security scan status is stored on each package as a denormalized snapshot:
 
 ### Component detail page
 
-The sidebar shows a "Security Analyze" link that opens a modal with:
+The sidebar shows a "Community scan via Socket.dev" link that opens a modal with:
 
-- Scan status
+- Scan status and date
 - Provider links (to Socket.dev and Snyk for self-service scanning)
 - Recommendations (if any)
 - Contact author section with GitHub Issues link (when findings exist)
 - Third-party component notice
 
+The label is intentionally attributed to Socket.dev to make it clear this is a community scan, not a Convex endorsement.
+
 ### Submissions page
 
-Each expanded package row includes a "Security" button in the action buttons area (next to npm, Repo, Website, Demo). Clicking it opens the same security report modal.
+Each expanded package row includes a "Security" button in the action buttons area (next to npm, Repo, Website, Demo). Clicking it opens the same community scan modal.
 
 ## Environment variables
 

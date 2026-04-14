@@ -2,6 +2,21 @@
 
 ## to do
 
+- [x] Fix security report modal stacking with createPortal (2026-04-13)
+  - Wrapped `SecurityReportModal` and `SubmitSecurityReportModal` in `createPortal(..., document.body)`
+  - Sticky sidebar created a local stacking context causing main content to overlap the modal
+  - Added `import { createPortal } from "react-dom"` to both files
+  - Ref: [PR #22](https://github.com/get-convex/components-submissions-directory/pull/22)
+  - Files: `src/pages/ComponentDetail.tsx`, `src/pages/Submit.tsx`
+
+- [x] Rename Security Analyze to Community scan via Socket and add takedown FAQ (2026-04-13 23:30 UTC)
+  - Removed shield icon and scan date from public security modals in `ComponentDetail.tsx` and `Submit.tsx`
+  - Changed modal title to "Community scan via Socket" (attributed to Socket, not Convex)
+  - Added takedown, removal, and review flow FAQ items to `FAQSection.tsx` with contact Convex
+  - Updated `submit.md`, `component-detail.md`, `admin-security-scan.md`, `index.md` documentation
+  - Removed FAQ from Submit.tsx AboutModal (was added by mistake)
+  - Files: `src/pages/ComponentDetail.tsx`, `src/pages/Submit.tsx`, `src/components/FAQSection.tsx`, `src/docs/submit.md`, `src/docs/component-detail.md`, `src/docs/admin-security-scan.md`, `src/docs/index.md`
+
 - [x] Add community approved/rejected stats and review status filter to dashboard (2026-04-13 22:15 UTC)
   - Added "Community Approved" and "Community Rejected" stat cards to Dashboard
   - Added "Status" dropdown filter (All / Approved / Not approved / Pending / In review / Changes requested / Rejected)

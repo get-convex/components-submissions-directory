@@ -15,6 +15,7 @@ The Convex Components Directory is a curated catalog of open-source backend comp
 - [Preflight checker](/components/documentation/submit) - Validate your repo before submitting
 - [Your profile](/components/documentation/profile) - Manage your submissions
 - [Component pages](/components/documentation/component-detail) - Understanding component details
+- [Submission FAQ](/components/documentation/submit#frequently-asked-questions) - Contributor terms, takedown process, review flow
 
 ### For admins
 

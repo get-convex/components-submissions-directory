@@ -110,6 +110,37 @@ export function FAQSection() {
             to learn about how Components work, their data isolation model, and how they help you build features faster.
           </p>
         </div>
+        <div>
+          <h3 className="text-sm font-medium text-text-primary">
+            How do I report a component for security issues, license violations, or IP infringement?
+          </h3>
+          <p className="text-sm text-text-secondary mt-1">
+            Contact Convex (email devx at convex) with the component name, the reason for the report,
+            and any supporting details. The Convex team reviews every report and may remove, delist,
+            or request changes. Urgent security issues are prioritized.
+          </p>
+        </div>
+        <div>
+          <h3 className="text-sm font-medium text-text-primary">
+            Who decides if a component gets removed?
+          </h3>
+          <p className="text-sm text-text-secondary mt-1">
+            The Convex team makes the final call on all takedown requests. Components may be removed
+            for security vulnerabilities, license violations, IP infringement, or guideline violations.
+            The submitter is notified when a component is removed or delisted.
+          </p>
+        </div>
+        <div>
+          <h3 className="text-sm font-medium text-text-primary">
+            What is the review flow from submission to listed?
+          </h3>
+          <p className="text-sm text-text-secondary mt-1">
+            Your component enters a pending queue, may receive an automated AI review, then gets a
+            manual review by the Convex team. Approved components go live in the public directory. If
+            changes are needed, you get notified and can update from your profile page. Most
+            submissions are processed within a few business days.
+          </p>
+        </div>
       </div>
     </section>
   );

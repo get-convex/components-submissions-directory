@@ -1,6 +1,7 @@
 // Component detail page at /components/:slug
 // Layout: narrow sidebar left with thumbnail + metadata, content right
 import { useEffect, useState, useRef, useMemo, useCallback, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { InstallCommand } from "../components/InstallCommand";
@@ -32,7 +33,7 @@ import {
   Cross2Icon,
 } from "@radix-ui/react-icons";
 import { AgentInstallSection } from "../components/AgentInstallSection";
-import { FileArrowDown, ClipboardText, DiscordLogo, ShieldCheck, ShieldWarning, Shield } from "@phosphor-icons/react";
+import { FileArrowDown, ClipboardText, DiscordLogo } from "@phosphor-icons/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
@@ -430,7 +431,6 @@ function SecurityScanBox({
   if (scanData.status === "scanning") {
     return (
       <div className="flex items-center gap-2 py-1">
-        <Shield size={14} weight="bold" className="text-text-secondary" />
         <span className="text-xs font-medium text-text-secondary">Scanning...</span>
       </div>
     );
@@ -442,17 +442,18 @@ function SecurityScanBox({
         onClick={() => onShowModalChange(true)}
         className="inline-flex items-center gap-2 py-1 text-text-secondary hover:text-text-primary transition-colors"
       >
-        <Shield size={14} weight="bold" />
-        <span className="text-xs font-medium">Security Analyze</span>
+        <span className="text-xs font-medium">Community scan via Socket</span>
       </button>
 
-      {showModal && (
-        <SecurityReportModal
-          onClose={() => onShowModalChange(false)}
-          scanData={scanData}
-          repositoryUrl={repositoryUrl}
-        />
-      )}
+      {showModal &&
+        createPortal(
+          <SecurityReportModal
+            onClose={() => onShowModalChange(false)}
+            scanData={scanData}
+            repositoryUrl={repositoryUrl}
+          />,
+          document.body,
+        )}
     </>
   );
 }
@@ -517,12 +518,6 @@ function SecurityReportModal({
     socket: "https://socket.dev",
     snyk: "https://snyk.io",
   };
-  const scanStateLabel =
-    scanData.status === "not_scanned"
-      ? "Not yet scanned"
-      : scanData.lastScannedAt
-        ? `Scanned ${new Date(scanData.lastScannedAt).toLocaleDateString()}`
-        : "Scanned";
   const hasFindings = scanData.findings.length > 0 || scanData.recommendations.length > 0;
 
   return (
@@ -543,11 +538,7 @@ function SecurityReportModal({
 
         {/* Header */}
         <div className="mb-5 pr-8">
-          <div className="flex items-center gap-2 mb-1">
-            <Shield size={20} weight="bold" className="text-text-secondary" />
-            <h2 className="text-lg font-medium text-text-primary">Security Analyze</h2>
-          </div>
-          <p className="text-sm text-text-secondary mt-1">{scanStateLabel}</p>
+          <h2 className="text-lg font-medium text-text-primary">Community scan via Socket</h2>
         </div>
 
         <div className="space-y-4">
