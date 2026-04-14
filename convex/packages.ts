@@ -225,6 +225,7 @@ const adminPackageValidator = v.object({
   totalFiles: v.number(),
   lastPublish: v.string(),
   weeklyDownloads: v.number(),
+  allTimeDownloads: v.optional(v.number()),
   collaborators: v.array(
     v.object({
       name: v.string(),
@@ -545,6 +546,7 @@ function toAdminPackage(pkg: any) {
     totalFiles: pkg.totalFiles ?? 0,
     lastPublish: pkg.lastPublish || "Unknown",
     weeklyDownloads: pkg.weeklyDownloads ?? 0,
+    allTimeDownloads: pkg.allTimeDownloads,
     collaborators: pkg.collaborators || [],
     maintainerNames: pkg.maintainerNames,
     npmUrl: pkg.npmUrl || `https://www.npmjs.com/package/${pkg.name || ""}`,
@@ -694,6 +696,7 @@ const fetchNpmPackageReturnValidator = v.object({
   totalFiles: v.number(),
   lastPublish: v.string(),
   weeklyDownloads: v.number(),
+  allTimeDownloads: v.number(),
   collaborators: v.array(
     v.object({
       name: v.string(),
@@ -713,10 +716,13 @@ export async function fetchNpmPackageHandler(_ctx: any, args: { packageName: str
 
     // Use encodeURIComponent for the downloads API
     const downloadsUrl = `https://api.npmjs.org/downloads/point/last-week/${encodeURIComponent(name)}`;
+    // npm API supports a wide date range for cumulative all-time downloads
+    const allTimeDownloadsUrl = `https://api.npmjs.org/downloads/point/2015-01-01:2099-12-31/${encodeURIComponent(name)}`;
 
-    const [metadataResponse, downloadsResponse] = await Promise.all([
+    const [metadataResponse, downloadsResponse, allTimeResponse] = await Promise.all([
       fetch(registryUrl, { method: "GET" }),
       fetch(downloadsUrl, { method: "GET" }),
+      fetch(allTimeDownloadsUrl, { method: "GET" }),
     ]);
 
     if (!metadataResponse.ok) {
@@ -730,6 +736,12 @@ export async function fetchNpmPackageHandler(_ctx: any, args: { packageName: str
     if (downloadsResponse.ok) {
       const downloadsData = await downloadsResponse.json();
       weeklyDownloads = downloadsData.downloads ?? 0;
+    }
+
+    let allTimeDownloads = 0;
+    if (allTimeResponse.ok) {
+      const allTimeData = await allTimeResponse.json();
+      allTimeDownloads = allTimeData.downloads ?? 0;
     }
 
     const metadata = await metadataResponse.json();
@@ -782,6 +794,7 @@ export async function fetchNpmPackageHandler(_ctx: any, args: { packageName: str
       totalFiles: versionData.dist?.fileCount || 0,
       lastPublish,
       weeklyDownloads,
+      allTimeDownloads,
       collaborators,
       npmUrl: `https://www.npmjs.com/package/${encodeURIComponent(name)}`,
     };
@@ -828,6 +841,7 @@ async function fetchAndUpdateNpmData(
     totalFiles: packageData.totalFiles,
     lastPublish: packageData.lastPublish,
     weeklyDownloads: packageData.weeklyDownloads,
+    allTimeDownloads: packageData.allTimeDownloads,
     collaborators: packageData.collaborators,
   });
 }
@@ -3811,6 +3825,7 @@ export const _updateNpmDataAndTimestamp = internalMutation({
     totalFiles: v.number(),
     lastPublish: v.string(),
     weeklyDownloads: v.number(),
+    allTimeDownloads: v.optional(v.number()),
     collaborators: v.array(
       v.object({
         name: v.string(),
@@ -3821,7 +3836,7 @@ export const _updateNpmDataAndTimestamp = internalMutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const maintainerNames = args.collaborators.map((c) => c.name).join(" ");
-    await ctx.db.patch("packages", args.packageId, {
+    const patch: Record<string, any> = {
       description: args.description,
       version: args.version,
       license: args.license,
@@ -3835,7 +3850,11 @@ export const _updateNpmDataAndTimestamp = internalMutation({
       maintainerNames,
       lastRefreshedAt: Date.now(),
       refreshError: undefined,
-    });
+    };
+    if (args.allTimeDownloads !== undefined) {
+      patch.allTimeDownloads = args.allTimeDownloads;
+    }
+    await ctx.db.patch(args.packageId, patch);
     return null;
   },
 });

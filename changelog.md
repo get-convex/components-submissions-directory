@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Pre-Oct 2025 stat card from admin dashboard (2026-04-14)
+  - Cleaned up `convex/dashboard.ts` return value and `src/pages/Dashboard.tsx` UI
+
+### Added
+
+- All-time download tracking for packages (2026-04-14)
+  - New `allTimeDownloads` optional field on packages schema
+  - `fetchNpmPackageHandler` now fetches cumulative downloads from npm date-range API alongside weekly
+  - Dashboard shows both "Weekly Downloads" and "All Time Downloads" stat cards
+  - All-time counts populate on next npm data refresh (manual or scheduled)
+  - Files: `convex/schema.ts`, `convex/packages.ts`, `convex/dashboard.ts`, `src/pages/Dashboard.tsx`
+
+- CSV and PDF export for admin dashboard filtered view (2026-04-14)
+  - CSV button exports current filtered Components table as a downloadable `.csv` file
+  - PDF button opens a print-friendly report in a new window with active filter summary
+  - Both exports respect all active filters (search, type, status, date range, author exclusions)
+  - Files: `src/pages/Dashboard.tsx`
+
 ### Fixed
 
 - Fix security report modal stacking on component detail and submissions pages (2026-04-13)

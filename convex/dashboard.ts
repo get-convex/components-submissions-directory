@@ -63,8 +63,8 @@ export const getDashboardStats = query({
     community: v.number(),
     convexTeam: v.number(),
     convexTeamSinceOct2025: v.number(),
-    preOct2025: v.number(),
     totalDownloads: v.number(),
+    totalAllTimeDownloads: v.number(),
     communityDownloads: v.number(),
     convexTeamDownloads: v.number(),
     byAuthor: v.array(authorStatValidator),
@@ -79,8 +79,8 @@ export const getDashboardStats = query({
         community: 0,
         convexTeam: 0,
         convexTeamSinceOct2025: 0,
-        preOct2025: 0,
         totalDownloads: 0,
+        totalAllTimeDownloads: 0,
         communityDownloads: 0,
         convexTeamDownloads: 0,
         byAuthor: [],
@@ -98,8 +98,8 @@ export const getDashboardStats = query({
     let community = 0;
     let convexTeam = 0;
     let convexTeamSinceOct2025 = 0;
-    let preOct2025 = 0;
     let totalDownloads = 0;
+    let totalAllTimeDownloads = 0;
     let communityDownloads = 0;
     let convexTeamDownloads = 0;
     let approved = 0;
@@ -119,8 +119,11 @@ export const getDashboardStats = query({
       const downloads = pkg.weeklyDownloads ?? 0;
       const submittedTs = pkg.submittedAt || pkg._creationTime;
 
+      const allTime = pkg.allTimeDownloads ?? 0;
+
       if (pkg.reviewStatus === "approved") approved++;
       totalDownloads += downloads;
+      totalAllTimeDownloads += allTime;
 
       if (isTeam) {
         convexTeam++;
@@ -130,8 +133,6 @@ export const getDashboardStats = query({
         community++;
         communityDownloads += downloads;
       }
-
-      if (submittedTs < OCT_2025_EPOCH) preOct2025++;
 
       // Author aggregation
       if (!authorMap[author]) {
@@ -167,8 +168,8 @@ export const getDashboardStats = query({
       community,
       convexTeam,
       convexTeamSinceOct2025,
-      preOct2025,
       totalDownloads,
+      totalAllTimeDownloads,
       communityDownloads,
       convexTeamDownloads,
       byAuthor,

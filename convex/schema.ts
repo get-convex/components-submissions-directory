@@ -17,6 +17,7 @@ const applicationTables = {
     totalFiles: v.number(),
     lastPublish: v.string(),
     weeklyDownloads: v.number(),
+    allTimeDownloads: v.optional(v.number()),
     collaborators: v.array(
       v.object({
         name: v.string(),

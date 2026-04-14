@@ -2,6 +2,15 @@
 
 ## to do
 
+- [x] Dashboard improvements: remove Pre-Oct 2025 card, add all-time downloads, add CSV/PDF export (2026-04-14 00:30 UTC)
+  - Removed Pre-Oct 2025 stat card from `convex/dashboard.ts` and `src/pages/Dashboard.tsx`
+  - Added `allTimeDownloads` optional field to packages schema, fetched from npm API during refresh
+  - Added "All Time Downloads" stat card alongside existing "Weekly Downloads" card
+  - Added CSV and PDF export buttons to the Components table header, exports the current filtered view
+  - Updated `fetchNpmPackageHandler` to fetch cumulative downloads from npm date-range API
+  - Updated `_updateNpmDataAndTimestamp`, `adminPackageValidator`, `toAdminPackage` to include `allTimeDownloads`
+  - Files: `convex/schema.ts`, `convex/dashboard.ts`, `convex/packages.ts`, `src/pages/Dashboard.tsx`
+
 - [x] Fix security report modal stacking with createPortal (2026-04-13)
   - Wrapped `SecurityReportModal` and `SubmitSecurityReportModal` in `createPortal(..., document.body)`
   - Sticky sidebar created a local stacking context causing main content to overlap the modal

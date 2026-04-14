@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   CalendarCheck,
   DownloadSimple,
-  ClockCounterClockwise,
   ArrowsClockwise,
   FunnelSimple,
   SortAscending,
@@ -22,6 +21,8 @@ import {
   Info,
   CaretDown,
   XCircle,
+  Export,
+  FilePdf,
 } from "@phosphor-icons/react";
 
 function useBasePath() {
@@ -77,6 +78,102 @@ function formatNumber(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
   if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
   return n.toLocaleString();
+}
+
+// Escape CSV cell values (handles commas, quotes, newlines)
+function csvEscape(val: string): string {
+  if (val.includes(",") || val.includes('"') || val.includes("\n")) {
+    return `"${val.replace(/"/g, '""')}"`;
+  }
+  return val;
+}
+
+type ExportRow = {
+  name: string;
+  componentName?: string;
+  author: string;
+  type: string;
+  submittedAt: string;
+  weeklyDownloads: number;
+  allTimeDownloads: number;
+  lastPublish: string;
+  status: string;
+};
+
+function buildExportRows(
+  packages: Array<any>,
+  resolveAuthorFn: (pkg: any) => string,
+  isTeamFn: (pkg: any) => boolean,
+): ExportRow[] {
+  return packages.map((pkg) => ({
+    name: pkg.componentName || pkg.name,
+    componentName: pkg.componentName && pkg.componentName !== pkg.name ? pkg.name : "",
+    author: resolveAuthorFn(pkg),
+    type: isTeamFn(pkg) ? "get-convex" : "Community",
+    submittedAt: formatDate(pkg.submittedAt || pkg._creationTime),
+    weeklyDownloads: pkg.weeklyDownloads ?? 0,
+    allTimeDownloads: pkg.allTimeDownloads ?? 0,
+    lastPublish: new Date(pkg.lastPublish).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
+    status: pkg.reviewStatus || "pending",
+  }));
+}
+
+function downloadCsv(rows: ExportRow[]) {
+  const headers = ["Name", "Package", "Author", "Type", "Submitted", "Wk Downloads", "All Time Downloads", "Last Published", "Status"];
+  const csvLines = [
+    headers.join(","),
+    ...rows.map((r) =>
+      [
+        csvEscape(r.name),
+        csvEscape(r.componentName || ""),
+        csvEscape(r.author),
+        r.type,
+        r.submittedAt,
+        r.weeklyDownloads.toString(),
+        r.allTimeDownloads.toString(),
+        r.lastPublish,
+        r.status,
+      ].join(","),
+    ),
+  ];
+  const blob = new Blob([csvLines.join("\n")], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `components-report-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadPdfReport(rows: ExportRow[], filterSummary: string) {
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Component Analytics Report</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 32px; color: #111; font-size: 12px; }
+  h1 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .meta { color: #666; font-size: 11px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: #666; border-bottom: 2px solid #ddd; padding: 6px 8px; }
+  td { padding: 5px 8px; border-bottom: 1px solid #eee; font-size: 11px; }
+  tr:nth-child(even) { background: #fafafa; }
+  .right { text-align: right; }
+  .summary { font-size: 11px; color: #555; margin-bottom: 12px; }
+  @media print { body { padding: 16px; } }
+</style></head><body>
+<h1>Component Analytics Report</h1>
+<div class="meta">Generated ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
+<div class="summary">${filterSummary} &middot; ${rows.length} component${rows.length !== 1 ? "s" : ""}</div>
+<table>
+<thead><tr><th>Name</th><th>Author</th><th>Type</th><th>Submitted</th><th class="right">Wk Downloads</th><th class="right">All Time</th><th>Last Published</th><th>Status</th></tr></thead>
+<tbody>${rows.map((r) => `<tr><td>${r.name}</td><td>${r.author}</td><td>${r.type}</td><td>${r.submittedAt}</td><td class="right">${r.weeklyDownloads.toLocaleString()}</td><td class="right">${r.allTimeDownloads.toLocaleString()}</td><td>${r.lastPublish}</td><td>${r.status}</td></tr>`).join("")}</tbody>
+</table>
+</body></html>`;
+  const w = window.open("", "_blank");
+  if (!w) return;
+  w.document.write(html);
+  w.document.close();
+  // Give the browser a moment to render before triggering print
+  setTimeout(() => w.print(), 400);
 }
 
 type SortField = "name" | "author" | "downloads" | "submittedAt" | "lastPublish";
@@ -530,16 +627,16 @@ export default function Dashboard() {
                   sublabel="Since October 2025"
                 />
                 <StatCard
-                  label="Total Downloads"
+                  label="Weekly Downloads"
                   value={stats.totalDownloads}
                   icon={<DownloadSimple size={14} />}
-                  sublabel="Weekly (npm)"
+                  sublabel="Last 7 days (npm)"
                 />
                 <StatCard
-                  label="Pre-Oct 2025"
-                  value={stats.preOct2025}
-                  icon={<ClockCounterClockwise size={14} />}
-                  sublabel="Submitted before Oct 2025"
+                  label="All Time Downloads"
+                  value={stats.totalAllTimeDownloads}
+                  icon={<DownloadSimple size={14} />}
+                  sublabel="Cumulative (npm)"
                 />
               </div>
             ) : (
@@ -755,9 +852,38 @@ export default function Dashboard() {
                     {filteredPackages.length} {filteredPackages.length === 1 ? "result" : "results"}
                   </span>
                 </h2>
-                <div className="flex items-center gap-1 text-xs text-text-secondary">
-                  <SortAscending size={12} />
-                  Click column headers to sort
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-1 text-xs text-text-secondary">
+                    <SortAscending size={12} />
+                    Click headers to sort
+                  </div>
+                  <button
+                    onClick={() => {
+                      const rows = buildExportRows(filteredPackages, resolveAuthor, isConvexTeamPackage);
+                      downloadCsv(rows);
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border border-border bg-white text-text-secondary hover:border-gray-400 hover:text-text-primary transition-colors"
+                  >
+                    <Export size={12} />
+                    CSV
+                  </button>
+                  <button
+                    onClick={() => {
+                      const rows = buildExportRows(filteredPackages, resolveAuthor, isConvexTeamPackage);
+                      const parts: string[] = [];
+                      if (typeFilter !== "all") parts.push(`Type: ${typeFilter}`);
+                      if (statusFilter !== "all") parts.push(`Status: ${statusFilter}`);
+                      if (dateFilter !== "all") parts.push(`Date: ${dateFilter === "custom" ? `${customDateFrom || "start"} to ${customDateTo || "now"}` : dateFilter}`);
+                      if (search) parts.push(`Search: "${search}"`);
+                      if (excludedAuthors.size > 0) parts.push(`${excludedAuthors.size} author(s) excluded`);
+                      const summary = parts.length > 0 ? `Filters: ${parts.join(", ")}` : "No filters applied";
+                      downloadPdfReport(rows, summary);
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border border-border bg-white text-text-secondary hover:border-gray-400 hover:text-text-primary transition-colors"
+                  >
+                    <FilePdf size={12} />
+                    PDF
+                  </button>
                 </div>
               </div>
               <div className="overflow-x-auto">
