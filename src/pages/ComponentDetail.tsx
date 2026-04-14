@@ -1710,7 +1710,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
 
             {/* Keywords */}
             {component.tags && component.tags.length > 0 && (
-              <div className="mb-6">
+              <div className="mt-8 mb-6">
                 <p className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">
                   Keywords
                 </p>

@@ -2,6 +2,10 @@
 
 ## to do
 
+- [x] Add spacing above Keywords section on ComponentDetail when code is present (2026-04-14 13:35 UTC)
+  - Added `mt-8` to the Keywords container div so it has visual separation from code blocks or markdown content above
+  - File: `src/pages/ComponentDetail.tsx`
+
 - [x] Fix crons component page crash on production (2026-04-14 13:15 UTC)
   - Added `PageErrorBoundary` in `src/main.tsx` wrapping `ComponentDetail` route to catch useQuery and rendering errors
   - Added `MarkdownErrorBoundary` in `src/pages/ComponentDetail.tsx` around all `ReactMarkdown` sections

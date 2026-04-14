@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Added spacing above Keywords section on component detail page (2026-04-14)
+  - Keywords block now has `mt-8` so it separates from code blocks or other content above it
+  - File: `src/pages/ComponentDetail.tsx`
+
 - Crons component page crash on production (2026-04-14)
   - Added `PageErrorBoundary` in `src/main.tsx` wrapping `ComponentDetail` to catch query and rendering errors
   - Added `MarkdownErrorBoundary` in `src/pages/ComponentDetail.tsx` wrapping all `ReactMarkdown` sections
