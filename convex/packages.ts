@@ -1069,6 +1069,7 @@ export const _addPackage = internalMutation({
     totalFiles: v.number(),
     lastPublish: v.string(),
     weeklyDownloads: v.number(),
+    allTimeDownloads: v.optional(v.number()),
     collaborators: v.array(
       v.object({
         name: v.string(),
@@ -1137,6 +1138,7 @@ async function updateExistingPackage(ctx: any, existing: any, args: any, maintai
     totalFiles: args.totalFiles,
     lastPublish: args.lastPublish,
     weeklyDownloads: args.weeklyDownloads,
+    allTimeDownloads: args.allTimeDownloads,
     collaborators: args.collaborators,
     maintainerNames,
     npmUrl: args.npmUrl,
@@ -1165,6 +1167,7 @@ async function insertNewPackage(ctx: any, args: any, maintainerNames: string): P
     totalFiles: args.totalFiles,
     lastPublish: args.lastPublish,
     weeklyDownloads: args.weeklyDownloads,
+    allTimeDownloads: args.allTimeDownloads,
     collaborators: args.collaborators,
     npmUrl: args.npmUrl,
     submitterName: args.submitterName,
@@ -1212,6 +1215,7 @@ async function updateNpmDataHelper(ctx: any, args: any) {
     totalFiles: args.totalFiles,
     lastPublish: args.lastPublish,
     weeklyDownloads: args.weeklyDownloads,
+    allTimeDownloads: args.allTimeDownloads,
     maintainerNames,
   };
 
@@ -1243,6 +1247,7 @@ const npmDataArgs = {
   totalFiles: v.number(),
   lastPublish: v.string(),
   weeklyDownloads: v.number(),
+  allTimeDownloads: v.optional(v.number()),
   collaborators: v.array(
     v.object({
       name: v.string(),
@@ -1272,6 +1277,7 @@ export const updateNpmData = mutation({
     totalFiles: v.number(),
     lastPublish: v.string(),
     weeklyDownloads: v.number(),
+    allTimeDownloads: v.optional(v.number()),
     collaborators: v.array(
       v.object({
         name: v.string(),

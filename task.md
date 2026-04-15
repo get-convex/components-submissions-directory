@@ -4,6 +4,12 @@
 
 Session updates complete on 2026-04-15 02:11 UTC.
 
+- [x] Fix package submission and dashboard download validator drift (2026-04-15 17:52 UTC)
+  - PRD: `prds/package-download-validator-fix.md`
+  - Added `allTimeDownloads` to the missing submit and npm update validators in `convex/packages.ts`, plus the existing-package patch and new-package insert paths.
+  - Verified the current `convex/dashboard.ts` query still returns `totalAllTimeDownloads`.
+  - Verification: `npm run build`, `ReadLints`, live Convex reload in the running `npx convex dev` session
+
 - [x] Fix directory download sync after npm refreshes (2026-04-15 02:11 UTC)
   - PRD: `prds/dashboard-refresh-and-directory-download-sync.md`
   - Added focus, visibility, and page-show refetch hooks in `src/pages/Directory.tsx` so one-shot directory data picks up refreshed npm counts without restoring full live subscriptions.

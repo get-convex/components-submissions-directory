@@ -796,6 +796,7 @@ Product requirements documents:
 - `submit-table-published-column-and-alignment.md`: Documents the Submit page table cleanup that removes the collapsed Published column, moves publish dates into expanded details, and rebalances the desktop metadata columns
 - `admin-ai-review-history.md`: Implementation PRD for persistent AI review run logging and the admin-side review history drawer
 - `category-save-and-large-category-visibility.md`: Documents the admin category save investigation and the fix that shows full result sets when a specific directory category is selected
+- `package-download-validator-fix.md`: Bug fix PRD for the missing `allTimeDownloads` validator on submission and npm update paths, plus verification that the dashboard stats contract still exposes `totalAllTimeDownloads`
 - `submit-form-category-sync.md`: Documents the submit form category dropdown bug where `slug` drifted from the shared category `id` contract, and the fix that keeps public submissions in sync with `Admin.tsx`
 - `detail-page-seo-visibility-toggle.md`: Documents the admin-only toggle for hiding generated SEO and SKILL content from the public component detail page while keeping it editable in admin
 - `review-state-detail-page-gating.md`: Documents the safe rollout for keeping review-state detail pages live while gating agent UI and search indexing

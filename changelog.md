@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Package submission no longer crashes when npm metadata includes all time downloads (2026-04-15 17:52 UTC)
+  - Added the missing `allTimeDownloads` validator and persistence to the submit and npm update paths in `convex/packages.ts`
+  - This fixes the `ArgumentValidationError` thrown by `packages:submitPackage` when `_addPackage` received the extra field from npm metadata
+  - Rechecked `convex/dashboard.ts` and the current stats query still returns `totalAllTimeDownloads`, matching the dashboard card contract
+
 - Directory download counts now refetch when the page becomes active again (2026-04-15 02:11 UTC)
   - `src/pages/Directory.tsx` keeps the one-shot Convex fetch strategy but now re-queries on window focus, page show, and tab visibility restore
   - This lets refreshed npm counts show up after admin-triggered updates without bringing back a full reactive subscription
