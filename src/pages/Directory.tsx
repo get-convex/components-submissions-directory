@@ -89,6 +89,32 @@ export default function Directory() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  useEffect(() => {
+    // Keep one-shot fetches lightweight, but refetch when the page becomes active again
+    // so recently refreshed npm counts show up without restoring a live subscription.
+    const handleFocus = () => {
+      void fetchData();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void fetchData();
+      }
+    };
+    const handlePageShow = () => {
+      void fetchData();
+    };
+
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("pageshow", handlePageShow);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [fetchData]);
+
   const categoryItems = categories ?? [];
 
   // Set page SEO

@@ -345,6 +345,8 @@ export default function Dashboard() {
   const stats = useQuery(api.dashboard.getDashboardStats);
   const allPackages = useQuery(api.packages.getAllPackages);
   const triggerRefreshAll = useAction(api.packages.triggerManualRefreshAll);
+  const refreshSinglePackage = useAction(api.packages.refreshNpmData);
+  type DashboardPackage = NonNullable<typeof allPackages>[number];
 
   const isLoading =
     authLoading || (isAuthenticated && (loggedInUser === undefined || isAdmin === undefined));
@@ -365,17 +367,45 @@ export default function Dashboard() {
   // Refresh npm data for all packages
   const [refreshing, setRefreshing] = useState(false);
   const [refreshResult, setRefreshResult] = useState<string | null>(null);
+  const [refreshingPackageIds, setRefreshingPackageIds] = useState<
+    Set<DashboardPackage["_id"]>
+  >(new Set());
 
   const handleRefresh = async () => {
     setRefreshing(true);
     setRefreshResult(null);
     try {
       const result = await triggerRefreshAll();
-      setRefreshResult(`Queued ${result.packagesQueued} packages for refresh`);
+      setRefreshResult(`Queued ${result.packagesQueued} approved packages for refresh`);
     } catch {
       setRefreshResult("Refresh failed. Try again.");
     } finally {
       setRefreshing(false);
+      setTimeout(() => setRefreshResult(null), 5000);
+    }
+  };
+
+  const handleRefreshPackage = async (pkg: DashboardPackage) => {
+    if (refreshingPackageIds.has(pkg._id)) return;
+
+    setRefreshingPackageIds((current) => {
+      const next = new Set(current);
+      next.add(pkg._id);
+      return next;
+    });
+    setRefreshResult(null);
+
+    try {
+      await refreshSinglePackage({ packageId: pkg._id });
+      setRefreshResult(`Refreshed ${pkg.componentName || pkg.name}`);
+    } catch {
+      setRefreshResult(`Failed to refresh ${pkg.componentName || pkg.name}`);
+    } finally {
+      setRefreshingPackageIds((current) => {
+        const next = new Set(current);
+        next.delete(pkg._id);
+        return next;
+      });
       setTimeout(() => setRefreshResult(null), 5000);
     }
   };
@@ -566,14 +596,6 @@ export default function Dashboard() {
                 >
                   <FunnelSimple size={14} />
                   Filters
-                </button>
-                <button
-                  onClick={handleRefresh}
-                  disabled={refreshing}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm border border-border bg-white text-text-secondary hover:border-gray-400 transition-colors disabled:opacity-50"
-                >
-                  <ArrowsClockwise size={14} className={refreshing ? "animate-spin" : ""} />
-                  {refreshing ? "Refreshing..." : "Refresh npm data"}
                 </button>
               </div>
             </div>
@@ -858,6 +880,14 @@ export default function Dashboard() {
                     Click headers to sort
                   </div>
                   <button
+                    onClick={handleRefresh}
+                    disabled={refreshing}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border border-border bg-white text-text-secondary hover:border-gray-400 hover:text-text-primary transition-colors disabled:opacity-50"
+                  >
+                    <ArrowsClockwise size={12} className={refreshing ? "animate-spin" : ""} />
+                    {refreshing ? "Refreshing..." : "Refresh all"}
+                  </button>
+                  <button
                     onClick={() => {
                       const rows = buildExportRows(filteredPackages, resolveAuthor, isConvexTeamPackage);
                       downloadCsv(rows);
@@ -911,6 +941,7 @@ export default function Dashboard() {
                         const isTeam = isConvexTeamPackage(pkg);
                         const author = resolveAuthor(pkg);
                         const avatar = resolveAvatar(pkg);
+                        const isRefreshingPackage = refreshingPackageIds.has(pkg._id);
                         return (
                           <tr key={pkg._id} className="border-b border-border last:border-b-0 hover:bg-gray-50/50 transition-colors">
                             <td className="py-2 px-3">
@@ -945,8 +976,23 @@ export default function Dashboard() {
                             <td className="py-2 px-3 text-sm text-text-secondary">
                               {formatDate(pkg.submittedAt || pkg._creationTime)}
                             </td>
-                            <td className="py-2 px-3 text-sm text-text-primary text-right font-mono">
-                              {formatNumber(pkg.weeklyDownloads)}
+                            <td className="py-2 px-3 text-sm text-text-primary">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <span className="font-mono">{formatNumber(pkg.weeklyDownloads)}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRefreshPackage(pkg)}
+                                  disabled={isRefreshingPackage}
+                                  title={`Refresh npm data for ${pkg.componentName || pkg.name}`}
+                                  aria-label={`Refresh npm data for ${pkg.componentName || pkg.name}`}
+                                  className="inline-flex items-center justify-center rounded-md border border-border bg-white p-1 text-text-secondary transition-colors hover:border-gray-400 hover:text-text-primary disabled:opacity-50"
+                                >
+                                  <ArrowsClockwise
+                                    size={12}
+                                    className={isRefreshingPackage ? "animate-spin" : ""}
+                                  />
+                                </button>
+                              </div>
                             </td>
                             <td className="py-2 px-3 text-sm text-text-secondary">
                               {new Date(pkg.lastPublish).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}

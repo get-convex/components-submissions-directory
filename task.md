@@ -1,5 +1,19 @@
 # Task List
 
+## completed
+
+Session updates complete on 2026-04-15 02:11 UTC.
+
+- [x] Fix directory download sync after npm refreshes (2026-04-15 02:11 UTC)
+  - PRD: `prds/dashboard-refresh-and-directory-download-sync.md`
+  - Added focus, visibility, and page-show refetch hooks in `src/pages/Directory.tsx` so one-shot directory data picks up refreshed npm counts without restoring full live subscriptions.
+  - Verification: `npm run build`
+
+- [x] Add dashboard package refresh controls (2026-04-15 02:11 UTC)
+  - PRD: `prds/dashboard-refresh-and-directory-download-sync.md`
+  - Added a per-package refresh icon beside weekly downloads and a bulk `Refresh all` control beside CSV in `src/pages/Dashboard.tsx`, both reusing the existing safe admin refresh actions.
+  - Verification: `npm run build`
+
 ## to do
 
 - [x] Add spacing above Keywords section on ComponentDetail when code is present (2026-04-14 13:35 UTC)

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Directory download counts now refetch when the page becomes active again (2026-04-15 02:11 UTC)
+  - `src/pages/Directory.tsx` keeps the one-shot Convex fetch strategy but now re-queries on window focus, page show, and tab visibility restore
+  - This lets refreshed npm counts show up after admin-triggered updates without bringing back a full reactive subscription
+
 - Added spacing above Keywords section on component detail page (2026-04-14)
   - Keywords block now has `mt-8` so it separates from code blocks or other content above it
   - File: `src/pages/ComponentDetail.tsx`
@@ -25,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Cleaned up `convex/dashboard.ts` return value and `src/pages/Dashboard.tsx` UI
 
 ### Added
+
+- Dashboard package refresh controls for safer npm updates (2026-04-15 02:11 UTC)
+  - Added a per-package refresh icon beside `Wk Downloads` in `src/pages/Dashboard.tsx`
+  - Added a bulk `Refresh all` control beside CSV export that reuses the existing approved-package batched refresh action
+  - Keeps the existing npm-safe scheduler behavior instead of introducing a more aggressive refresh pattern
 
 - All-time download tracking for packages (2026-04-14)
   - New `allTimeDownloads` optional field on packages schema
