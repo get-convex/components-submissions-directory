@@ -49,6 +49,7 @@ export default function SubmitCheck() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<PreflightResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showWarning, setShowWarning] = useState(false);
 
   // Auto-redirect to sign-in when unauthenticated
   useEffect(() => {
@@ -63,7 +64,8 @@ export default function SubmitCheck() {
     return pattern.test(url);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Validate inputs then open the usage warning modal
+  const handleOpenWarning = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setResult(null);
@@ -78,6 +80,12 @@ export default function SubmitCheck() {
       return;
     }
 
+    setShowWarning(true);
+  };
+
+  // Runs the preflight check after the user confirms the warning modal
+  const runPreflightCheck = async () => {
+    setError(null);
     setIsLoading(true);
 
     try {
@@ -121,6 +129,7 @@ export default function SubmitCheck() {
       setError("Failed to connect to the preflight service. Please try again.");
     } finally {
       setIsLoading(false);
+      setShowWarning(false);
     }
   };
 
@@ -166,7 +175,7 @@ export default function SubmitCheck() {
         {/* Form or Results */}
         {!result ? (
           <div className="bg-white border border-border rounded-lg p-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleOpenWarning} className="space-y-4">
               {/* GitHub Repository URL */}
               <div>
                 <label className="block text-sm font-medium text-text-primary mb-1">
@@ -264,6 +273,93 @@ export default function SubmitCheck() {
             basePath={basePath}
           />
         )}
+      </div>
+
+      {/* Usage warning shown before the check runs */}
+      {showWarning && (
+        <PreflightWarningModal
+          onClose={() => setShowWarning(false)}
+          onConfirm={runPreflightCheck}
+          isLoading={isLoading}
+        />
+      )}
+    </div>
+  );
+}
+
+// Confirmation modal that surfaces the rate limit and cache behavior
+function PreflightWarningModal({
+  onClose,
+  onConfirm,
+  isLoading,
+}: {
+  onClose: () => void;
+  onConfirm: () => void;
+  isLoading: boolean;
+}) {
+  // Close on ESC unless a request is in flight
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isLoading) onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, isLoading]);
+
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex: 2147483647 }}>
+      <div
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={isLoading ? undefined : onClose}
+      />
+      <div className="relative w-full max-w-md p-6 rounded-lg bg-white border border-border shadow-lg">
+        <button
+          onClick={onClose}
+          disabled={isLoading}
+          className="absolute top-3 right-3 p-1 rounded-full text-text-secondary hover:bg-bg-hover disabled:opacity-50">
+          <XCircle size={16} />
+        </button>
+        <div className="flex items-start gap-3">
+          <div className="shrink-0 text-amber-600">
+            <Warning size={22} weight="fill" />
+          </div>
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-lg font-medium text-text-primary">Run preflight check</h3>
+              <p className="mt-1 text-sm text-text-secondary">
+                This analysis checks your repository against Convex component requirements. It is
+                limited to 10 checks per hour per IP. Results for the same repository are cached for
+                30 minutes, so re-running within that window returns the cached result and does not
+                count against your limit.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onConfirm}
+                disabled={isLoading}
+                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                {isLoading ? (
+                  <>
+                    <Spinner size={14} className="animate-spin mr-2" />
+                    Running...
+                  </>
+                ) : (
+                  "Continue"
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isLoading}
+                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -433,7 +529,9 @@ function CriterionRow({ criterion }: { criterion: PreflightCriterion }) {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-text-primary">{criterion.name}</p>
           {isExpanded && (
-            <p className="text-sm text-text-secondary mt-1 whitespace-pre-wrap">{criterion.notes}</p>
+            <p className="text-sm text-text-secondary mt-1 whitespace-pre-wrap">
+              {criterion.notes}
+            </p>
           )}
         </div>
         <div className="shrink-0 text-text-secondary">

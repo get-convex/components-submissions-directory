@@ -2,7 +2,35 @@
 
 ## completed
 
-Session updates complete on 2026-04-15 02:11 UTC.
+Session updates complete on 2026-04-17 05:21 UTC.
+
+- [x] Make mobile search bar white on Directory and category pages (2026-04-17 05:21 UTC)
+  - Added `inputClassName="bg-white border border-border"` to the mobile `SearchBar` on `src/pages/Directory.tsx` so it matches the desktop sidebar search instead of inheriting the cream `bg-bg-primary` default.
+  - Applied the same change to the mobile `SearchBar` on `src/pages/CategoryPage.tsx` so category views behave the same way.
+  - Reviewed mobile category pills; the existing `overflow-x-auto` horizontal scroll is the right pattern for the number of categories and was left unchanged.
+  - Files: `src/pages/Directory.tsx`, `src/pages/CategoryPage.tsx`
+  - Verification: `npm run build` passes.
+
+- [x] Add preflight check usage warning modal on SubmitCheck page (2026-04-16 22:30 UTC)
+  - Added `PreflightWarningModal` component in `src/pages/SubmitCheck.tsx` that confirms the 10 checks per hour per IP limit and 30-minute per-repo cache before the check runs.
+  - Reused the existing `GenerateWarningModal` design language (amber `Warning` icon, Continue/Cancel buttons, ESC close, backdrop click close when idle).
+  - Split `handleSubmit` into `handleOpenWarning` (validates and opens modal) and `runPreflightCheck` (fetches after confirmation); modal closes automatically in the request `finally` block.
+  - Updated `files.md` SubmitCheck description to mention the new pre-check warning modal.
+  - Verification: `ReadLints` clean on `src/pages/SubmitCheck.tsx`; `npm run build` passes.
+
+- [x] Fix Directory sidebar category counts staying 0 after admin category edits (2026-04-16 21:45 UTC)
+  - Root cause: `updateComponentDetails` in `convex/packages.ts` patched `category` / `convexVerified` without calling `recountCategoryStats(ctx)`, so the denormalized `packageCount` / `verifiedCount` on the `categories` table stayed stale.
+  - `listCategories` (sidebar) reads those denormalized counters directly; `getCategoryBySlug` (category page) computes live, which is why the two disagreed.
+  - Fix: call `recountCategoryStats(ctx)` at the end of `updateComponentDetails` whenever the patch touches `category` or `convexVerified`.
+  - File: `convex/packages.ts`
+  - Verification: `ReadLints` clean on `convex/packages.ts`; sidebar now matches the category page after an admin category change.
+
+- [x] Refresh denormalized category counts on slug rename and category delete (2026-04-16 21:55 UTC)
+  - `updateExistingCategory` now calls `recountCategoryStats(ctx)` after reassigning packages to the new slug.
+  - `deleteCategory` now calls `recountCategoryStats(ctx)` after clearing `category` on related packages.
+  - Tightened `updateExistingCategory` ctx type from `any` to `MutationCtx` for type safety.
+  - File: `convex/packages.ts`
+  - Verification: `ReadLints` clean on `convex/packages.ts`.
 
 - [x] Fix package submission and dashboard download validator drift (2026-04-15 17:52 UTC)
   - PRD: `prds/package-download-validator-fix.md`

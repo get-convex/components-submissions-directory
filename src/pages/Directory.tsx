@@ -283,6 +283,7 @@ export default function Directory() {
                   value={searchTerm}
                   onChange={setSearchTerm}
                   placeholder="Search components..."
+                  inputClassName="bg-white border border-border"
                 />
               </div>
               <div ref={mobileSortRef} className="relative">

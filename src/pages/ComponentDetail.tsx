@@ -573,8 +573,10 @@ function SecurityReportModal({
             </section>
           )}
 
-          {/* Providers */}
-          {Object.entries(scanData.providerStatuses).some(([, v]) => v) && (
+          {/* Providers - only show known providers with a public URL (e.g. socket, snyk) */}
+          {Object.entries(scanData.providerStatuses).some(
+            ([key, v]) => v && providerUrls[key],
+          ) && (
             <section>
               <h3 className="text-xs font-medium uppercase tracking-wider text-text-primary mb-2">
                 Providers
@@ -585,24 +587,21 @@ function SecurityReportModal({
               <div className="space-y-1">
                 {Object.entries(scanData.providerStatuses).map(([key, status]) => {
                   if (!status) return null;
-                  const providerLabel = providerNames[key] || key;
                   const providerUrl = providerUrls[key];
+                  if (!providerUrl) return null;
+                  const providerLabel = providerNames[key] || key;
                   return (
                     <div key={key} className="text-sm">
-                      {providerUrl ? (
-                        <a
-                          href={providerUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-text-primary hover:underline"
-                          title={`Open ${providerLabel} to run your own scan`}
-                        >
-                          {providerLabel}
-                          <ExternalLinkIcon className="w-3 h-3 text-text-secondary" />
-                        </a>
-                      ) : (
-                        <span className="text-text-primary">{providerLabel}</span>
-                      )}
+                      <a
+                        href={providerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-text-primary hover:underline"
+                        title={`Open ${providerLabel} to run your own scan`}
+                      >
+                        {providerLabel}
+                        <ExternalLinkIcon className="w-3 h-3 text-text-secondary" />
+                      </a>
                     </div>
                   );
                 })}

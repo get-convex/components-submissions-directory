@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Mobile search bar now matches the desktop white background on the Directory and category landing pages (2026-04-17 05:21 UTC)
+  - `src/pages/Directory.tsx` mobile `SearchBar` now receives `inputClassName="bg-white border border-border"` so it renders white like the desktop sidebar search instead of inheriting the cream `bg-bg-primary` default
+  - `src/pages/CategoryPage.tsx` mobile `SearchBar` got the same treatment for consistent behavior inside category views (e.g. `/components/categories/authentication`)
+  - Horizontal scrolling category pills on mobile were reviewed and left as-is (standard pattern, preserves vertical space and discoverability with the peek affordance)
+  - Files: `src/pages/Directory.tsx`, `src/pages/CategoryPage.tsx`
+
+### Added
+
+- Preflight check usage warning modal on SubmitCheck page (2026-04-16 22:30 UTC)
+  - New `PreflightWarningModal` in `src/pages/SubmitCheck.tsx` surfaces the 10 checks per hour per IP rate limit and the 30-minute per-repo cache before a check runs
+  - Design matches the `GenerateWarningModal` pattern used in `src/pages/SubmitForm.tsx` (amber `Warning` icon, same card, Continue/Cancel buttons, ESC to close, backdrop click to close unless a request is in flight)
+  - Split the existing `handleSubmit` into `handleOpenWarning` (validates the repo URL and opens the modal) and `runPreflightCheck` (performs the authenticated fetch after the user confirms)
+  - No backend changes: the rate limit (`MAX_CHECKS_PER_HOUR = 10`) and cache window (`CACHE_DURATION_MS = 30 * 60 * 1000`) in `convex/preflight.ts` are unchanged
+
+### Fixed
+
+- Directory sidebar category counts now refresh when an admin reassigns a component's category (2026-04-16 21:45 UTC)
+  - `convex/packages.ts` `updateComponentDetails` now calls `recountCategoryStats(ctx)` whenever `category` or `convexVerified` changes in the patch
+  - Without this, the denormalized `packageCount` / `verifiedCount` on the `categories` table stayed stale, so the Directory sidebar showed 0 even though the category landing page computed live and showed the real count
+  - Only the sidebar query `listCategories` relied on the denormalized counters, which is why it disagreed with `getCategoryBySlug`
+
+- Category slug rename and delete also refresh denormalized sidebar counts (2026-04-16 21:55 UTC)
+  - `updateExistingCategory` in `convex/packages.ts` now calls `recountCategoryStats(ctx)` after it reassigns packages to the new slug during a rename
+  - `deleteCategory` now calls `recountCategoryStats(ctx)` after it sets `category` to `undefined` on related packages
+  - Prevents the same stale sidebar count class of bug after admin category rename or deletion
+  - Also tightened `updateExistingCategory` ctx type from `any` to `MutationCtx`
+
 - Package submission no longer crashes when npm metadata includes all time downloads (2026-04-15 17:52 UTC)
   - Added the missing `allTimeDownloads` validator and persistence to the submit and npm update paths in `convex/packages.ts`
   - This fixes the `ArgumentValidationError` thrown by `packages:submitPackage` when `_addPackage` received the extra field from npm metadata

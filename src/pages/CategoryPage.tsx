@@ -301,6 +301,7 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
                   value={searchTerm}
                   onChange={setSearchTerm}
                   placeholder={`Search in ${categoryData?.label || "category"}...`}
+                  inputClassName="bg-white border border-border"
                 />
               </div>
               <div ref={mobileSortRef} className="relative">

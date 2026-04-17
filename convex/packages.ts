@@ -5552,6 +5552,13 @@ export const updateComponentDetails = mutation({
     if (Object.keys(patch).length > 0) {
       await ctx.db.patch(packageId, patch);
     }
+    // Refresh denormalized category counts whenever a field that affects them changes.
+    // Without this, sidebar counts (packageCount/verifiedCount) stay stale after edits.
+    const affectsCategoryCounts =
+      "category" in patch || "convexVerified" in patch;
+    if (affectsCategoryCounts) {
+      await recountCategoryStats(ctx);
+    }
     return null;
   },
 });
@@ -6015,7 +6022,7 @@ export const listAllDirectoryCategories = query({
 
 // Admin: Create or update a category
 async function updateExistingCategory(
-  ctx: any,
+  ctx: MutationCtx,
   id: Id<"categories">,
   normalizedSlug: string,
   data: { label: string; description: string; sortOrder: number; enabled: boolean },
@@ -6026,9 +6033,11 @@ async function updateExistingCategory(
   if (existing.slug !== normalizedSlug) {
     const related = await ctx.db
       .query("packages")
-      .withIndex("by_category_and_visibility", (q: any) => q.eq("category", existing.slug))
+      .withIndex("by_category_and_visibility", (q) => q.eq("category", existing.slug))
       .take(10000);
-    await Promise.all(related.map((pkg: any) => ctx.db.patch(pkg._id, { category: normalizedSlug })));
+    await Promise.all(related.map((pkg) => ctx.db.patch(pkg._id, { category: normalizedSlug })));
+    // Slug rename moves packages between category keys; refresh denormalized counts.
+    await recountCategoryStats(ctx);
   }
   return id;
 }
@@ -6087,6 +6096,8 @@ export const deleteCategory = mutation({
     );
 
     await ctx.db.delete(args.id);
+    // Packages were unassigned; refresh denormalized counts on remaining categories.
+    await recountCategoryStats(ctx);
     return null;
   },
 });
