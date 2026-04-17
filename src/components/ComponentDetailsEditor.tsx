@@ -210,9 +210,6 @@ export function ComponentDetailsEditor({
   useEffect(() => {
     setThumbnailUrl(initialThumbUrl || "");
     setSavedThumbnailUrl(initialThumbUrl || "");
-    // #region agent log
-    fetch("http://127.0.0.1:7557/ingest/496d4f8a-92e4-4a9c-a7be-0c1a3758fbbe",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"10e84f"},body:JSON.stringify({sessionId:"10e84f",runId:"pre-fix",hypothesisId:"H4",location:"src/components/ComponentDetailsEditor.tsx:210",message:"thumbnail prop synced into editor state",data:{packageId,initialThumbUrl:initialThumbUrl ?? null},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
   }, [initialThumbUrl]);
 
   useEffect(() => {
@@ -453,18 +450,9 @@ export function ComponentDetailsEditor({
         args.templateId = selectedGenTemplate as Id<"thumbnailTemplates">;
       }
 
-      // #region agent log
-      fetch("http://127.0.0.1:7557/ingest/496d4f8a-92e4-4a9c-a7be-0c1a3758fbbe",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"10e84f"},body:JSON.stringify({sessionId:"10e84f",runId:"pre-fix",hypothesisId:"H1",location:"src/components/ComponentDetailsEditor.tsx:453",message:"generate thumbnail requested from editor",data:{packageId,selectedGenTemplate:selectedGenTemplate || null,hasLogoUrl:Boolean(logoUrl),currentThumbnailUrl:thumbnailUrl || null},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       await generateThumbnail(args);
-      // #region agent log
-      fetch("http://127.0.0.1:7557/ingest/496d4f8a-92e4-4a9c-a7be-0c1a3758fbbe",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"10e84f"},body:JSON.stringify({sessionId:"10e84f",runId:"pre-fix",hypothesisId:"H1",location:"src/components/ComponentDetailsEditor.tsx:455",message:"generate thumbnail action returned to editor",data:{packageId,selectedGenTemplate:selectedGenTemplate || null},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       toast.success("Thumbnail generation started");
     } catch (error) {
-      // #region agent log
-      fetch("http://127.0.0.1:7557/ingest/496d4f8a-92e4-4a9c-a7be-0c1a3758fbbe",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"10e84f"},body:JSON.stringify({sessionId:"10e84f",runId:"pre-fix",hypothesisId:"H1",location:"src/components/ComponentDetailsEditor.tsx:458",message:"generate thumbnail action threw in editor",data:{packageId,error:error instanceof Error ? error.message : "unknown"},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       const msg = error instanceof Error ? error.message : "Generation failed";
       toast.error(msg);
     } finally {

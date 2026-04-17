@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Removed leftover agent debug telemetry posting to `http://127.0.0.1:7557/ingest/...` from the thumbnail generator and component editor (2026-04-16 22:50 UTC)
+  - `convex/thumbnailGenerator.ts` had four fire-and-forget `fetch` calls inside `_generateThumbnailForPackage` (resolve prereqs, compose/upload, save metadata, on-error) that targeted a local agent ingest server from a prior debugging session (`sessionId:"10e84f"`, runId `"pre-fix"`)
+  - `src/components/ComponentDetailsEditor.tsx` had four matching client-side calls in the thumbnail sync `useEffect` and `handleGenerateThumbnail` (request, success, error)
+  - Browser copies were surfacing `net::ERR_CONNECTION_REFUSED` in the DevTools console on every editor mount and every Generate Thumbnail click; Convex copies were silently failing every admin thumbnail run since Node runtime cannot reach the developer's loopback
+  - Safe to remove: every call was wrapped in `.catch(()=>{})`, nothing awaited the response, no logic branched on success, and the added code was bracketed by `// #region agent log` / `// #endregion` markers
+  - Verified with `rg "127.0.0.1:7557"` returning zero matches; remaining lint errors in both files are pre-existing (Buffer/Blob type mismatch, ReactMarkdown `Components` JSX namespace) and unrelated to this cleanup
+  - Files: `convex/thumbnailGenerator.ts`, `src/components/ComponentDetailsEditor.tsx`
+
 - Mobile search bar now matches the desktop white background on the Directory and category landing pages (2026-04-17 05:21 UTC)
   - `src/pages/Directory.tsx` mobile `SearchBar` now receives `inputClassName="bg-white border border-border"` so it renders white like the desktop sidebar search instead of inheriting the cream `bg-bg-primary` default
   - `src/pages/CategoryPage.tsx` mobile `SearchBar` got the same treatment for consistent behavior inside category views (e.g. `/components/categories/authentication`)

@@ -97,16 +97,8 @@ export const _generateThumbnailForPackage = internalAction({
         resolveTemplate(ctx, args.templateId),
       ]);
 
-      // #region agent log
-      fetch("http://127.0.0.1:7557/ingest/496d4f8a-92e4-4a9c-a7be-0c1a3758fbbe",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"10e84f"},body:JSON.stringify({sessionId:"10e84f",runId:"pre-fix",hypothesisId:"H2",location:"convex/thumbnailGenerator.ts:99",message:"manual thumbnail worker resolved template and logo prereqs",data:{packageId:args.packageId,jobId,requestedTemplateId:args.templateId ?? null,resolvedTemplateId:template._id,hasLogoData:Boolean(logoData),logoStorageId:logoData?.logoStorageId ?? null},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
-
       const logoPngBuffer = await loadLogoPngBuffer(ctx, logoData);
       const storageId = await composeAndUploadThumbnail(ctx, template, logoPngBuffer);
-
-      // #region agent log
-      fetch("http://127.0.0.1:7557/ingest/496d4f8a-92e4-4a9c-a7be-0c1a3758fbbe",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"10e84f"},body:JSON.stringify({sessionId:"10e84f",runId:"pre-fix",hypothesisId:"H3",location:"convex/thumbnailGenerator.ts:103",message:"manual thumbnail worker composed and uploaded image",data:{packageId:args.packageId,jobId,resolvedTemplateId:template._id,hasLogoPngBuffer:Boolean(logoPngBuffer),storageId},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
 
       await ctx.runMutation(internal.thumbnails._saveGeneratedThumbnail, {
         packageId: args.packageId,
@@ -115,15 +107,9 @@ export const _generateThumbnailForPackage = internalAction({
         generatedBy: "admin",
       });
 
-      // #region agent log
-      fetch("http://127.0.0.1:7557/ingest/496d4f8a-92e4-4a9c-a7be-0c1a3758fbbe",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"10e84f"},body:JSON.stringify({sessionId:"10e84f",runId:"pre-fix",hypothesisId:"H1",location:"convex/thumbnailGenerator.ts:111",message:"manual thumbnail worker saved package thumbnail metadata",data:{packageId:args.packageId,jobId,storageId,templateId:template._id},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       await ctx.runMutation(internal.thumbnails._updateThumbnailJob, { jobId, status: "completed" });
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Unknown error";
-      // #region agent log
-      fetch("http://127.0.0.1:7557/ingest/496d4f8a-92e4-4a9c-a7be-0c1a3758fbbe",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"10e84f"},body:JSON.stringify({sessionId:"10e84f",runId:"pre-fix",hypothesisId:"H1",location:"convex/thumbnailGenerator.ts:115",message:"manual thumbnail worker failed",data:{packageId:args.packageId,jobId,error:msg},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       await ctx.runMutation(internal.thumbnails._updateThumbnailJob, { jobId, status: "failed", error: msg });
       throw error;
     }
