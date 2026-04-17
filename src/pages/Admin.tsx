@@ -380,7 +380,7 @@ function PackageComponentDetailsEditor({
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="mt-4 p-3 rounded-lg bg-bg-hover/30 border border-border">
+    <div className="mt-4 rounded-lg border border-border bg-bg-hover/30 p-2.5 sm:p-3">
       <div
         role="button"
         tabIndex={0}
@@ -391,9 +391,9 @@ function PackageComponentDetailsEditor({
             setIsOpen((prev) => !prev);
           }
         }}
-        className="flex items-center justify-between gap-3 cursor-pointer select-none"
+        className="flex items-start justify-between gap-2 sm:gap-3 cursor-pointer select-none"
       >
-        <div>
+        <div className="min-w-0 flex-1">
           <h4 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
             Component Details
           </h4>
@@ -401,8 +401,13 @@ function PackageComponentDetailsEditor({
             Edit submitter provided component details.
           </p>
         </div>
-        <span className="px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors">
-          {isOpen ? "Hide editor" : "Edit details"}
+        <span className="shrink-0 whitespace-nowrap px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors">
+          {isOpen ? "Hide" : (
+            <>
+              <span className="sm:hidden">Edit</span>
+              <span className="hidden sm:inline">Edit details</span>
+            </>
+          )}
         </span>
       </div>
 
@@ -528,9 +533,9 @@ function SubmitterEmailEditor({
         {(submitterName || submitterDiscord) && (
           <div className="flex flex-wrap items-center gap-3 p-2 rounded-lg bg-bg-hover/50 text-xs">
             {submitterName && (
-              <span className="flex items-center gap-1 text-text-secondary">
+              <span className="flex min-w-0 items-center gap-1 text-text-secondary">
                 <User size={12} />
-                {submitterName}
+                <span className="break-words">{submitterName}</span>
                 <button
                   type="button"
                   onClick={(e) => {
@@ -545,9 +550,9 @@ function SubmitterEmailEditor({
               </span>
             )}
             {submitterDiscord && (
-              <span className="flex items-center gap-1 text-text-secondary">
+              <span className="flex min-w-0 items-center gap-1 text-text-secondary">
                 <DiscordLogo size={12} />
-                {submitterDiscord}
+                <span className="break-words">{submitterDiscord}</span>
                 <button
                   type="button"
                   onClick={(e) => {
@@ -565,14 +570,14 @@ function SubmitterEmailEditor({
         )}
         {/* Email row */}
         <div className="flex flex-wrap items-center gap-3 p-2 rounded-lg bg-bg-hover/50 text-xs">
-          <span className="flex items-center gap-1 text-text-secondary">
+          <span className="flex min-w-0 items-center gap-1 text-text-secondary">
             <Envelope size={12} />
             <span className="font-medium">Primary:</span>
             {submitterEmail ? (
-              <span className="flex items-center gap-1">
+              <span className="flex min-w-0 items-center gap-1">
                 <a
                   href={`mailto:${submitterEmail}`}
-                  className="hover:text-text-primary"
+                  className="break-all hover:text-text-primary"
                   onClick={(e) => e.stopPropagation()}>
                   {submitterEmail}
                 </a>
@@ -593,10 +598,10 @@ function SubmitterEmailEditor({
             )}
           </span>
           {additionalEmails && additionalEmails.length > 0 && (
-            <span className="flex items-center gap-1 text-text-secondary">
+            <span className="flex min-w-0 items-center gap-1 text-text-secondary">
               <Plus size={10} />
               <span className="font-medium">Additional:</span>
-              {additionalEmails.join(", ")}
+              <span className="break-all">{additionalEmails.join(", ")}</span>
             </span>
           )}
           <button
@@ -615,10 +620,10 @@ function SubmitterEmailEditor({
 
   return (
     <div
-      className="p-3 rounded-lg bg-bg-hover/50 space-y-3"
+      className="min-w-0 overflow-hidden p-3 rounded-lg bg-bg-hover/50 space-y-3"
       onClick={(e) => e.stopPropagation()}>
       <div className="text-xs font-medium text-text-primary">Edit Submitter Info</div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs text-text-secondary mb-1">Name</label>
           <input
@@ -667,7 +672,7 @@ function SubmitterEmailEditor({
           Users can access this submission from their profile using any of these emails.
         </p>
       </div>
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <button
           onClick={() => setIsEditing(false)}
           disabled={isSaving}
@@ -701,7 +706,7 @@ function AuthorToggleSection({
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="mb-3 p-3 rounded-lg bg-bg-hover/30 border border-border">
+    <div className="mb-3 rounded-lg border border-border bg-bg-hover/30 p-2.5 sm:p-3">
       <div
         role="button"
         tabIndex={0}
@@ -712,9 +717,9 @@ function AuthorToggleSection({
             setIsOpen((prev) => !prev);
           }
         }}
-        className="flex items-center justify-between gap-3 cursor-pointer select-none"
+        className="flex items-start justify-between gap-2 sm:gap-3 cursor-pointer select-none"
       >
-        <div>
+        <div className="min-w-0 flex-1">
           <h4 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
             Component Author
           </h4>
@@ -722,13 +727,18 @@ function AuthorToggleSection({
             Submitter name, email, and contact info.
           </p>
         </div>
-        <span className="px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors">
-          {isOpen ? "Hide author" : "Show author"}
+        <span className="shrink-0 whitespace-nowrap px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors">
+          {isOpen ? "Hide" : (
+            <>
+              <span className="sm:hidden">Show</span>
+              <span className="hidden sm:inline">Show author</span>
+            </>
+          )}
         </span>
       </div>
 
       {isOpen && (
-        <div className="mt-3">
+        <div className="mt-2.5 sm:mt-3">
           <SubmitterEmailEditor
             packageId={packageId}
             submitterEmail={submitterEmail}
@@ -818,7 +828,7 @@ function PackageMetadataEditor({
   };
 
   return (
-    <div className="mt-3 p-3 rounded-lg bg-bg-hover/30 border border-border">
+    <div className="mt-3 rounded-lg border border-border bg-bg-hover/30 p-2.5 sm:p-3">
       <div
         role="button"
         tabIndex={0}
@@ -829,9 +839,9 @@ function PackageMetadataEditor({
             setIsOpen((prev) => !prev);
           }
         }}
-        className="flex items-center justify-between gap-3 cursor-pointer select-none"
+        className="flex items-start justify-between gap-2 sm:gap-3 cursor-pointer select-none"
       >
-        <div>
+        <div className="min-w-0 flex-1">
           <h4 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
             Package Metadata
           </h4>
@@ -839,13 +849,18 @@ function PackageMetadataEditor({
             Manual override for npm and repository sourced fields.
           </p>
         </div>
-        <span className="px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors">
-          {isOpen ? "Hide editor" : "Edit metadata"}
+        <span className="shrink-0 whitespace-nowrap px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors">
+          {isOpen ? "Hide" : (
+            <>
+              <span className="sm:hidden">Edit</span>
+              <span className="hidden sm:inline">Edit metadata</span>
+            </>
+          )}
         </span>
       </div>
 
       {isOpen && (
-        <div className="mt-3 space-y-3">
+        <div className="mt-3 min-w-0 overflow-hidden space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="sm:col-span-2">
               <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
@@ -985,7 +1000,7 @@ function PackageMetadataEditor({
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
             <button
               type="button"
               onClick={() => {
@@ -1069,7 +1084,7 @@ function ComponentDetailQuickLink({ slug }: { slug?: string }) {
         rel="noopener noreferrer"
         onClick={(e) => e.stopPropagation()}
         aria-label="Open component detail page in a new tab"
-        className="inline-flex items-center text-text-secondary hover:text-text-primary transition-colors"
+        className="inline-flex items-center self-center shrink-0 text-text-secondary hover:text-text-primary transition-colors"
       >
         <RadixExternalLinkIcon className="w-3.5 h-3.5" />
       </a>
@@ -1290,35 +1305,45 @@ function NotesPanel({
       />
       <div className="relative w-full max-w-lg max-h-[80vh] flex flex-col rounded-container bg-white border border-border shadow-lg">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
-          <div>
-            <h3 className="text-lg font-normal text-text-primary">
-              Admin Notes
-              {unreadNotesCount !== undefined && unreadNotesCount > 0 && (
-                <span className="ml-2 px-1.5 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-600">
-                  {unreadNotesCount} unread
-                </span>
-              )}
-            </h3>
-            <p className="text-xs text-text-secondary truncate max-w-xs">
-              {packageName}
-            </p>
-            <p className="text-xs text-orange-600 mt-1">
-              Internal only. Not visible to users.
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border-b border-border shrink-0">
+          <div className="flex items-start justify-between gap-2 sm:block">
+            <div className="min-w-0">
+              <h3 className="text-lg font-normal text-text-primary flex items-center gap-2 flex-wrap">
+                <span>Admin Notes</span>
+                {unreadNotesCount !== undefined && unreadNotesCount > 0 && (
+                  <span className="px-1.5 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-600">
+                    {unreadNotesCount} unread
+                  </span>
+                )}
+              </h3>
+              <p className="text-xs text-text-secondary truncate max-w-xs">
+                {packageName}
+              </p>
+              <p className="text-xs text-orange-600 mt-1">
+                Internal only. Not visible to users.
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="sm:hidden shrink-0 p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
+              aria-label="Close"
+            >
+              <X size={20} />
+            </button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2 flex-wrap">
             {unreadNotesCount !== undefined && unreadNotesCount > 0 && (
               <button
                 onClick={() => markNotesRead({ packageId })}
-                className="px-3 py-1.5 text-xs rounded-full border border-border bg-white text-text-primary hover:bg-bg-hover transition-colors"
+                className="px-3 py-1.5 text-xs font-medium rounded-full border border-border bg-white text-text-primary hover:bg-bg-hover transition-colors whitespace-nowrap shrink-0"
               >
                 Mark all read
               </button>
             )}
             <button
               onClick={onClose}
-              className="p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
+              className="hidden sm:inline-flex p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
+              aria-label="Close"
             >
               <X size={20} />
             </button>
@@ -1339,25 +1364,25 @@ function NotesPanel({
             topLevelNotes.map((note) => (
               <div key={note._id} className="space-y-2">
                 {/* Main note */}
-                <div className="p-3 rounded-lg bg-bg-hover/50 border border-border">
+                <div className="p-3 rounded-lg bg-bg-hover/50 border border-border overflow-hidden">
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2 text-xs text-text-secondary">
-                      <User size={12} />
-                      <span className="font-medium">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-secondary min-w-0">
+                      <User size={12} className="shrink-0" />
+                      <span className="font-medium whitespace-nowrap">
                         {note.authorName || note.authorEmail.split("@")[0]}
                       </span>
-                      <span>{formatNoteDate(note.createdAt)}</span>
+                      <span className="whitespace-nowrap">{formatNoteDate(note.createdAt)}</span>
                     </div>
                     {note.authorEmail === userEmail && (
                       <button
                         onClick={() => handleDeleteNote(note._id)}
-                        className="text-text-secondary hover:text-red-600 transition-colors"
+                        className="shrink-0 text-text-secondary hover:text-red-600 transition-colors"
                       >
                         <X size={14} />
                       </button>
                     )}
                   </div>
-                  <p className="text-sm text-text-primary whitespace-pre-wrap">
+                  <p className="text-sm text-text-primary whitespace-pre-wrap break-words">
                     {note.content}
                   </p>
                   <div className="mt-2 flex items-center gap-2">
@@ -1384,27 +1409,27 @@ function NotesPanel({
                     {getReplies(note._id).map((reply) => (
                       <div
                         key={reply._id}
-                        className="p-2 rounded-lg bg-bg-primary border border-border"
+                        className="p-2 rounded-lg bg-bg-primary border border-border overflow-hidden"
                       >
                         <div className="flex items-start justify-between gap-2 mb-1">
-                          <div className="flex items-center gap-2 text-xs text-text-secondary">
-                            <User size={10} />
-                            <span className="font-medium">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-secondary min-w-0">
+                            <User size={10} className="shrink-0" />
+                            <span className="font-medium whitespace-nowrap">
                               {reply.authorName ||
                                 reply.authorEmail.split("@")[0]}
                             </span>
-                            <span>{formatNoteDate(reply.createdAt)}</span>
+                            <span className="whitespace-nowrap">{formatNoteDate(reply.createdAt)}</span>
                           </div>
                           {reply.authorEmail === userEmail && (
                             <button
                               onClick={() => handleDeleteNote(reply._id)}
-                              className="text-text-secondary hover:text-red-600 transition-colors"
+                              className="shrink-0 text-text-secondary hover:text-red-600 transition-colors"
                             >
                               <X size={12} />
                             </button>
                           )}
                         </div>
-                        <p className="text-sm text-text-primary whitespace-pre-wrap">
+                        <p className="text-sm text-text-primary whitespace-pre-wrap break-words">
                           {reply.content}
                         </p>
                       </div>
@@ -1502,7 +1527,7 @@ function NotesButton({
           className="relative flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all border-orange-200 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
         >
           <ChatText size={14} weight="bold" />
-          <span className="hidden sm:inline">Notes</span>
+          <span>Notes</span>
           {badgeCount !== undefined && badgeCount > 0 && (
             <span
               className={`absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full ${badgeColor} text-white`}
@@ -1637,41 +1662,61 @@ function CommentsPanel({
       />
       <div className="relative w-full max-w-lg max-h-[80vh] flex flex-col rounded-container bg-white border border-border shadow-lg">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
-          <div>
-            <h3 className="text-lg font-normal text-text-primary">
-              User Messages
-              {unreadCount !== undefined && unreadCount > 0 && (
-                <span className="ml-2 px-1.5 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-600">
-                  {unreadCount} unread
-                </span>
-              )}
-            </h3>
-            <p className="text-xs text-text-secondary truncate max-w-xs">
-              {packageName}
-            </p>
-            <p className="text-xs text-blue-600 mt-1">
-              Private thread between submitter and admins.
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 border-b border-border shrink-0">
+          <div className="flex items-start justify-between gap-2 sm:block">
+            <div className="min-w-0">
+              <h3 className="text-lg font-normal text-text-primary flex items-center gap-2 flex-wrap">
+                <span>User Messages</span>
+                {unreadCount !== undefined && unreadCount > 0 && (
+                  <span className="px-1.5 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-600">
+                    {unreadCount} unread
+                  </span>
+                )}
+              </h3>
+              <p className="text-xs text-text-secondary truncate max-w-xs">
+                {packageName}
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
+                Private thread between submitter and admins.
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="sm:hidden shrink-0 p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
+              aria-label="Close"
+            >
+              <X size={20} />
+            </button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2 flex-wrap">
             <button
               onClick={() => setShowInactive((prev) => !prev)}
-              className="text-xs text-text-secondary hover:text-text-primary transition-colors"
+              className="text-xs text-text-secondary hover:text-text-primary transition-colors whitespace-nowrap"
             >
-              {showInactive ? "Hide hidden or archived" : "Show hidden or archived"}
+              {showInactive ? (
+                <>
+                  <span className="sm:hidden">Hide archived</span>
+                  <span className="hidden sm:inline">Hide hidden or archived</span>
+                </>
+              ) : (
+                <>
+                  <span className="sm:hidden">Show archived</span>
+                  <span className="hidden sm:inline">Show hidden or archived</span>
+                </>
+              )}
             </button>
             {unreadCount !== undefined && unreadCount > 0 && (
               <button
                 onClick={() => markAsRead({ packageId })}
-                className="px-3 py-1.5 text-xs rounded-full border border-border bg-white text-text-primary hover:bg-bg-hover transition-colors"
+                className="px-3 py-1.5 text-xs font-medium rounded-full border border-border bg-white text-text-primary hover:bg-bg-hover transition-colors whitespace-nowrap shrink-0"
               >
                 Mark all read
               </button>
             )}
             <button
               onClick={onClose}
-              className="p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
+              className="hidden sm:inline-flex p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
+              aria-label="Close"
             >
               <X size={20} />
             </button>
@@ -1692,36 +1737,36 @@ function CommentsPanel({
             comments.map((comment) => (
               <div
                 key={comment._id}
-                className="p-3 rounded-lg bg-bg-hover/50 border border-border"
+                className="p-3 rounded-lg bg-bg-hover/50 border border-border overflow-hidden"
               >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2 text-xs text-text-secondary">
-                    <User size={12} />
-                    <span className="font-medium">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-text-secondary min-w-0">
+                    <User size={12} className="shrink-0" />
+                    <span className="font-medium whitespace-nowrap">
                       {comment.authorName || comment.authorEmail.split("@")[0]}
                     </span>
-                    <span>{formatCommentDate(comment.createdAt)}</span>
+                    <span className="whitespace-nowrap">{formatCommentDate(comment.createdAt)}</span>
                     {comment.adminHasRead !== true && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-green-500 text-white text-[10px] font-medium">
+                      <span className="px-1.5 py-0.5 rounded-full bg-green-500 text-white text-[10px] font-medium whitespace-nowrap shrink-0">
                         New
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex flex-wrap items-center gap-1 shrink-0">
                     {comment.authorEmail === userEmail && (
                       <>
                         {(!comment.status || comment.status === "active") ? (
                           <>
                             <button
                               onClick={() => handleSetCommentStatus(comment._id, "hidden")}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors whitespace-nowrap shrink-0"
                             >
                               <EyeSlash size={10} />
                               Hide
                             </button>
                             <button
                               onClick={() => handleSetCommentStatus(comment._id, "archived")}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors whitespace-nowrap shrink-0"
                             >
                               <Archive size={10} />
                               Archive
@@ -1730,7 +1775,7 @@ function CommentsPanel({
                         ) : (
                           <button
                             onClick={() => handleSetCommentStatus(comment._id, "active")}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors whitespace-nowrap shrink-0"
                           >
                             <Eye size={10} />
                             Restore
@@ -1738,7 +1783,7 @@ function CommentsPanel({
                         )}
                         <button
                           onClick={() => handleDeleteComment(comment._id)}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors whitespace-nowrap shrink-0"
                         >
                           <X size={10} />
                           Delete
@@ -1747,7 +1792,7 @@ function CommentsPanel({
                     )}
                   </div>
                 </div>
-                <p className="text-sm text-text-primary whitespace-pre-wrap">
+                <p className="text-sm text-text-primary whitespace-pre-wrap break-words">
                   {comment.content}
                 </p>
                 {comment.status && comment.status !== "active" && (
@@ -1844,7 +1889,7 @@ function CommentsButton({
           }`}
         >
           <ChatCircleText size={14} weight="bold" />
-          <span className="hidden sm:inline">Messages</span>
+          <span>Messages</span>
           {badgeCount !== undefined && badgeCount > 0 && (
             <span className={`absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full ${badgeColor} text-white`}>
               {badgeCount > 9 ? "9+" : badgeCount}
@@ -1938,7 +1983,7 @@ function AiReviewButton({
           weight="bold"
           className={isReviewing ? "animate-pulse" : ""}
         />
-        <span className="hidden sm:inline">
+        <span>
           {isReviewing ? "Reviewing..." : "AI Review"}
         </span>
       </button>
@@ -2108,18 +2153,20 @@ ${aiReviewError ? `\n### Error\n${aiReviewError}` : ""}
         onClick={() => setIsExpanded(!isExpanded)}
         className="w-full flex items-center justify-between gap-2 p-2 rounded-lg bg-bg-hover border border-border hover:bg-bg-primary transition-colors text-left"
       >
-        <div className="flex items-center gap-2">
+        <div className="min-w-0 flex flex-1 items-start gap-2">
           {statusIcon}
-          <span className="text-sm font-medium text-text-primary">
-            AI Review Results
-          </span>
-          {aiReviewedAt && (
-            <span className="text-xs text-text-secondary">
-              {new Date(aiReviewedAt).toLocaleDateString()}
+          <div className="min-w-0 flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-2">
+            <span className="truncate text-sm font-medium text-text-primary">
+              AI Review Results
             </span>
-          )}
+            {aiReviewedAt && (
+              <span className="text-xs text-text-secondary whitespace-nowrap">
+                {new Date(aiReviewedAt).toLocaleDateString()}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <Tooltip content={copied ? "Copied!" : "Copy results for Notion"}>
             <span
               onClick={(e) => {
@@ -2139,17 +2186,17 @@ ${aiReviewError ? `\n### Error\n${aiReviewError}` : ""}
 
       {/* Expanded content */}
       {isExpanded && (
-        <div className="mt-2 p-3 rounded-lg bg-bg-hover border border-border">
+        <div className="mt-2 min-w-0 overflow-hidden rounded-lg border border-border bg-bg-hover p-2.5 sm:p-3">
           {/* Summary */}
           {aiReviewSummary && (
-            <div className="text-sm text-text-secondary mb-2 whitespace-pre-wrap">
+            <div className="mb-2 break-words text-sm text-text-secondary whitespace-pre-wrap">
               {aiReviewSummary}
             </div>
           )}
 
           {/* Error */}
           {aiReviewError && (
-            <div className="p-2 rounded bg-red-50 border border-red-200 text-sm text-red-600 mb-2">
+            <div className="mb-2 break-words rounded bg-red-50 border border-red-200 p-2 text-sm text-red-600">
               <strong>Error:</strong> {aiReviewError}
             </div>
           )}
@@ -2781,7 +2828,7 @@ export default function Admin() {
         <div className="sticky top-14 z-10 backdrop-blur-sm px-4 sm:px-6 py-2 bg-bg-primary border-b border-border">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
             <span className="text-text-primary font-medium text-sm">Admin Dashboard</span>
-            <div className="flex-1 max-w-md mx-4">
+            <div className="hidden sm:block flex-1 max-w-md mx-4">
               <div className="relative">
                 <MagnifyingGlass
                   size={16}
@@ -2891,7 +2938,7 @@ function StatusBadge({ status }: { status: ReviewStatus | undefined }) {
   return (
     <Tooltip content={`Review Status: ${label}`}>
       <span
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${className}`}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium leading-none border ${className}`}
       >
         {icon}
         <span className="hidden sm:inline">{label}</span>
@@ -2934,10 +2981,10 @@ function VisibilityBadge({
   const { icon, label, className } = config[displayVisibility];
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="inline-flex items-center gap-1 shrink-0 align-middle">
       <Tooltip content={`Visibility: ${label}`}>
         <span
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${className}`}
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium leading-none border ${className}`}
         >
           {icon}
           <span className="hidden sm:inline">{label}</span>
@@ -2995,7 +3042,7 @@ function PaymentBadge({
   return (
     <Tooltip content={tooltip}>
       <span
-        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${className}`}
+        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium leading-none border ${className}`}
       >
         {icon}
         <span className="hidden sm:inline">{label}</span>
@@ -3582,7 +3629,7 @@ function InlineActions({
                 }`}
               >
                 <CheckCircle size={14} weight={convexVerified ? "fill" : "bold"} />
-                <span className="hidden sm:inline">Convex Verified</span>
+                <span>Convex Verified</span>
               </button>
             </Tooltip>
 
@@ -3599,7 +3646,7 @@ function InlineActions({
                 style={communitySubmitted ? { backgroundColor: "#C4B48A", borderColor: "#C4B48A" } : {}}
               >
                 <Users size={14} weight={communitySubmitted ? "fill" : "bold"} />
-                <span className="hidden sm:inline">Community</span>
+                <span>Community</span>
               </button>
             </Tooltip>
 
@@ -3619,7 +3666,7 @@ function InlineActions({
                 ) : (
                   <>
                     <ArrowsClockwise size={14} weight="bold" />
-                    <span className="hidden sm:inline">Generate Content</span>
+                    <span>Generate Content</span>
                   </>
                 )}
               </button>
@@ -3637,7 +3684,7 @@ function InlineActions({
                 ) : (
                   <>
                     <FileText size={14} weight="bold" />
-                    <span className="hidden sm:inline">Update README</span>
+                    <span>Update README</span>
                   </>
                 )}
               </button>
@@ -3662,7 +3709,7 @@ function InlineActions({
                 ) : (
                   <Eye size={14} weight="bold" />
                 )}
-                <span className="hidden sm:inline">
+                <span>
                   {hideSeoAndSkillContentOnDetailPage ? "SEO Hidden" : "Hide SEO"}
                 </span>
               </button>
@@ -3686,7 +3733,7 @@ function InlineActions({
                 }`}
               >
                 <Lightning size={14} weight={isAutoFilling ? "fill" : "bold"} className={isAutoFilling ? "animate-pulse" : ""} />
-                <span className="hidden sm:inline">
+                <span>
                   {isAutoFilling ? "Filling..." : "Auto-fill"}
                 </span>
               </button>
@@ -3705,7 +3752,7 @@ function InlineActions({
                   }`}
                 >
                   <Image size={14} weight={hideThumbnailInCategory ? "fill" : "bold"} />
-                  <span className="hidden sm:inline">
+                  <span>
                     {hideThumbnailInCategory ? "Thumb Hidden" : "Hide Thumb"}
                   </span>
                 </button>
@@ -3739,7 +3786,7 @@ function InlineActions({
                     size={14}
                     className={isRefreshing ? "animate-spin" : ""}
                   />
-                  <span className="hidden sm:inline">
+                  <span>
                     {isRefreshing ? "Refreshing..." : "Refresh"}
                   </span>
                 </button>
@@ -3758,7 +3805,7 @@ function InlineActions({
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700 hover:bg-orange-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <LinkSimple size={14} className={isGeneratingSlug ? "animate-pulse" : ""} />
-                  <span className="hidden sm:inline">
+                  <span>
                     {isGeneratingSlug ? "..." : "Slug"}
                   </span>
                 </button>
@@ -3791,7 +3838,7 @@ function InlineActions({
                 }`}
               >
                 <CurrencyCircleDollar size={14} weight={rewardStatus === "sent" || rewardStatus === "delivered" ? "fill" : "bold"} />
-                <span className="hidden sm:inline">
+                <span>
                   {rewardStatus === "sent" || rewardStatus === "delivered" 
                     ? "Paid" 
                     : rewardStatus === "failed" 
@@ -3817,7 +3864,7 @@ function InlineActions({
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-all disabled:opacity-50"
               >
                 <ClockCounterClockwise size={14} weight="bold" />
-                <span className="hidden sm:inline">History</span>
+                <span>History</span>
                 <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-bg-hover px-1.5 py-0.5 text-[10px] text-text-primary">
                   {rewardPayments === undefined ? "..." : rewardHistoryCount}
                 </span>
@@ -3844,7 +3891,7 @@ function InlineActions({
                   }`}
                 >
                   {btn.icon}
-                  <span className="hidden sm:inline">{btn.label}</span>
+                  <span>{btn.label}</span>
                 </button>
               </Tooltip>
             ))}
@@ -3894,7 +3941,7 @@ function InlineActions({
                 }`}
               >
                 <ShieldCheck size={14} weight="bold" />
-                <span className="hidden sm:inline">
+                <span>
                   {isScanning ? "Scanning..." : "Security Scan"}
                 </span>
               </button>
@@ -3915,7 +3962,7 @@ function InlineActions({
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-all disabled:opacity-50"
               >
                 <ClockCounterClockwise size={14} weight="bold" />
-                <span className="hidden sm:inline">Review history</span>
+                <span>Review history</span>
                 <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-bg-hover px-1.5 py-0.5 text-[10px] text-text-primary">
                   {aiReviewRuns === undefined && securityScanRuns === undefined
                     ? "..."
@@ -3940,7 +3987,7 @@ function InlineActions({
                   className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border border-green-200 text-green-600 hover:bg-green-50 transition-all disabled:opacity-50"
                 >
                   <Archive size={14} weight="bold" />
-                  <span className="hidden sm:inline">Unarchive</span>
+                  <span>Unarchive</span>
                 </button>
               </Tooltip>
             ) : (
@@ -3956,7 +4003,7 @@ function InlineActions({
                     }`}
                   >
                     {btn.icon}
-                    <span className="hidden sm:inline">{btn.label}</span>
+                    <span>{btn.label}</span>
                   </button>
                 </Tooltip>
               ))
@@ -3983,7 +4030,7 @@ function InlineActions({
                 }`}
               >
                 <Star size={14} weight={featured ? "fill" : "bold"} />
-                <span className="hidden sm:inline">
+                <span>
                   {featured ? "Featured" : "Feature"}
                 </span>
               </button>
@@ -4021,7 +4068,7 @@ function InlineActions({
                 }`}
               >
                 <EyeSlash size={14} weight={hideFromSubmissions ? "fill" : "bold"} />
-                <span className="hidden sm:inline">
+                <span>
                   {hideFromSubmissions ? "Sub Hidden" : "Sub Hide"}
                 </span>
               </button>
@@ -4049,7 +4096,7 @@ function InlineActions({
                 className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border border-red-200 text-red-600 hover:bg-red-50 transition-all disabled:opacity-50"
               >
                 <Trash size={14} weight="bold" />
-                <span className="hidden sm:inline">Delete</span>
+                <span>Delete</span>
               </button>
             </Tooltip>
           </div>
@@ -8883,7 +8930,7 @@ function AdminDashboard({
             placeholder="Search packages..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-8 py-2 rounded-lg border border-border bg-bg-card text-text-primary text-sm outline-none focus:border-button transition-colors"
+            className="w-full pl-9 pr-8 py-2 rounded-full border border-border bg-white text-text-primary text-sm outline-none focus:border-button transition-colors"
           />
           {searchTerm && (
             <button
@@ -9037,46 +9084,56 @@ function AdminDashboard({
                     onClick={() => togglePackage(pkg._id)}
                     className="w-full p-4 flex items-center justify-between gap-4 hover:bg-bg-hover/30 transition-colors text-left"
                   >
-                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                      {/* Expand/collapse icon */}
-                      <CaretRight
-                        size={16}
-                        weight="bold"
-                        className={`shrink-0 text-text-secondary transition-transform duration-200 ${
-                          isExpanded ? "rotate-90" : ""
-                        }`}
-                      />
-                      {/* Thumbnail preview */}
-                      {pkg.thumbnailUrl && (
-                        <img
-                          src={pkg.thumbnailUrl}
-                          alt=""
-                          className="w-8 h-5 object-cover rounded shrink-0"
-                        />
-                      )}
-                      {pkg.featured && (
-                        <Star
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-3 min-w-0 flex-1">
+                      {/* Primary row on mobile / inline on desktop: caret + thumb + star + name */}
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0 w-full sm:w-auto sm:flex-1">
+                        <CaretRight
                           size={16}
-                          weight="fill"
-                          className="text-amber-500 shrink-0"
+                          weight="bold"
+                          className={`shrink-0 text-text-secondary transition-transform duration-200 ${
+                            isExpanded ? "rotate-90" : ""
+                          }`}
                         />
-                      )}
-                      <span className="font-medium text-text-primary truncate">
-                        {pkg.name}
-                      </span>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-bg-primary text-text-secondary border border-border shrink-0">
-                        v{pkg.version}
-                      </span>
-                      <StatusBadge status={pkg.reviewStatus} />
-                      <VisibilityBadge visibility={pkg.visibility} markedForDeletion={pkg.markedForDeletion} />
-                      <PaymentBadge rewardStatus={pkg.rewardStatus} rewardTotalAmount={pkg.rewardTotalAmount} />
-                      <ComponentDetailQuickLink slug={pkg.slug} />
+                        {pkg.thumbnailUrl && (
+                          <img
+                            src={pkg.thumbnailUrl}
+                            alt=""
+                            className="w-8 h-5 object-cover rounded shrink-0"
+                          />
+                        )}
+                        {pkg.featured && (
+                          <Star
+                            size={16}
+                            weight="fill"
+                            className="text-amber-500 shrink-0"
+                          />
+                        )}
+                        <span className="font-medium text-text-primary truncate min-w-0 flex-1">
+                          {pkg.componentName || pkg.name}
+                        </span>
+                      </div>
+                      {/* Secondary row on mobile / inline on desktop: version + badges */}
+                      <div className="flex items-center gap-2 sm:gap-3 flex-wrap pl-6 sm:pl-0 sm:shrink-0 sm:min-h-7">
+                        <span className="inline-flex items-center text-xs leading-none px-2 py-0.5 rounded-full bg-bg-primary text-text-secondary border border-border shrink-0">
+                          v{pkg.version}
+                        </span>
+                        <StatusBadge status={pkg.reviewStatus} />
+                        <VisibilityBadge visibility={pkg.visibility} markedForDeletion={pkg.markedForDeletion} />
+                        <span className="hidden sm:inline-flex">
+                          <PaymentBadge rewardStatus={pkg.rewardStatus} rewardTotalAmount={pkg.rewardTotalAmount} />
+                        </span>
+                        <span className="hidden sm:inline-flex">
+                          <ComponentDetailQuickLink slug={pkg.slug} />
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3 shrink-0 text-xs text-text-secondary">
-                      <span className="hidden sm:inline">
+                    <div className="flex items-center gap-3 shrink-0 self-center text-xs text-text-secondary whitespace-nowrap">
+                      <span className="hidden sm:inline-flex sm:items-center sm:self-center">
                         {pkg.weeklyDownloads.toLocaleString()}/wk
                       </span>
-                      <span>{formatDate(dateMeta.timestamp)}</span>
+                      <span className="inline-flex items-center self-center">
+                        {formatDate(dateMeta.timestamp)}
+                      </span>
                     </div>
                   </button>
 
@@ -9084,8 +9141,8 @@ function AdminDashboard({
                   {isExpanded && (
                     <div>
                       {/* Package details */}
-                      <div className="px-4 flex flex-col sm:flex-row items-start justify-between gap-4 pb-4">
-                        <div className="flex-1 min-w-0">
+                      <div className="px-4 flex flex-col sm:flex-row items-stretch sm:items-start justify-between gap-4 pb-4">
+                        <div className="w-full flex-1 min-w-0">
                           <p className="text-sm text-text-secondary mb-3 line-clamp-2">
                             {pkg.description}
                           </p>
@@ -9174,10 +9231,10 @@ function AdminDashboard({
                         </div>
 
                         {/* Stats and links */}
-                        <div className="flex items-center gap-4 shrink-0 w-full sm:w-auto">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 shrink-0 w-full sm:w-auto">
                           <div className="flex sm:flex-col items-center sm:items-end gap-3 sm:gap-1 text-sm text-text-secondary">
                             <Tooltip content="Weekly downloads">
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 whitespace-nowrap">
                                 <DownloadSimple size={14} />
                                 <span>
                                   {pkg.weeklyDownloads.toLocaleString()}/wk
@@ -9187,7 +9244,7 @@ function AdminDashboard({
                             <Tooltip
                               content={`${dateMeta.label}: ${formatDate(dateMeta.timestamp)}`}
                             >
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 whitespace-nowrap">
                                 <CalendarBlank size={14} />
                                 <span>{formatDate(dateMeta.timestamp)}</span>
                               </div>
@@ -9195,7 +9252,7 @@ function AdminDashboard({
                           </div>
 
                           {/* Links */}
-                          <div className="flex gap-1 ml-auto sm:ml-0">
+                          <div className="flex gap-1 sm:ml-0 flex-wrap">
                             <Tooltip content="View on npm">
                               <a
                                 href={pkg.npmUrl}

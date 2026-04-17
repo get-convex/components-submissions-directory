@@ -25,6 +25,14 @@ NODE_VERSION = "20"
 [build.services]
 
 [[edge_functions]]
+path = "/components/badge/*"
+function = "component-badge"
+
+[[edge_functions]]
+path = "/components/*"
+function = "og-meta"
+
+[[edge_functions]]
 path = "/components/*/*.md"
 function = "component-markdown"
 
@@ -46,9 +54,9 @@ force = true
 
 [[redirects]]
 from = "/components/llms.txt"
-to = "https://third-hedgehog-429.convex.site/api/llms.txt"
+to = "https://giant-grouse-674.convex.site/api/llms.txt"
 status = 200.0
-force = false
+force = true
 
 [redirects.query]
 
@@ -58,7 +66,31 @@ force = false
 
 [[redirects]]
 from = "/components.md"
-to = "https://third-hedgehog-429.convex.site/api/markdown-index"
+to = "https://giant-grouse-674.convex.site/api/markdown-index"
+status = 200.0
+force = true
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/components/components.md"
+to = "https://giant-grouse-674.convex.site/api/markdown-index"
+status = 200.0
+force = true
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+
+[[redirects]]
+from = "/components/*/llms.txt"
+to = "https://giant-grouse-674.convex.site/api/component-llms?slug=:splat"
 status = 200.0
 force = false
 
@@ -69,8 +101,21 @@ force = false
 [redirects.headers]
 
 [[redirects]]
-from = "/components/*/llms.txt"
-to = "https://third-hedgehog-429.convex.site/api/component-llms?slug=:splat"
+from = "/api/components/*"
+to = "https://giant-grouse-674.convex.site/api/components/:splat"
+status = 200.0
+force = true
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
+Access-Control-Allow-Origin = "*"
+
+[[redirects]]
+from = "/components/badge/*"
+to = "https://giant-grouse-674.convex.site/api/badge?slug=:splat"
 status = 200.0
 force = false
 

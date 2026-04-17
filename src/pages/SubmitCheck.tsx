@@ -329,7 +329,7 @@ function PreflightWarningModal({
             <div>
               <h3 className="text-lg font-medium text-text-primary">Run preflight check</h3>
               <p className="mt-1 text-sm text-text-secondary">
-                This analysis checks your repository against Convex component requirements. It is
+                This analysis checks your repository against Convex component requirements. Itw is
                 limited to 10 checks per hour per IP. Results for the same repository are cached for
                 30 minutes, so re-running within that window returns the cached result and does not
                 count against your limit.

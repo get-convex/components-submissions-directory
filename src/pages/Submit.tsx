@@ -2254,7 +2254,7 @@ function PackageRow({
                 </Tooltip>
               )}
               <h3 className="text-sm font-medium text-text-primary truncate">{pkg.name}</h3>
-              <span className="text-xs px-1.5 py-0.5 rounded bg-bg-primary text-text-secondary shrink-0">
+              <span className="inline-flex items-center text-xs leading-none px-1.5 py-0.5 rounded bg-bg-primary text-text-secondary shrink-0">
                 v{pkg.version}
               </span>
               {isExpanded ? (
@@ -2276,23 +2276,23 @@ function PackageRow({
               <span className="text-sm text-text-secondary">—</span>
             )}
           </div>
-          <div>
+          <div className="flex h-7 items-center">
             <Tooltip content="Weekly downloads from npm" position="top">
-              <span className="text-sm text-text-primary">
+              <span className="inline-flex items-center text-sm text-text-primary">
                 {formatDownloads(pkg.weeklyDownloads)}
               </span>
             </Tooltip>
           </div>
-          <div>
+          <div className="flex h-7 items-center">
             <Tooltip
               content={`Submitted to app: ${submittedDate.toLocaleDateString()}`}
               position="top">
-              <span className="text-sm text-text-primary">
+              <span className="inline-flex items-center text-sm text-text-primary">
                 {formatRelativeTime(submittedDate.toISOString())}
               </span>
             </Tooltip>
           </div>
-          <div>
+          <div className="flex h-7 items-center">
             <span className="inline-flex items-center gap-1.5">
               <ReviewStatusBadge status={pkg.reviewStatus} />
               <ApprovedDetailQuickLink status={pkg.reviewStatus} detailUrl={detailUrl} />

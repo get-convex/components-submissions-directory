@@ -79,7 +79,7 @@ export default function Header() {
   };
 
   const renderBellDropdown = () => (
-    <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-white shadow-lg z-50 overflow-hidden">
+    <div className="fixed sm:absolute left-1/2 sm:left-auto -translate-x-1/2 sm:translate-x-0 sm:right-0 top-[70px] sm:top-full mt-0 sm:mt-2 w-[calc(100vw-1rem)] sm:w-80 max-w-sm rounded-lg border border-border bg-white shadow-lg z-50 overflow-hidden">
       <div className="px-3 py-2 border-b border-border flex items-center justify-between">
         <span className="text-sm font-medium text-text-primary">Notifications</span>
         <span className="text-xs text-text-secondary">

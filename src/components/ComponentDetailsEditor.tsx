@@ -1,5 +1,5 @@
 // Admin component for editing directory-specific fields on a package
-import { useState, useRef, useEffect, type ReactNode } from "react";
+import { useState, useRef, useEffect, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { useMutation, useAction, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
@@ -8,7 +8,7 @@ import { CaretDown, DownloadSimple, Image, ArrowsClockwise, PencilSimple, Plus, 
 import { useDirectoryCategories } from "../lib/categories";
 import CodeBlock from "./CodeBlock";
 import ReadmePreviewNotice from "./ReadmePreviewNotice";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 
@@ -258,7 +258,7 @@ export function ComponentDetailsEditor({
       className,
       children,
       ...rest
-    }: { className?: string; children?: ReactNode; [key: string]: unknown }) {
+    }: ComponentPropsWithoutRef<"code"> & { inline?: boolean }) {
       const match = /language-(\w+)/.exec(className || "");
       const code = String(children).replace(/\n$/, "");
       if (match || code.includes("\n")) {
@@ -270,10 +270,10 @@ export function ComponentDetailsEditor({
         </code>
       );
     },
-    pre({ children }: { children?: ReactNode }) {
+    pre({ children }: ComponentPropsWithoutRef<"pre">) {
       return <>{children}</>;
     },
-  };
+  } satisfies Components;
 
   const handleSave = async () => {
     setSaving(true);
@@ -487,15 +487,15 @@ export function ComponentDetailsEditor({
   const isV2ContentModel = contentModelVersion === 2;
 
   return (
-    <div className="mt-4 p-3 rounded-lg bg-bg-hover/30 space-y-3">
-      <div className="flex items-center justify-between">
+    <div className="mt-4 min-w-0 overflow-hidden rounded-lg bg-bg-hover/30 p-2.5 sm:p-3 space-y-2.5 sm:space-y-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h4 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
           Component Details
         </h4>
         <button
           onClick={handleSave}
           disabled={saving}
-          className="text-xs px-3 py-1 rounded-full bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50"
+          className="self-start text-xs px-3 py-1 rounded-full bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50"
         >
           {saving ? "Saving..." : "Save"}
         </button>
@@ -532,7 +532,7 @@ export function ComponentDetailsEditor({
         )}
 
         {/* Category (custom dropdown) */}
-        <div ref={categoryDropdownRef} className="relative">
+        <div ref={categoryDropdownRef} className="relative min-w-0">
           <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
             Category
           </label>
@@ -573,23 +573,23 @@ export function ComponentDetailsEditor({
         </div>
 
         {!isSubmissionMode && (
-          <div>
+          <div className="min-w-0">
             <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
               Author GitHub Username
             </label>
-            <div className="flex gap-1">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center min-w-0">
               <input
                 type="text"
                 value={authorUsername}
                 onChange={(e) => setAuthorUsername(e.target.value)}
                 placeholder="get-convex"
-                className="flex-1 text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+                className="min-w-0 w-full sm:flex-1 text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
               />
               <button
                 onClick={handleAutoFillAuthor}
                 disabled={fillingAuthor}
                 title="Auto-fill from repository URL"
-                className="text-[10px] px-2 py-1 rounded bg-bg-primary text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50 whitespace-nowrap"
+                className="self-start shrink-0 text-[10px] px-2 py-1 rounded bg-bg-primary text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50 whitespace-nowrap"
               >
                 {fillingAuthor ? "..." : "Auto-fill"}
               </button>
@@ -647,7 +647,7 @@ export function ComponentDetailsEditor({
           <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
             Component Logo
           </label>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center min-w-0">
             {/* Logo preview */}
             {logoUrl ? (
               <img
@@ -669,44 +669,46 @@ export function ComponentDetailsEditor({
               onChange={handleLogoSelect}
               className="hidden"
             />
-            <button
-              onClick={() => logoInputRef.current?.click()}
-              disabled={uploadingLogo}
-              className="text-xs px-3 py-1.5 rounded bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
-            >
-              {uploadingLogo
-                ? "Uploading..."
-                : logoUrl
-                  ? "Replace logo"
-                  : "Upload logo"}
-            </button>
-
-            {/* Download logo */}
-            {logoUrl && (
-              <a
-                href={logoUrl}
-                download
-                className="p-1.5 rounded hover:bg-bg-hover transition-colors"
-                title="Download logo"
-              >
-                <DownloadSimple size={14} className="text-text-secondary" />
-              </a>
-            )}
-
-            {/* Clear logo */}
-            {logoUrl && (
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
               <button
-                onClick={handleClearLogo}
-                disabled={clearingLogo || uploadingLogo}
+                onClick={() => logoInputRef.current?.click()}
+                disabled={uploadingLogo}
                 className="text-xs px-3 py-1.5 rounded bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
               >
-                {clearingLogo ? "Clearing..." : "Clear"}
+                {uploadingLogo
+                  ? "Uploading..."
+                  : logoUrl
+                    ? "Replace logo"
+                    : "Upload logo"}
               </button>
-            )}
 
-            <span className="text-[10px] text-text-secondary">
-              .png, .webp, .svg
-            </span>
+              {/* Download logo */}
+              {logoUrl && (
+                <a
+                  href={logoUrl}
+                  download
+                  className="p-1.5 rounded hover:bg-bg-hover transition-colors"
+                  title="Download logo"
+                >
+                  <DownloadSimple size={14} className="text-text-secondary" />
+                </a>
+              )}
+
+              {/* Clear logo */}
+              {logoUrl && (
+                <button
+                  onClick={handleClearLogo}
+                  disabled={clearingLogo || uploadingLogo}
+                  className="text-xs px-3 py-1.5 rounded bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
+                >
+                  {clearingLogo ? "Clearing..." : "Clear"}
+                </button>
+              )}
+
+              <span className="text-[10px] text-text-secondary break-words">
+                .png, .webp, .svg
+              </span>
+            </div>
           </div>
 
           {/* Thumbnail generation controls */}
@@ -715,7 +717,7 @@ export function ComponentDetailsEditor({
               <label className="text-[10px] uppercase tracking-wider text-text-secondary block">
                 Generate Thumbnail
               </label>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center min-w-0">
                 {/* Template picker */}
                 <select
                   value={selectedGenTemplate}
@@ -724,7 +726,7 @@ export function ComponentDetailsEditor({
                       e.target.value as Id<"thumbnailTemplates"> | "",
                     )
                   }
-                  className="flex-1 text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary border border-border outline-none focus:ring-1 focus:ring-button"
+                  className="min-w-0 w-full sm:flex-1 text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary border border-border outline-none focus:ring-1 focus:ring-button"
                 >
                   <option value="">Default template</option>
                   {activeTemplates?.map((t) => (
@@ -738,7 +740,7 @@ export function ComponentDetailsEditor({
                 <button
                   onClick={handleGenerateThumbnail}
                   disabled={generatingThumb}
-                  className="text-xs px-3 py-1.5 rounded bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50 flex items-center gap-1 whitespace-nowrap"
+                  className="self-start text-xs px-3 py-1.5 rounded bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50 flex items-center gap-1 whitespace-nowrap"
                 >
                   <ArrowsClockwise
                     size={12}
@@ -765,7 +767,7 @@ export function ComponentDetailsEditor({
         <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
           Component Thumbnail (16:9, 1536x864, max 3MB)
         </label>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 min-w-0">
           {thumbnailUrl && (
             <img
               src={thumbnailUrl}
@@ -796,13 +798,13 @@ export function ComponentDetailsEditor({
               Clear
             </button>
           )}
-          <span className="text-[10px] text-text-secondary">
+          <span className="text-[10px] text-text-secondary break-words">
             .webp, .png, .jpg
           </span>
         </div>
         {/* Hide thumbnail in category listings checkbox (admin only, shown when thumbnail exists) */}
         {!isSubmissionMode && thumbnailUrl && (
-          <div className="flex items-center gap-2 mt-2">
+          <div className="mt-2 flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:gap-2">
             <input
               type="checkbox"
               id={`hide-thumb-cat-${packageId}`}
@@ -921,7 +923,7 @@ export function ComponentDetailsEditor({
       )}
 
       {!isSubmissionMode && (
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -1014,12 +1016,12 @@ export function ComponentDetailsEditor({
         ))}
 
       {!isSubmissionMode && badgeSnippet && (
-        <div className="pt-2">
+        <div className="pt-2 min-w-0">
           <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
             Badge Markdown
           </label>
-          <div className="flex items-center gap-1">
-            <code className="flex-1 text-[10px] text-text-secondary bg-bg-primary px-2 py-1 rounded overflow-x-auto whitespace-nowrap">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center min-w-0">
+            <code className="min-w-0 w-full sm:flex-1 max-w-full text-[10px] text-text-secondary bg-bg-primary px-2 py-1 rounded overflow-x-auto whitespace-nowrap">
               {badgeSnippet}
             </code>
             <button
@@ -1027,7 +1029,7 @@ export function ComponentDetailsEditor({
                 navigator.clipboard.writeText(badgeSnippet);
                 toast.success("Badge copied");
               }}
-              className="shrink-0 text-xs px-2 py-1 rounded text-text-secondary hover:text-text-primary transition-colors"
+              className="self-start shrink-0 text-xs px-2 py-1 rounded text-text-secondary hover:text-text-primary transition-colors"
             >
               Copy
             </button>
@@ -1072,18 +1074,7 @@ function GeneratedContentSection({
   readmeIncludeSource?: "markers" | "full";
   skillMd?: string;
   generatingContent: boolean;
-  markdownCodeComponents: {
-    code: ({
-      className,
-      children,
-      ...rest
-    }: {
-      className?: string;
-      children?: ReactNode;
-      [key: string]: unknown;
-    }) => JSX.Element;
-    pre: ({ children }: { children?: ReactNode }) => JSX.Element;
-  };
+  markdownCodeComponents: Components;
   onRegenerate: () => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
@@ -1162,11 +1153,11 @@ function GeneratedContentSection({
 
   return (
     <div className="pt-2 border-t border-border">
-      <div className="flex items-center justify-between mb-2">
+      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <label className="text-[10px] uppercase tracking-wider text-text-secondary">
           Generated Content + SKILL.md
         </label>
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           {contentGenerationStatus === "completed" && contentGeneratedAt && (
             <span className="text-[10px] px-2 py-0.5 rounded border border-border bg-bg-primary text-text-secondary">
               Generated {new Date(contentGeneratedAt).toLocaleDateString()}
@@ -1224,13 +1215,15 @@ function GeneratedContentSection({
                 <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
                   Preview
                 </p>
-                <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkBreaks]}
-                    components={markdownCodeComponents}
-                  >
-                    {editUseCases}
-                  </ReactMarkdown>
+                <div className="overflow-x-auto">
+                  <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkBreaks]}
+                      components={markdownCodeComponents}
+                    >
+                      {editUseCases}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               </div>
             )}
@@ -1252,13 +1245,15 @@ function GeneratedContentSection({
                 <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
                   Preview
                 </p>
-                <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkBreaks]}
-                    components={markdownCodeComponents}
-                  >
-                    {editHowItWorks}
-                  </ReactMarkdown>
+                <div className="overflow-x-auto">
+                  <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkBreaks]}
+                      components={markdownCodeComponents}
+                    >
+                      {editHowItWorks}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               </div>
             )}
@@ -1300,7 +1295,7 @@ function GeneratedContentSection({
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleSaveGeneratedContent}
               disabled={savingContent}
@@ -1347,7 +1342,7 @@ function GeneratedContentSection({
           generatingContent ||
           contentGenerationStatus === "generating"
         }
-        className="text-xs px-3 py-1.5 rounded bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
+        className="w-full sm:w-auto text-xs px-3 py-1.5 rounded bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
       >
         {contentGenerationStatus === "generating"
           ? "Generating..."
@@ -1449,11 +1444,11 @@ function SeoContentSection({
 
   return (
     <div className="pt-2 border-t border-border">
-      <div className="flex items-center justify-between mb-2">
+      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <label className="text-[10px] uppercase tracking-wider text-text-secondary">
           AI SEO Content + SKILL.md
         </label>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {seoGenerationStatus === "completed" && seoGeneratedAt && (
             <span className="text-[10px] text-text-secondary">
               Generated {new Date(seoGeneratedAt).toLocaleDateString()}
@@ -1500,7 +1495,7 @@ function SeoContentSection({
 
           {/* Benefits */}
           <div>
-            <div className="flex items-center justify-between mb-1">
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
               <label className="text-[10px] uppercase tracking-wider text-text-secondary">
                 Benefits ({editBenefits.length})
               </label>
@@ -1538,7 +1533,7 @@ function SeoContentSection({
 
           {/* Use Cases */}
           <div>
-            <div className="flex items-center justify-between mb-1">
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
               <label className="text-[10px] uppercase tracking-wider text-text-secondary">
                 Use Cases ({editUseCases.length})
               </label>
@@ -1589,7 +1584,7 @@ function SeoContentSection({
 
           {/* FAQ */}
           <div>
-            <div className="flex items-center justify-between mb-1">
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
               <label className="text-[10px] uppercase tracking-wider text-text-secondary">
                 FAQ ({editFaq.length})
               </label>
@@ -1640,7 +1635,7 @@ function SeoContentSection({
 
           {/* Resource Links */}
           <div>
-            <div className="flex items-center justify-between mb-1">
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
               <label className="text-[10px] uppercase tracking-wider text-text-secondary">
                 Resource Links ({editResourceLinks.length})
               </label>
@@ -1652,7 +1647,7 @@ function SeoContentSection({
               </button>
             </div>
             {editResourceLinks.map((link, i) => (
-              <div key={i} className="flex items-center gap-1 mb-1">
+              <div key={i} className="mb-1 flex flex-col gap-1 sm:flex-row sm:items-center">
                 <input
                   type="text"
                   value={link.label}
@@ -1661,7 +1656,7 @@ function SeoContentSection({
                     next[i] = { ...next[i], label: e.target.value };
                     setEditResourceLinks(next);
                   }}
-                  className="w-1/3 text-xs px-2 py-1 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+                  className="w-full sm:w-1/3 text-xs px-2 py-1 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
                   placeholder="Label"
                 />
                 <input
@@ -1677,7 +1672,7 @@ function SeoContentSection({
                 />
                 <button
                   onClick={() => setEditResourceLinks(editResourceLinks.filter((_, idx) => idx !== i))}
-                  className="p-1 text-text-secondary hover:text-red-500 transition-colors"
+                  className="self-start p-1 text-text-secondary hover:text-red-500 transition-colors"
                 >
                   <Trash size={10} />
                 </button>
@@ -1706,7 +1701,7 @@ function SeoContentSection({
           </div>
 
           {/* Save / Cancel */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleSaveSeo}
               disabled={savingSeo}
@@ -1756,7 +1751,7 @@ function SeoContentSection({
       <button
         onClick={onRegenerate}
         disabled={generatingSeo || seoGenerationStatus === "generating"}
-        className="text-xs px-3 py-1.5 rounded bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
+        className="w-full sm:w-auto text-xs px-3 py-1.5 rounded bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
       >
         {seoGenerationStatus === "generating"
           ? "Generating..."
