@@ -239,11 +239,14 @@ function AdminSettingsJumpNav({
   }
 
   return (
-    <div className="2xl:hidden sticky top-28 z-20 mb-4">
+    <div className="2xl:hidden sticky top-24 z-20 mb-4">
       <div className="rounded-2xl border border-border bg-bg-card/95 backdrop-blur shadow-sm">
-        <div className="px-3 py-2 border-b border-border">
+        <div className="px-3 py-2.5 border-b border-border">
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-secondary">
             Settings Navigation
+          </p>
+          <p className="mt-1 text-xs text-text-secondary">
+            Swipe across sections and jump directly to the one you need.
           </p>
         </div>
         <div className="flex gap-2 overflow-x-auto px-3 py-3">
@@ -256,7 +259,7 @@ function AdminSettingsJumpNav({
                 type="button"
                 onClick={() => onSelect(section.id)}
                 aria-current={isActive ? "true" : undefined}
-                className={`flex min-w-max items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium transition-colors ${
                   isActive
                     ? "border-button bg-button text-white shadow-sm"
                     : "border-border bg-white text-text-secondary hover:bg-bg-hover hover:text-text-primary"
@@ -4570,13 +4573,13 @@ function CategoryManagementPanel() {
 
   return (
     <div className="rounded-lg border border-border bg-bg-card p-4 mb-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 className="text-sm font-medium text-text-primary">
           Category Management
         </h3>
         <button
           onClick={startAdd}
-          className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full bg-button text-white hover:bg-button-hover transition-colors"
+          className="inline-flex w-full items-center justify-center gap-1 text-xs px-3 py-1.5 rounded-full bg-button text-white hover:bg-button-hover transition-colors sm:w-auto"
         >
           <Plus size={12} weight="bold" />
           Add Category
@@ -4645,14 +4648,14 @@ function CategoryManagementPanel() {
           return (
             <div
               key={cat._id}
-              className={`flex items-center justify-between gap-3 p-3 rounded-lg border transition-colors ${
+              className={`flex flex-col gap-3 rounded-xl border p-3 transition-colors sm:flex-row sm:items-start sm:justify-between ${
                 !cat.enabled
                   ? "border-border/50 bg-bg-primary/50 opacity-60"
                   : "border-border bg-bg-primary"
               }`}
             >
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
+                <div className="mb-1 flex flex-wrap items-center gap-1.5">
                   <span className="text-sm font-medium text-text-primary">
                     {cat.label}
                   </span>
@@ -4671,11 +4674,11 @@ function CategoryManagementPanel() {
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-text-secondary truncate">
+                <p className="text-xs text-text-secondary break-words">
                   {cat.description}
                 </p>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex w-full items-center justify-end gap-1 shrink-0 sm:w-auto sm:justify-start">
                 <button
                   onClick={() => startEdit(cat)}
                   className="p-1.5 rounded text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
@@ -8143,33 +8146,35 @@ function FilterTabs({
   ];
 
   return (
-    <div className="flex gap-1 p-1 rounded-lg bg-bg-card border border-border overflow-visible flex-wrap">
-      {tabs.map((tab) => (
-        <Tooltip key={tab.value} content={tab.tooltip} position="top">
-          <button
-            onClick={() => onFilterChange(tab.value)}
-            className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
-              activeFilter === tab.value
-                ? "bg-button text-white"
-                : "text-text-secondary hover:text-text-primary hover:bg-bg-hover"
-            }`}
-          >
-            {tab.icon}
-            <span className="hidden sm:inline">{tab.label}</span>
-            {tab.value !== "settings" && tab.value !== "api" && (
-              <span
-                className={`px-1.5 py-0.5 rounded-full text-xs ${
-                  activeFilter === tab.value
-                    ? "bg-white/20 text-white"
-                    : "bg-bg-hover text-text-secondary"
-                }`}
-              >
-                {counts[tab.value]}
-              </span>
-            )}
-          </button>
-        </Tooltip>
-      ))}
+    <div className="rounded-xl border border-border bg-bg-card p-1">
+      <div className="flex gap-1 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible sm:pb-0">
+        {tabs.map((tab) => (
+          <Tooltip key={tab.value} content={tab.tooltip} position="top">
+            <button
+              onClick={() => onFilterChange(tab.value)}
+              className={`flex shrink-0 items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
+                activeFilter === tab.value
+                  ? "bg-button text-white shadow-sm"
+                  : "text-text-secondary hover:text-text-primary hover:bg-bg-hover"
+              }`}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+              {tab.value !== "settings" && tab.value !== "api" && (
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-xs ${
+                    activeFilter === tab.value
+                      ? "bg-white/20 text-white"
+                      : "bg-bg-hover text-text-secondary"
+                  }`}
+                >
+                  {counts[tab.value]}
+                </span>
+              )}
+            </button>
+          </Tooltip>
+        ))}
+      </div>
     </div>
   );
 }
@@ -8242,9 +8247,9 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
   return (
     <div className="space-y-6">
       {/* Global Toggle */}
-      <div className="rounded-2xl border border-border bg-bg-card p-5">
-        <div className="flex items-center justify-between">
-          <div>
+      <div className="rounded-2xl border border-border bg-bg-card p-4 sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
             <h3 className="text-sm font-medium text-text-primary flex items-center gap-2">
               <Key size={16} />
               Components REST API
@@ -8256,6 +8261,7 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
           </div>
           <button
             onClick={handleToggleGlobal}
+            aria-pressed={globalEnabled}
             className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
               globalEnabled ? "bg-green-500" : "bg-gray-300"
             }`}>
@@ -8294,7 +8300,7 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
         </h3>
         {apiAnalytics ? (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            <div className="grid grid-cols-2 gap-3 mb-6 sm:grid-cols-4">
               <div className="rounded-lg border border-border p-3 bg-bg-primary">
                 <p className="text-xs text-text-secondary">Requests (24h)</p>
                 <p className="text-xl font-light text-text-primary mt-1">
@@ -8332,19 +8338,24 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
                     const max = apiAnalytics.endpointBreakdown[0]?.count || 1;
                     const pct = Math.round((ep.count / max) * 100);
                     return (
-                      <div key={ep.endpoint} className="flex items-center gap-3">
-                        <span className="text-xs text-text-primary w-20 font-mono">
-                          /{ep.endpoint}
-                        </span>
-                        <div className="flex-1 h-5 rounded bg-bg-hover overflow-hidden">
-                          <div
-                            className="h-full rounded bg-button/20"
-                            style={{ width: `${pct}%` }}
-                          />
+                      <div
+                        key={ep.endpoint}
+                        className="rounded-lg border border-border bg-bg-primary p-3 sm:border-0 sm:bg-transparent sm:p-0"
+                      >
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                          <span className="text-xs text-text-primary font-mono break-all sm:w-20 sm:break-normal">
+                            /{ep.endpoint}
+                          </span>
+                          <div className="h-5 w-full rounded bg-bg-hover overflow-hidden sm:flex-1">
+                            <div
+                              className="h-full rounded bg-button/20"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-text-secondary text-right sm:w-12">
+                            {ep.count}
+                          </span>
                         </div>
-                        <span className="text-xs text-text-secondary w-12 text-right">
-                          {ep.count}
-                        </span>
                       </div>
                     );
                   })}
@@ -8358,7 +8369,45 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
                 <h4 className="text-xs font-medium text-text-secondary mb-2">
                   Recent requests
                 </h4>
-                <div className="max-h-48 overflow-y-auto rounded-lg border border-border">
+                <div className="space-y-2 sm:hidden">
+                  {apiAnalytics.recentRequests.map((req, i) => (
+                    <div
+                      key={`${req.endpoint}-${req.requestedAt}-${i}`}
+                      className="rounded-lg border border-border bg-bg-primary p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-mono text-text-primary break-all">
+                            /{req.endpoint}
+                          </p>
+                          <p className="mt-1 text-[11px] text-text-secondary">
+                            {new Date(req.requestedAt).toLocaleString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            req.responseStatus >= 400
+                              ? "bg-red-500/10 text-red-600"
+                              : "bg-green-500/10 text-green-600"
+                          }`}
+                        >
+                          {req.responseStatus}
+                        </span>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2 text-[11px] text-text-secondary">
+                        <span className="inline-flex rounded-full bg-bg-hover px-2 py-0.5">
+                          {req.hasApiKey ? "API key" : "Anonymous"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="hidden max-h-48 overflow-y-auto rounded-lg border border-border sm:block">
                   <table className="w-full text-xs">
                     <thead className="bg-bg-hover sticky top-0">
                       <tr>
@@ -8450,10 +8499,10 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
               {filteredSearch.map((user) => (
                 <div
                   key={user.email}
-                  className="flex items-center justify-between px-3 py-2 hover:bg-bg-hover/50">
-                  <div>
+                  className="flex flex-col gap-2 px-3 py-2 hover:bg-bg-hover/50 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
                     <p className="text-xs font-medium text-text-primary">{user.name}</p>
-                    <p className="text-[10px] text-text-secondary">
+                    <p className="text-[10px] text-text-secondary break-all">
                       {user.email} &middot; {user.submissionCount} submission
                       {user.submissionCount !== 1 ? "s" : ""}
                     </p>
@@ -8461,7 +8510,7 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
                   <button
                     onClick={() => handleGrant(user.email, user.name)}
                     disabled={granting === user.email}
-                    className="px-3 py-1 text-xs rounded-full bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50">
+                    className="self-start px-3 py-1 text-xs rounded-full bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 sm:self-auto">
                     {granting === user.email ? "Granting..." : "Grant Access"}
                   </button>
                 </div>
@@ -8485,11 +8534,11 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
               {apiGrants.map((grant) => (
                 <div
                   key={grant._id}
-                  className={`flex items-center justify-between px-3 py-2.5 ${
+                  className={`flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between ${
                     grant.revoked ? "opacity-50" : ""
                   }`}>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="text-xs font-medium text-text-primary truncate">
                         {grant.name || grant.email}
                       </p>
@@ -8499,7 +8548,7 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] text-text-secondary mt-0.5">
+                    <p className="text-[10px] text-text-secondary mt-0.5 break-all">
                       {grant.email} &middot; Granted{" "}
                       {new Date(grant.grantedAt).toLocaleDateString("en-US", {
                         month: "short",
@@ -8512,7 +8561,7 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
                     <button
                       onClick={() => handleRevoke(grant.email)}
                       disabled={revoking === grant.email}
-                      className="px-3 py-1 text-xs rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50">
+                      className="self-start px-3 py-1 text-xs rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 sm:self-auto">
                       {revoking === grant.email ? "Revoking..." : "Revoke"}
                     </button>
                   )}
@@ -8919,7 +8968,7 @@ function AdminDashboard({
   return (
     <div className="max-w-7xl mx-auto">
       {/* Mobile search bar */}
-      <div className="mb-4 sm:hidden">
+      <div className={`mb-4 sm:hidden ${activeFilter === "settings" || activeFilter === "api" ? "hidden" : ""}`}>
         <div className="relative">
           <MagnifyingGlass
             size={16}
@@ -8953,7 +9002,7 @@ function AdminDashboard({
       </div>
 
       {/* Submissions list (hidden in settings view) */}
-      {activeFilter !== "settings" && <div className="rounded-lg border border-border bg-light shadow-sm mb-6">
+      {activeFilter !== "settings" && activeFilter !== "api" && <div className="rounded-lg border border-border bg-light shadow-sm mb-6">
         <div className="p-3 border-b border-border bg-bg-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <h2 className="text-base font-light text-text-primary">
             Package Submissions

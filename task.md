@@ -2,7 +2,14 @@
 
 ## completed
 
-Session updates complete on 2026-04-17 22:26 UTC.
+Session updates complete on 2026-04-17 23:04 UTC.
+
+- [x] Fix mobile settings and API layouts in admin dashboard (2026-04-17 23:04 UTC)
+  - PRD: `prds/admin-mobile-settings-api.md`
+  - Root cause: the admin settings and API views still had a few desktop-first mobile layouts. Category management rows packed too many badges into one line, the API tab still showed the generic submissions list, and the API analytics/access sections relied on dense row layouts plus a desktop table that compressed poorly on phones.
+  - Fix: updated `src/pages/Admin.tsx` so the main admin tabs now scroll horizontally on mobile with readable labels, the sticky settings jump nav has cleaner spacing, category management rows wrap and stack safely, the submissions search/list stay hidden on the `api` tab, the API analytics endpoint rows are wrap-safe, recent requests switch to stacked mobile cards, and the grant/revoke rows stack cleanly on narrow screens.
+  - Files: `src/pages/Admin.tsx`, `prds/admin-mobile-settings-api.md`, `task.md`, `changelog.md`, `files.md`
+  - Verification: `ReadLints` clean on `src/pages/Admin.tsx`; `npm run build` passed; `npx netlify build --offline --context production` passed.
 
 - [x] Align desktop metadata rows in submit and admin tables (2026-04-17 22:26 UTC)
   - Root cause: the desktop submission rows mixed plain text spans with badge components and icon links that used slightly different inline alignment and line-height behavior, so version, status, visibility, detail link, downloads, and date did not share one clean center line.

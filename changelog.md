@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Admin mobile settings and API layouts now fit narrow screens cleanly (2026-04-17 23:04 UTC)
+  - `src/pages/Admin.tsx`: changed the main admin filter tabs into a horizontal mobile scroller with readable labels, refined the sticky settings jump nav copy and spacing, and made the Category Management rows stack and wrap so count badges, verified badges, descriptions, and actions stay inside the card width.
+  - `src/pages/Admin.tsx`: the `api` tab now hides the generic submissions search/list, API endpoint breakdown rows wrap safely, recent requests render as stacked cards on mobile instead of a squeezed table, and API access grant/revoke rows now stack cleanly around long names and emails.
+  - Verification: `ReadLints` clean on `src/pages/Admin.tsx`; `npm run build` passed; `npx netlify build --offline --context production` passed.
+
 - Desktop metadata row alignment in submissions tables (2026-04-17 22:26 UTC)
   - `src/pages/Submit.tsx`: normalized the collapsed desktop row so the version pill, status badge, approved detail link, downloads, and submitted date share the same visual center line.
   - `src/pages/Admin.tsx`: matched the same alignment cleanup for the admin submissions row by centering the version pill, review badge, visibility badge, detail link, downloads, and date without changing mobile behavior.
