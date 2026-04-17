@@ -1,6 +1,6 @@
 "use node";
 
-import { v } from "convex/values";
+import { v, ConvexError } from "convex/values";
 import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
@@ -606,6 +606,157 @@ function mergeResults(
   return { status, summary, findings: allFindings, recommendations: uniqueRecs };
 }
 
+// Build the list of enabled provider tasks for the given package + settings.
+function buildProviderTasks(
+  pkg: { repositoryUrl?: string | null; name: string; version: string },
+  settings: { enableSocketScan?: boolean; enableSnykScan?: boolean },
+): Array<{ provider: string; run: () => Promise<ProviderResult> }> {
+  const tasks: Array<{
+    provider: string;
+    run: () => Promise<ProviderResult>;
+  }> = [];
+
+  if (settings.enableSocketScan) {
+    tasks.push({
+      provider: "socket",
+      run: () => runSocketScan(pkg.repositoryUrl!, pkg.name, pkg.version),
+    });
+  }
+  if (settings.enableSnykScan) {
+    tasks.push({
+      provider: "snyk",
+      run: () => runSnykScan(pkg.repositoryUrl!),
+    });
+  }
+
+  return tasks;
+}
+
+// Run all provider tasks in parallel and return only the fulfilled results.
+async function runProviderTasks(
+  tasks: Array<{ provider: string; run: () => Promise<ProviderResult> }>,
+): Promise<Array<{ provider: string; result: ProviderResult }>> {
+  const settled = await Promise.allSettled(
+    tasks.map(async (t) => ({
+      provider: t.provider,
+      result: await t.run(),
+    })),
+  );
+
+  const providerResults: Array<{ provider: string; result: ProviderResult }> = [];
+  for (const entry of settled) {
+    if (entry.status === "fulfilled") {
+      providerResults.push(entry.value);
+    }
+  }
+  return providerResults;
+}
+
+// Shape provider-specific metadata for persistence on the scan run.
+function buildProviderResultsForStorage(
+  providerResults: Array<{ provider: string; result: ProviderResult }>,
+) {
+  const socketResult = providerResults.find((r) => r.provider === "socket");
+  const snykResult = providerResults.find((r) => r.provider === "snyk");
+
+  return {
+    socketResult,
+    snykResult,
+    providerResults: {
+      socket: socketResult
+        ? {
+            status: socketResult.result.status,
+            score: socketResult.result.metadata.score as number | undefined,
+            issueCount: socketResult.result.metadata.issueCount as
+              | number
+              | undefined,
+            rawSummary: getProviderRawSummary(socketResult.result.metadata),
+          }
+        : undefined,
+      snyk: snykResult
+        ? {
+            status: snykResult.result.status,
+            vulnerabilityCount: snykResult.result.metadata
+              .vulnerabilityCount as number | undefined,
+            criticalCount: snykResult.result.metadata.criticalCount as
+              | number
+              | undefined,
+            highCount: snykResult.result.metadata.highCount as
+              | number
+              | undefined,
+            rawSummary: getProviderRawSummary(snykResult.result.metadata),
+          }
+        : undefined,
+    },
+  };
+}
+
+// Persist a terminal error state for a scan. Keeps error payloads consistent
+// between the "no repo", "no providers", and catch-all failure paths.
+async function saveScanError(
+  ctx: any,
+  params: {
+    packageId: Id<"packages">;
+    summary: string;
+    error: string;
+    createdAt: number;
+  },
+) {
+  await ctx.runMutation(internal.packages._saveSecurityScanResultAndRun, {
+    packageId: params.packageId,
+    status: "error",
+    summary: params.summary,
+    findings: [],
+    recommendations: [],
+    providerResults: {},
+    error: params.error,
+    createdAt: params.createdAt,
+    triggeredBy: "admin",
+  });
+}
+
+// Run provider scans and persist the merged result for this run.
+async function executeScanAndSaveResult(
+  ctx: any,
+  args: {
+    packageId: Id<"packages">;
+    pkg: any;
+    settings: any;
+    scanCreatedAt: number;
+  },
+): Promise<boolean> {
+  const tasks = buildProviderTasks(args.pkg, args.settings);
+  if (tasks.length === 0) {
+    await saveScanError(ctx, {
+      packageId: args.packageId,
+      summary: "No security scan providers are enabled.",
+      error: "No providers enabled",
+      createdAt: args.scanCreatedAt,
+    });
+    return false;
+  }
+
+  const providerResults = await runProviderTasks(tasks);
+  const merged = mergeResults(providerResults);
+  const { socketResult, snykResult, providerResults: storedProviderResults } =
+    buildProviderResultsForStorage(providerResults);
+
+  await ctx.runMutation(internal.packages._saveSecurityScanResultAndRun, {
+    packageId: args.packageId,
+    status: merged.status,
+    summary: merged.summary,
+    findings: merged.findings,
+    recommendations: merged.recommendations,
+    providerResults: storedProviderResults,
+    error: merged.status === "error" ? merged.summary : undefined,
+    createdAt: args.scanCreatedAt,
+    triggeredBy: "admin",
+    socketScanStatus: socketResult?.result.status,
+    snykScanStatus: snykResult?.result.status,
+  });
+  return true;
+}
+
 // Internal action: run security scan across enabled providers
 export const _runSecurityScan = internalAction({
   args: {
@@ -615,14 +766,12 @@ export const _runSecurityScan = internalAction({
   handler: async (ctx, args) => {
     const scanCreatedAt = Date.now();
 
-    // Mark as scanning
     await ctx.runMutation(internal.packages._updateSecurityScanStatus, {
       packageId: args.packageId,
       status: "scanning",
     });
 
     try {
-      // Load package and settings in parallel
       const [pkg, settings] = await Promise.all([
         ctx.runQuery(internal.packages._getPackage, {
           packageId: args.packageId,
@@ -631,127 +780,28 @@ export const _runSecurityScan = internalAction({
       ]);
 
       if (!pkg || !pkg.repositoryUrl) {
-        await ctx.runMutation(internal.packages._saveSecurityScanResultAndRun, {
+        await saveScanError(ctx, {
           packageId: args.packageId,
-          status: "error",
           summary: "No repository URL available for scanning.",
-          findings: [],
-          recommendations: [],
-          providerResults: {},
           error: "No repository URL",
           createdAt: scanCreatedAt,
-          triggeredBy: "admin",
         });
         return null;
       }
 
-      // Build provider tasks based on enabled settings
-      const tasks: Array<{
-        provider: string;
-        run: () => Promise<ProviderResult>;
-      }> = [];
-
-      if (settings.enableSocketScan) {
-        tasks.push({
-          provider: "socket",
-          run: () => runSocketScan(pkg.repositoryUrl!, pkg.name, pkg.version),
-        });
-      }
-      if (settings.enableSnykScan) {
-        tasks.push({
-          provider: "snyk",
-          run: () => runSnykScan(pkg.repositoryUrl!),
-        });
-      }
-
-      if (tasks.length === 0) {
-        await ctx.runMutation(internal.packages._saveSecurityScanResultAndRun, {
-          packageId: args.packageId,
-          status: "error",
-          summary: "No security scan providers are enabled.",
-          findings: [],
-          recommendations: [],
-          providerResults: {},
-          error: "No providers enabled",
-          createdAt: scanCreatedAt,
-          triggeredBy: "admin",
-        });
-        return null;
-      }
-
-      // Run all enabled providers in parallel
-      const settled = await Promise.allSettled(
-        tasks.map(async (t) => ({
-          provider: t.provider,
-          result: await t.run(),
-        })),
-      );
-
-      // Collect results (handle rejected promises)
-      const providerResults: Array<{ provider: string; result: ProviderResult }> = [];
-      for (const entry of settled) {
-        if (entry.status === "fulfilled") {
-          providerResults.push(entry.value);
-        }
-      }
-
-      // Merge findings from all providers
-      const merged = mergeResults(providerResults);
-
-      // Build provider result metadata for storage
-      const socketResult = providerResults.find((r) => r.provider === "socket");
-      const snykResult = providerResults.find((r) => r.provider === "snyk");
-
-      await ctx.runMutation(internal.packages._saveSecurityScanResultAndRun, {
+      await executeScanAndSaveResult(ctx, {
         packageId: args.packageId,
-        status: merged.status,
-        summary: merged.summary,
-        findings: merged.findings,
-        recommendations: merged.recommendations,
-        providerResults: {
-          socket: socketResult
-            ? {
-                status: socketResult.result.status,
-                score: socketResult.result.metadata.score as number | undefined,
-                issueCount: socketResult.result.metadata.issueCount as
-                  | number
-                  | undefined,
-                rawSummary: getProviderRawSummary(socketResult.result.metadata),
-              }
-            : undefined,
-          snyk: snykResult
-            ? {
-                status: snykResult.result.status,
-                vulnerabilityCount: snykResult.result.metadata
-                  .vulnerabilityCount as number | undefined,
-                criticalCount: snykResult.result.metadata.criticalCount as
-                  | number
-                  | undefined,
-                highCount: snykResult.result.metadata.highCount as
-                  | number
-                  | undefined,
-                rawSummary: getProviderRawSummary(snykResult.result.metadata),
-              }
-            : undefined,
-        },
-        error: merged.status === "error" ? merged.summary : undefined,
-        createdAt: scanCreatedAt,
-        triggeredBy: "admin",
-        socketScanStatus: socketResult?.result.status,
-        snykScanStatus: snykResult?.result.status,
+        pkg,
+        settings,
+        scanCreatedAt,
       });
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
-      await ctx.runMutation(internal.packages._saveSecurityScanResultAndRun, {
+      await saveScanError(ctx, {
         packageId: args.packageId,
-        status: "error",
         summary: `Security scan failed: ${message}`,
-        findings: [],
-        recommendations: [],
-        providerResults: {},
         error: message,
         createdAt: scanCreatedAt,
-        triggeredBy: "admin",
       });
     }
 
@@ -768,7 +818,7 @@ export const runSecurityScan = action({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new Error("Authentication required");
+      throw new ConvexError("Authentication required");
     }
 
     const pkg = await ctx.runQuery(internal.packages._getPackage, {

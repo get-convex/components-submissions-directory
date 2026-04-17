@@ -931,38 +931,58 @@ export const submitPackage = action({
 
     const packageId: Id<"packages"> = await ctx.runMutation(internal.packages._addPackage, insertData);
 
-    // Notify team via Slack of new component submission. The message is
-    // scheduled but not awaited, so will not block the submission process.
-    const inserted = await ctx.runQuery(internal.packages._getPackage, { packageId });
-    const slugForUrl = inserted?.slug ?? packageName;
-    const slackText =
-      `New component submission\n` +
-      `${validated.componentName} (${packageName})\n` +
-      `https://www.convex.dev/components/${slugForUrl}\n` +
-      `Repo: ${validated.repositoryUrl}\n` +
-      `npm: ${validated.npmUrl}`;
-    await ctx.scheduler.runAfter(0, internal.slack.sendMessage, { text: slackText });
-
-    if (prereqs.settings.autoAiReview && args.repositoryUrl) {
-      const _: null = await ctx.runMutation(internal.packages._updateReviewStatus, {
-        packageId,
-        reviewStatus: "in_review",
-        reviewedBy: "AI",
-        reviewNotes: "Auto AI review queued on submission",
-      });
-      await ctx.scheduler.runAfter(0, internal.aiReview._runAiReview, { packageId });
-    }
-
-    // Auto security scan on submission (if enabled and repo URL present)
-    if (prereqs.settings.autoSecurityScan && args.repositoryUrl) {
-      await ctx.scheduler.runAfter(0, internal.securityScan._runSecurityScan, {
-        packageId,
-      });
-    }
+    await scheduleSubmissionFollowups(ctx, {
+      packageId,
+      packageName,
+      args,
+      validated,
+      prereqs,
+    });
 
     return packageId;
   },
 });
+
+// Schedule Slack notification and optional auto AI / security scans after a
+// package is inserted. Nothing here blocks the submission response.
+async function scheduleSubmissionFollowups(
+  ctx: any,
+  params: {
+    packageId: Id<"packages">;
+    packageName: string;
+    args: any;
+    validated: any;
+    prereqs: any;
+  },
+) {
+  const { packageId, packageName, args, validated, prereqs } = params;
+
+  const inserted = await ctx.runQuery(internal.packages._getPackage, { packageId });
+  const slugForUrl = inserted?.slug ?? packageName;
+  const slackText =
+    `New component submission\n` +
+    `${validated.componentName} (${packageName})\n` +
+    `https://www.convex.dev/components/${slugForUrl}\n` +
+    `Repo: ${validated.repositoryUrl}\n` +
+    `npm: ${validated.npmUrl}`;
+  await ctx.scheduler.runAfter(0, internal.slack.sendMessage, { text: slackText });
+
+  if (prereqs.settings.autoAiReview && args.repositoryUrl) {
+    const _: null = await ctx.runMutation(internal.packages._updateReviewStatus, {
+      packageId,
+      reviewStatus: "in_review",
+      reviewedBy: "AI",
+      reviewNotes: "Auto AI review queued on submission",
+    });
+    await ctx.scheduler.runAfter(0, internal.aiReview._runAiReview, { packageId });
+  }
+
+  if (prereqs.settings.autoSecurityScan && args.repositoryUrl) {
+    await ctx.scheduler.runAfter(0, internal.securityScan._runSecurityScan, {
+      packageId,
+    });
+  }
+}
 
 function validateSubmitInputs(args: any) {
   const repositoryUrl = args.repositoryUrl.trim();
@@ -2272,6 +2292,21 @@ export const markCommentsAsReadForAdmin = mutation({
   },
 });
 
+// Mutation: Admin marks a single comment as read.
+// Idempotent: re-running on an already-read or admin-authored comment is a no-op.
+export const markPackageCommentReadForAdmin = mutation({
+  args: { commentId: v.id("packageComments") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+    const comment = await ctx.db.get(args.commentId);
+    if (!comment) return null;
+    if (comment.adminHasRead === true) return null;
+    await ctx.db.patch(args.commentId, { adminHasRead: true });
+    return null;
+  },
+});
+
 // Query: Get count of unread comments for admin
 export const getUnreadCommentsCount = query({
   args: { packageId: v.id("packages") },
@@ -2849,7 +2884,6 @@ export const getLatestSecurityScan = query({
       };
     }
 
-    // Get latest run for findings detail
     const latestRun = await ctx.db
       .query("securityScanRuns")
       .withIndex("by_package_and_created", (q) =>
@@ -2858,34 +2892,40 @@ export const getLatestSecurityScan = query({
       .order("desc")
       .first();
 
-    const providerCount = [
-      pkg.socketScanStatus,
-      pkg.snykScanStatus,
-      pkg.devinScanStatus,
-    ].filter(Boolean).length;
-
-    return {
-      status: pkg.securityScanStatus,
-      summary: pkg.securityScanSummary,
-      findingCount: latestRun?.findings?.length ?? 0,
-      providerCount,
-      lastScannedAt: pkg.securityScanUpdatedAt,
-      findings: (latestRun?.findings ?? []).map((f) => ({
-        severity: f.severity,
-        title: f.title,
-        description: f.description,
-        recommendation: f.recommendation,
-        provider: f.provider,
-      })),
-      recommendations: latestRun?.recommendations ?? [],
-      providerStatuses: {
-        socket: pkg.socketScanStatus,
-        snyk: pkg.snykScanStatus,
-        devin: pkg.devinScanStatus,
-      },
-    };
+    return formatLatestSecurityScan(pkg, latestRun);
   },
 });
+
+// Build the public-safe security scan payload from a package row and its
+// most recent `securityScanRuns` entry.
+function formatLatestSecurityScan(pkg: any, latestRun: any) {
+  const providerCount = [
+    pkg.socketScanStatus,
+    pkg.snykScanStatus,
+    pkg.devinScanStatus,
+  ].filter(Boolean).length;
+
+  return {
+    status: pkg.securityScanStatus,
+    summary: pkg.securityScanSummary,
+    findingCount: latestRun?.findings?.length ?? 0,
+    providerCount,
+    lastScannedAt: pkg.securityScanUpdatedAt,
+    findings: (latestRun?.findings ?? []).map((f: any) => ({
+      severity: f.severity,
+      title: f.title,
+      description: f.description,
+      recommendation: f.recommendation,
+      provider: f.provider,
+    })),
+    recommendations: latestRun?.recommendations ?? [],
+    providerStatuses: {
+      socket: pkg.socketScanStatus,
+      snyk: pkg.snykScanStatus,
+      devin: pkg.devinScanStatus,
+    },
+  };
+}
 
 // Admin query: security scan backlog stats for the settings panel
 export const getSecurityScanBacklogStats = query({
@@ -4631,6 +4671,30 @@ export const markPackageNotesAsRead = mutation({
   },
 });
 
+// Mutation: Submitter marks a single admin reply as read on their own submission.
+// Idempotent: re-running on an already-read or user-authored comment is a no-op.
+export const markPackageCommentReadForUser = mutation({
+  args: { commentId: v.id("packageComments") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
+      throw new ConvexError("Authentication required");
+    }
+    const comment = await ctx.db.get(args.commentId);
+    if (!comment) return null;
+    if (comment.userHasRead === true) return null;
+
+    const pkg = await ctx.db.get(comment.packageId);
+    if (!pkg || !userOwnsPackage(pkg, userEmail)) {
+      throw new ConvexError("You can only mark messages on your own submissions");
+    }
+
+    await ctx.db.patch(args.commentId, { userHasRead: true });
+    return null;
+  },
+});
+
 // Mutation: User sets their own submission visibility (hide/show)
 export const setMySubmissionVisibility = mutation({
   args: {
@@ -5212,6 +5276,145 @@ export const getTotalUnreadAdminReplies = query({
     }
 
     return totalUnread;
+  },
+});
+
+// Per-package unread summary for the header notifications bell (current user).
+// Returns minimal metadata only (no PII, no message content).
+export const getMyUnreadAdminRepliesByPackage = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      packageId: v.id("packages"),
+      packageName: v.string(),
+      slug: v.optional(v.string()),
+      unreadCount: v.number(),
+      lastMessageAt: v.number(),
+    }),
+  ),
+  handler: async (ctx) => {
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
+      return [];
+    }
+
+    const packages = await ctx.db
+      .query("packages")
+      .withIndex("by_submitter_email", (q) => q.eq("submitterEmail", userEmail))
+      .take(1000);
+
+    if (packages.length === 0) return [];
+
+    const results: Array<{
+      packageId: Id<"packages">;
+      packageName: string;
+      slug: string | undefined;
+      unreadCount: number;
+      lastMessageAt: number;
+    }> = [];
+
+    for (const pkg of packages) {
+      const summary = await computeUnreadAdminReplySummary(ctx, pkg);
+      if (summary) results.push(summary);
+    }
+
+    results.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+    return results;
+  },
+});
+
+// Fetch a package's admin->user replies and return an unread summary if any
+// unread messages are present. Returns null when there is nothing to surface.
+async function computeUnreadAdminReplySummary(ctx: any, pkg: any) {
+  const comments = await ctx.db
+    .query("packageComments")
+    .withIndex("by_package_and_created", (q: any) => q.eq("packageId", pkg._id))
+    .take(1000);
+
+  const unread = comments.filter(
+    (comment: any) =>
+      comment.authorEmail.endsWith("@convex.dev") &&
+      (comment.status === undefined || comment.status === "active") &&
+      comment.userHasRead === false,
+  );
+
+  if (unread.length === 0) return null;
+
+  let lastMessageAt = 0;
+  for (const c of unread) {
+    if (c.createdAt > lastMessageAt) lastMessageAt = c.createdAt;
+  }
+
+  return {
+    packageId: pkg._id as Id<"packages">,
+    packageName: (pkg.componentName ?? pkg.name) as string,
+    slug: (pkg.slug ?? undefined) as string | undefined,
+    unreadCount: unread.length,
+    lastMessageAt,
+  };
+}
+
+// Per-package incoming message summary for admin bell dropdown.
+// Groups unread submitter -> admin messages by package. Returns minimal metadata only.
+export const getAdminUnreadMessagesByPackage = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      packageId: v.id("packages"),
+      packageName: v.string(),
+      slug: v.optional(v.string()),
+      unreadCount: v.number(),
+      lastMessageAt: v.number(),
+    }),
+  ),
+  handler: async (ctx) => {
+    const admin = await getAdminIdentity(ctx);
+    if (!admin) return [];
+
+    // Scan recent comments directly. Ordered by createdAt desc via the default
+    // _creationTime index. Unread admin flags are rare relative to total
+    // comments, so we read a bounded window and filter in memory.
+    const recent = await ctx.db.query("packageComments").order("desc").take(2000);
+
+    const grouped = new Map<
+      Id<"packages">,
+      { packageId: Id<"packages">; packageName: string; slug: string | undefined; unreadCount: number; lastMessageAt: number }
+    >();
+
+    // A comment is a submitter message when adminHasRead !== true. The write
+    // path (addPackageComment / requestSubmissionRefresh) sets adminHasRead
+    // based on whether the author is an admin, so the author's email is not a
+    // reliable discriminator (e.g. an admin testing on their own submission).
+    for (const comment of recent) {
+      if (comment.status !== undefined && comment.status !== "active") continue;
+      if (comment.adminHasRead === true) continue;
+
+      const existing = grouped.get(comment.packageId);
+      if (existing) {
+        existing.unreadCount += 1;
+        if (comment.createdAt > existing.lastMessageAt) {
+          existing.lastMessageAt = comment.createdAt;
+        }
+        continue;
+      }
+
+      if (grouped.size >= 50) continue;
+
+      const pkg = await ctx.db.get(comment.packageId);
+      if (!pkg) continue;
+
+      grouped.set(comment.packageId, {
+        packageId: comment.packageId,
+        packageName: pkg.componentName ?? pkg.name,
+        slug: pkg.slug ?? undefined,
+        unreadCount: 1,
+        lastMessageAt: comment.createdAt,
+      });
+    }
+
+    const results = Array.from(grouped.values());
+    results.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+    return results;
   },
 });
 

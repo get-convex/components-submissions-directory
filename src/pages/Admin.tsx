@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useMutation, useQuery, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useAuth } from "../lib/auth";
@@ -1125,6 +1125,16 @@ function ConfirmModal({
   cancelText?: string;
   type?: "warning" | "danger";
 }) {
+  // Close on ESC
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
@@ -1195,6 +1205,8 @@ function NotesPanel({
   const notes = useQuery(api.packages.getPackageNotes, { packageId });
   const addNote = useMutation(api.packages.addPackageNote);
   const deleteNote = useMutation(api.packages.deletePackageNote);
+  const markNotesRead = useMutation(api.packages.markNotesAsReadForAdmin);
+  const unreadNotesCount = useQuery(api.packages.getUnreadUserNotesCount, { packageId });
 
   // Handle ESC key to close panel
   useEffect(() => {
@@ -1282,6 +1294,11 @@ function NotesPanel({
           <div>
             <h3 className="text-lg font-normal text-text-primary">
               Admin Notes
+              {unreadNotesCount !== undefined && unreadNotesCount > 0 && (
+                <span className="ml-2 px-1.5 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-600">
+                  {unreadNotesCount} unread
+                </span>
+              )}
             </h3>
             <p className="text-xs text-text-secondary truncate max-w-xs">
               {packageName}
@@ -1291,6 +1308,14 @@ function NotesPanel({
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {unreadNotesCount !== undefined && unreadNotesCount > 0 && (
+              <button
+                onClick={() => markNotesRead({ packageId })}
+                className="px-3 py-1.5 text-xs rounded-full border border-border bg-white text-text-primary hover:bg-bg-hover transition-colors"
+              >
+                Mark all read
+              </button>
+            )}
             <button
               onClick={onClose}
               className="p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
@@ -1526,14 +1551,8 @@ function CommentsPanel({
   const deleteComment = useMutation(api.packages.deletePackageComment);
   const updateCommentStatus = useMutation(api.packages.updatePackageCommentStatus);
   const markAsRead = useMutation(api.packages.markCommentsAsReadForAdmin);
+  const markOneCommentRead = useMutation(api.packages.markPackageCommentReadForAdmin);
   const unreadCount = useQuery(api.packages.getUnreadCommentsCount, { packageId });
-
-  // Auto-mark as read when panel opens and there are unread comments
-  useEffect(() => {
-    if (isOpen && unreadCount && unreadCount > 0) {
-      markAsRead({ packageId });
-    }
-  }, [isOpen, unreadCount, packageId, markAsRead]);
 
   // Handle ESC key to close panel
   useEffect(() => {
@@ -1591,6 +1610,15 @@ function CommentsPanel({
     }
   };
 
+  const handleMarkOneCommentRead = async (commentId: Id<"packageComments">) => {
+    try {
+      await markOneCommentRead({ commentId });
+      toast.success("Marked as read");
+    } catch (error) {
+      toast.error("Failed to mark as read");
+    }
+  };
+
   const formatCommentDate = (timestamp: number) => {
     const date = new Date(timestamp);
     return date.toLocaleDateString("en-US", {
@@ -1636,7 +1664,7 @@ function CommentsPanel({
             {unreadCount !== undefined && unreadCount > 0 && (
               <button
                 onClick={() => markAsRead({ packageId })}
-                className="text-xs text-text-secondary hover:text-text-primary transition-colors"
+                className="px-3 py-1.5 text-xs rounded-full border border-border bg-white text-text-primary hover:bg-bg-hover transition-colors"
               >
                 Mark all read
               </button>
@@ -1673,44 +1701,51 @@ function CommentsPanel({
                       {comment.authorName || comment.authorEmail.split("@")[0]}
                     </span>
                     <span>{formatCommentDate(comment.createdAt)}</span>
+                    {comment.adminHasRead !== true && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-green-500 text-white text-[10px] font-medium">
+                        New
+                      </span>
+                    )}
                   </div>
-                  {comment.authorEmail === userEmail && (
-                    <div className="flex items-center gap-1">
-                      {(!comment.status || comment.status === "active") ? (
-                        <>
+                  <div className="flex items-center gap-1">
+                    {comment.authorEmail === userEmail && (
+                      <>
+                        {(!comment.status || comment.status === "active") ? (
+                          <>
+                            <button
+                              onClick={() => handleSetCommentStatus(comment._id, "hidden")}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                            >
+                              <EyeSlash size={10} />
+                              Hide
+                            </button>
+                            <button
+                              onClick={() => handleSetCommentStatus(comment._id, "archived")}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                            >
+                              <Archive size={10} />
+                              Archive
+                            </button>
+                          </>
+                        ) : (
                           <button
-                            onClick={() => handleSetCommentStatus(comment._id, "hidden")}
+                            onClick={() => handleSetCommentStatus(comment._id, "active")}
                             className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
                           >
-                            <EyeSlash size={10} />
-                            Hide
+                            <Eye size={10} />
+                            Restore
                           </button>
-                          <button
-                            onClick={() => handleSetCommentStatus(comment._id, "archived")}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
-                          >
-                            <Archive size={10} />
-                            Archive
-                          </button>
-                        </>
-                      ) : (
+                        )}
                         <button
-                          onClick={() => handleSetCommentStatus(comment._id, "active")}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                          onClick={() => handleDeleteComment(comment._id)}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
                         >
-                          <Eye size={10} />
-                          Restore
+                          <X size={10} />
+                          Delete
                         </button>
-                      )}
-                      <button
-                        onClick={() => handleDeleteComment(comment._id)}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
-                      >
-                        <X size={10} />
-                        Delete
-                      </button>
-                    </div>
-                  )}
+                      </>
+                    )}
+                  </div>
                 </div>
                 <p className="text-sm text-text-primary whitespace-pre-wrap">
                   {comment.content}
@@ -1719,6 +1754,17 @@ function CommentsPanel({
                   <p className="mt-2 text-xs text-text-secondary">
                     Status: {comment.status === "hidden" ? "Hidden" : "Archived"}
                   </p>
+                )}
+                {comment.adminHasRead !== true && (
+                  <div className="mt-2">
+                    <button
+                      onClick={() => handleMarkOneCommentRead(comment._id)}
+                      className="inline-flex items-center px-2 py-0.5 text-[11px] rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                      title="Mark this message as read"
+                    >
+                      Mark read
+                    </button>
+                  </div>
                 )}
               </div>
             ))
@@ -3074,6 +3120,23 @@ function InlineActions({
   useEffect(() => {
     setSortOrderInput(currentFeaturedSortOrder?.toString() ?? "");
   }, [currentFeaturedSortOrder]);
+
+  // ESC closes the reward confirm and reward history modals.
+  // Reward history always closes on ESC. Reward confirm is blocked while a
+  // send is in flight to avoid surprise dismissal during a network request.
+  useEffect(() => {
+    if (!showRewardConfirm && !showRewardHistory) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (showRewardHistory) setShowRewardHistory(false);
+      if (showRewardConfirm && !isSendingReward) {
+        setShowRewardConfirm(false);
+        setRewardNote("");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showRewardConfirm, showRewardHistory, isSendingReward]);
 
   const handleUnarchive = async () => {
     if (isLoading) return;
@@ -5761,6 +5824,18 @@ function RewardSettingsPanel() {
       setTestRewardAmount(String(settings.defaultRewardAmount));
     }
   }, [settings?.defaultRewardAmount]);
+
+  // ESC closes the test reward confirmation unless a send is in flight.
+  useEffect(() => {
+    if (!showTestRewardConfirm) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isSendingTestReward) {
+        setShowTestRewardConfirm(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showTestRewardConfirm, isSendingTestReward]);
 
   const handleToggleAutoSend = async () => {
     try {
@@ -8454,6 +8529,29 @@ function AdminDashboard({
   const [expandedPackages, setExpandedPackages] = useState<Set<string>>(
     new Set(),
   );
+  // Hash-driven scroll + highlight + auto-expand (e.g. /submissions/admin#pkg-<id>)
+  const [hashTargetPackageId, setHashTargetPackageId] = useState<string | null>(null);
+  const hashTargetRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const parseHash = () => {
+      const match = window.location.hash.match(/^#pkg-(.+)$/);
+      if (!match) return;
+      const id = match[1];
+      setHashTargetPackageId(id);
+      setExpandedPackages((prev) => {
+        if (prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
+      // Fade the highlight after 4s so pagination / filter jumps have time to render first.
+      window.setTimeout(() => setHashTargetPackageId((cur) => (cur === id ? null : cur)), 4000);
+    };
+    parseHash();
+    window.addEventListener("hashchange", parseHash);
+    return () => window.removeEventListener("hashchange", parseHash);
+  }, []);
   // Sort option state
   type SortOption =
     | "newest"
@@ -8466,6 +8564,107 @@ function AdminDashboard({
     | "featured"
     | "approved_at";
   const [sortBy, setSortBy] = useState<SortOption>("newest");
+
+  // When the hash target is on a different page or excluded by the current
+  // filter, switch the filter to "all" and/or jump to the correct page so the
+  // scroll + highlight effect above can find the element in the DOM.
+  useEffect(() => {
+    if (!hashTargetPackageId || !packages) return;
+
+    const targetPkg = packages.find((p: any) => p._id === hashTargetPackageId);
+    if (!targetPkg) return;
+
+    const pkgIsArchived = targetPkg.visibility === "archived";
+    const pkgStatus = targetPkg.reviewStatus || "pending";
+
+    // Does the current filter include this package?
+    const matchesCurrentFilter = (() => {
+      if (activeFilter === "settings" || activeFilter === "api") return false;
+      if (activeFilter === "marked_for_deletion")
+        return targetPkg.markedForDeletion === true;
+      if (activeFilter === "archived") return pkgIsArchived;
+      if (pkgIsArchived) return false;
+      if (activeFilter === "all") return true;
+      return pkgStatus === activeFilter;
+    })();
+
+    if (!matchesCurrentFilter) {
+      // Pick the most useful filter for the target package.
+      const nextFilter: FilterType = pkgIsArchived
+        ? "archived"
+        : targetPkg.markedForDeletion
+          ? "marked_for_deletion"
+          : "all";
+      if (nextFilter !== activeFilter) setActiveFilter(nextFilter);
+      return;
+    }
+
+    // Replicate the filter + sort used for rendering so we can locate the index.
+    const filtered = packages.filter((pkg: any) => {
+      if (activeFilter === "settings" || activeFilter === "api") return false;
+      if (activeFilter === "marked_for_deletion")
+        return pkg.markedForDeletion === true;
+      if (activeFilter === "archived") return pkg.visibility === "archived";
+      if (pkg.visibility === "archived") return false;
+      if (activeFilter === "all") return true;
+      const status = pkg.reviewStatus || "pending";
+      return status === activeFilter;
+    });
+
+    const sorted = [...filtered].sort((a: any, b: any) => {
+      switch (sortBy) {
+        case "newest":
+          return b.submittedAt - a.submittedAt;
+        case "oldest":
+          return a.submittedAt - b.submittedAt;
+        case "name_asc":
+          return a.name.localeCompare(b.name);
+        case "name_desc":
+          return b.name.localeCompare(a.name);
+        case "downloads":
+          return b.weeklyDownloads - a.weeklyDownloads;
+        case "approved_at": {
+          const approvedSort = (b.approvedAt ?? 0) - (a.approvedAt ?? 0);
+          return approvedSort !== 0 ? approvedSort : b.submittedAt - a.submittedAt;
+        }
+        case "verified": {
+          const s =
+            Number(Boolean(b.convexVerified)) - Number(Boolean(a.convexVerified));
+          return s !== 0 ? s : b.submittedAt - a.submittedAt;
+        }
+        case "community": {
+          const s =
+            Number(Boolean(b.communitySubmitted)) -
+            Number(Boolean(a.communitySubmitted));
+          return s !== 0 ? s : b.submittedAt - a.submittedAt;
+        }
+        case "featured": {
+          const s = Number(Boolean(b.featured)) - Number(Boolean(a.featured));
+          return s !== 0 ? s : b.submittedAt - a.submittedAt;
+        }
+        default:
+          return 0;
+      }
+    });
+
+    const index = sorted.findIndex((p: any) => p._id === hashTargetPackageId);
+    if (index === -1) return;
+
+    const targetPage = Math.floor(index / itemsPerPage) + 1;
+    setCurrentPage((prev) => {
+      if (prev[activeFilter] === targetPage) return prev;
+      return { ...prev, [activeFilter]: targetPage };
+    });
+  }, [hashTargetPackageId, packages, activeFilter, itemsPerPage, sortBy]);
+
+  // Scroll the target row into view once it actually mounts. Re-runs whenever the
+  // page, filter, or hash target changes so a pagination jump finishes before we scroll.
+  useEffect(() => {
+    if (!hashTargetPackageId) return;
+    const el = hashTargetRef.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [hashTargetPackageId, activeFilter, currentPage]);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [activeSettingsSection, setActiveSettingsSection] = useState<string>(
     ADMIN_SETTINGS_SECTIONS[0].id,
@@ -8821,10 +9020,17 @@ function AdminDashboard({
               .map((pkg) => {
               const isExpanded = expandedPackages.has(pkg._id);
               const dateMeta = getSubmissionDateMeta(pkg);
+              const isHashTarget = hashTargetPackageId === pkg._id;
               return (
                 <div
                   key={pkg._id}
-                  className="rounded-lg border border-border bg-white"
+                  id={`pkg-${pkg._id}`}
+                  ref={isHashTarget ? hashTargetRef : undefined}
+                  className={`rounded-lg border bg-white transition-colors ${
+                    isHashTarget
+                      ? "border-[#E05C35] ring-2 ring-[#E05C35]"
+                      : "border-border"
+                  }`}
                 >
                   {/* Collapsible header - always visible */}
                   <button

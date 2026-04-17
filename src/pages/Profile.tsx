@@ -2,7 +2,7 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { useAuth } from "../lib/auth";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Toaster, toast } from "sonner";
 import Header from "../components/Header";
 import CodeBlock from "../components/CodeBlock";
@@ -168,6 +168,15 @@ function RequestModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const requestRefresh = useMutation(api.packages.requestSubmissionRefresh);
 
+  // ESC closes the request modal unless a submit is in flight.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isSubmitting) onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, isSubmitting]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!note.trim()) {
@@ -255,6 +264,7 @@ function ViewNotesModal({
     includeInactive: showInactive,
   });
   const markAsRead = useMutation(api.packages.markPackageNotesAsRead);
+  const markOneNoteRead = useMutation(api.packages.markPackageCommentReadForUser);
   const deleteMessage = useMutation(api.packages.deletePackageComment);
   const updateMessageStatus = useMutation(api.packages.updatePackageCommentStatus);
 
@@ -267,20 +277,14 @@ function ViewNotesModal({
         (!n.status || n.status === "active"),
     ).length ?? 0;
 
-  // Auto-mark notes as read when modal opens
+  // ESC closes the messages modal.
   useEffect(() => {
-    if (
-      notes &&
-      notes.some(
-        (n) =>
-          n.isFromAdmin &&
-          n.userHasRead === false &&
-          (!n.status || n.status === "active"),
-      )
-    ) {
-      markAsRead({ packageId });
-    }
-  }, [notes, packageId, markAsRead]);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
 
   const handleMarkAllAsRead = () => {
     markAsRead({ packageId });
@@ -308,6 +312,15 @@ function ViewNotesModal({
       }
     } catch {
       toast.error("Failed to update message");
+    }
+  };
+
+  const handleMarkOneRead = async (messageId: Id<"packageComments">) => {
+    try {
+      await markOneNoteRead({ commentId: messageId });
+      toast.success("Marked as read");
+    } catch {
+      toast.error("Failed to mark as read");
     }
   };
 
@@ -349,7 +362,7 @@ function ViewNotesModal({
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllAsRead}
-                className="text-xs text-text-secondary hover:text-text-primary transition-colors">
+                className="px-3 py-1.5 text-xs rounded-full border border-border bg-white text-text-primary hover:bg-bg-hover transition-colors">
                 Mark all read
               </button>
             )}
@@ -398,37 +411,50 @@ function ViewNotesModal({
                     Status: {note.status === "hidden" ? "Hidden" : "Archived"}
                   </p>
                 )}
-                {note.isOwnMessage && (
-                  <div className="mt-2 flex items-center gap-2">
-                    {(!note.status || note.status === "active") ? (
+                {(note.isOwnMessage ||
+                  (note.isFromAdmin && note.userHasRead === false)) && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {note.isOwnMessage && (
                       <>
+                        {(!note.status || note.status === "active") ? (
+                          <>
+                            <button
+                              onClick={() => handleSetStatus(note._id, "hidden")}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+                              <EyeSlash size={12} />
+                              Hide
+                            </button>
+                            <button
+                              onClick={() => handleSetStatus(note._id, "archived")}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+                              <Archive size={12} />
+                              Archive
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => handleSetStatus(note._id, "active")}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+                            <Eye size={12} />
+                            Restore
+                          </button>
+                        )}
                         <button
-                          onClick={() => handleSetStatus(note._id, "hidden")}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
-                          <EyeSlash size={12} />
-                          Hide
-                        </button>
-                        <button
-                          onClick={() => handleSetStatus(note._id, "archived")}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
-                          <Archive size={12} />
-                          Archive
+                          onClick={() => handleDelete(note._id)}
+                          className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors">
+                          <Trash size={12} />
+                          Delete
                         </button>
                       </>
-                    ) : (
+                    )}
+                    {note.isFromAdmin && note.userHasRead === false && (
                       <button
-                        onClick={() => handleSetStatus(note._id, "active")}
-                        className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
-                        <Eye size={12} />
-                        Restore
+                        onClick={() => handleMarkOneRead(note._id)}
+                        className="inline-flex items-center px-2 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                        title="Mark this message as read">
+                        Mark read
                       </button>
                     )}
-                    <button
-                      onClick={() => handleDelete(note._id)}
-                      className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors">
-                      <Trash size={12} />
-                      Delete
-                    </button>
                   </div>
                 )}
               </div>
@@ -516,6 +542,15 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
       );
     }
   }, [submission]);
+
+  // ESC closes the edit modal unless a submit is in flight to avoid losing work.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !isSubmitting) onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, isSubmitting]);
 
   const handleGenerateContent = useCallback(async () => {
     if (!submission) return;
@@ -958,6 +993,15 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
 function ApiUsageModal({ onClose }: { onClose: () => void }) {
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
 
+  // ESC closes the API usage modal.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
   const endpoints = [
     {
       name: "Search components",
@@ -1184,6 +1228,8 @@ function SubmissionCard({
   basePath: string;
 }) {
   const [showOriginalText, setShowOriginalText] = useState(false);
+  const [hashHighlight, setHashHighlight] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
   const displayName = submission.componentName || submission.name;
   const submittedDate = new Date(submission.submittedAt).toLocaleDateString("en-US", {
     year: "numeric",
@@ -1192,6 +1238,20 @@ function SubmissionCard({
   });
   const hasOriginalText = submission.submittedShortDescription || submission.submittedLongDescription;
 
+  // Scroll into view + ring highlight when arriving via #pkg-<id> hash.
+  // Confined to one-time DOM sync based on URL hash.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const targetHash = `#pkg-${submission._id}`;
+    if (window.location.hash !== targetHash) return;
+    const el = cardRef.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    setHashHighlight(true);
+    const timeout = window.setTimeout(() => setHashHighlight(false), 2000);
+    return () => window.clearTimeout(timeout);
+  }, [submission._id]);
+
   // Show View button when approved AND visible (consistent with admin dashboard)
   const canViewDetail =
     submission.slug &&
@@ -1199,7 +1259,14 @@ function SubmissionCard({
     (!submission.visibility || submission.visibility === "visible");
 
   return (
-    <div className="border border-border rounded-lg bg-white p-4 hover:border-border-hover transition-colors">
+    <div
+      ref={cardRef}
+      id={`pkg-${submission._id}`}
+      className={`border rounded-lg bg-white p-4 transition-colors ${
+        hashHighlight
+          ? "border-[#E05C35] ring-2 ring-[#E05C35]"
+          : "border-border hover:border-border-hover"
+      }`}>
       <div className="flex gap-4">
         {/* Thumbnail */}
         <div className="w-20 h-12 flex-shrink-0 rounded bg-bg-secondary overflow-hidden">

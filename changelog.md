@@ -9,6 +9,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- convex-doctor errors and warnings: score 94 → 100 (2026-04-17 09:45 UTC)
+  - `convex/apiKeys.ts` `countKeysAndGrants`: replaced two unbounded `.collect()` calls with bounded `.take(10000)` and dropped the JS-side `grants.filter((g) => !g.revoked)` by querying `apiAccessGrants` via the existing `by_revoked` index. The `apiKeys` active count now uses `by_status("active").take(10000)`. Fixes `perf/unbounded-collect` (2 errors) and `perf/collect-then-filter` (1 warning) that were reported against the `getApiAnalytics` admin query.
+  - `convex/securityScan.ts` `runSecurityScan`: swapped `throw new Error("Authentication required")` for `throw new ConvexError(...)` so the auth error survives Convex production redaction instead of being flattened to "Server Error". Added `ConvexError` to the existing `convex/values` import.
+  - Files: `convex/apiKeys.ts`, `convex/securityScan.ts`
+  - Verification: `npx convex-doctor` → 100/100, `No issues found across 23 files`. `npm run build` passes in ~4.2s. `ReadLints` clean on both files.
+
+### Changed
+
+- Thin out five long Convex handlers so they stay within the arch/large-handler budget (2026-04-17 09:45 UTC)
+  - `convex/dashboard.ts` `getDashboardStats`: extracted the per-package aggregation loop (counts, author map, month map) into a new `computeDashboardStats(active)` helper and hoisted the non-admin response into an `emptyDashboardStats` constant. The handler is now just admin check + `take(2000)` + active filter + aggregate call.
+  - `convex/packages.ts` `submitPackage`: extracted the post-insert follow-ups (Slack notify + `autoAiReview` scheduling + `autoSecurityScan` scheduling) into `scheduleSubmissionFollowups(ctx, { packageId, packageName, args, validated, prereqs })`. The handler now stops after insert + follow-up call.
+  - `convex/packages.ts` `getLatestSecurityScan`: moved the response shape for the loaded package + latest `securityScanRuns` run into a new `formatLatestSecurityScan(pkg, latestRun)` helper. Same fields, same `providerStatuses` map, same public-safe payload.
+  - `convex/packages.ts` `getMyUnreadAdminRepliesByPackage`: extracted the per-package comment scan and unread summary into `computeUnreadAdminReplySummary(ctx, pkg)`. Handler loops once and collects non-null summaries, then sorts.
+  - `convex/securityScan.ts` `_runSecurityScan`: split the 144-line handler into focused helpers — `buildProviderTasks(pkg, settings)`, `runProviderTasks(tasks)`, `buildProviderResultsForStorage(providerResults)`, `saveScanError(ctx, ...)`, and `executeScanAndSaveResult(ctx, ...)`. The three error paths (no repo, no providers enabled, catch-all) now share the same `saveScanError` writer, so the stored error payload shape is guaranteed identical.
+  - Behavior is preserved across all five handlers (same DB reads, writes, scheduled calls, and return shapes). Only code organization changed.
+  - Files: `convex/dashboard.ts`, `convex/packages.ts`, `convex/securityScan.ts`
+  - Verification: `npx convex-doctor` → 100/100, `No issues found`. `ReadLints` clean on all three files. `npm run build` passes.
+
+### Changed
+
+- Mark read button layout polish in Admin + Profile message panels (2026-04-17 09:10 UTC)
+  - `AdminPackageCommentsPanel` in `src/pages/Admin.tsx`: moved the per-comment "Mark read" pill out of the top-right action cluster and onto its own row underneath the message content. This prevents the Hide/Archive/Delete row from wrapping awkwardly when a comment is unread. Icon was removed from the pill to keep it compact; the word "Mark read" is the whole affordance.
+  - `ViewNotesModal` in `src/pages/Profile.tsx`: merged the "Mark read" pill into the same action row as Hide/Archive/Delete instead of sitting above them on its own line. Mark read now appears after Delete when both apply. The `Check` icon was removed from the Mark read pill.
+  - Removed the unused `Check` import from `src/pages/Admin.tsx` now that the icon is gone.
+  - Files: `src/pages/Admin.tsx`, `src/pages/Profile.tsx`
+
+### Fixed
+
+- Admin "Mark read" pill and bell-dropdown scroll both worked only for other users (2026-04-17 08:55 UTC)
+  - `AdminPackageCommentsPanel` in `src/pages/Admin.tsx` gated the per-message "Mark read" pill on `comment.authorEmail !== userEmail`. When an admin tests the flow from their own `/profile` (submitter email === admin email), every comment was treated as "own message", so Hide/Archive/Delete rendered but the new Mark read pill never did. The bell dropdown still listed those same messages as unread because `getAdminUnreadMessagesByPackage` correctly ignores the author email. Gate is now just `comment.adminHasRead !== true`. Admin replies typed from the admin panel already have `adminHasRead: true`, so they continue to render the lifecycle buttons only, never the Mark read pill.
+  - Bell-dropdown jump to a package on page 2+ or under a different filter landed on the wrong page because the scroll effect depended only on `hashTargetPackageId`. It fired once with `el = null`, the pagination-jump effect switched the page, but the element that now mounted never got scrolled. Split the scroll into its own effect that also depends on `activeFilter` and `currentPage`, and extended the highlight window from 2s to 4s so the filter/page switch has time to render before the highlight clears.
+  - Files: `src/pages/Admin.tsx`
+
+### Changed
+
+- Removed auto-mark-all-read-on-open from admin and profile message panels (2026-04-17 08:35 UTC)
+  - `AdminPackageCommentsPanel` (user-messages view) and `AdminPackageNotesPanel` (admin-notes view) in `src/pages/Admin.tsx` no longer fire `markCommentsAsReadForAdmin` / `markNotesAsReadForAdmin` automatically when the panel opens. The effect was clearing `adminHasRead !== true` on every comment before the render could show the new per-message "Mark read" pill, so admins never saw the button.
+  - `ViewNotesModal` in `src/pages/Profile.tsx` no longer fires `markPackageNotesAsRead` automatically on open. Same reason: it was clearing `userHasRead === false` before the per-message "Mark read" pill could render on admin replies.
+  - Marking messages read is now fully opt-in: the bulk "Mark all read" pill in each panel header still calls the existing bulk mutations, and the per-message "Mark read" pills call `markPackageCommentReadForAdmin` / `markPackageCommentReadForUser`. The bell notification badge will stay visible until the user or admin explicitly marks items read.
+  - Files: `src/pages/Admin.tsx`, `src/pages/Profile.tsx`
+
+### Added
+
+- Per-message Mark read buttons + universal ESC close + pagination-aware hash navigation (2026-04-17 08:15 UTC)
+  - Admin message panel (`AdminPackageCommentsPanel` in `src/pages/Admin.tsx`): each submitter-authored comment with `adminHasRead !== true` now shows a small "Mark read" pill next to the author meta and a green "New" badge. Admin's own replies, which are already marked read at write time, never show the button. Bulk "Mark all read" pill in the header is unchanged.
+  - User message panel (`ViewNotesModal` in `src/pages/Profile.tsx`): each admin-authored note with `userHasRead === false` now shows a "Mark read" pill below the content. The existing "New" badge, bulk "Mark all read" pill, and Hide/Archive/Delete controls on own messages are unchanged.
+  - Backend: two new idempotent mutations in `convex/packages.ts`. `markPackageCommentReadForAdmin({ commentId })` requires admin identity and patches `adminHasRead: true`. `markPackageCommentReadForUser({ commentId })` requires the caller to own the target package (via `userOwnsPackage`) and patches `userHasRead: true`. Both short-circuit when the flag is already set or the comment has been deleted.
+  - ESC closes every modal on `src/pages/Admin.tsx` and `src/pages/Profile.tsx`. Added keyboard handlers to `ConfirmModal`, the reward confirmation modal, reward history modal, and test reward confirmation in Admin (the two reward modals with in-flight sends are guarded so ESC does not dismiss during a network call). Added handlers to `RequestModal`, `ViewNotesModal`, `EditModal`, and `ApiUsageModal` in Profile (edit + request are guarded while submitting).
+  - Pagination-aware hash navigation in `AdminDashboard`: when the bell dropdown links to `#pkg-<id>` and the target is excluded by the active filter or lives on a different client-side page, the hash effect now switches `activeFilter` ("all", "archived", or "marked_for_deletion" depending on the package) and updates `currentPage[activeFilter]` to the computed page so the scroll + highlight effect can locate the element. The calculation mirrors the same filter + sort logic used for rendering.
+  - Files: `convex/packages.ts`, `src/pages/Admin.tsx`, `src/pages/Profile.tsx`, `prds/admin-profile-messages-ux.md`
+
+- Header notifications bell with admin + user messages dropdown (2026-04-17 06:17 UTC)
+  - New Phosphor `Bell` icon in `src/components/Header.tsx`, placed immediately to the right of the Submit link on desktop and in the mobile header row. Visible only to authenticated users. Default state is an outline bell matching the other header icons (`text-text-secondary`, size 16); when unread messages exist it switches to a filled `#E05C35` icon with a count pill badge.
+  - Dropdown shows two sections: "Messages from Convex Team" listing each of the current user's submissions with unread admin replies, and (for `@convex.dev` admins only) "Incoming messages" listing every component with unread submitter messages. Each row shows the component name, unread count, and relative last-message timestamp.
+  - Clicking a user-section row navigates to `/components/profile#pkg-<packageId>` and scrolls/ring-highlights the matching submission card. Clicking an admin-section row navigates to `/components/submissions/admin#pkg-<packageId>`, auto-expands that package's row, and scrolls/highlights it for two seconds.
+  - New Convex queries in `convex/packages.ts`: `getMyUnreadAdminRepliesByPackage` (user feed, reuses the `by_submitter_email` + `by_package_and_created` index pattern from `getTotalUnreadAdminReplies`) and `getAdminUnreadMessagesByPackage` (admin-only feed, capped at 50 packages). Both return minimal metadata only (`packageId`, `packageName`, `slug`, `unreadCount`, `lastMessageAt`).
+  - Upgraded Mark all read from a small text link to a visible pill button in three message panels: the user-facing `ViewNotesModal` in `src/pages/Profile.tsx`, the `AdminPackageCommentsPanel` in `src/pages/Admin.tsx`, and the `AdminPackageNotesPanel` in `src/pages/Admin.tsx`. The admin notes panel now also wires `getUnreadUserNotesCount` and `markNotesAsReadForAdmin` so it tracks user-to-admin unread notes and auto-marks them read on open (same pattern already used by the comments panel).
+  - Files: `convex/packages.ts`, `src/components/Header.tsx`, `src/pages/Profile.tsx`, `src/pages/Admin.tsx`, `prds/admin-message-notifications-bell.md`
+
+### Changed
+
+- `getAdminUnreadMessagesByPackage` in `convex/packages.ts` now scans `packageComments` directly (ordered by creation desc, window of 2000) instead of iterating every row in `packages` and issuing a per-package comments query (2026-04-17 07:05 UTC)
+  - Same public shape and behavior (still capped at 50 packages, still returns `packageId`, `packageName`, `slug`, `unreadCount`, `lastMessageAt` sorted by latest message), but the read cost drops from O(packages) package reads plus O(packages) comment queries to one bounded comments scan plus at most 50 package lookups
+  - Files: `convex/packages.ts`
+
+### Fixed
+
+- Admin header bell dropdown now surfaces messages sent from `src/pages/Profile.tsx` when the submitter also has a `@convex.dev` email (2026-04-17 07:25 UTC)
+  - `getAdminUnreadMessagesByPackage` in `convex/packages.ts` previously filtered out every comment whose `authorEmail` ended in `@convex.dev`, so admins testing the Send Request flow on their own submissions never saw the bell notification even though the message existed in `packageComments` with `adminHasRead: false`
+  - The admin-vs-user distinction is already encoded at write time: `addPackageComment` sets `adminHasRead: isAdmin` and `requestSubmissionRefresh` always sets `adminHasRead: false`, so `adminHasRead !== true` alone reliably identifies unread submitter messages
+  - Removed the email suffix check; the filter now relies on `status === "active"` (or undefined) and `adminHasRead !== true`, which matches the semantic used elsewhere in the file (e.g. `markCommentsAsReadForAdmin` around line 2288)
+  - Files: `convex/packages.ts`
+
+### Fixed
+
 - Removed leftover agent debug telemetry posting to `http://127.0.0.1:7557/ingest/...` from the thumbnail generator and component editor (2026-04-16 22:50 UTC)
   - `convex/thumbnailGenerator.ts` had four fire-and-forget `fetch` calls inside `_generateThumbnailForPackage` (resolve prereqs, compose/upload, save metadata, on-error) that targeted a local agent ingest server from a prior debugging session (`sessionId:"10e84f"`, runId `"pre-fix"`)
   - `src/components/ComponentDetailsEditor.tsx` had four matching client-side calls in the thumbnail sync `useEffect` and `handleGenerateThumbnail` (request, success, error)

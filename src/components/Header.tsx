@@ -13,6 +13,7 @@ import {
   GearSix,
   BookOpen,
   ChartBar,
+  Bell,
 } from "@phosphor-icons/react";
 import { FileTextIcon } from "@radix-ui/react-icons";
 
@@ -28,18 +29,124 @@ export default function Header() {
   const isAdmin = useQuery(api.auth.isAdmin);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [bellOpen, setBellOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const bellDesktopRef = useRef<HTMLDivElement>(null);
+  const bellMobileRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
+  // Only query when authenticated; admin feed only when admin
+  const userFeed = useQuery(
+    api.packages.getMyUnreadAdminRepliesByPackage,
+    isAuthenticated ? {} : "skip",
+  );
+  const adminFeed = useQuery(
+    api.packages.getAdminUnreadMessagesByPackage,
+    isAuthenticated && isAdmin ? {} : "skip",
+  );
+
+  const userItems = userFeed ?? [];
+  const adminItems = adminFeed ?? [];
+  const totalUnread =
+    userItems.reduce((sum, item) => sum + item.unreadCount, 0) +
+    adminItems.reduce((sum, item) => sum + item.unreadCount, 0);
+
+  // Close dropdowns on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
         setUserMenuOpen(false);
       }
+      const target = e.target as Node;
+      const inDesktopBell = bellDesktopRef.current?.contains(target);
+      const inMobileBell = bellMobileRef.current?.contains(target);
+      if (!inDesktopBell && !inMobileBell) {
+        setBellOpen(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  const formatRelative = (ts: number) => {
+    const diffMs = Date.now() - ts;
+    const m = Math.floor(diffMs / 60000);
+    if (m < 1) return "just now";
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    const d = Math.floor(h / 24);
+    return `${d}d ago`;
+  };
+
+  const renderBellDropdown = () => (
+    <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-white shadow-lg z-50 overflow-hidden">
+      <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+        <span className="text-sm font-medium text-text-primary">Notifications</span>
+        <span className="text-xs text-text-secondary">
+          {totalUnread > 0 ? `${totalUnread} new` : "All caught up"}
+        </span>
+      </div>
+      <div className="max-h-96 overflow-y-auto py-1">
+        {userItems.length === 0 && adminItems.length === 0 && (
+          <div className="px-3 py-6 text-center text-sm text-text-secondary">
+            No new messages
+          </div>
+        )}
+
+        {userItems.length > 0 && (
+          <div>
+            <div className="px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-text-secondary">
+              Messages from Convex Team
+            </div>
+            {userItems.map((item) => (
+              <a
+                key={item.packageId}
+                href={`${basePath}/profile#pkg-${item.packageId}`}
+                onClick={() => setBellOpen(false)}
+                className="flex items-center gap-2 px-3 py-2 hover:bg-bg-hover transition-colors">
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: "#E05C35" }}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm text-text-primary truncate">{item.packageName}</div>
+                  <div className="text-xs text-text-secondary">
+                    {item.unreadCount} new · {formatRelative(item.lastMessageAt)}
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+
+        {isAdmin && adminItems.length > 0 && (
+          <div>
+            <div className="px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-text-secondary border-t border-border mt-1">
+              Incoming messages
+            </div>
+            {adminItems.map((item) => (
+              <a
+                key={item.packageId}
+                href={`${basePath}/submissions/admin#pkg-${item.packageId}`}
+                onClick={() => setBellOpen(false)}
+                className="flex items-center gap-2 px-3 py-2 hover:bg-bg-hover transition-colors">
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ backgroundColor: "#E05C35" }}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm text-text-primary truncate">{item.packageName}</div>
+                  <div className="text-xs text-text-secondary">
+                    {item.unreadCount} new · {formatRelative(item.lastMessageAt)}
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <header className="sticky top-0 z-50 pt-[0.438rem]">
@@ -104,6 +211,34 @@ export default function Header() {
                 className="text-sm font-medium text-text-primary hover:text-text-secondary transition-colors">
                 Submit
               </a>
+              {isAuthenticated && user && (
+                <div ref={bellDesktopRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setBellOpen((v) => !v)}
+                    aria-label="Notifications"
+                    title="Notifications"
+                    className={`relative p-1.5 rounded-full transition-colors ${
+                      totalUnread > 0
+                        ? "hover:bg-bg-hover"
+                        : "text-text-secondary hover:text-text-primary hover:bg-bg-hover"
+                    }`}>
+                    {totalUnread > 0 ? (
+                      <Bell size={16} weight="fill" color="#E05C35" />
+                    ) : (
+                      <Bell size={16} />
+                    )}
+                    {totalUnread > 0 && (
+                      <span
+                        className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-white text-[10px] font-medium flex items-center justify-center"
+                        style={{ backgroundColor: "#E05C35" }}>
+                        {totalUnread > 99 ? "99+" : totalUnread}
+                      </span>
+                    )}
+                  </button>
+                  {bellOpen && renderBellDropdown()}
+                </div>
+              )}
               <div className="w-px h-4 bg-border mx-1" />
               <a
                 href="https://convex.dev/"
@@ -138,6 +273,35 @@ export default function Header() {
                 <DiscordLogo size={16} />
               </a>
             </nav>
+
+            {/* Mobile bell (always visible on mobile so the badge is reachable) */}
+            {isAuthenticated && user && (
+              <div ref={bellMobileRef} className="sm:hidden relative">
+                <button
+                  type="button"
+                  onClick={() => setBellOpen((v) => !v)}
+                  aria-label="Notifications"
+                  className={`relative p-2 rounded-full transition-colors ${
+                    totalUnread > 0
+                      ? "hover:bg-bg-hover"
+                      : "text-text-primary hover:bg-bg-hover"
+                  }`}>
+                  {totalUnread > 0 ? (
+                    <Bell size={18} weight="fill" color="#E05C35" />
+                  ) : (
+                    <Bell size={18} />
+                  )}
+                  {totalUnread > 0 && (
+                    <span
+                      className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full text-white text-[10px] font-medium flex items-center justify-center"
+                      style={{ backgroundColor: "#E05C35" }}>
+                      {totalUnread > 99 ? "99+" : totalUnread}
+                    </span>
+                  )}
+                </button>
+                {bellOpen && renderBellDropdown()}
+              </div>
+            )}
 
             {/* Mobile menu button */}
             <button

@@ -2,7 +2,45 @@
 
 ## completed
 
-Session updates complete on 2026-04-16 22:55 UTC.
+Session updates complete on 2026-04-17 09:45 UTC.
+
+- [x] Clean up convex-doctor findings to reach 100/100 (2026-04-17 09:45 UTC)
+  - Errors fixed in `convex/apiKeys.ts` `countKeysAndGrants`: the two `perf/unbounded-collect` errors on the `apiKeys` active-count and `apiAccessGrants` collect became bounded `.take(10000)` calls, and the `perf/collect-then-filter` warning disappeared because the grants query now uses the existing `by_revoked` index with `.eq("revoked", false)` instead of filtering in JavaScript.
+  - `arch/no-convex-error` resolved in `convex/securityScan.ts` `runSecurityScan` by switching the auth guard from `throw new Error(...)` to `throw new ConvexError(...)`, adding `ConvexError` to the existing `convex/values` import. This keeps the auth message visible in production instead of getting redacted to "Server Error".
+  - Refactored five `arch/large-handler` warnings down to 0 by extracting helpers while preserving behavior: `computeDashboardStats` + `emptyDashboardStats` in `convex/dashboard.ts`; `scheduleSubmissionFollowups`, `formatLatestSecurityScan`, and `computeUnreadAdminReplySummary` in `convex/packages.ts`; and `buildProviderTasks` / `runProviderTasks` / `buildProviderResultsForStorage` / `saveScanError` / `executeScanAndSaveResult` in `convex/securityScan.ts`. All three error branches of `_runSecurityScan` now share the same writer, so stored error payloads are guaranteed identical.
+  - Files: `convex/apiKeys.ts`, `convex/dashboard.ts`, `convex/packages.ts`, `convex/securityScan.ts`, `changelog.md`, `files.md`, `task.md`
+  - Verification: `npx convex-doctor` → 100/100 with "No issues found across 23 files in 235ms". `npm run build` (Netlify build) passes in ~4.2s with no new errors. `ReadLints` clean on every edited file. `npx convex dev` is still picking up pushes without schema validation errors.
+
+- [x] Polish Mark read button layout in Admin + Profile message panels (2026-04-17 09:10 UTC)
+  - `AdminPackageCommentsPanel` in `src/pages/Admin.tsx`: moved the per-comment Mark read pill out of the top-right action cluster (which was wrapping when combined with Hide/Archive/Delete + the New badge) and onto its own row below the message content. Icon removed — the pill is just the word "Mark read" now.
+  - `ViewNotesModal` in `src/pages/Profile.tsx`: merged the Mark read pill into the same action row as Hide/Archive/Delete (after Delete when both apply), so admin replies the current user can also manage only show one action row. `Check` icon removed.
+  - Dropped the unused `Check` import from `src/pages/Admin.tsx`.
+  - Files: `src/pages/Admin.tsx`, `src/pages/Profile.tsx`, `changelog.md`
+  - Verification: `ReadLints` clean on both files; HMR picked up the updates.
+
+- [x] Fix admin-side Mark read pill + bell-dropdown pagination scroll (2026-04-17 08:55 UTC)
+  - Root cause 1 (Mark read pill): `AdminPackageCommentsPanel` in `src/pages/Admin.tsx` gated the pill on `comment.authorEmail !== userEmail`. When an admin uses their own `/profile` to test, the submitter email equals the admin email, so every message was treated as the admin's own (Hide/Archive/Delete only) and the Mark read pill never rendered, even though the bell dropdown correctly flagged those same messages as unread.
+  - Fix 1: dropped the author-email check. The gate is now simply `comment.adminHasRead !== true`. Admin replies written from the admin panel already have `adminHasRead: true`, so they still never show the pill.
+  - Root cause 2 (bell scroll): the scroll effect only depended on `hashTargetPackageId`. When the target package lived on page 2+ or under a different filter, the first pass fired with `hashTargetRef.current = null`, the pagination-jump effect then mutated `currentPage[activeFilter]`, but the scroll effect did not re-run so the now-mounted row never scrolled into view. After 2 seconds the highlight also cleared, racing the jump.
+  - Fix 2: split the scroll into its own effect that also depends on `activeFilter` and `currentPage`, and extended the highlight fade-out from 2s to 4s so filter/page switches have time to render first.
+  - Files: `src/pages/Admin.tsx`, `changelog.md`
+  - Verification: `ReadLints` clean on `src/pages/Admin.tsx`; `npm run dev` HMR picked up the patch without errors.
+
+- [x] Remove auto-mark-all-read-on-open so per-message Mark read button is actually visible (2026-04-17 08:35 UTC)
+  - Root cause: `AdminPackageCommentsPanel`, `AdminPackageNotesPanel` (both in `src/pages/Admin.tsx`), and `ViewNotesModal` (in `src/pages/Profile.tsx`) each had a `useEffect` that called the bulk `markCommentsAsReadForAdmin` / `markNotesAsReadForAdmin` / `markPackageNotesAsRead` mutation as soon as the panel opened with any unread items. This flipped `adminHasRead` / `userHasRead` to `true` on every comment or note before the render could show the new per-message "Mark read" pill, so the admin and the submitter both saw zero buttons.
+  - Fix: deleted the three auto-mark effects. The bulk "Mark all read" pill in each panel header still calls the same bulk mutations, and the per-message "Mark read" pills already call `markPackageCommentReadForAdmin` / `markPackageCommentReadForUser`. Marking messages read is now fully opt-in; the bell badge stays until the user or admin acts.
+  - Files: `src/pages/Admin.tsx`, `src/pages/Profile.tsx`, `changelog.md`
+  - Verification: `ReadLints` clean on both files.
+
+- [x] Per-message Mark read buttons, universal ESC close, and pagination-aware hash navigation (2026-04-17 08:15 UTC)
+  - PRD: `prds/admin-profile-messages-ux.md`
+  - Backend: added `markPackageCommentReadForAdmin({ commentId })` (admin-only) and `markPackageCommentReadForUser({ commentId })` (owner-only via `userOwnsPackage`) in `convex/packages.ts`; both are idempotent early-returns when already read or the comment is missing.
+  - Admin UI: `AdminPackageCommentsPanel` in `src/pages/Admin.tsx` now shows a per-comment "Mark read" pill and "New" badge on submitter messages where `adminHasRead !== true`. The existing bulk "Mark all read" pill is untouched.
+  - User UI: `ViewNotesModal` in `src/pages/Profile.tsx` now shows a per-note "Mark read" pill on admin replies where `userHasRead === false`.
+  - ESC close: added keyboard handlers to `ConfirmModal`, reward confirm, reward history, and test reward confirm modals in `src/pages/Admin.tsx`; added handlers to `RequestModal`, `ViewNotesModal`, `EditModal`, and `ApiUsageModal` in `src/pages/Profile.tsx`. In-flight sends/submits guard ESC on the reward and form modals.
+  - Pagination jump: extended the `#pkg-<id>` hash effect in `AdminDashboard` (`src/pages/Admin.tsx`) to switch `activeFilter` (to `all`, `archived`, or `marked_for_deletion`) and update `currentPage[activeFilter]` when the target package is on a different page or excluded by the current filter, so the scroll + highlight effect always lands on the right row.
+  - Files: `convex/packages.ts`, `src/pages/Admin.tsx`, `src/pages/Profile.tsx`, `files.md`, `changelog.md`, `prds/admin-profile-messages-ux.md`
+  - Verification: `ReadLints` clean on all three edited source files; `npx tsc --noEmit -p tsconfig.app.json` reports only pre-existing errors in `CodeBlock.tsx`, `ComponentDetailsEditor.tsx`, `CategoryPage.tsx`, `Directory.tsx` (unrelated).
 
 - [x] Remove leftover agent debug telemetry from thumbnail flow (2026-04-16 22:55 UTC)
   - Root cause: a prior debug session (`sessionId:"10e84f"`, runId `"pre-fix"`) left eight `fetch("http://127.0.0.1:7557/ingest/496d4f8a-92e4-4a9c-a7be-0c1a3758fbbe", ...)` calls bracketed by `// #region agent log` / `// #endregion` markers. The client-side copies were logging `net::ERR_CONNECTION_REFUSED` in DevTools on every editor mount and every Generate Thumbnail click, while the Convex copies were silently failing from the Node runtime on every admin thumbnail run.
@@ -55,6 +93,15 @@ Session updates complete on 2026-04-16 22:55 UTC.
   - Verification: `npm run build`
 
 ## to do
+
+- [x] Add admin message notifications bell with dropdown and mark-all-read buttons (2026-04-17 06:17 UTC)
+  - Added two new Convex public queries in `convex/packages.ts`: `getMyUnreadAdminRepliesByPackage` (user feed) and `getAdminUnreadMessagesByPackage` (admin-only feed, capped at 50 packages). Both return minimal metadata (`packageId`, `packageName`, `slug`, `unreadCount`, `lastMessageAt`) and reuse the existing `by_submitter_email` / `by_package_and_created` index patterns from `getTotalUnreadAdminReplies`. No schema changes.
+  - Added Phosphor `Bell` (color `#E05C35`) in `src/components/Header.tsx` immediately right of the Submit link and in the mobile header row. Only rendered for authenticated users. Clicking opens a dropdown card with two sections: "Messages from Convex Team" and, for admins only, "Incoming messages". Total unread count appears as a round pill badge. Outside-click closes the dropdown.
+  - Item clicks navigate to `/components/profile#pkg-<id>` (user) or `/components/submissions/admin#pkg-<id>` (admin).
+  - `src/pages/Profile.tsx`: added `id="pkg-<packageId>"` to each `SubmissionCard`, plus a hash-driven `scrollIntoView` + two-second ring-highlight effect. Upgraded the existing "Mark all read" text link in `ViewNotesModal` to a visible pill button.
+  - `src/pages/Admin.tsx`: added `id="pkg-<packageId>"` to each package row and a hash-driven effect that auto-adds the targeted id to `expandedPackages`, scrolls it into view, and applies a two-second `#E05C35` ring highlight. Upgraded the "Mark all read" link in `AdminPackageCommentsPanel` to a pill button. Wired `AdminPackageNotesPanel` with `getUnreadUserNotesCount` + `markNotesAsReadForAdmin` so it now shows an unread badge, auto-marks on open, and exposes a visible "Mark all read" pill button.
+  - Files: `convex/packages.ts`, `src/components/Header.tsx`, `src/pages/Profile.tsx`, `src/pages/Admin.tsx`, `prds/admin-message-notifications-bell.md`
+  - Verification: `npx tsc --noEmit -p convex/tsconfig.json` passes; `npx tsc --noEmit -p tsconfig.app.json` reports no new errors in the edited files (only pre-existing CodeBlock / ComponentDetailsEditor / CategoryPage / Directory issues remain).
 
 - [x] Add spacing above Keywords section on ComponentDetail when code is present (2026-04-14 13:35 UTC)
   - Added `mt-8` to the Keywords container div so it has visual separation from code blocks or markdown content above
