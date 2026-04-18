@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Slack now mirrors all admin-visible write paths on a component (2026-04-18)
+  - `addPackageComment`: removed the `if (!isAdmin)` gate so admin replies also notify Slack; `From:` label is now `Admin` or `Submitter` based on role.
+  - `requestSubmissionRefresh`: added Slack notification when a submitter clicks "Send Request" from Profile.
+  - `addPackageNote`: added Slack notification for admin internal notes (`Internal admin note on ...`) and legacy `[User Request]` replies (`Admin reply (legacy request) on ...`).
+  - File changed: `convex/packages.ts`
+
 ### Fixed
 
 - Admin mobile settings and API layouts now fit narrow screens cleanly (2026-04-17 23:04 UTC)

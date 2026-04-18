@@ -61,6 +61,23 @@ function userOwnsPackage(pkg: Doc<"packages">, userEmail: string): boolean {
   return false;
 }
 
+function formatSlackNotification(
+  pkg: Doc<"packages">,
+  headline: string,
+  fromLabel: string,
+  content: string,
+): string {
+  const slugForUrl = pkg.slug ?? pkg.name;
+  const displayName = `${pkg.componentName ?? pkg.name} (${pkg.name})`;
+  const preview = content.length > 200 ? `${content.slice(0, 200)}...` : content;
+  return (
+    `${headline} ${displayName}\n` +
+    `From: ${fromLabel}\n` +
+    `https://www.convex.dev/components/${slugForUrl}\n` +
+    `Preview: ${preview}`
+  );
+}
+
 async function requirePackageOwnerOrAdmin(
   ctx: MutationCtx,
   packageId: Id<"packages">,
@@ -2187,7 +2204,7 @@ export const addPackageNote = mutation({
     }
 
     // Insert the internal admin note with timestamp-based ordering.
-    return await ctx.db.insert("packageNotes", {
+    const noteId = await ctx.db.insert("packageNotes", {
       packageId: args.packageId,
       content: args.content,
       authorEmail: adminEmail,
@@ -2197,6 +2214,18 @@ export const addPackageNote = mutation({
       isAdminReply: isAdminReply || undefined,
       userHasRead: isAdminReply ? false : undefined,
     });
+
+    // Mirror admin notes to Slack.
+    const pkg = await ctx.db.get("packages", args.packageId);
+    if (pkg) {
+      const headline = isAdminReply
+        ? "Admin reply (legacy request) on"
+        : "Internal admin note on";
+      const text = formatSlackNotification(pkg, headline, `Admin (${adminEmail})`, args.content);
+      await ctx.scheduler.runAfter(0, internal.slack.sendMessage, { text });
+    }
+
+    return noteId;
   },
 });
 
@@ -3379,18 +3408,10 @@ export const addPackageComment = mutation({
       status: "active",
     });
 
-    // Notify via Slack when a submitter sends a new message.
-    if (!isAdmin) {
-      const slugForUrl = pkg.slug ?? pkg.name;
-      const preview =
-        args.content.length > 200 ? `${args.content.slice(0, 200)}...` : args.content;
-      const slackText =
-        `New private message on ${pkg.componentName ?? pkg.name} (${pkg.name})\n` +
-        `From: Submitter (${userEmail})\n` +
-        `https://www.convex.dev/components/${slugForUrl}\n` +
-        `Preview: ${preview}`;
-      await ctx.scheduler.runAfter(0, internal.slack.sendMessage, { text: slackText });
-    }
+    // Notify via Slack when a private message is added.
+    const fromLabel = isAdmin ? `Admin (${userEmail})` : `Submitter (${userEmail})`;
+    const text = formatSlackNotification(pkg, "New private message on", fromLabel, args.content);
+    await ctx.scheduler.runAfter(0, internal.slack.sendMessage, { text });
 
     return commentId;
   },
@@ -4542,6 +4563,10 @@ export const requestSubmissionRefresh = mutation({
       userHasRead: true,
       status: "active",
     });
+
+    // Notify via Slack when a private message is added.
+    const text = formatSlackNotification(pkg, "New private message on", `Submitter (${userEmail})`, args.note);
+    await ctx.scheduler.runAfter(0, internal.slack.sendMessage, { text });
 
     return null;
   },
