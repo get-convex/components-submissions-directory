@@ -210,7 +210,7 @@ Main package business logic. Contains:
 
 `submitPackage` now marks public submit-form packages as `communitySubmitted: true` by default so Admin loads the Community state correctly in both the Actions row and `ComponentDetailsEditor`. It also derives package ownership from the authenticated email instead of trusting the client-provided submitter email. When enabled, new submissions with a repository URL move to `in_review` and queue `runAiReview`. Enabling that same setting from the Admin page also moves current pending packages with repository URLs into `in_review` and queues AI review for them. `getAdminSettings` now returns the three-part AI automation model: `autoAiReview`, `autoApproveOnPass`, and `autoRejectOnFail`.
 
-**Helper Functions:** `toPublicPackage()`, `toAdminPackage()`, `generateSlugFromName()`, `userOwnsPackage()` (checks submitterEmail and additionalEmails), `getCurrentUserEmail()` (reads identity email claims), `scheduleSubmissionFollowups()` (Slack notify + optional auto AI review + auto security scan scheduling after `submitPackage` insert), `formatLatestSecurityScan()` (shapes the public-safe payload for `getLatestSecurityScan` from a package row + its latest `securityScanRuns` entry), `computeUnreadAdminReplySummary()` (per-package admin-reply unread rollup used by `getMyUnreadAdminRepliesByPackage`), validators
+**Helper Functions:** `toPublicPackage()`, `toAdminPackage()`, `generateSlugFromName()`, `userOwnsPackage()` (checks submitterEmail and additionalEmails), `getCurrentUserEmail()` (reads identity email claims), `formatSlackNotification()` (builds the standard Slack message with display name, URL, and 200-char preview; used by `addPackageComment`, `requestSubmissionRefresh`, and `addPackageNote`), `scheduleSubmissionFollowups()` (Slack notify + optional auto AI review + auto security scan scheduling after `submitPackage` insert), `formatLatestSecurityScan()` (shapes the public-safe payload for `getLatestSecurityScan` from a package row + its latest `securityScanRuns` entry), `computeUnreadAdminReplySummary()` (per-package admin-reply unread rollup used by `getMyUnreadAdminRepliesByPackage`), validators
 
 ### `convex/crons.ts`
 
@@ -234,7 +234,7 @@ Production: `npx convex run --prod seed:seedOfficialComponents '{"importAsPendin
 
 ### `convex/slack.ts`
 
-Internal Slack notifications: `sendMessage` (`internalAction`) POSTs `{ text }` to `SLACK_WEBHOOK_URL`. No-op if unset. Errors are logged only. Scheduled from `submitPackage` (new submissions), `addPackageComment` (private messages from the submitter only—not admin replies), and `packages._saveSecurityScanResultAndRun` when a security scan finishes.
+Internal Slack notifications: `sendMessage` (`internalAction`) POSTs `{ text }` to `SLACK_WEBHOOK_URL`. No-op if unset. Errors are logged only. Scheduled from `submitPackage` (new submissions), `addPackageComment` (private messages from both submitters and admins, with role-based `From:` label), `requestSubmissionRefresh` (submitter "Send Request" from Profile), `addPackageNote` (admin internal notes and legacy request replies, with distinct first-line labels), and `packages._saveSecurityScanResultAndRun` when a security scan finishes.
 
 ### `convex/thumbnails.ts`
 

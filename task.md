@@ -166,6 +166,12 @@ Session updates complete on 2026-04-17 23:04 UTC.
 
 ## to do
 
+- [x] Mirror all comment/note writes to Slack (2026-04-18)
+  - `addPackageComment`: removed `if (!isAdmin)` gate, Slack now fires for both admin and submitter with role-based `From:` label
+  - `requestSubmissionRefresh`: added Slack notification after `packageComments` insert (`From: Submitter`)
+  - `addPackageNote`: added Slack notification with branching first line for internal notes vs legacy `[User Request]` admin replies
+  - File changed: `convex/packages.ts`
+
 - [x] Add admin message notifications bell with dropdown and mark-all-read buttons (2026-04-17 06:17 UTC)
   - Added two new Convex public queries in `convex/packages.ts`: `getMyUnreadAdminRepliesByPackage` (user feed) and `getAdminUnreadMessagesByPackage` (admin-only feed, capped at 50 packages). Both return minimal metadata (`packageId`, `packageName`, `slug`, `unreadCount`, `lastMessageAt`) and reuse the existing `by_submitter_email` / `by_package_and_created` index patterns from `getTotalUnreadAdminReplies`. No schema changes.
   - Added Phosphor `Bell` (color `#E05C35`) in `src/components/Header.tsx` immediately right of the Submit link and in the mobile header row. Only rendered for authenticated users. Clicking opens a dropdown card with two sections: "Messages from Convex Team" and, for admins only, "Incoming messages". Total unread count appears as a round pill badge. Outside-click closes the dropdown.
