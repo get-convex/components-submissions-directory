@@ -2,7 +2,13 @@
 
 ## completed
 
-Session updates complete on 2026-04-17 23:04 UTC.
+Session updates complete on 2026-04-20 UTC.
+
+- [x] Add thumbnail sizing FAQ for component authors (2026-04-20 UTC)
+  - Root cause: component authors had no guidance on the expected thumbnail size for directory cards, so submissions shipped with inconsistent aspect ratios and resolutions.
+  - Fix: added a new FAQ entry in `src/components/FAQSection.tsx` titled "What size should my component thumbnail be?" that documents the 16:9 aspect ratio at 1536 x 864 pixels. The entry sits between "What are the requirements?" and "How are components sandboxed?" so authors see it alongside the core submission rules. FAQ now renders 12 items on Directory, CategoryPage, and SubmitForm.
+  - Files: `src/components/FAQSection.tsx`, `task.md`, `changelog.md`, `files.md`
+  - Verification: `ReadLints` clean on `src/components/FAQSection.tsx`; `npm run build` passed.
 
 - [x] Fix mobile settings and API layouts in admin dashboard (2026-04-17 23:04 UTC)
   - PRD: `prds/admin-mobile-settings-api.md`

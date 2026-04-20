@@ -376,9 +376,10 @@ Shared header component with auth state management. Uses `useAuth()` from `src/l
 
 ### `src/components/FAQSection.tsx`
 
-Reusable FAQ section component displayed on the Directory and SubmitForm pages. Displays 11 frequently asked questions:
+Reusable FAQ section component displayed on the Directory and SubmitForm pages. Displays 12 frequently asked questions:
 - What happens after I submit? (rolling basis review with authoring guidelines link)
 - What are the requirements? (npm, GitHub, authoring guidelines)
+- What size should my component thumbnail be? (16:9 aspect ratio, 1536 x 864 pixels)
 - How are components sandboxed? (Convex runtime data isolation)
 - What projects should use Components? (check component docs)
 - Can I build my own? (link to authoring docs)

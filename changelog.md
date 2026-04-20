@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- FAQ entry about component thumbnail image sizing (2026-04-20)
+  - `src/components/FAQSection.tsx`: added "What size should my component thumbnail be?" between "What are the requirements?" and "How are components sandboxed?" so component authors know to use a 16:9 aspect ratio at 1536 x 864 pixels. FAQ now displays 12 items on the Directory, CategoryPage, and SubmitForm pages.
+  - Verification: `ReadLints` clean on `src/components/FAQSection.tsx`; `npm run build` passed.
+
 ### Changed
 
 - Slack now mirrors all admin-visible write paths on a component (2026-04-18)
