@@ -13,6 +13,10 @@ export const sendMessage = internalAction({
       return null;
     }
 
+    const previewLine = (args.text.split("\n")[0] ?? "").trim();
+    const preview =
+      previewLine.length > 160 ? `${previewLine.slice(0, 160)}…` : previewLine;
+
     try {
       const res = await fetch(url, {
         method: "POST",
@@ -20,10 +24,19 @@ export const sendMessage = internalAction({
         body: JSON.stringify({ text: args.text }),
       });
       if (!res.ok) {
-        console.error("Slack webhook failed:", res.status, await res.text());
+        const body = await res.text();
+        console.error(
+          "Slack webhook failed:",
+          res.status,
+          body || "(empty body)",
+        );
+        return null;
       }
+      console.log(
+        `Slack webhook: delivered (${res.status})${preview ? ` — ${preview}` : ""}`,
+      );
     } catch (e) {
-      console.error("Slack webhook error:", e);
+      console.error("Slack webhook error (network/fetch):", e);
     }
     return null;
   },
