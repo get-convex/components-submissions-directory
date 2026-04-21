@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Share this page dropdown on the component detail sidebar (2026-04-21 17:37 UTC)
+  - `src/pages/ComponentDetail.tsx`: added an inline `ShareThisPage` component rendered between the rating stars and the "How to get help" button. Supports Share on X, LinkedIn, Bluesky, Reddit, Mastodon, Other... (uses `navigator.share` when available, otherwise copies the URL), and Copy link with a check-icon confirmation. Styling matches the existing Markdown dropdown on the same page (white menu, `shadow-hover`, `hover:bg-bg-hover`), not a new dark variant.
+  - Accessibility: trigger uses `aria-expanded` and `aria-haspopup="menu"`, menu uses `role="menu"` with `role="menuitem"` children, and an `sr-only` `aria-live="polite"` region announces "Link copied". Outside click and Escape both close the menu.
+  - Verification: `ReadLints` clean on `src/pages/ComponentDetail.tsx`.
 - FAQ entry about component thumbnail image sizing (2026-04-20)
   - `src/components/FAQSection.tsx`: added "What size should my component thumbnail be?" between "What are the requirements?" and "How are components sandboxed?" so component authors know to use a 16:9 aspect ratio at 1536 x 864 pixels. FAQ now displays 12 items on the Directory, CategoryPage, and SubmitForm pages.
   - Verification: `ReadLints` clean on `src/components/FAQSection.tsx`; `npm run build` passed.

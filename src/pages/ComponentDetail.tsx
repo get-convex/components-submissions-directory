@@ -31,6 +31,7 @@ import {
   ClipboardIcon,
   QuestionMarkCircledIcon,
   Cross2Icon,
+  Share1Icon,
 } from "@radix-ui/react-icons";
 import { AgentInstallSection } from "../components/AgentInstallSection";
 import { FileArrowDown, ClipboardText, DiscordLogo } from "@phosphor-icons/react";
@@ -300,6 +301,159 @@ function StarRating({ packageId }: { packageId: string }) {
         </span>
         {rating.count > 0 && <span className="text-xs text-text-secondary">({rating.count})</span>}
       </div>
+    </div>
+  );
+}
+
+// Share this page dropdown: social share links + copy link.
+// Matches the Markdown dropdown styling used elsewhere on this page.
+function ShareThisPage({
+  title,
+  description,
+  pageUrl,
+}: {
+  title: string;
+  description: string;
+  pageUrl: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const shareText = description ? `${title} - ${description}` : title;
+  const encodedUrl = encodeURIComponent(pageUrl);
+  const encodedText = encodeURIComponent(shareText);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
+
+  const flashCopied = () => {
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(pageUrl);
+      flashCopied();
+    } catch {
+      // Silent fail; user can copy from address bar
+    } finally {
+      setOpen(false);
+    }
+  };
+
+  const handleNativeShare = async () => {
+    setOpen(false);
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title, text: shareText, url: pageUrl });
+        return;
+      } catch {
+        // User cancelled or share failed; fall through to copy
+      }
+    }
+    await handleCopyLink();
+  };
+
+  const shareLinks: Array<{ label: string; href: string }> = [
+    {
+      label: "Share on X",
+      href: `https://x.com/intent/post?url=${encodedUrl}&text=${encodedText}`,
+    },
+    {
+      label: "Share on LinkedIn",
+      href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
+    },
+    {
+      label: "Share on Bluesky",
+      href: `https://bsky.app/intent/compose?text=${encodedText}%20${encodedUrl}`,
+    },
+    {
+      label: "Share on Reddit",
+      href: `https://www.reddit.com/submit?url=${encodedUrl}&title=${encodedText}`,
+    },
+    {
+      label: "Share on Mastodon",
+      href: `https://toot.kytta.dev/?text=${encodedText}%20${encodedUrl}`,
+    },
+  ];
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary transition-colors"
+        aria-expanded={open}
+        aria-haspopup="menu"
+      >
+        <Share1Icon className="w-3.5 h-3.5" />
+        Share this page
+        <ChevronDownIcon className="w-3 h-3" />
+      </button>
+
+      {open && (
+        <div
+          role="menu"
+          className="absolute left-0 top-full mt-1 w-56 rounded-lg bg-white shadow-hover py-1 z-20"
+        >
+          {shareLinks.map((item) => (
+            <a
+              key={item.label}
+              role="menuitem"
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setOpen(false)}
+              className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left"
+            >
+              <span>{item.label}</span>
+              <ExternalLinkIcon className="w-3.5 h-3.5 text-text-secondary" />
+            </a>
+          ))}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={handleNativeShare}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left"
+          >
+            Other...
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={handleCopyLink}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left"
+          >
+            {copied ? (
+              <CheckIcon className="w-3.5 h-3.5 text-green-600" />
+            ) : (
+              <CopyIcon className="w-3.5 h-3.5 text-text-secondary" />
+            )}
+            {copied ? "Copied" : "Copy link"}
+          </button>
+        </div>
+      )}
+
+      <p className="sr-only" aria-live="polite">
+        {copied ? "Link copied" : ""}
+      </p>
     </div>
   );
 }
@@ -1141,6 +1295,13 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
 
             {/* Rating stars */}
             <StarRating packageId={component._id} />
+
+            {/* Share this page dropdown */}
+            <ShareThisPage
+              title={component.componentName || component.name}
+              description={component.shortDescription || component.description}
+              pageUrl={window.location.href}
+            />
 
             <div>
               <button
