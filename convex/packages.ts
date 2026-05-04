@@ -78,6 +78,56 @@ function formatSlackNotification(
   );
 }
 
+function compactSlackSummary(summary?: string) {
+  if (!summary) return "No summary available.";
+  return summary.length > 280 ? `${summary.slice(0, 280)}...` : summary;
+}
+
+function isFinishedAiReviewStatus(status: Doc<"packages">["aiReviewStatus"]) {
+  return status === "passed" || status === "failed" || status === "partial" || status === "error";
+}
+
+function isFinishedSecurityScanStatus(status: Doc<"packages">["securityScanStatus"]) {
+  return status === "safe" || status === "unsafe" || status === "warning" || status === "error";
+}
+
+async function sendReviewCompletionSlackIfReady(ctx: MutationCtx, packageId: Id<"packages">) {
+  const pkg = await ctx.db.get(packageId);
+  if (!pkg || !isFinishedSecurityScanStatus(pkg.securityScanStatus)) {
+    return;
+  }
+
+  const autoAiReview = await ctx.db
+    .query("adminSettings")
+    .withIndex("by_key", (q) => q.eq("key", "autoAiReview"))
+    .first();
+  const includeAiReview = autoAiReview?.value === true;
+
+  if (includeAiReview && !isFinishedAiReviewStatus(pkg.aiReviewStatus)) {
+    return;
+  }
+
+  const slugForUrl = pkg.slug ?? pkg.name;
+  const displayName = pkg.componentName ?? pkg.name;
+  const securityText =
+    `Security scan completed\n` +
+    `${displayName} (${pkg.name})\n` +
+    `Status: ${pkg.securityScanStatus}\n` +
+    `Summary: ${compactSlackSummary(pkg.securityScanSummary)}\n` +
+    `https://www.convex.dev/components/${slugForUrl}` +
+    (pkg.repositoryUrl ? `\nRepo: ${pkg.repositoryUrl}` : "");
+
+  const text =
+    includeAiReview && pkg.aiReviewStatus
+      ? `${securityText}\n\n` +
+        `AI review completed\n` +
+        `Status: ${pkg.aiReviewStatus}\n` +
+        `Summary: ${compactSlackSummary(pkg.aiReviewSummary)}`
+      : securityText;
+
+  await ctx.scheduler.runAfter(0, internal.slack.sendMessage, { text });
+}
+
 async function requirePackageOwnerOrAdmin(
   ctx: MutationCtx,
   packageId: Id<"packages">,
@@ -2653,6 +2703,7 @@ export const _saveAiReviewResultAndRun = internalMutation({
       source: args.source,
       rawOutput: args.rawOutput,
     });
+    await sendReviewCompletionSlackIfReady(ctx, args.packageId);
     return null;
   },
 });
@@ -2817,24 +2868,7 @@ export const _saveSecurityScanResultAndRun = internalMutation({
       triggeredBy: args.triggeredBy,
     });
 
-    // Notify via Slack when a security scan finishes.
-    const pkg = await ctx.db.get(args.packageId);
-    if (pkg) {
-      const slugForUrl = pkg.slug ?? pkg.name;
-      const displayName = pkg.componentName ?? pkg.name;
-      const sum =
-        args.summary.length > 280 ? `${args.summary.slice(0, 280)}...` : args.summary;
-      const slackText =
-        `Security scan completed\n` +
-        `${displayName} (${pkg.name})\n` +
-        `Status: ${args.status}\n` +
-        `Summary: ${sum}\n` +
-        `https://www.convex.dev/components/${slugForUrl}` +
-        (pkg.repositoryUrl ? `\nRepo: ${pkg.repositoryUrl}` : "");
-      await ctx.scheduler.runAfter(0, internal.slack.sendMessage, {
-        text: slackText,
-      });
-    }
+    await sendReviewCompletionSlackIfReady(ctx, args.packageId);
     return null;
   },
 });

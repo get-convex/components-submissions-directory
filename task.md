@@ -2,6 +2,17 @@
 
 ## completed
 
+- [x] Add Auto AI Review completion status to Slack when enabled (2026-05-04 18:50 UTC)
+  - PRD: `prds/auto-ai-review-slack-status.md`
+  - Fix: `convex/packages.ts` now sends one grouped completion Slack message when `autoAiReview` is enabled and both security scan and AI review have terminal results. If `autoAiReview` is off, the existing security-only Slack completion message still sends unchanged.
+  - Files: `convex/packages.ts`, `prds/auto-ai-review-slack-status.md`, `task.md`, `changelog.md`, `files.md`
+  - Verification: `ReadLints` clean on `convex/packages.ts`; `npx tsc --noEmit -p convex/tsconfig.json` passed; `npx netlify build --offline --context production` passed.
+
+- [x] Move related components below the sidebar on mobile detail pages (2026-05-04 18:49 UTC)
+  - Fix: `src/pages/ComponentDetail.tsx` now renders Related Components in the main content column on desktop and after the sidebar on mobile, so narrow screens read main content, sidebar, then related components.
+  - Files: `src/pages/ComponentDetail.tsx`, `files.md`, `task.md`, `changelog.md`
+  - Verification: `ReadLints` clean on `src/pages/ComponentDetail.tsx` and `files.md`; `npx tsc -p . --noEmit --pretty false` passed; Netlify build command `npm run build` passed.
+
 Session updates complete on 2026-04-21 UTC.
 
 - [x] Add Share this page dropdown to component detail sidebar (2026-04-21 17:37 UTC)

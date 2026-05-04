@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Auto AI Review completion now groups with security scan Slack output when automation is enabled (2026-05-04 18:58 UTC)
+  - `convex/packages.ts`: review completion notifications now use one shared helper. When `autoAiReview` is off, the existing security-only Slack message still sends. When `autoAiReview` is on, Slack waits until both security scan and AI review have terminal results, then sends one grouped message with both status blocks.
+  - Verification: `ReadLints` clean on `convex/packages.ts`; `npx tsc --noEmit -p convex/tsconfig.json` passed; `npx netlify build --offline --context production` passed.
+
 - Slack now mirrors all admin-visible write paths on a component (2026-04-18)
   - `addPackageComment`: removed the `if (!isAdmin)` gate so admin replies also notify Slack; `From:` label is now `Admin` or `Submitter` based on role.
   - `requestSubmissionRefresh`: added Slack notification when a submitter clicks "Send Request" from Profile.
@@ -26,6 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - File changed: `convex/packages.ts`
 
 ### Fixed
+
+- Related components now appear below the sidebar on mobile component detail pages (2026-05-04 18:49 UTC)
+  - `src/pages/ComponentDetail.tsx`: extracted the Related Components card grid into a shared renderer, kept the desktop placement at the bottom of the main content column, and rendered the mobile copy after the sidebar so the page reads main content, sidebar, then related components on narrow screens.
+  - `files.md`: updated the component detail page description to document the desktop and mobile placement behavior.
+  - Verification: `ReadLints` clean on `src/pages/ComponentDetail.tsx` and `files.md`; `npx tsc -p . --noEmit --pretty false` passed; Netlify build command `npm run build` passed.
 
 - Admin mobile settings and API layouts now fit narrow screens cleanly (2026-04-17 23:04 UTC)
   - `src/pages/Admin.tsx`: changed the main admin filter tabs into a horizontal mobile scroller with readable labels, refined the sticky settings jump nav copy and spacing, and made the Category Management rows stack and wrap so count badges, verified badges, descriptions, and actions stay inside the card width.
