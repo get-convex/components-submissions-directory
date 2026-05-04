@@ -1136,6 +1136,94 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
     setCopyMenuOpen(false);
   };
 
+  const renderRelatedComponents = () => {
+    if (!relatedComponents || relatedComponents.length === 0) return null;
+
+    return (
+      <div className="mt-8 pt-6 border-t border-border">
+        <h2 className="text-sm font-semibold text-text-primary capitalize tracking-wider mb-4">
+          Related Components
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {relatedComponents.map((rel) => {
+            const relBasePath = window.location.pathname.startsWith("/components")
+              ? "/components"
+              : "";
+            const relHref = rel.slug ? `${relBasePath}/${rel.slug}` : rel.npmUrl;
+            const relDisplayName = rel.componentName || rel.name;
+            const relDesc = rel.shortDescription || rel.description;
+            const relDescTruncated =
+              relDesc.length > 100 ? `${relDesc.slice(0, 100).trimEnd()}...` : relDesc;
+            const formatDownloads = (count: number): string => {
+              if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+              if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
+              return count.toString();
+            };
+
+            return (
+              <a
+                key={rel._id}
+                href={relHref}
+                className="group flex h-[180px] flex-col overflow-hidden rounded-xl border border-border bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:bg-[rgb(246_238_219/var(--tw-bg-opacity,1))]">
+                <div className="p-3 flex flex-col flex-1">
+                  <h3 className="truncate text-base font-medium leading-tight text-text-primary mb-1">
+                    {relDisplayName}
+                  </h3>
+                  <p className="mb-3 line-clamp-3 text-xs leading-4 text-text-secondary min-h-[3rem]">
+                    {relDescTruncated}
+                  </p>
+                  <div className="mt-auto text-xs text-text-primary">
+                    {rel.authorUsername && (
+                      <div className="flex items-center gap-2 mb-1">
+                        {rel.authorAvatar && (
+                          <img
+                            src={rel.authorAvatar}
+                            alt={rel.authorUsername}
+                            className="w-5 h-5 rounded-full"
+                            loading="lazy"
+                          />
+                        )}
+                        <span className="truncate text-sm font-medium">{rel.authorUsername}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1 text-text-secondary">
+                        <DownloadIcon className="w-3.5 h-3.5" />
+                        <span>{formatDownloads(rel.weeklyDownloads)}/wk</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {rel.communitySubmitted && (
+                          <span
+                            className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                            style={{
+                              backgroundColor: "#E9DDC2",
+                              color: "rgb(87, 74, 48)",
+                            }}>
+                            Community
+                          </span>
+                        )}
+                        {rel.convexVerified && (
+                          <span
+                            className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                            style={{
+                              backgroundColor: "rgb(203, 237, 182)",
+                              color: "rgb(34, 137, 9)",
+                            }}>
+                            Verified
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   // Loading state
   if (component === undefined) {
     return (
@@ -1901,93 +1989,13 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               </div>
             )}
 
-            {/* Related components (no-thumbnail compact cards, max 3) */}
-            {relatedComponents && relatedComponents.length > 0 && (
-              <div className="mt-8 pt-6 border-t border-border">
-                <h2 className="text-sm font-semibold text-text-primary capitalize tracking-wider mb-4">
-                  Related Components
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {relatedComponents.map((rel) => {
-                    const relBasePath = window.location.pathname.startsWith("/components")
-                      ? "/components"
-                      : "";
-                    const relHref = rel.slug ? `${relBasePath}/${rel.slug}` : rel.npmUrl;
-                    const relDisplayName = rel.componentName || rel.name;
-                    const relDesc = rel.shortDescription || rel.description;
-                    const relDescTruncated =
-                      relDesc.length > 100 ? `${relDesc.slice(0, 100).trimEnd()}...` : relDesc;
-                    const formatDownloads = (count: number): string => {
-                      if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
-                      if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
-                      return count.toString();
-                    };
-                    return (
-                      <a
-                        key={rel._id}
-                        href={relHref}
-                        className="group flex h-[180px] flex-col overflow-hidden rounded-xl border border-border bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:bg-[rgb(246_238_219/var(--tw-bg-opacity,1))]">
-                        <div className="p-3 flex flex-col flex-1">
-                          <h3 className="truncate text-base font-medium leading-tight text-text-primary mb-1">
-                            {relDisplayName}
-                          </h3>
-                          <p className="mb-3 line-clamp-3 text-xs leading-4 text-text-secondary min-h-[3rem]">
-                            {relDescTruncated}
-                          </p>
-                          <div className="mt-auto text-xs text-text-primary">
-                            {rel.authorUsername && (
-                              <div className="flex items-center gap-2 mb-1">
-                                {rel.authorAvatar && (
-                                  <img
-                                    src={rel.authorAvatar}
-                                    alt={rel.authorUsername}
-                                    className="w-5 h-5 rounded-full"
-                                    loading="lazy"
-                                  />
-                                )}
-                                <span className="truncate text-sm font-medium">
-                                  {rel.authorUsername}
-                                </span>
-                              </div>
-                            )}
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-1 text-text-secondary">
-                                <DownloadIcon className="w-3.5 h-3.5" />
-                                <span>{formatDownloads(rel.weeklyDownloads)}/wk</span>
-                              </div>
-                              <div className="flex items-center gap-1">
-                                {rel.communitySubmitted && (
-                                  <span
-                                    className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-                                    style={{
-                                      backgroundColor: "#E9DDC2",
-                                      color: "rgb(87, 74, 48)",
-                                    }}>
-                                    Community
-                                  </span>
-                                )}
-                                {rel.convexVerified && (
-                                  <span
-                                    className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
-                                    style={{
-                                      backgroundColor: "rgb(203, 237, 182)",
-                                      color: "rgb(34, 137, 9)",
-                                    }}>
-                                    Verified
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </a>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            {/* Related components stay in the main column on desktop. */}
+            <div className="hidden lg:block">{renderRelatedComponents()}</div>
 
           </main>
+
+          {/* On mobile, the sidebar follows main content, so related components render after it. */}
+          <div className="order-3 w-full lg:hidden">{renderRelatedComponents()}</div>
         </div>
       </div>
       {showHelpModal && (
