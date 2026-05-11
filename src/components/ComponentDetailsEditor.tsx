@@ -1,16 +1,13 @@
 // Admin component for editing directory-specific fields on a package
-import { useState, useRef, useEffect, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { useMutation, useAction, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { CaretDown, DownloadSimple, Image, ArrowsClockwise, PencilSimple, Plus, Trash } from "@phosphor-icons/react";
 import { useDirectoryCategories } from "../lib/categories";
-import CodeBlock from "./CodeBlock";
 import ReadmePreviewNotice from "./ReadmePreviewNotice";
-import ReactMarkdown, { type Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkBreaks from "remark-breaks";
+import { Markdown } from "./Markdown";
 
 // Max file size: 3MB
 const MAX_FILE_SIZE = 3 * 1024 * 1024;
@@ -252,28 +249,6 @@ export function ComponentDetailsEditor({
   const generateThumbnail = useAction(api.thumbnailGenerator.generateThumbnailForPackage);
   // Fetch active templates for picker
   const activeTemplates = useQuery(api.thumbnails.listActiveTemplates);
-
-  const markdownCodeComponents = {
-    code({
-      className,
-      children,
-      ...rest
-    }: ComponentPropsWithoutRef<"code"> & { inline?: boolean }) {
-      const match = /language-(\w+)/.exec(className || "");
-      const code = String(children).replace(/\n$/, "");
-      if (match || code.includes("\n")) {
-        return <CodeBlock code={code} language={match?.[1]} />;
-      }
-      return (
-        <code className={className} {...rest}>
-          {children}
-        </code>
-      );
-    },
-    pre({ children }: ComponentPropsWithoutRef<"pre">) {
-      return <>{children}</>;
-    },
-  } satisfies Components;
 
   const handleSave = async () => {
     setSaving(true);
@@ -975,7 +950,6 @@ export function ComponentDetailsEditor({
             readmeIncludeSource={readmeIncludeSource}
             skillMd={skillMd}
             generatingContent={generatingSeo}
-            markdownCodeComponents={markdownCodeComponents}
             onRegenerate={async () => {
               setGeneratingSeo(true);
               try {
@@ -1056,7 +1030,6 @@ function GeneratedContentSection({
   readmeIncludeSource,
   skillMd,
   generatingContent,
-  markdownCodeComponents,
   onRegenerate,
 }: {
   packageId: Id<"packages">;
@@ -1074,7 +1047,6 @@ function GeneratedContentSection({
   readmeIncludeSource?: "markers" | "full";
   skillMd?: string;
   generatingContent: boolean;
-  markdownCodeComponents: Components;
   onRegenerate: () => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
@@ -1216,14 +1188,9 @@ function GeneratedContentSection({
                   Preview
                 </p>
                 <div className="overflow-x-auto">
-                  <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkBreaks]}
-                      components={markdownCodeComponents}
-                    >
-                      {editUseCases}
-                    </ReactMarkdown>
-                  </div>
+                  <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                    {editUseCases}
+                  </Markdown>
                 </div>
               </div>
             )}
@@ -1246,14 +1213,9 @@ function GeneratedContentSection({
                   Preview
                 </p>
                 <div className="overflow-x-auto">
-                  <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkBreaks]}
-                      components={markdownCodeComponents}
-                    >
-                      {editHowItWorks}
-                    </ReactMarkdown>
-                  </div>
+                  <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                    {editHowItWorks}
+                  </Markdown>
                 </div>
               </div>
             )}

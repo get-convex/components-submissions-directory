@@ -7,13 +7,10 @@ import { Toaster, toast } from "sonner";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useDirectoryCategories } from "../lib/categories";
 import Header from "../components/Header";
-import { markdownComponents } from "../components/markdownComponents";
+import { Markdown } from "../components/Markdown";
 import ReadmePreviewNotice from "../components/ReadmePreviewNotice";
 import AiLoadingDots from "../components/AiLoadingDots";
 import { FAQSection } from "../components/FAQSection";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkBreaks from "remark-breaks";
 import {
   CheckCircle,
   CaretDown,
@@ -662,14 +659,9 @@ export default function SubmitForm() {
                   />
                   <div className="mt-1 rounded border border-border bg-bg-primary p-2">
                     <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">Preview</p>
-                    <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkBreaks]}
-                        components={markdownComponents as never}
-                      >
-                        {generatedUseCases}
-                      </ReactMarkdown>
-                    </div>
+                    <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                      {generatedUseCases}
+                    </Markdown>
                   </div>
                 </div>
 
@@ -687,14 +679,9 @@ export default function SubmitForm() {
                   />
                   <div className="mt-1 rounded border border-border bg-bg-primary p-2">
                     <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">Preview</p>
-                    <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkBreaks]}
-                        components={markdownComponents as never}
-                      >
-                        {generatedHowItWorks}
-                      </ReactMarkdown>
-                    </div>
+                    <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                      {generatedHowItWorks}
+                    </Markdown>
                   </div>
                 </div>
 
@@ -708,14 +695,9 @@ export default function SubmitForm() {
                     </div>
                     <ReadmePreviewNotice readmeIncludeSource={readmeIncludeSource} />
                     <div className="rounded-lg border border-border bg-bg-primary p-3 max-h-64 overflow-y-auto">
-                      <div className="prose prose-sm max-w-none text-text-primary">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm, remarkBreaks]}
-                          components={markdownComponents as never}
-                        >
-                          {readmeIncludedMarkdown}
-                        </ReactMarkdown>
-                      </div>
+                      <Markdown className="prose prose-sm max-w-none text-text-primary">
+                        {readmeIncludedMarkdown}
+                      </Markdown>
                     </div>
                   </div>
                 )}

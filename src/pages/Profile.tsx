@@ -5,10 +5,7 @@ import { Id } from "../../convex/_generated/dataModel";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Toaster, toast } from "sonner";
 import Header from "../components/Header";
-import CodeBlock from "../components/CodeBlock";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkBreaks from "remark-breaks";
+import { Markdown } from "../components/Markdown";
 import {
   Package,
   CheckCircle,
@@ -473,21 +470,6 @@ function ViewNotesModal({
   );
 }
 
-// Shared markdown code component override for CodeBlock rendering
-const markdownCodeComponents = {
-  code({ className, children, ...rest }: { className?: string; children?: React.ReactNode; [key: string]: unknown }) {
-    const match = /language-(\w+)/.exec(className || "");
-    const code = String(children).replace(/\n$/, "");
-    if (match || code.includes("\n")) {
-      return <CodeBlock code={code} language={match?.[1]} />;
-    }
-    return <code className={className} {...rest}>{children}</code>;
-  },
-  pre({ children }: { children?: React.ReactNode }) {
-    return <>{children}</>;
-  },
-};
-
 // Edit submission modal
 function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose: () => void }) {
   const submission = useQuery(api.packages.getMySubmissionForEdit, { packageId });
@@ -792,14 +774,9 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
                   {generatedUseCases && (
                     <div className="mt-1 rounded border border-border bg-bg-primary p-2">
                       <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">Preview</p>
-                      <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm, remarkBreaks]}
-                          components={markdownCodeComponents as never}
-                        >
-                          {generatedUseCases}
-                        </ReactMarkdown>
-                      </div>
+                      <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                        {generatedUseCases}
+                      </Markdown>
                     </div>
                   )}
                 </div>
@@ -819,14 +796,9 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
                   {generatedHowItWorks && (
                     <div className="mt-1 rounded border border-border bg-bg-primary p-2">
                       <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">Preview</p>
-                      <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm, remarkBreaks]}
-                          components={markdownCodeComponents as never}
-                        >
-                          {generatedHowItWorks}
-                        </ReactMarkdown>
-                      </div>
+                      <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                        {generatedHowItWorks}
+                      </Markdown>
                     </div>
                   )}
                 </div>
@@ -843,14 +815,9 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
                         : "No include markers found in README. Showing full README content."}
                     </p>
                     <div className="rounded-lg border border-border bg-bg-primary p-3 max-h-48 overflow-y-auto">
-                      <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm, remarkBreaks]}
-                          components={markdownCodeComponents as never}
-                        >
-                          {readmeIncludedMarkdown}
-                        </ReactMarkdown>
-                      </div>
+                      <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                        {readmeIncludedMarkdown}
+                      </Markdown>
                     </div>
                   </div>
                 )}

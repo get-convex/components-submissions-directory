@@ -9,8 +9,7 @@ import { VerifiedBadge } from "../components/VerifiedBadge";
 import { CommunityBadge } from "../components/CommunityBadge";
 import Header from "../components/Header";
 import CodeBlock from "../components/CodeBlock";
-import { createMarkdownComponents } from "../components/markdownComponents";
-import { resolveRepositoryMarkdownHref } from "../lib/markdownLinks";
+import { Markdown } from "../components/Markdown";
 import { useDirectoryCategories } from "../lib/categories";
 import { buildComponentClientUrls } from "../../shared/componentUrls";
 import {
@@ -36,11 +35,6 @@ import {
 } from "@radix-ui/react-icons";
 import { AgentInstallSection } from "../components/AgentInstallSection";
 import { FileArrowDown, ClipboardText, DiscordLogo } from "@phosphor-icons/react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import { remarkAlert } from "remark-github-blockquote-alert";
-import "remark-github-blockquote-alert/alert.css";
-import rehypeRaw from "rehype-raw";
 
 class MarkdownErrorBoundary extends Component<
   { children: ReactNode; label: string },
@@ -1044,28 +1038,6 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
   const resolvedCategory = component?.category
     ? dynamicCategories.find((category) => category.id === component.category) ?? null
     : null;
-  const repoMarkdownComponents = useMemo(
-    () => createMarkdownComponents({ repositoryUrl: component?.repositoryUrl }),
-    [component?.repositoryUrl],
-  );
-  const renderMarkdownLink = useCallback(
-    ({ href, children }: { href?: string; children?: ReactNode }) => {
-      const resolvedHref = resolveRepositoryMarkdownHref(href, component?.repositoryUrl);
-      const isExternal = Boolean(resolvedHref?.startsWith("http"));
-
-      return (
-        <a
-          href={resolvedHref}
-          className="text-[#8D2676] hover:underline"
-          target={isExternal ? "_blank" : undefined}
-          rel={isExternal ? "noopener noreferrer" : undefined}
-        >
-          {children}
-        </a>
-      );
-    },
-    [component?.repositoryUrl],
-  );
   const categoryHref =
     component?.category && resolvedCategory ? `${basePath}categories/${component.category}` : null;
 
@@ -1726,17 +1698,11 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                     <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-2">
                       Use cases
                     </h2>
-                    <div className="markdown-body">
-                      <MarkdownErrorBoundary label="Use cases">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm, remarkAlert]}
-                          rehypePlugins={[rehypeRaw]}
-                          components={{ ...repoMarkdownComponents, a: renderMarkdownLink } as never}
-                        >
-                          {component.generatedUseCases}
-                        </ReactMarkdown>
-                      </MarkdownErrorBoundary>
-                    </div>
+                    <MarkdownErrorBoundary label="Use cases">
+                      <Markdown repositoryUrl={component.repositoryUrl}>
+                        {component.generatedUseCases}
+                      </Markdown>
+                    </MarkdownErrorBoundary>
                   </section>
                 )}
 
@@ -1745,17 +1711,11 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                     <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-2">
                       How it works
                     </h2>
-                    <div className="markdown-body">
-                      <MarkdownErrorBoundary label="How it works">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm, remarkAlert]}
-                          rehypePlugins={[rehypeRaw]}
-                          components={{ ...repoMarkdownComponents, a: renderMarkdownLink } as never}
-                        >
-                          {component.generatedHowItWorks}
-                        </ReactMarkdown>
-                      </MarkdownErrorBoundary>
-                    </div>
+                    <MarkdownErrorBoundary label="How it works">
+                      <Markdown repositoryUrl={component.repositoryUrl}>
+                        {component.generatedHowItWorks}
+                      </Markdown>
+                    </MarkdownErrorBoundary>
                   </section>
                 )}
 
@@ -1774,17 +1734,11 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               <section>
                 <hr className="border-border my-6" />
                 <h3 className="text-base font-semibold text-text-primary mb-4">From the README.md</h3>
-                <div className="markdown-body">
-                  <MarkdownErrorBoundary label="README markdown">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkAlert]}
-                      rehypePlugins={[rehypeRaw]}
-                      components={{ ...repoMarkdownComponents, a: renderMarkdownLink } as never}
-                    >
-                      {component.readmeIncludedMarkdown}
-                    </ReactMarkdown>
-                  </MarkdownErrorBoundary>
-                </div>
+                <MarkdownErrorBoundary label="README markdown">
+                  <Markdown repositoryUrl={component.repositoryUrl}>
+                    {component.readmeIncludedMarkdown}
+                  </Markdown>
+                </MarkdownErrorBoundary>
               </section>
             )}
 
@@ -1799,46 +1753,11 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               <>
                 {/* Long description markdown content (v1 only) */}
                 {component.contentModelVersion !== 2 && component.longDescription && (
-                  <div className="markdown-body mb-6">
-                    <MarkdownErrorBoundary label="Long description">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkAlert]}
-                      rehypePlugins={[rehypeRaw]}
-                      components={{
-                        ...repoMarkdownComponents,
-                        a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
-                          if (href && /\.(mp4|webm|mov)(\?.*)?$/i.test(href)) {
-                            return (
-                              <video
-                                src={href}
-                                controls
-                                playsInline
-                                className="w-full rounded-lg my-4"
-                                title={typeof children === "string" ? children : "Video"}>
-                                Your browser does not support the video tag.
-                              </video>
-                            );
-                          }
-                          const resolvedHref = resolveRepositoryMarkdownHref(
-                            href,
-                            component.repositoryUrl,
-                          );
-                          const isExternal = Boolean(resolvedHref?.startsWith("http"));
-                          return (
-                            <a
-                              href={resolvedHref}
-                              className="text-[#8D2676] hover:underline"
-                              target={isExternal ? "_blank" : undefined}
-                              rel={isExternal ? "noopener noreferrer" : undefined}>
-                              {children}
-                            </a>
-                          );
-                        },
-                      } as never}>
+                  <MarkdownErrorBoundary label="Long description">
+                    <Markdown className="markdown-body mb-6" repositoryUrl={component.repositoryUrl}>
                       {component.longDescription}
-                    </ReactMarkdown>
-                    </MarkdownErrorBoundary>
-                  </div>
+                    </Markdown>
+                  </MarkdownErrorBoundary>
                 )}
 
                 {/* Divider before AI SEO content */}

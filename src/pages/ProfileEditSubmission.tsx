@@ -1,9 +1,7 @@
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
 import { Toaster, toast } from "sonner";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkBreaks from "remark-breaks";
+import { Markdown } from "../components/Markdown";
 import {
   ArrowLeft,
   Lightning,
@@ -16,7 +14,6 @@ import { Id } from "../../convex/_generated/dataModel";
 import AiLoadingDots from "../components/AiLoadingDots";
 import { useAuth } from "../lib/auth";
 import Header from "../components/Header";
-import { markdownComponents } from "../components/markdownComponents";
 import ReadmePreviewNotice from "../components/ReadmePreviewNotice";
 
 function useBasePath() {
@@ -512,14 +509,9 @@ export default function ProfileEditSubmission({
                           Preview
                         </p>
                         <div className="flex-1 rounded-lg border border-border bg-bg-primary p-3 overflow-y-auto min-h-[100px]">
-                          <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm, remarkBreaks]}
-                              components={markdownComponents as never}
-                            >
-                              {generatedDescription || "*No description yet*"}
-                            </ReactMarkdown>
-                          </div>
+                          <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                            {generatedDescription || "*No description yet*"}
+                          </Markdown>
                         </div>
                       </div>
                     </div>
@@ -548,14 +540,9 @@ export default function ProfileEditSubmission({
                           Preview
                         </p>
                         <div className="flex-1 rounded-lg border border-border bg-bg-primary p-3 overflow-y-auto min-h-[180px] max-h-[400px]">
-                          <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm, remarkBreaks]}
-                              components={markdownComponents as never}
-                            >
-                              {generatedUseCases || "*No use cases yet*"}
-                            </ReactMarkdown>
-                          </div>
+                          <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                            {generatedUseCases || "*No use cases yet*"}
+                          </Markdown>
                         </div>
                       </div>
                     </div>
@@ -584,14 +571,9 @@ export default function ProfileEditSubmission({
                           Preview
                         </p>
                         <div className="flex-1 rounded-lg border border-border bg-bg-primary p-3 overflow-y-auto min-h-[180px] max-h-[400px]">
-                          <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm, remarkBreaks]}
-                              components={markdownComponents as never}
-                            >
-                              {generatedHowItWorks || "*No content yet*"}
-                            </ReactMarkdown>
-                          </div>
+                          <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                            {generatedHowItWorks || "*No content yet*"}
+                          </Markdown>
                         </div>
                       </div>
                     </div>
@@ -605,14 +587,9 @@ export default function ProfileEditSubmission({
                       </label>
                       <ReadmePreviewNotice readmeIncludeSource={readmeIncludeSource} />
                       <div className="rounded-lg border border-border bg-bg-primary p-3 max-h-64 overflow-y-auto">
-                        <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm, remarkBreaks]}
-                            components={markdownComponents as never}
-                          >
-                            {readmeIncludedMarkdown}
-                          </ReactMarkdown>
-                        </div>
+                        <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                          {readmeIncludedMarkdown}
+                        </Markdown>
                       </div>
                     </div>
                   )}
