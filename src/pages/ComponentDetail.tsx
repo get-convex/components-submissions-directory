@@ -9,7 +9,8 @@ import { VerifiedBadge } from "../components/VerifiedBadge";
 import { CommunityBadge } from "../components/CommunityBadge";
 import Header from "../components/Header";
 import CodeBlock from "../components/CodeBlock";
-import { markdownComponents } from "../components/markdownComponents";
+import { createMarkdownComponents } from "../components/markdownComponents";
+import { resolveRepositoryMarkdownHref } from "../lib/markdownLinks";
 import { useDirectoryCategories } from "../lib/categories";
 import { buildComponentClientUrls } from "../../shared/componentUrls";
 import {
@@ -37,7 +38,8 @@ import { AgentInstallSection } from "../components/AgentInstallSection";
 import { FileArrowDown, ClipboardText, DiscordLogo } from "@phosphor-icons/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import remarkBreaks from "remark-breaks";
+import { remarkAlert } from "remark-github-blockquote-alert";
+import "remark-github-blockquote-alert/alert.css";
 import rehypeRaw from "rehype-raw";
 
 class MarkdownErrorBoundary extends Component<
@@ -89,25 +91,6 @@ function getReviewStatus(reviewStatus?: string): ReviewStatus {
 
 function capitalizeHeadingText(value: string): string {
   return value.replace(/\b([a-z])/g, (match) => match.toUpperCase());
-}
-
-function resolveRepositoryMarkdownHref(href?: string, repositoryUrl?: string): string | undefined {
-  if (!href) return href;
-  if (
-    href.startsWith("#") ||
-    href.startsWith("/") ||
-    href.startsWith("//") ||
-    /^[a-zA-Z][a-zA-Z\d+.-]*:/.test(href)
-  ) {
-    return href;
-  }
-  if (!repositoryUrl) return href;
-
-  try {
-    return new URL(href, `${repositoryUrl.replace(/\/$/, "")}/blob/main/README.md`).toString();
-  } catch {
-    return href;
-  }
 }
 
 // Build a full markdown document from component data (prefers v2 content model, falls back to SEO)
@@ -1061,6 +1044,10 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
   const resolvedCategory = component?.category
     ? dynamicCategories.find((category) => category.id === component.category) ?? null
     : null;
+  const repoMarkdownComponents = useMemo(
+    () => createMarkdownComponents({ repositoryUrl: component?.repositoryUrl }),
+    [component?.repositoryUrl],
+  );
   const renderMarkdownLink = useCallback(
     ({ href, children }: { href?: string; children?: ReactNode }) => {
       const resolvedHref = resolveRepositoryMarkdownHref(href, component?.repositoryUrl);
@@ -1742,9 +1729,9 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                     <div className="markdown-body">
                       <MarkdownErrorBoundary label="Use cases">
                         <ReactMarkdown
-                          remarkPlugins={[remarkGfm, remarkBreaks]}
+                          remarkPlugins={[remarkGfm, remarkAlert]}
                           rehypePlugins={[rehypeRaw]}
-                          components={{ ...markdownComponents, a: renderMarkdownLink } as never}
+                          components={{ ...repoMarkdownComponents, a: renderMarkdownLink } as never}
                         >
                           {component.generatedUseCases}
                         </ReactMarkdown>
@@ -1761,9 +1748,9 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                     <div className="markdown-body">
                       <MarkdownErrorBoundary label="How it works">
                         <ReactMarkdown
-                          remarkPlugins={[remarkGfm, remarkBreaks]}
+                          remarkPlugins={[remarkGfm, remarkAlert]}
                           rehypePlugins={[rehypeRaw]}
-                          components={{ ...markdownComponents, a: renderMarkdownLink } as never}
+                          components={{ ...repoMarkdownComponents, a: renderMarkdownLink } as never}
                         >
                           {component.generatedHowItWorks}
                         </ReactMarkdown>
@@ -1790,9 +1777,9 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 <div className="markdown-body">
                   <MarkdownErrorBoundary label="README markdown">
                     <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkBreaks]}
+                      remarkPlugins={[remarkGfm, remarkAlert]}
                       rehypePlugins={[rehypeRaw]}
-                      components={{ ...markdownComponents, a: renderMarkdownLink } as never}
+                      components={{ ...repoMarkdownComponents, a: renderMarkdownLink } as never}
                     >
                       {component.readmeIncludedMarkdown}
                     </ReactMarkdown>
@@ -1815,10 +1802,10 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                   <div className="markdown-body mb-6">
                     <MarkdownErrorBoundary label="Long description">
                     <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkBreaks]}
+                      remarkPlugins={[remarkGfm, remarkAlert]}
                       rehypePlugins={[rehypeRaw]}
                       components={{
-                        ...markdownComponents,
+                        ...repoMarkdownComponents,
                         a: ({ href, children }: { href?: string; children?: React.ReactNode }) => {
                           if (href && /\.(mp4|webm|mov)(\?.*)?$/i.test(href)) {
                             return (
