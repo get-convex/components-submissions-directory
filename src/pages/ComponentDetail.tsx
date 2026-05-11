@@ -1698,11 +1698,13 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                     <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-2">
                       Use cases
                     </h2>
-                    <MarkdownErrorBoundary label="Use cases">
-                      <Markdown repositoryUrl={component.repositoryUrl}>
-                        {component.generatedUseCases}
-                      </Markdown>
-                    </MarkdownErrorBoundary>
+                    <div className="markdown-body">
+                      <MarkdownErrorBoundary label="Use cases">
+                        <Markdown repositoryUrl={component.repositoryUrl}>
+                          {component.generatedUseCases}
+                        </Markdown>
+                      </MarkdownErrorBoundary>
+                    </div>
                   </section>
                 )}
 
@@ -1711,11 +1713,13 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                     <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-2">
                       How it works
                     </h2>
-                    <MarkdownErrorBoundary label="How it works">
-                      <Markdown repositoryUrl={component.repositoryUrl}>
-                        {component.generatedHowItWorks}
-                      </Markdown>
-                    </MarkdownErrorBoundary>
+                    <div className="markdown-body">
+                      <MarkdownErrorBoundary label="How it works">
+                        <Markdown repositoryUrl={component.repositoryUrl}>
+                          {component.generatedHowItWorks}
+                        </Markdown>
+                      </MarkdownErrorBoundary>
+                    </div>
                   </section>
                 )}
 
@@ -1734,11 +1738,13 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               <section>
                 <hr className="border-border my-6" />
                 <h3 className="text-base font-semibold text-text-primary mb-4">From the README.md</h3>
-                <MarkdownErrorBoundary label="README markdown">
-                  <Markdown repositoryUrl={component.repositoryUrl}>
-                    {component.readmeIncludedMarkdown}
-                  </Markdown>
-                </MarkdownErrorBoundary>
+                <div className="markdown-body">
+                  <MarkdownErrorBoundary label="README markdown">
+                    <Markdown repositoryUrl={component.repositoryUrl}>
+                      {component.readmeIncludedMarkdown}
+                    </Markdown>
+                  </MarkdownErrorBoundary>
+                </div>
               </section>
             )}
 
@@ -1753,11 +1759,13 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               <>
                 {/* Long description markdown content (v1 only) */}
                 {component.contentModelVersion !== 2 && component.longDescription && (
-                  <MarkdownErrorBoundary label="Long description">
-                    <Markdown className="markdown-body mb-6" repositoryUrl={component.repositoryUrl}>
-                      {component.longDescription}
-                    </Markdown>
-                  </MarkdownErrorBoundary>
+                  <div className="markdown-body mb-6">
+                    <MarkdownErrorBoundary label="Long description">
+                      <Markdown repositoryUrl={component.repositoryUrl}>
+                        {component.longDescription}
+                      </Markdown>
+                    </MarkdownErrorBoundary>
+                  </div>
                 )}
 
                 {/* Divider before AI SEO content */}

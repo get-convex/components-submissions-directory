@@ -659,9 +659,9 @@ export default function SubmitForm() {
                   />
                   <div className="mt-1 rounded border border-border bg-bg-primary p-2">
                     <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">Preview</p>
-                    <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                    <div className="prose prose-sm max-w-none text-text-primary text-xs"><Markdown>
                       {generatedUseCases}
-                    </Markdown>
+                    </Markdown></div>
                   </div>
                 </div>
 
@@ -679,9 +679,9 @@ export default function SubmitForm() {
                   />
                   <div className="mt-1 rounded border border-border bg-bg-primary p-2">
                     <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">Preview</p>
-                    <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                    <div className="prose prose-sm max-w-none text-text-primary text-xs"><Markdown>
                       {generatedHowItWorks}
-                    </Markdown>
+                    </Markdown></div>
                   </div>
                 </div>
 
@@ -695,9 +695,9 @@ export default function SubmitForm() {
                     </div>
                     <ReadmePreviewNotice readmeIncludeSource={readmeIncludeSource} />
                     <div className="rounded-lg border border-border bg-bg-primary p-3 max-h-64 overflow-y-auto">
-                      <Markdown className="prose prose-sm max-w-none text-text-primary">
+                      <div className="prose prose-sm max-w-none text-text-primary"><Markdown>
                         {readmeIncludedMarkdown}
-                      </Markdown>
+                      </Markdown></div>
                     </div>
                   </div>
                 )}

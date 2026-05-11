@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, type ComponentPropsWithoutRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { remarkAlert } from "remark-github-blockquote-alert";
@@ -10,17 +10,11 @@ import {
   resolveRepositoryMarkdownHref,
 } from "../lib/markdownLinks";
 
-type MdProps = {
-  className?: string;
-  children?: React.ReactNode;
-  [key: string]: unknown;
-};
-
 const VIDEO_EXT_RE = /\.(mp4|webm|mov)(\?.*)?$/i;
 
 function buildComponents(repositoryUrl?: string) {
   return {
-    code({ className, children, ...rest }: MdProps) {
+    code({ className, children, ...rest }: ComponentPropsWithoutRef<"code">) {
       const match = /language-(\w+)/.exec(className || "");
       const code = String(children).replace(/\n$/, "");
       if (match || code.includes("\n")) {
@@ -32,7 +26,7 @@ function buildComponents(repositoryUrl?: string) {
         </code>
       );
     },
-    pre({ children }: MdProps) {
+    pre({ children }: { children?: React.ReactNode }) {
       return <>{children}</>;
     },
     img({ src, alt }: { src?: string; alt?: string }) {
@@ -86,31 +80,31 @@ function buildComponents(repositoryUrl?: string) {
         </a>
       );
     },
-    table({ children }: MdProps) {
+    table({ children }: { children?: React.ReactNode }) {
       return (
         <div className="overflow-x-auto my-4">
           <table className="w-full border-collapse text-sm">{children}</table>
         </div>
       );
     },
-    thead({ children }: MdProps) {
+    thead({ children }: { children?: React.ReactNode }) {
       return <thead className="bg-bg-secondary">{children}</thead>;
     },
-    th({ children }: MdProps) {
+    th({ children }: { children?: React.ReactNode }) {
       return (
         <th className="border border-border px-3 py-2 text-left text-xs font-semibold text-text-primary">
           {children}
         </th>
       );
     },
-    td({ children }: MdProps) {
+    td({ children }: { children?: React.ReactNode }) {
       return (
         <td className="border border-border px-3 py-2 text-xs text-text-secondary">
           {children}
         </td>
       );
     },
-    tr({ children }: MdProps) {
+    tr({ children }: { children?: React.ReactNode }) {
       return <tr className="even:bg-bg-secondary/50">{children}</tr>;
     },
   };
@@ -120,21 +114,17 @@ export interface MarkdownProps {
   children: string;
   /** GitHub repo URL. When set, relative image src / link href resolve against it. */
   repositoryUrl?: string;
-  /** Wrapper class. Defaults to "markdown-body". Pass "" to render without a wrapper class. */
-  className?: string;
 }
 
-export function Markdown({ children, repositoryUrl, className }: MarkdownProps) {
+export function Markdown({ children, repositoryUrl }: MarkdownProps) {
   const components = useMemo(() => buildComponents(repositoryUrl), [repositoryUrl]);
   return (
-    <div className={className ?? "markdown-body"}>
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkAlert]}
-        rehypePlugins={[rehypeRaw]}
-        components={components as never}
-      >
-        {children}
-      </ReactMarkdown>
-    </div>
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm, remarkAlert]}
+      rehypePlugins={[rehypeRaw]}
+      components={components as never}
+    >
+      {children}
+    </ReactMarkdown>
   );
 }

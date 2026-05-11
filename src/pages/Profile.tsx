@@ -774,9 +774,9 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
                   {generatedUseCases && (
                     <div className="mt-1 rounded border border-border bg-bg-primary p-2">
                       <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">Preview</p>
-                      <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                      <div className="prose prose-sm max-w-none text-text-primary text-xs"><Markdown>
                         {generatedUseCases}
-                      </Markdown>
+                      </Markdown></div>
                     </div>
                   )}
                 </div>
@@ -796,9 +796,9 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
                   {generatedHowItWorks && (
                     <div className="mt-1 rounded border border-border bg-bg-primary p-2">
                       <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">Preview</p>
-                      <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                      <div className="prose prose-sm max-w-none text-text-primary text-xs"><Markdown>
                         {generatedHowItWorks}
-                      </Markdown>
+                      </Markdown></div>
                     </div>
                   )}
                 </div>
@@ -815,9 +815,9 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
                         : "No include markers found in README. Showing full README content."}
                     </p>
                     <div className="rounded-lg border border-border bg-bg-primary p-3 max-h-48 overflow-y-auto">
-                      <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                      <div className="prose prose-sm max-w-none text-text-primary text-xs"><Markdown>
                         {readmeIncludedMarkdown}
-                      </Markdown>
+                      </Markdown></div>
                     </div>
                   </div>
                 )}

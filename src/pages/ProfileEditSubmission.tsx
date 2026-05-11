@@ -509,9 +509,9 @@ export default function ProfileEditSubmission({
                           Preview
                         </p>
                         <div className="flex-1 rounded-lg border border-border bg-bg-primary p-3 overflow-y-auto min-h-[100px]">
-                          <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                          <div className="prose prose-sm max-w-none text-text-primary text-xs"><Markdown>
                             {generatedDescription || "*No description yet*"}
-                          </Markdown>
+                          </Markdown></div>
                         </div>
                       </div>
                     </div>
@@ -540,9 +540,9 @@ export default function ProfileEditSubmission({
                           Preview
                         </p>
                         <div className="flex-1 rounded-lg border border-border bg-bg-primary p-3 overflow-y-auto min-h-[180px] max-h-[400px]">
-                          <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                          <div className="prose prose-sm max-w-none text-text-primary text-xs"><Markdown>
                             {generatedUseCases || "*No use cases yet*"}
-                          </Markdown>
+                          </Markdown></div>
                         </div>
                       </div>
                     </div>
@@ -571,9 +571,9 @@ export default function ProfileEditSubmission({
                           Preview
                         </p>
                         <div className="flex-1 rounded-lg border border-border bg-bg-primary p-3 overflow-y-auto min-h-[180px] max-h-[400px]">
-                          <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                          <div className="prose prose-sm max-w-none text-text-primary text-xs"><Markdown>
                             {generatedHowItWorks || "*No content yet*"}
-                          </Markdown>
+                          </Markdown></div>
                         </div>
                       </div>
                     </div>
@@ -587,9 +587,9 @@ export default function ProfileEditSubmission({
                       </label>
                       <ReadmePreviewNotice readmeIncludeSource={readmeIncludeSource} />
                       <div className="rounded-lg border border-border bg-bg-primary p-3 max-h-64 overflow-y-auto">
-                        <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                        <div className="prose prose-sm max-w-none text-text-primary text-xs"><Markdown>
                           {readmeIncludedMarkdown}
-                        </Markdown>
+                        </Markdown></div>
                       </div>
                     </div>
                   )}

@@ -1188,9 +1188,9 @@ function GeneratedContentSection({
                   Preview
                 </p>
                 <div className="overflow-x-auto">
-                  <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                  <div className="prose prose-sm max-w-none text-text-primary text-xs"><Markdown>
                     {editUseCases}
-                  </Markdown>
+                  </Markdown></div>
                 </div>
               </div>
             )}
@@ -1213,9 +1213,9 @@ function GeneratedContentSection({
                   Preview
                 </p>
                 <div className="overflow-x-auto">
-                  <Markdown className="prose prose-sm max-w-none text-text-primary text-xs">
+                  <div className="prose prose-sm max-w-none text-text-primary text-xs"><Markdown>
                     {editHowItWorks}
-                  </Markdown>
+                  </Markdown></div>
                 </div>
               </div>
             )}
