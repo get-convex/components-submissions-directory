@@ -4,7 +4,15 @@ import { useMutation, useAction, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { toast } from "sonner";
-import { CaretDown, DownloadSimple, Image, ArrowsClockwise, PencilSimple, Plus, Trash } from "@phosphor-icons/react";
+import {
+  CaretDown,
+  DownloadSimple,
+  Image,
+  ArrowsClockwise,
+  PencilSimple,
+  Plus,
+  Trash,
+} from "@phosphor-icons/react";
 import { useDirectoryCategories } from "../lib/categories";
 import ReadmePreviewNotice from "./ReadmePreviewNotice";
 import { Markdown } from "./Markdown";
@@ -111,7 +119,9 @@ export function ComponentDetailsEditor({
   submittedLongDescription,
 }: ComponentDetailsEditorProps) {
   const isSubmissionMode = mode === "submission";
-  const [componentName, setComponentName] = useState(initialComponentName || "");
+  const [componentName, setComponentName] = useState(
+    initialComponentName || "",
+  );
   const [slug, setSlug] = useState(initialSlug || "");
   const [category, setCategory] = useState(initialCategory || "");
   const [categoryOpen, setCategoryOpen] = useState(false);
@@ -120,13 +130,13 @@ export function ComponentDetailsEditor({
   const [shortDescription, setShortDescription] = useState(
     initialShortDesc || "",
   );
-  const [longDescription, setLongDescription] = useState(
-    initialLongDesc || "",
-  );
+  const [longDescription, setLongDescription] = useState(initialLongDesc || "");
   const [videoUrl, setVideoUrl] = useState(initialVideoUrl || "");
   const [demoUrl, setDemoUrl] = useState(initialDemoUrl || "");
   const [thumbnailUrl, setThumbnailUrl] = useState(initialThumbUrl || "");
-  const [savedThumbnailUrl, setSavedThumbnailUrl] = useState(initialThumbUrl || "");
+  const [savedThumbnailUrl, setSavedThumbnailUrl] = useState(
+    initialThumbUrl || "",
+  );
   const [hideThumbnailInCategory, setHideThumbnailInCategory] = useState(
     initialHideThumbnailInCategory || false,
   );
@@ -137,20 +147,16 @@ export function ComponentDetailsEditor({
   const [communitySubmitted, setCommunitySubmitted] = useState(
     initialCommunitySubmitted || false,
   );
-  const [authorUsername, setAuthorUsername] = useState(
-    initialAuthorUser || "",
-  );
-  const [authorAvatar, setAuthorAvatar] = useState(
-    initialAuthorAvatar || "",
-  );
+  const [authorUsername, setAuthorUsername] = useState(initialAuthorUser || "");
+  const [authorAvatar, setAuthorAvatar] = useState(initialAuthorAvatar || "");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [clearingLogo, setClearingLogo] = useState(false);
   const [generatingThumb, setGeneratingThumb] = useState(false);
-  const [selectedGenTemplate, setSelectedGenTemplate] = useState<Id<"thumbnailTemplates"> | "">(
-    initialSelectedTemplateId || "",
-  );
+  const [selectedGenTemplate, setSelectedGenTemplate] = useState<
+    Id<"thumbnailTemplates"> | ""
+  >(initialSelectedTemplateId || "");
   const [fillingAuthor, setFillingAuthor] = useState(false);
   const [generatingSeo, setGeneratingSeo] = useState(false);
   const [showOriginalText, setShowOriginalText] = useState(false);
@@ -163,7 +169,10 @@ export function ComponentDetailsEditor({
   // Close category dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target as Node)) {
+      if (
+        categoryDropdownRef.current &&
+        !categoryDropdownRef.current.contains(e.target as Node)
+      ) {
         setCategoryOpen(false);
       }
     };
@@ -245,8 +254,12 @@ export function ComponentDetailsEditor({
   const clearLogo = useMutation(api.packages.clearLogo);
   const autoFillAuthor = useMutation(api.packages.autoFillAuthorFromRepo);
   const regenerateSeo = useAction(api.seoContent.regenerateSeoContent);
-  const regenerateDirectoryContent = useAction(api.seoContent.regenerateDirectoryContent);
-  const generateThumbnail = useAction(api.thumbnailGenerator.generateThumbnailForPackage);
+  const regenerateDirectoryContent = useAction(
+    api.seoContent.regenerateDirectoryContent,
+  );
+  const generateThumbnail = useAction(
+    api.thumbnailGenerator.generateThumbnailForPackage,
+  );
   // Fetch active templates for picker
   const activeTemplates = useQuery(api.thumbnails.listActiveTemplates);
 
@@ -483,7 +496,7 @@ export function ComponentDetailsEditor({
             Component Name
           </label>
           <input
-            type="text" 
+            type="text"
             value={componentName}
             onChange={(e) => setComponentName(e.target.value)}
             placeholder="Convex Agent"
@@ -516,9 +529,12 @@ export function ComponentDetailsEditor({
             onClick={() => setCategoryOpen(!categoryOpen)}
             className="w-full flex items-center justify-between text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
           >
-            <span className={category ? "text-text-primary" : "text-text-secondary"}>
+            <span
+              className={category ? "text-text-primary" : "text-text-secondary"}
+            >
               {category
-                ? dynamicCategories.find((c) => c.id === category)?.label || category
+                ? dynamicCategories.find((c) => c.id === category)?.label ||
+                  category
                 : "None"}
             </span>
             <CaretDown
@@ -537,7 +553,9 @@ export function ComponentDetailsEditor({
                     setCategoryOpen(false);
                   }}
                   className={`w-full text-left px-3 py-1.5 text-xs transition-colors hover:bg-bg-hover ${
-                    category === opt.id ? "text-text-primary font-medium" : "text-text-secondary"
+                    category === opt.id
+                      ? "text-text-primary font-medium"
+                      : "text-text-secondary"
                   }`}
                 >
                   {opt.label}
@@ -1052,9 +1070,13 @@ function GeneratedContentSection({
   const [editing, setEditing] = useState(false);
   const [savingContent, setSavingContent] = useState(false);
   const [showSkillMd, setShowSkillMd] = useState(false);
-  const [editDescription, setEditDescription] = useState(generatedDescription || "");
+  const [editDescription, setEditDescription] = useState(
+    generatedDescription || "",
+  );
   const [editUseCases, setEditUseCases] = useState(generatedUseCases || "");
-  const [editHowItWorks, setEditHowItWorks] = useState(generatedHowItWorks || "");
+  const [editHowItWorks, setEditHowItWorks] = useState(
+    generatedHowItWorks || "",
+  );
   const [editReadmeIncludedMarkdown, setEditReadmeIncludedMarkdown] = useState(
     readmeIncludedMarkdown || "",
   );
@@ -1062,7 +1084,9 @@ function GeneratedContentSection({
     "markers" | "full" | ""
   >(readmeIncludeSource || "");
   const [editSkillMd, setEditSkillMd] = useState(skillMd || "");
-  const updateGeneratedContent = useMutation(api.seoContentDb.updateGeneratedContent);
+  const updateGeneratedContent = useMutation(
+    api.seoContentDb.updateGeneratedContent,
+  );
 
   useEffect(() => {
     if (!editing) {
@@ -1084,10 +1108,16 @@ function GeneratedContentSection({
   ]);
 
   const canGenerate = Boolean(
-    repositoryUrl && npmUrl && componentName?.trim() && shortDescription?.trim(),
+    repositoryUrl &&
+      npmUrl &&
+      componentName?.trim() &&
+      shortDescription?.trim(),
   );
   const hasContent = Boolean(
-    generatedDescription || generatedUseCases || generatedHowItWorks || readmeIncludedMarkdown,
+    generatedDescription ||
+      generatedUseCases ||
+      generatedHowItWorks ||
+      readmeIncludedMarkdown,
   );
 
   const handleSaveGeneratedContent = async () => {
@@ -1149,7 +1179,9 @@ function GeneratedContentSection({
       {contentGenerationStatus === "generating" && (
         <div className="flex items-center gap-2 mb-2">
           <div className="w-3 h-3 border-2 border-text-secondary/30 border-t-text-primary rounded-full animate-spin" />
-          <span className="text-xs text-text-secondary">Generating content...</span>
+          <span className="text-xs text-text-secondary">
+            Generating content...
+          </span>
         </div>
       )}
       {contentGenerationStatus === "error" && contentGenerationError && (
@@ -1188,9 +1220,9 @@ function GeneratedContentSection({
                   Preview
                 </p>
                 <div className="overflow-x-auto">
-                  <div className="prose prose-sm max-w-none text-text-primary text-xs"><Markdown>
-                    {editUseCases}
-                  </Markdown></div>
+                  <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                    <Markdown>{editUseCases}</Markdown>
+                  </div>
                 </div>
               </div>
             )}
@@ -1213,9 +1245,9 @@ function GeneratedContentSection({
                   Preview
                 </p>
                 <div className="overflow-x-auto">
-                  <div className="prose prose-sm max-w-none text-text-primary text-xs"><Markdown>
-                    {editHowItWorks}
-                  </Markdown></div>
+                  <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                    <Markdown>{editHowItWorks}</Markdown>
+                  </div>
                 </div>
               </div>
             )}
@@ -1225,7 +1257,9 @@ function GeneratedContentSection({
             <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
               README preview
             </label>
-            <ReadmePreviewNotice readmeIncludeSource={editReadmeIncludeSource} />
+            <ReadmePreviewNotice
+              readmeIncludeSource={editReadmeIncludeSource}
+            />
             <textarea
               value={editReadmeIncludedMarkdown}
               onChange={(e) => setEditReadmeIncludedMarkdown(e.target.value)}
@@ -1242,7 +1276,11 @@ function GeneratedContentSection({
             >
               <CaretDown
                 size={10}
-                className={showSkillMd ? "rotate-180 transition-transform" : "transition-transform"}
+                className={
+                  showSkillMd
+                    ? "rotate-180 transition-transform"
+                    : "transition-transform"
+                }
               />
               SKILL.md
             </button>
@@ -1279,21 +1317,30 @@ function GeneratedContentSection({
       {!editing && hasContent && (
         <div className="space-y-2 mb-3">
           {generatedDescription && (
-            <p className="text-xs text-text-secondary line-clamp-3">{generatedDescription}</p>
+            <p className="text-xs text-text-secondary line-clamp-3">
+              {generatedDescription}
+            </p>
           )}
           {generatedUseCases && (
-            <span className="text-[10px] text-text-secondary">Use cases ready</span>
+            <span className="text-[10px] text-text-secondary">
+              Use cases ready
+            </span>
           )}
           {generatedHowItWorks && (
-            <span className="text-[10px] text-text-secondary ml-2">How it works ready</span>
+            <span className="text-[10px] text-text-secondary ml-2">
+              How it works ready
+            </span>
           )}
-          {skillMd && <p className="text-[10px] text-green-600">SKILL.md generated</p>}
+          {skillMd && (
+            <p className="text-[10px] text-green-600">SKILL.md generated</p>
+          )}
         </div>
       )}
 
       {!canGenerate && (
         <p className="mb-2 text-[10px] text-text-secondary">
-          Requires repository URL, npm URL, component name, and short description.
+          Requires repository URL, npm URL, component name, and short
+          description.
         </p>
       )}
 
@@ -1350,9 +1397,15 @@ function SeoContentSection({
   // Local edit state
   const [editValueProp, setEditValueProp] = useState(seoValueProp || "");
   const [editBenefits, setEditBenefits] = useState<string[]>(seoBenefits || []);
-  const [editUseCases, setEditUseCases] = useState<{ query: string; answer: string }[]>(seoUseCases || []);
-  const [editFaq, setEditFaq] = useState<{ question: string; answer: string }[]>(seoFaq || []);
-  const [editResourceLinks, setEditResourceLinks] = useState<{ label: string; url: string }[]>(seoResourceLinks || []);
+  const [editUseCases, setEditUseCases] = useState<
+    { query: string; answer: string }[]
+  >(seoUseCases || []);
+  const [editFaq, setEditFaq] = useState<
+    { question: string; answer: string }[]
+  >(seoFaq || []);
+  const [editResourceLinks, setEditResourceLinks] = useState<
+    { label: string; url: string }[]
+  >(seoResourceLinks || []);
   const [editSkillMd, setEditSkillMd] = useState(skillMd || "");
   const [showSkillMd, setShowSkillMd] = useState(false);
 
@@ -1368,7 +1421,15 @@ function SeoContentSection({
       setEditResourceLinks(seoResourceLinks || []);
       setEditSkillMd(skillMd || "");
     }
-  }, [seoValueProp, seoBenefits, seoUseCases, seoFaq, seoResourceLinks, skillMd, editing]);
+  }, [
+    seoValueProp,
+    seoBenefits,
+    seoUseCases,
+    seoFaq,
+    seoResourceLinks,
+    skillMd,
+    editing,
+  ]);
 
   const handleSaveSeo = async () => {
     setSavingSeo(true);
@@ -1379,7 +1440,8 @@ function SeoContentSection({
         seoBenefits: editBenefits.length > 0 ? editBenefits : undefined,
         seoUseCases: editUseCases.length > 0 ? editUseCases : undefined,
         seoFaq: editFaq.length > 0 ? editFaq : undefined,
-        seoResourceLinks: editResourceLinks.length > 0 ? editResourceLinks : undefined,
+        seoResourceLinks:
+          editResourceLinks.length > 0 ? editResourceLinks : undefined,
         skillMd: editSkillMd || undefined,
       });
       toast.success("SEO content saved");
@@ -1431,7 +1493,9 @@ function SeoContentSection({
       {seoGenerationStatus === "generating" && (
         <div className="flex items-center gap-2 mb-2">
           <div className="w-3 h-3 border-2 border-text-secondary/30 border-t-text-primary rounded-full animate-spin" />
-          <span className="text-xs text-text-secondary">Generating content...</span>
+          <span className="text-xs text-text-secondary">
+            Generating content...
+          </span>
         </div>
       )}
       {seoGenerationStatus === "error" && seoGenerationError && (
@@ -1484,7 +1548,9 @@ function SeoContentSection({
                   placeholder="Benefit description"
                 />
                 <button
-                  onClick={() => setEditBenefits(editBenefits.filter((_, idx) => idx !== i))}
+                  onClick={() =>
+                    setEditBenefits(editBenefits.filter((_, idx) => idx !== i))
+                  }
                   className="p-1 text-text-secondary hover:text-red-500 transition-colors mt-0.5"
                 >
                   <Trash size={10} />
@@ -1501,7 +1567,12 @@ function SeoContentSection({
               </label>
               {editUseCases.length < 4 && (
                 <button
-                  onClick={() => setEditUseCases([...editUseCases, { query: "", answer: "" }])}
+                  onClick={() =>
+                    setEditUseCases([
+                      ...editUseCases,
+                      { query: "", answer: "" },
+                    ])
+                  }
                   className="flex items-center gap-0.5 text-[10px] text-text-secondary hover:text-text-primary transition-colors"
                 >
                   <Plus size={10} weight="bold" /> Add
@@ -1509,7 +1580,10 @@ function SeoContentSection({
               )}
             </div>
             {editUseCases.map((uc, i) => (
-              <div key={i} className="mb-2 p-2 rounded bg-bg-primary/50 border border-border/50">
+              <div
+                key={i}
+                className="mb-2 p-2 rounded bg-bg-primary/50 border border-border/50"
+              >
                 <div className="flex items-start justify-between gap-1 mb-1">
                   <textarea
                     value={uc.query}
@@ -1523,7 +1597,11 @@ function SeoContentSection({
                     placeholder="Search query"
                   />
                   <button
-                    onClick={() => setEditUseCases(editUseCases.filter((_, idx) => idx !== i))}
+                    onClick={() =>
+                      setEditUseCases(
+                        editUseCases.filter((_, idx) => idx !== i),
+                      )
+                    }
                     className="p-1 text-text-secondary hover:text-red-500 transition-colors shrink-0 mt-0.5"
                   >
                     <Trash size={10} />
@@ -1552,7 +1630,9 @@ function SeoContentSection({
               </label>
               {editFaq.length < 5 && (
                 <button
-                  onClick={() => setEditFaq([...editFaq, { question: "", answer: "" }])}
+                  onClick={() =>
+                    setEditFaq([...editFaq, { question: "", answer: "" }])
+                  }
                   className="flex items-center gap-0.5 text-[10px] text-text-secondary hover:text-text-primary transition-colors"
                 >
                   <Plus size={10} weight="bold" /> Add
@@ -1560,7 +1640,10 @@ function SeoContentSection({
               )}
             </div>
             {editFaq.map((f, i) => (
-              <div key={i} className="mb-2 p-2 rounded bg-bg-primary/50 border border-border/50">
+              <div
+                key={i}
+                className="mb-2 p-2 rounded bg-bg-primary/50 border border-border/50"
+              >
                 <div className="flex items-start justify-between gap-1 mb-1">
                   <textarea
                     value={f.question}
@@ -1574,7 +1657,9 @@ function SeoContentSection({
                     placeholder="Question"
                   />
                   <button
-                    onClick={() => setEditFaq(editFaq.filter((_, idx) => idx !== i))}
+                    onClick={() =>
+                      setEditFaq(editFaq.filter((_, idx) => idx !== i))
+                    }
                     className="p-1 text-text-secondary hover:text-red-500 transition-colors shrink-0 mt-0.5"
                   >
                     <Trash size={10} />
@@ -1602,14 +1687,22 @@ function SeoContentSection({
                 Resource Links ({editResourceLinks.length})
               </label>
               <button
-                onClick={() => setEditResourceLinks([...editResourceLinks, { label: "", url: "" }])}
+                onClick={() =>
+                  setEditResourceLinks([
+                    ...editResourceLinks,
+                    { label: "", url: "" },
+                  ])
+                }
                 className="flex items-center gap-0.5 text-[10px] text-text-secondary hover:text-text-primary transition-colors"
               >
                 <Plus size={10} weight="bold" /> Add
               </button>
             </div>
             {editResourceLinks.map((link, i) => (
-              <div key={i} className="mb-1 flex flex-col gap-1 sm:flex-row sm:items-center">
+              <div
+                key={i}
+                className="mb-1 flex flex-col gap-1 sm:flex-row sm:items-center"
+              >
                 <input
                   type="text"
                   value={link.label}
@@ -1633,7 +1726,11 @@ function SeoContentSection({
                   placeholder="https://..."
                 />
                 <button
-                  onClick={() => setEditResourceLinks(editResourceLinks.filter((_, idx) => idx !== i))}
+                  onClick={() =>
+                    setEditResourceLinks(
+                      editResourceLinks.filter((_, idx) => idx !== i),
+                    )
+                  }
                   className="self-start p-1 text-text-secondary hover:text-red-500 transition-colors"
                 >
                   <Trash size={10} />
@@ -1648,7 +1745,14 @@ function SeoContentSection({
               onClick={() => setShowSkillMd(!showSkillMd)}
               className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-text-secondary hover:text-text-primary transition-colors mb-1"
             >
-              <CaretDown size={10} className={showSkillMd ? "rotate-180 transition-transform" : "transition-transform"} />
+              <CaretDown
+                size={10}
+                className={
+                  showSkillMd
+                    ? "rotate-180 transition-transform"
+                    : "transition-transform"
+                }
+              />
               SKILL.md
             </button>
             {showSkillMd && (
@@ -1693,16 +1797,25 @@ function SeoContentSection({
               <span className="text-[10px] text-text-secondary">Benefits:</span>
               <ul className="mt-0.5 space-y-0.5">
                 {seoBenefits.map((b, i) => (
-                  <li key={i} className="text-[10px] text-text-secondary pl-2 before:content-['·'] before:mr-1">{b}</li>
+                  <li
+                    key={i}
+                    className="text-[10px] text-text-secondary pl-2 before:content-['·'] before:mr-1"
+                  >
+                    {b}
+                  </li>
                 ))}
               </ul>
             </div>
           )}
           {seoUseCases && seoUseCases.length > 0 && (
-            <span className="text-[10px] text-text-secondary">{seoUseCases.length} use case{seoUseCases.length !== 1 ? "s" : ""}</span>
+            <span className="text-[10px] text-text-secondary">
+              {seoUseCases.length} use case{seoUseCases.length !== 1 ? "s" : ""}
+            </span>
           )}
           {seoFaq && seoFaq.length > 0 && (
-            <span className="text-[10px] text-text-secondary ml-2">{seoFaq.length} FAQ{seoFaq.length !== 1 ? "s" : ""}</span>
+            <span className="text-[10px] text-text-secondary ml-2">
+              {seoFaq.length} FAQ{seoFaq.length !== 1 ? "s" : ""}
+            </span>
           )}
           {skillMd && (
             <p className="text-[10px] text-green-600">SKILL.md generated</p>

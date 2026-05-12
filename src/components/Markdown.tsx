@@ -117,7 +117,10 @@ export interface MarkdownProps {
 }
 
 export function Markdown({ children, repositoryUrl }: MarkdownProps) {
-  const components = useMemo(() => buildComponents(repositoryUrl), [repositoryUrl]);
+  const components = useMemo(
+    () => buildComponents(repositoryUrl),
+    [repositoryUrl],
+  );
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm, remarkAlert]}

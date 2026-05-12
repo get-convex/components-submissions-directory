@@ -1,6 +1,15 @@
 // Component detail page at /components/:slug
 // Layout: narrow sidebar left with thumbnail + metadata, content right
-import { useEffect, useState, useRef, useMemo, useCallback, Component, type ErrorInfo, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  useRef,
+  useMemo,
+  useCallback,
+  Component,
+  type ErrorInfo,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -34,7 +43,11 @@ import {
   Share1Icon,
 } from "@radix-ui/react-icons";
 import { AgentInstallSection } from "../components/AgentInstallSection";
-import { FileArrowDown, ClipboardText, DiscordLogo } from "@phosphor-icons/react";
+import {
+  FileArrowDown,
+  ClipboardText,
+  DiscordLogo,
+} from "@phosphor-icons/react";
 
 class MarkdownErrorBoundary extends Component<
   { children: ReactNode; label: string },
@@ -129,11 +142,14 @@ function buildMarkdownDoc(c: {
   lines.push(`- [npm package](${c.npmUrl})`);
   if (c.repositoryUrl) lines.push(`- [GitHub repository](${c.repositoryUrl})`);
   if (c.slug)
-    lines.push(`- [Convex Components Directory](https://www.convex.dev/components/${c.slug})`);
+    lines.push(
+      `- [Convex Components Directory](https://www.convex.dev/components/${c.slug})`,
+    );
   lines.push("");
 
   if (c.authorUsername) lines.push(`**Author:** ${c.authorUsername}\n`);
-  if (c.categoryLabel || c.category) lines.push(`**Category:** ${c.categoryLabel || c.category}\n`);
+  if (c.categoryLabel || c.category)
+    lines.push(`**Category:** ${c.categoryLabel || c.category}\n`);
   lines.push(`**Version:** ${c.version}  `);
   lines.push(`**Weekly downloads:** ${c.weeklyDownloads.toLocaleString()}\n`);
 
@@ -199,7 +215,7 @@ function buildMarkdownDoc(c: {
   if (c.slug) {
     lines.push(`\n---\n`);
     lines.push(
-      `[![Convex Component](https://www.convex.dev/components/badge/${c.slug})](https://www.convex.dev/components/${c.slug})`
+      `[![Convex Component](https://www.convex.dev/components/badge/${c.slug})](https://www.convex.dev/components/${c.slug})`,
     );
   }
 
@@ -207,7 +223,8 @@ function buildMarkdownDoc(c: {
 }
 
 // npm logo base path (works with Vite base path)
-const npmLogoSrc = (import.meta.env.BASE_URL || "/").replace(/\/$/, "") + "/npm.svg";
+const npmLogoSrc =
+  (import.meta.env.BASE_URL || "/").replace(/\/$/, "") + "/npm.svg";
 
 // Generate a stable anonymous session ID for rating
 function getSessionId(): string {
@@ -255,19 +272,23 @@ function StarRating({ packageId }: { packageId: string }) {
               onMouseLeave={() => setHovered(0)}
               onClick={() => handleRate(star)}
               className="p-0 border-0 bg-transparent cursor-pointer transition-transform hover:scale-110"
-              title={`Rate ${star} star${star !== 1 ? "s" : ""}`}>
+              title={`Rate ${star} star${star !== 1 ? "s" : ""}`}
+            >
               <svg
                 viewBox="0 0 20 20"
                 className="w-4 h-4"
                 fill={
-                  star <= (hovered || Math.round(rating.average)) ? "rgb(243, 176, 28)" : "none"
+                  star <= (hovered || Math.round(rating.average))
+                    ? "rgb(243, 176, 28)"
+                    : "none"
                 }
                 stroke={
                   star <= (hovered || Math.round(rating.average))
                     ? "rgb(243, 176, 28)"
                     : "currentColor"
                 }
-                strokeWidth="1.5">
+                strokeWidth="1.5"
+              >
                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
               </svg>
             </button>
@@ -276,7 +297,9 @@ function StarRating({ packageId }: { packageId: string }) {
         <span className="text-sm font-medium text-text-primary">
           {rating.average > 0 ? rating.average.toFixed(1) : ""}
         </span>
-        {rating.count > 0 && <span className="text-xs text-text-secondary">({rating.count})</span>}
+        {rating.count > 0 && (
+          <span className="text-xs text-text-secondary">({rating.count})</span>
+        )}
       </div>
     </div>
   );
@@ -337,7 +360,10 @@ function ShareThisPage({
 
   const handleNativeShare = async () => {
     setOpen(false);
-    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+    if (
+      typeof navigator !== "undefined" &&
+      typeof navigator.share === "function"
+    ) {
       try {
         await navigator.share({ title, text: shareText, url: pageUrl });
         return;
@@ -453,7 +479,9 @@ function ComponentHelpModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
-  const githubIssuesUrl = repositoryUrl ? `${repositoryUrl.replace(/\/$/, "")}/issues` : null;
+  const githubIssuesUrl = repositoryUrl
+    ? `${repositoryUrl.replace(/\/$/, "")}/issues`
+    : null;
 
   return (
     <div
@@ -461,7 +489,10 @@ function ComponentHelpModal({
       aria-modal="true"
       role="dialog"
     >
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative w-full max-w-md rounded-container bg-white border border-border shadow-lg p-6">
         <button
           onClick={onClose}
@@ -472,9 +503,12 @@ function ComponentHelpModal({
         </button>
 
         <div className="mb-5 pr-8">
-          <h2 className="text-lg font-medium text-text-primary">How to get help</h2>
+          <h2 className="text-lg font-medium text-text-primary">
+            How to get help
+          </h2>
           <p className="mt-1 text-sm text-text-secondary">
-            Package support usually starts with the author, then the Convex community.
+            Package support usually starts with the author, then the Convex
+            community.
           </p>
         </div>
 
@@ -484,8 +518,9 @@ function ComponentHelpModal({
               Contact the component author
             </h3>
             <p className="text-sm text-text-secondary leading-relaxed">
-              For package specific bugs, install issues, and feature requests, contact the component
-              author through the GitHub repository or its Issues page.
+              For package specific bugs, install issues, and feature requests,
+              contact the component author through the GitHub repository or its
+              Issues page.
             </p>
             {githubIssuesUrl ? (
               <a
@@ -511,7 +546,8 @@ function ComponentHelpModal({
               </a>
             ) : (
               <p className="mt-2 text-xs text-text-secondary">
-                If no repository link is listed here, use the package links provided by the author.
+                If no repository link is listed here, use the package links
+                provided by the author.
               </p>
             )}
           </section>
@@ -521,8 +557,8 @@ function ComponentHelpModal({
               Community support
             </h3>
             <p className="text-sm text-text-secondary leading-relaxed">
-              For general community help, ask in the Convex Community Discord in the components
-              channel.
+              For general community help, ask in the Convex Community Discord in
+              the components channel.
             </p>
             <a
               href="https://convex.dev/community"
@@ -541,11 +577,12 @@ function ComponentHelpModal({
               Third party component notice
             </h3>
             <p className="text-xs text-text-secondary leading-relaxed">
-              Community and third party components are provided by their authors. Convex does not
-              review, maintain, support, warrant, or assume responsibility for third party
-              components, including their code, security, licensing, behavior, or ongoing
-              availability. Review the source, license, and documentation before installing or using
-              any community component.
+              Community and third party components are provided by their
+              authors. Convex does not review, maintain, support, warrant, or
+              assume responsibility for third party components, including their
+              code, security, licensing, behavior, or ongoing availability.
+              Review the source, license, and documentation before installing or
+              using any community component.
             </p>
           </section>
         </div>
@@ -584,7 +621,9 @@ function SecurityScanBox({
   if (scanData.status === "scanning") {
     return (
       <div className="flex items-center gap-2 py-1">
-        <span className="text-xs font-medium text-text-secondary">Scanning...</span>
+        <span className="text-xs font-medium text-text-secondary">
+          Scanning...
+        </span>
       </div>
     );
   }
@@ -671,7 +710,8 @@ function SecurityReportModal({
     socket: "https://socket.dev",
     snyk: "https://snyk.io",
   };
-  const hasFindings = scanData.findings.length > 0 || scanData.recommendations.length > 0;
+  const hasFindings =
+    scanData.findings.length > 0 || scanData.recommendations.length > 0;
 
   return (
     <div
@@ -679,7 +719,10 @@ function SecurityReportModal({
       aria-modal="true"
       role="dialog"
     >
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative z-[121] max-h-[calc(100vh-4rem)] w-full max-w-md overflow-y-auto rounded-container border border-border bg-white p-6 shadow-lg">
         <button
           onClick={onClose}
@@ -691,15 +734,17 @@ function SecurityReportModal({
 
         {/* Header */}
         <div className="mb-5 pr-8">
-          <h2 className="text-lg font-medium text-text-primary">Community scan via Socket</h2>
+          <h2 className="text-lg font-medium text-text-primary">
+            Community scan via Socket
+          </h2>
         </div>
 
         <div className="space-y-4">
           {scanData.status === "not_scanned" && (
             <section className="rounded-lg border border-border bg-bg-secondary px-3 py-3">
               <p className="text-sm text-text-secondary leading-relaxed">
-                This component has not been scanned yet. Review the repository and package details
-                before installing it.
+                This component has not been scanned yet. Review the repository
+                and package details before installing it.
               </p>
             </section>
           )}
@@ -716,26 +761,28 @@ function SecurityReportModal({
                 You can run your own scan with the providers below.
               </p>
               <div className="space-y-1">
-                {Object.entries(scanData.providerStatuses).map(([key, status]) => {
-                  if (!status) return null;
-                  const providerUrl = providerUrls[key];
-                  if (!providerUrl) return null;
-                  const providerLabel = providerNames[key] || key;
-                  return (
-                    <div key={key} className="text-sm">
-                      <a
-                        href={providerUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-text-primary hover:underline"
-                        title={`Open ${providerLabel} to run your own scan`}
-                      >
-                        {providerLabel}
-                        <ExternalLinkIcon className="w-3 h-3 text-text-secondary" />
-                      </a>
-                    </div>
-                  );
-                })}
+                {Object.entries(scanData.providerStatuses).map(
+                  ([key, status]) => {
+                    if (!status) return null;
+                    const providerUrl = providerUrls[key];
+                    if (!providerUrl) return null;
+                    const providerLabel = providerNames[key] || key;
+                    return (
+                      <div key={key} className="text-sm">
+                        <a
+                          href={providerUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-text-primary hover:underline"
+                          title={`Open ${providerLabel} to run your own scan`}
+                        >
+                          {providerLabel}
+                          <ExternalLinkIcon className="w-3 h-3 text-text-secondary" />
+                        </a>
+                      </div>
+                    );
+                  },
+                )}
               </div>
             </section>
           )}
@@ -763,8 +810,9 @@ function SecurityReportModal({
                 Contact the component author
               </h3>
               <p className="text-sm text-text-secondary leading-relaxed">
-                For security concerns, dependency issues, or vulnerability reports, contact the
-                component author through the GitHub repository.
+                For security concerns, dependency issues, or vulnerability
+                reports, contact the component author through the GitHub
+                repository.
               </p>
               {githubIssuesUrl ? (
                 <a
@@ -790,7 +838,8 @@ function SecurityReportModal({
                 </a>
               ) : (
                 <p className="mt-2 text-xs text-text-secondary">
-                  If no repository link is listed here, use the package links provided by the author.
+                  If no repository link is listed here, use the package links
+                  provided by the author.
                 </p>
               )}
             </section>
@@ -802,11 +851,12 @@ function SecurityReportModal({
               Third party component notice
             </h3>
             <p className="text-xs text-text-secondary leading-relaxed">
-              Community and third party components are provided by their authors. Convex does not
-              review, maintain, support, warrant, or assume responsibility for third party
-              components, including their code, security, licensing, behavior, or ongoing
-              availability. Review the source, license, and documentation before installing or using
-              any community component.
+              Community and third party components are provided by their
+              authors. Convex does not review, maintain, support, warrant, or
+              assume responsibility for third party components, including their
+              code, security, licensing, behavior, or ongoing availability.
+              Review the source, license, and documentation before installing or
+              using any community component.
             </p>
           </section>
         </div>
@@ -840,20 +890,22 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
   const component = useQuery(api.packages.getComponentBySlug, { slug });
   const relatedComponents = useQuery(
     api.packages.getRelatedComponents,
-    component ? { packageId: component._id } : "skip"
+    component ? { packageId: component._id } : "skip",
   );
   const dynamicCategories = useDirectoryCategories();
   const getDynamicCategoryLabel = (id: string) =>
     dynamicCategories.find((c) => c.id === id)?.label || id;
   const reviewStatus = getReviewStatus(component?.reviewStatus);
   const isApprovedForIndexing = reviewStatus === "approved";
-  const hideSeoAndSkillContent = component?.hideSeoAndSkillContentOnDetailPage === true;
+  const hideSeoAndSkillContent =
+    component?.hideSeoAndSkillContentOnDetailPage === true;
   const showDetailSeoContent =
     component?.contentModelVersion !== 2 &&
     component?.seoGenerationStatus === "completed" &&
     !hideSeoAndSkillContent;
   const showAgentContent =
-    (reviewStatus === "approved" || reviewStatus === "in_review") && !hideSeoAndSkillContent;
+    (reviewStatus === "approved" || reviewStatus === "in_review") &&
+    !hideSeoAndSkillContent;
   const [badgeCopied, setBadgeCopied] = useState(false);
   const [copyMenuOpen, setCopyMenuOpen] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
@@ -909,7 +961,9 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
         url: canonicalUrl,
         image: component.thumbnailUrl,
       });
-      setRobotsTag(isApprovedForIndexing ? "index, follow" : "noindex, nofollow");
+      setRobotsTag(
+        isApprovedForIndexing ? "index, follow" : "noindex, nofollow",
+      );
 
       // Inject dual JSON-LD: SoftwareSourceCode + FAQPage (if FAQ exists)
       if (isApprovedForIndexing) {
@@ -939,11 +993,13 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
 
   // Refresh GitHub issue counts once per page load (if stale or missing)
   useEffect(() => {
-    if (!component || !component.repositoryUrl || issueCountRefreshed.current) return;
+    if (!component || !component.repositoryUrl || issueCountRefreshed.current)
+      return;
     // Refresh if never fetched or older than 1 hour
     const oneHour = 60 * 60 * 1000;
     const isStale =
-      !component.githubIssuesFetchedAt || Date.now() - component.githubIssuesFetchedAt > oneHour;
+      !component.githubIssuesFetchedAt ||
+      Date.now() - component.githubIssuesFetchedAt > oneHour;
     if (isStale) {
       issueCountRefreshed.current = true;
       refreshIssueCounts({ packageId: component._id }).catch(() => {
@@ -963,7 +1019,9 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
           state,
           page,
         });
-        setIssues((prev) => (append ? [...prev, ...result.issues] : result.issues));
+        setIssues((prev) =>
+          append ? [...prev, ...result.issues] : result.issues,
+        );
         setIssuesHasMore(result.hasMore);
       } catch {
         setIssues([]);
@@ -972,7 +1030,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
         setIssuesLoading(false);
       }
     },
-    [component?.repositoryUrl, fetchGitHubIssues]
+    [component?.repositoryUrl, fetchGitHubIssues],
   );
 
   // Load issues when tab opens or filter changes
@@ -990,7 +1048,9 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
     loadIssues(issueFilter, nextPage, true);
   };
 
-  const basePath = window.location.pathname.startsWith("/components") ? "/components/" : "/";
+  const basePath = window.location.pathname.startsWith("/components")
+    ? "/components/"
+    : "/";
 
   const badgeMarkdown = component?.slug
     ? `[![Convex Component](https://www.convex.dev/components/badge/${component.slug})](https://www.convex.dev/components/${component.slug})`
@@ -1036,10 +1096,14 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
     ? `https://github.com/${component.authorUsername}`
     : null;
   const resolvedCategory = component?.category
-    ? dynamicCategories.find((category) => category.id === component.category) ?? null
+    ? (dynamicCategories.find(
+        (category) => category.id === component.category,
+      ) ?? null)
     : null;
   const categoryHref =
-    component?.category && resolvedCategory ? `${basePath}categories/${component.category}` : null;
+    component?.category && resolvedCategory
+      ? `${basePath}categories/${component.category}`
+      : null;
 
   // Generate full markdown doc
   const markdownDoc = component
@@ -1052,7 +1116,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
     ? buildComponentClientUrls(
         component.slug,
         window.location.origin,
-        import.meta.env.VITE_CONVEX_URL as string | undefined
+        import.meta.env.VITE_CONVEX_URL as string | undefined,
       )
     : null;
 
@@ -1064,7 +1128,6 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
       setTimeout(() => setPageCopied(false), 2000);
     } catch {}
   };
-
 
   const handleCopyPageUrl = async () => {
     try {
@@ -1083,7 +1146,9 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
 
   const openInAi = (provider: "chatgpt" | "claude" | "perplexity") => {
     if (!componentLinks) return;
-    const prompt = encodeURIComponent(`${AI_READ_PROMPT} ${componentLinks.markdownUrl}`);
+    const prompt = encodeURIComponent(
+      `${AI_READ_PROMPT} ${componentLinks.markdownUrl}`,
+    );
     const url =
       provider === "chatgpt"
         ? `https://chatgpt.com/?q=${prompt}`
@@ -1105,14 +1170,20 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {relatedComponents.map((rel) => {
-            const relBasePath = window.location.pathname.startsWith("/components")
+            const relBasePath = window.location.pathname.startsWith(
+              "/components",
+            )
               ? "/components"
               : "";
-            const relHref = rel.slug ? `${relBasePath}/${rel.slug}` : rel.npmUrl;
+            const relHref = rel.slug
+              ? `${relBasePath}/${rel.slug}`
+              : rel.npmUrl;
             const relDisplayName = rel.componentName || rel.name;
             const relDesc = rel.shortDescription || rel.description;
             const relDescTruncated =
-              relDesc.length > 100 ? `${relDesc.slice(0, 100).trimEnd()}...` : relDesc;
+              relDesc.length > 100
+                ? `${relDesc.slice(0, 100).trimEnd()}...`
+                : relDesc;
             const formatDownloads = (count: number): string => {
               if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
               if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
@@ -1123,7 +1194,8 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               <a
                 key={rel._id}
                 href={relHref}
-                className="group flex h-[180px] flex-col overflow-hidden rounded-xl border border-border bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:bg-[rgb(246_238_219/var(--tw-bg-opacity,1))]">
+                className="group flex h-[180px] flex-col overflow-hidden rounded-xl border border-border bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:bg-[rgb(246_238_219/var(--tw-bg-opacity,1))]"
+              >
                 <div className="p-3 flex flex-col flex-1">
                   <h3 className="truncate text-base font-medium leading-tight text-text-primary mb-1">
                     {relDisplayName}
@@ -1142,7 +1214,9 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                             loading="lazy"
                           />
                         )}
-                        <span className="truncate text-sm font-medium">{rel.authorUsername}</span>
+                        <span className="truncate text-sm font-medium">
+                          {rel.authorUsername}
+                        </span>
                       </div>
                     )}
                     <div className="flex items-center justify-between gap-2">
@@ -1157,7 +1231,8 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                             style={{
                               backgroundColor: "#E9DDC2",
                               color: "rgb(87, 74, 48)",
-                            }}>
+                            }}
+                          >
                             Community
                           </span>
                         )}
@@ -1167,7 +1242,8 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                             style={{
                               backgroundColor: "rgb(203, 237, 182)",
                               color: "rgb(34, 137, 9)",
-                            }}>
+                            }}
+                          >
                             Verified
                           </span>
                         )}
@@ -1210,7 +1286,8 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
             <p className="text-text-secondary mb-4">Component not found</p>
             <a
               href={basePath}
-              className="text-sm font-medium underline text-text-primary hover:text-text-secondary">
+              className="text-sm font-medium underline text-text-primary hover:text-text-secondary"
+            >
               Back to Components
             </a>
           </div>
@@ -1244,11 +1321,14 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 href={component.repositoryUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block text-base font-bold text-text-primary hover:underline">
+                className="block text-base font-bold text-text-primary hover:underline"
+              >
                 {component.name}
               </a>
             ) : (
-              <span className="block text-base font-bold text-text-primary">{component.name}</span>
+              <span className="block text-base font-bold text-text-primary">
+                {component.name}
+              </span>
             )}
 
             {/* Discord username (links to Convex community Discord) */}
@@ -1257,7 +1337,8 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 href="https://www.convex.dev/community/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors">
+                className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
+              >
                 <DiscordLogo size={16} weight="bold" />
                 {component.submitterDiscord}
               </a>
@@ -1283,7 +1364,8 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 href={component.repositoryUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-sm text-text-primary hover:underline">
+                className="flex items-center gap-1.5 text-sm text-text-primary hover:underline"
+              >
                 <GitHubLogoIcon className="w-4 h-4" />
                 View Repo
                 <ExternalLinkIcon className="w-3 h-3 text-text-secondary" />
@@ -1294,7 +1376,8 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               href={component.npmUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-sm text-text-primary hover:underline">
+              className="flex items-center gap-2 text-sm text-text-primary hover:underline"
+            >
               <img src={npmLogoSrc} alt="npm" className="w-4 h-4 shrink-0" />
               View package
             </a>
@@ -1305,7 +1388,8 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 href={component.demoUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-sm text-text-primary hover:underline">
+                className="flex items-center gap-1.5 text-sm text-text-primary hover:underline"
+              >
                 <ExternalLinkIcon className="w-4 h-4" />
                 Live demo
               </a>
@@ -1314,7 +1398,9 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
             {/* License */}
             {component.license && component.license !== "Unknown" && (
               <div>
-                <p className="text-xs font-medium text-text-primary mb-1.5">License</p>
+                <p className="text-xs font-medium text-text-primary mb-1.5">
+                  License
+                </p>
                 <span className="inline-block text-xs font-mono uppercase tracking-wider px-3 py-1.5 rounded-lg border border-border bg-bg-secondary text-text-primary hover:bg-bg-hover hover:border-text-secondary transition-colors cursor-default">
                   {component.license}
                 </span>
@@ -1324,17 +1410,21 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
             {/* Category -- bordered pill with hover */}
             {component.category && (
               <div>
-                <p className="text-xs font-medium text-text-primary mb-1.5">Category</p>
+                <p className="text-xs font-medium text-text-primary mb-1.5">
+                  Category
+                </p>
                 {categoryHref ? (
                   <a
                     href={categoryHref}
                     className="inline-block text-xs font-mono uppercase tracking-wider px-3 py-1.5 rounded-lg border border-border bg-bg-secondary text-text-primary hover:bg-bg-hover hover:border-text-secondary transition-colors"
                   >
-                    {resolvedCategory?.label || getDynamicCategoryLabel(component.category)}
+                    {resolvedCategory?.label ||
+                      getDynamicCategoryLabel(component.category)}
                   </a>
                 ) : (
                   <span className="inline-block text-xs font-mono uppercase tracking-wider px-3 py-1.5 rounded-lg border border-border bg-bg-secondary text-text-primary cursor-default">
-                    {resolvedCategory?.label || getDynamicCategoryLabel(component.category)}
+                    {resolvedCategory?.label ||
+                      getDynamicCategoryLabel(component.category)}
                   </span>
                 )}
               </div>
@@ -1371,7 +1461,8 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
             {/* Back to Components (bottom of sidebar) */}
             <a
               href={basePath}
-              className="hidden lg:inline-flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors pt-2">
+              className="hidden lg:inline-flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors pt-2"
+            >
               <ArrowLeftIcon className="w-3 h-3" />
               Back to Components
             </a>
@@ -1398,7 +1489,8 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-sm font-mono text-text-secondary hover:text-text-primary hover:underline truncate max-w-[280px] sm:max-w-none"
-                title={component.name}>
+                title={component.name}
+              >
                 {component.name}
               </a>
               {component.authorUsername && (
@@ -1409,7 +1501,8 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                     href={authorGitHubUrl || "#"}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 group">
+                    className="inline-flex items-center gap-2 group"
+                  >
                     {component.authorAvatar && (
                       <img
                         src={component.authorAvatar}
@@ -1431,7 +1524,8 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                   <div className="relative" ref={menuRef}>
                     <button
                       onClick={() => setCopyMenuOpen(!copyMenuOpen)}
-                      className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors">
+                      className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
+                    >
                       {pageCopied ? (
                         <CheckIcon className="w-3.5 h-3.5 text-green-600" />
                       ) : (
@@ -1445,37 +1539,43 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                       <div className="absolute left-0 top-full mt-1 w-56 rounded-lg bg-white shadow-hover py-1 z-20">
                         <button
                           onClick={openMarkdownFile}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left"
+                        >
                           <ExternalLinkIcon className="w-3.5 h-3.5 text-text-secondary" />
                           Open markdown file
                         </button>
                         <button
                           onClick={handleCopyMarkdown}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left"
+                        >
                           <FileTextIcon className="w-3.5 h-3.5 text-text-secondary" />
                           Copy as Markdown
                         </button>
                         <button
                           onClick={handleCopyPageUrl}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left"
+                        >
                           <CopyIcon className="w-3.5 h-3.5 text-text-secondary" />
                           Copy page URL
                         </button>
                         <button
                           onClick={() => openInAi("chatgpt")}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left"
+                        >
                           <ExternalLinkIcon className="w-3.5 h-3.5 text-text-secondary" />
                           Open in ChatGPT
                         </button>
                         <button
                           onClick={() => openInAi("claude")}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left"
+                        >
                           <ExternalLinkIcon className="w-3.5 h-3.5 text-text-secondary" />
                           Open in Claude
                         </button>
                         <button
                           onClick={() => openInAi("perplexity")}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left">
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-text-primary hover:bg-bg-hover transition-colors text-left"
+                        >
                           <ExternalLinkIcon className="w-3.5 h-3.5 text-text-secondary" />
                           Open in Perplexity
                         </button>
@@ -1491,7 +1591,8 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                   <span className="text-text-secondary/40">|</span>
                   <button
                     onClick={handleDownloadSkill}
-                    className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors">
+                    className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
+                  >
                     <FileArrowDown className="w-3.5 h-3.5" weight="bold" />
                     Download Skill
                   </button>
@@ -1504,7 +1605,8 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                   <span className="text-text-secondary/40">|</span>
                   <a
                     href="#agent-install"
-                    className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors">
+                    className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
+                  >
                     <ClipboardText className="w-3.5 h-3.5" weight="bold" />
                     For Agents
                   </a>
@@ -1682,62 +1784,64 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
             */}
 
             {/* V2 generated content (Description, Use Cases, How it Works) */}
-            {component.contentModelVersion === 2 && component.generatedDescription && (
-              <div className="mb-6 space-y-6">
-                <section>
-                  <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-2">
-                    Description
-                  </h2>
-                  <p className="text-sm text-text-secondary leading-relaxed">
-                    {component.generatedDescription}
-                  </p>
-                </section>
-
-                {component.generatedUseCases && (
+            {component.contentModelVersion === 2 &&
+              component.generatedDescription && (
+                <div className="mb-6 space-y-6">
                   <section>
                     <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-2">
-                      Use cases
+                      Description
                     </h2>
-                    <div className="markdown-body">
-                      <MarkdownErrorBoundary label="Use cases">
-                        <Markdown repositoryUrl={component.repositoryUrl}>
-                          {component.generatedUseCases}
-                        </Markdown>
-                      </MarkdownErrorBoundary>
-                    </div>
+                    <p className="text-sm text-text-secondary leading-relaxed">
+                      {component.generatedDescription}
+                    </p>
                   </section>
-                )}
 
-                {component.generatedHowItWorks && (
-                  <section>
-                    <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-2">
-                      How it works
-                    </h2>
-                    <div className="markdown-body">
-                      <MarkdownErrorBoundary label="How it works">
-                        <Markdown repositoryUrl={component.repositoryUrl}>
-                          {component.generatedHowItWorks}
-                        </Markdown>
-                      </MarkdownErrorBoundary>
+                  {component.generatedUseCases && (
+                    <section>
+                      <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-2">
+                        Use cases
+                      </h2>
+                      <div className="markdown-body">
+                        <MarkdownErrorBoundary label="Use cases">
+                          <Markdown repositoryUrl={component.repositoryUrl}>
+                            {component.generatedUseCases}
+                          </Markdown>
+                        </MarkdownErrorBoundary>
+                      </div>
+                    </section>
+                  )}
+
+                  {component.generatedHowItWorks && (
+                    <section>
+                      <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-2">
+                        How it works
+                      </h2>
+                      <div className="markdown-body">
+                        <MarkdownErrorBoundary label="How it works">
+                          <Markdown repositoryUrl={component.repositoryUrl}>
+                            {component.generatedHowItWorks}
+                          </Markdown>
+                        </MarkdownErrorBoundary>
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Use with agents and CLI section */}
+                  {showAgentContent && (
+                    <div id="agent-install" className="mb-6 scroll-mt-20">
+                      <AgentInstallSection component={component} />
                     </div>
-                  </section>
-                )}
-
-                {/* Use with agents and CLI section */}
-                {showAgentContent && (
-                  <div id="agent-install" className="mb-6 scroll-mt-20">
-                    <AgentInstallSection component={component} />
-                  </div>
-                )}
-
-              </div>
-            )}
+                  )}
+                </div>
+              )}
 
             {/* README section renders independently of v2 content generation */}
             {component.readmeIncludedMarkdown && (
               <section>
                 <hr className="border-border my-6" />
-                <h3 className="text-base font-semibold text-text-primary mb-4">From the README.md</h3>
+                <h3 className="text-base font-semibold text-text-primary mb-4">
+                  From the README.md
+                </h3>
                 <div className="markdown-body">
                   <MarkdownErrorBoundary label="README markdown">
                     <Markdown repositoryUrl={component.repositoryUrl}>
@@ -1749,16 +1853,21 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
             )}
 
             {/* Old content model: Long description title (below install command) */}
-            {component.contentModelVersion !== 2 && component.longDescription && (
-              <h2 className="text-lg font-semibold text-text-primary mb-3">
-                {capitalizeHeadingText(component.componentName || component.name)} Description
-              </h2>
-            )}
+            {component.contentModelVersion !== 2 &&
+              component.longDescription && (
+                <h2 className="text-lg font-semibold text-text-primary mb-3">
+                  {capitalizeHeadingText(
+                    component.componentName || component.name,
+                  )}{" "}
+                  Description
+                </h2>
+              )}
 
             {/* Rendered markdown content */}
-              <>
-                {/* Long description markdown content (v1 only) */}
-                {component.contentModelVersion !== 2 && component.longDescription && (
+            <>
+              {/* Long description markdown content (v1 only) */}
+              {component.contentModelVersion !== 2 &&
+                component.longDescription && (
                   <div className="markdown-body mb-6">
                     <MarkdownErrorBoundary label="Long description">
                       <Markdown repositoryUrl={component.repositoryUrl}>
@@ -1768,49 +1877,55 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                   </div>
                 )}
 
-                {/* Divider before AI SEO content */}
-                {showDetailSeoContent && (
-                  <hr className="border-border mb-6" />
-                )}
+              {/* Divider before AI SEO content */}
+              {showDetailSeoContent && <hr className="border-border mb-6" />}
 
-                {/* AI-generated SEO/AEO/GEO structured content (visible for search engines) */}
-                {showDetailSeoContent && (
-                  <div className="mb-6 space-y-6">
-                    {/* Value prop highlight */}
-                    {component.seoValueProp && (
-                      <p className="text-base text-text-primary leading-relaxed border-l-2 border-border pl-4 italic">
-                        {component.seoValueProp}
-                      </p>
-                    )}
+              {/* AI-generated SEO/AEO/GEO structured content (visible for search engines) */}
+              {showDetailSeoContent && (
+                <div className="mb-6 space-y-6">
+                  {/* Value prop highlight */}
+                  {component.seoValueProp && (
+                    <p className="text-base text-text-primary leading-relaxed border-l-2 border-border pl-4 italic">
+                      {component.seoValueProp}
+                    </p>
+                  )}
 
-                    {/* Benefits block */}
-                    {component.seoBenefits && component.seoBenefits.length > 0 && (
+                  {/* Benefits block */}
+                  {component.seoBenefits &&
+                    component.seoBenefits.length > 0 && (
                       <section>
                         <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-2">
                           Benefits
                         </h2>
                         <ul className="space-y-1.5">
-                          {component.seoBenefits.map((benefit: string, i: number) => (
-                            <li
-                              key={i}
-                              className="flex items-start gap-2 text-sm text-text-secondary">
-                              <span className="mt-1.5 w-1 h-1 rounded-full bg-text-secondary shrink-0" />
-                              {benefit}
-                            </li>
-                          ))}
+                          {component.seoBenefits.map(
+                            (benefit: string, i: number) => (
+                              <li
+                                key={i}
+                                className="flex items-start gap-2 text-sm text-text-secondary"
+                              >
+                                <span className="mt-1.5 w-1 h-1 rounded-full bg-text-secondary shrink-0" />
+                                {benefit}
+                              </li>
+                            ),
+                          )}
                         </ul>
                       </section>
                     )}
 
-                    {/* Use cases (visible section for SEO) */}
-                    {component.seoUseCases && component.seoUseCases.length > 0 && (
+                  {/* Use cases (visible section for SEO) */}
+                  {component.seoUseCases &&
+                    component.seoUseCases.length > 0 && (
                       <section>
                         <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-3">
                           Use cases
                         </h2>
                         <div className="space-y-4">
                           {component.seoUseCases.map(
-                            (uc: { query: string; answer: string }, i: number) => (
+                            (
+                              uc: { query: string; answer: string },
+                              i: number,
+                            ) => (
                               <div key={i}>
                                 <h3 className="text-sm font-medium text-text-primary mb-1">
                                   {uc.query}
@@ -1819,38 +1934,40 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                                   {uc.answer}
                                 </p>
                               </div>
-                            )
+                            ),
                           )}
                         </div>
                       </section>
                     )}
 
-                    {/* FAQ (visible section for SEO/AEO rich snippets) */}
-                    {component.seoFaq && component.seoFaq.length > 0 && (
-                      <section>
-                        <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-3">
-                          FAQ
-                        </h2>
-                        <div className="space-y-4">
-                          {component.seoFaq.map(
-                            (faq: { question: string; answer: string }, i: number) => (
-                              <div key={i}>
-                                <h3 className="text-sm font-medium text-text-primary mb-1">
-                                  {faq.question}
-                                </h3>
-                                <p className="text-sm text-text-secondary leading-relaxed">
-                                  {faq.answer}
-                                </p>
-                              </div>
-                            )
-                          )}
-                        </div>
-                      </section>
-                    )}
-
-                  </div>
-                )}
-              </>
+                  {/* FAQ (visible section for SEO/AEO rich snippets) */}
+                  {component.seoFaq && component.seoFaq.length > 0 && (
+                    <section>
+                      <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wider mb-3">
+                        FAQ
+                      </h2>
+                      <div className="space-y-4">
+                        {component.seoFaq.map(
+                          (
+                            faq: { question: string; answer: string },
+                            i: number,
+                          ) => (
+                            <div key={i}>
+                              <h3 className="text-sm font-medium text-text-primary mb-1">
+                                {faq.question}
+                              </h3>
+                              <p className="text-sm text-text-secondary leading-relaxed">
+                                {faq.answer}
+                              </p>
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    </section>
+                  )}
+                </div>
+              )}
+            </>
 
             {/* Video embed (below AI content) */}
             {component.videoUrl && (
@@ -1880,7 +1997,8 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                   {component.tags.map((tag: string) => (
                     <span
                       key={tag}
-                      className="text-[11px] px-2 py-0.5 rounded-full bg-bg-secondary text-text-secondary">
+                      className="text-[11px] px-2 py-0.5 rounded-full bg-bg-secondary text-text-secondary"
+                    >
                       {tag}
                     </span>
                   ))}
@@ -1896,7 +2014,8 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                     href={componentLinks.llmsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-text-secondary hover:text-text-primary transition-colors underline">
+                    className="text-xs text-text-secondary hover:text-text-primary transition-colors underline"
+                  >
                     View llms.txt
                   </a>
                 </div>
@@ -1905,11 +2024,12 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
 
             {/* Related components stay in the main column on desktop. */}
             <div className="hidden lg:block">{renderRelatedComponents()}</div>
-
           </main>
 
           {/* On mobile, the sidebar follows main content, so related components render after it. */}
-          <div className="order-3 w-full lg:hidden">{renderRelatedComponents()}</div>
+          <div className="order-3 w-full lg:hidden">
+            {renderRelatedComponents()}
+          </div>
         </div>
       </div>
       {showHelpModal && (

@@ -33,27 +33,36 @@ function SuccessModal({ onClose }: { onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center p-4"
-      style={{ zIndex: 2147483647 }}>
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      style={{ zIndex: 2147483647 }}
+    >
+      <div
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative w-full max-w-sm p-6 rounded-lg bg-white border border-border shadow-lg">
         <div className="flex items-start gap-3">
           <div className="shrink-0 text-green-600">
             <CheckCircle size={24} weight="bold" />
           </div>
           <div>
-            <h3 className="text-lg font-medium text-text-primary">Thank You!</h3>
+            <h3 className="text-lg font-medium text-text-primary">
+              Thank You!
+            </h3>
             <p className="mt-1 text-sm text-text-secondary">
-              Your component is now pending for review. We'll notify you via email once it's been reviewed.
+              Your component is now pending for review. We'll notify you via
+              email once it's been reviewed.
             </p>
             <div className="mt-4 flex flex-row gap-3">
               <a
                 href={`${basePath}/profile`}
-                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-button text-white hover:bg-button-hover transition-colors">
+                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-button text-white hover:bg-button-hover transition-colors"
+              >
                 View My Submissions
               </a>
               <a
                 href={`${basePath}/`}
-                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors">
+                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors"
+              >
                 Back to Directory
               </a>
             </div>
@@ -65,16 +74,27 @@ function SuccessModal({ onClose }: { onClose: () => void }) {
 }
 
 // Error modal
-function ErrorModal({ message, onClose }: { message: string; onClose: () => void }) {
+function ErrorModal({
+  message,
+  onClose,
+}: {
+  message: string;
+  onClose: () => void;
+}) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center p-4"
-      style={{ zIndex: 2147483647 }}>
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      style={{ zIndex: 2147483647 }}
+    >
+      <div
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative w-full max-w-sm p-6 rounded-lg bg-white border border-border shadow-lg">
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 p-1 rounded-full text-text-secondary hover:bg-bg-hover">
+          className="absolute top-3 right-3 p-1 rounded-full text-text-secondary hover:bg-bg-hover"
+        >
           <X size={16} />
         </button>
         <h3 className="text-lg font-medium text-red-600 mb-2">Error</h3>
@@ -96,12 +116,17 @@ function GenerateWarningModal({
   return (
     <div
       className="fixed inset-0 flex items-center justify-center p-4"
-      style={{ zIndex: 2147483647 }}>
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      style={{ zIndex: 2147483647 }}
+    >
+      <div
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative w-full max-w-md p-6 rounded-lg bg-white border border-border shadow-lg">
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 p-1 rounded-full text-text-secondary hover:bg-bg-hover">
+          className="absolute top-3 right-3 p-1 rounded-full text-text-secondary hover:bg-bg-hover"
+        >
           <X size={16} />
         </button>
         <div className="flex items-start gap-3">
@@ -110,11 +135,13 @@ function GenerateWarningModal({
           </div>
           <div className="space-y-3">
             <div>
-              <h3 className="text-lg font-medium text-text-primary">Generate content</h3>
+              <h3 className="text-lg font-medium text-text-primary">
+                Generate content
+              </h3>
               <p className="mt-1 text-sm text-text-secondary">
-                This uses shared AI generation and is limited to 5 times per hour per account.
-                Please only regenerate when you really need a fresh draft and edit the current
-                content when you can.
+                This uses shared AI generation and is limited to 5 times per
+                hour per account. Please only regenerate when you really need a
+                fresh draft and edit the current content when you can.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -122,14 +149,16 @@ function GenerateWarningModal({
                 type="button"
                 onClick={onConfirm}
                 disabled={isLoading}
-                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 {isLoading ? <AiLoadingDots size={14} /> : "Continue"}
               </button>
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isLoading}
-                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50">
+                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
+              >
                 Cancel
               </button>
             </div>
@@ -189,7 +218,9 @@ export default function SubmitForm() {
   const [generatedUseCases, setGeneratedUseCases] = useState("");
   const [generatedHowItWorks, setGeneratedHowItWorks] = useState("");
   const [readmeIncludedMarkdown, setReadmeIncludedMarkdown] = useState("");
-  const [readmeIncludeSource, setReadmeIncludeSource] = useState<"markers" | "full" | "">("");
+  const [readmeIncludeSource, setReadmeIncludeSource] = useState<
+    "markers" | "full" | ""
+  >("");
   const [contentGenerated, setContentGenerated] = useState(false);
 
   const submitPackage = useAction(api.packages.submitPackage);
@@ -207,7 +238,10 @@ export default function SubmitForm() {
   // Close category dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (categoryRef.current && !categoryRef.current.contains(e.target as Node)) {
+      if (
+        categoryRef.current &&
+        !categoryRef.current.contains(e.target as Node)
+      ) {
         setCategoryOpen(false);
       }
     };
@@ -261,7 +295,9 @@ export default function SubmitForm() {
       setReadmeIncludedMarkdown(result.readmeIncludedMarkdown || "");
       setReadmeIncludeSource(result.readmeIncludeSource || "");
       setContentGenerated(true);
-      toast.success("Content generated. Review and edit below before submitting.");
+      toast.success(
+        "Content generated. Review and edit below before submitting.",
+      );
     } catch (err) {
       const msg =
         err instanceof ConvexError
@@ -275,7 +311,14 @@ export default function SubmitForm() {
       setIsGenerating(false);
       setShowGenerateWarning(false);
     }
-  }, [canGenerate, previewContent, repositoryUrl, npmUrl, componentName, shortDescription]);
+  }, [
+    canGenerate,
+    previewContent,
+    repositoryUrl,
+    npmUrl,
+    componentName,
+    shortDescription,
+  ]);
 
   const handleOpenGenerateWarning = useCallback(() => {
     if (!canGenerate || isGenerating || isLoading) return;
@@ -348,7 +391,8 @@ export default function SubmitForm() {
         generatedUseCases: generatedUseCases || undefined,
         generatedHowItWorks: generatedHowItWorks || undefined,
         readmeIncludedMarkdown: readmeIncludedMarkdown || undefined,
-        readmeIncludeSource: (readmeIncludeSource as "markers" | "full") || undefined,
+        readmeIncludeSource:
+          (readmeIncludeSource as "markers" | "full") || undefined,
       };
 
       const result = await submitPackage(payload);
@@ -419,7 +463,9 @@ export default function SubmitForm() {
         <div className="flex items-center justify-center py-24">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-button mx-auto mb-4"></div>
-            <p className="text-sm text-text-secondary">Redirecting to sign in...</p>
+            <p className="text-sm text-text-secondary">
+              Redirecting to sign in...
+            </p>
           </div>
         </div>
       </div>
@@ -432,12 +478,15 @@ export default function SubmitForm() {
       <Header />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page title */}
-        <h1 className="text-xl font-medium text-text-primary mb-4">Submit a Component</h1>
+        <h1 className="text-xl font-medium text-text-primary mb-4">
+          Submit a Component
+        </h1>
 
         {/* Preflight check link */}
         <a
           href={`${basePath}/submit/check`}
-          className="flex items-center gap-3 p-4 mb-6 rounded-lg border border-border bg-blue-50 hover:bg-blue-100 transition-colors group">
+          className="flex items-center gap-3 p-4 mb-6 rounded-lg border border-border bg-blue-50 hover:bg-blue-100 transition-colors group"
+        >
           <div className="shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 group-hover:bg-blue-200 transition-colors">
             <Checks size={20} weight="bold" />
           </div>
@@ -446,16 +495,21 @@ export default function SubmitForm() {
               Check your component before submitting
             </p>
             <p className="text-xs text-text-secondary mt-0.5">
-              Run a preflight check to validate your repo against our review criteria
+              Run a preflight check to validate your repo against our review
+              criteria
             </p>
           </div>
-          <ArrowRight size={18} className="text-text-secondary group-hover:text-text-primary transition-colors" />
+          <ArrowRight
+            size={18}
+            className="text-text-secondary group-hover:text-text-primary transition-colors"
+          />
         </a>
 
         {/* Form container */}
         <div className="bg-white border border-border rounded-lg p-6">
           <p className="text-sm text-text-secondary mb-6">
-            Submit your npm package to the Convex components directory for review.
+            Submit your npm package to the Convex components directory for
+            review.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -510,7 +564,8 @@ export default function SubmitForm() {
             {/* Live Demo URL */}
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">
-                Live Demo URL or Example App <span className="text-red-500">*</span>
+                Live Demo URL or Example App{" "}
+                <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -533,10 +588,16 @@ export default function SubmitForm() {
                   type="button"
                   onClick={() => setCategoryOpen(!categoryOpen)}
                   disabled={isLoading}
-                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20">
-                  <span className={category ? "text-text-primary" : "text-text-tertiary"}>
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20"
+                >
+                  <span
+                    className={
+                      category ? "text-text-primary" : "text-text-tertiary"
+                    }
+                  >
                     {category
-                      ? dynamicCategories.find((c) => c.id === category)?.label || category
+                      ? dynamicCategories.find((c) => c.id === category)
+                          ?.label || category
                       : "Select a category"}
                   </span>
                   <CaretDown
@@ -558,7 +619,8 @@ export default function SubmitForm() {
                           category === cat.id
                             ? "text-text-primary font-medium"
                             : "text-text-secondary"
-                        }`}>
+                        }`}
+                      >
                         {cat.label}
                       </button>
                     ))}
@@ -600,13 +662,16 @@ export default function SubmitForm() {
                 )}
               </div>
               <p className="text-xs text-text-secondary mb-3">
-                Generate a description, use cases, and "how it works" section from your GitHub README and npm package. You can edit the results before submitting.
+                Generate a description, use cases, and "how it works" section
+                from your GitHub README and npm package. You can edit the
+                results before submitting.
               </p>
               <button
                 type="button"
                 onClick={handleOpenGenerateWarning}
                 disabled={!canGenerate || isGenerating || isLoading}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 {isGenerating ? (
                   <AiLoadingDots />
                 ) : contentGenerated ? (
@@ -623,7 +688,8 @@ export default function SubmitForm() {
               </button>
               {!canGenerate && !contentGenerated && (
                 <p className="text-xs text-text-tertiary mt-2">
-                  Fill in Component Name, GitHub Repo URL, npm package URL, and Short Description first.
+                  Fill in Component Name, GitHub Repo URL, npm package URL, and
+                  Short Description first.
                 </p>
               )}
             </div>
@@ -658,10 +724,12 @@ export default function SubmitForm() {
                     className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20 resize-y"
                   />
                   <div className="mt-1 rounded border border-border bg-bg-primary p-2">
-                    <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">Preview</p>
-                    <div className="prose prose-sm max-w-none text-text-primary text-xs"><Markdown>
-                      {generatedUseCases}
-                    </Markdown></div>
+                    <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
+                      Preview
+                    </p>
+                    <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                      <Markdown>{generatedUseCases}</Markdown>
+                    </div>
                   </div>
                 </div>
 
@@ -678,10 +746,12 @@ export default function SubmitForm() {
                     className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20 resize-y"
                   />
                   <div className="mt-1 rounded border border-border bg-bg-primary p-2">
-                    <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">Preview</p>
-                    <div className="prose prose-sm max-w-none text-text-primary text-xs"><Markdown>
-                      {generatedHowItWorks}
-                    </Markdown></div>
+                    <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
+                      Preview
+                    </p>
+                    <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                      <Markdown>{generatedHowItWorks}</Markdown>
+                    </div>
                   </div>
                 </div>
 
@@ -693,11 +763,13 @@ export default function SubmitForm() {
                         README Preview
                       </label>
                     </div>
-                    <ReadmePreviewNotice readmeIncludeSource={readmeIncludeSource} />
+                    <ReadmePreviewNotice
+                      readmeIncludeSource={readmeIncludeSource}
+                    />
                     <div className="rounded-lg border border-border bg-bg-primary p-3 max-h-64 overflow-y-auto">
-                      <div className="prose prose-sm max-w-none text-text-primary"><Markdown>
-                        {readmeIncludedMarkdown}
-                      </Markdown></div>
+                      <div className="prose prose-sm max-w-none text-text-primary">
+                        <Markdown>{readmeIncludedMarkdown}</Markdown>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -787,7 +859,8 @@ export default function SubmitForm() {
                     className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20"
                   />
                   <p className="text-xs text-text-tertiary mt-1">
-                    Not displayed publicly. Used to contact you about your submission.
+                    Not displayed publicly. Used to contact you about your
+                    submission.
                   </p>
                 </div>
 
@@ -841,7 +914,8 @@ export default function SubmitForm() {
                       href="https://docs.convex.dev/components/authoring"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-button hover:underline">
+                      className="text-button hover:underline"
+                    >
                       Authoring Components
                     </a>{" "}
                     guidelines.
@@ -857,7 +931,8 @@ export default function SubmitForm() {
                     className="mt-0.5 w-4 h-4 shrink-0 rounded border-border text-button focus:ring-button/50"
                   />
                   <span className="text-sm text-text-secondary">
-                    I have permission to submit this component for others to use and share.
+                    I have permission to submit this component for others to use
+                    and share.
                   </span>
                 </label>
               </div>
@@ -866,7 +941,8 @@ export default function SubmitForm() {
               <button
                 type="submit"
                 disabled={isLoading || !allChecklistsComplete}
-                className="w-full px-6 py-3 rounded-full font-normal bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm">
+                className="w-full px-6 py-3 rounded-full font-normal bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+              >
                 {isLoading ? "Submitting..." : "Submit Component"}
               </button>
             </div>
@@ -881,7 +957,8 @@ export default function SubmitForm() {
             href="https://www.convex.dev/legal/tos"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-button hover:underline">
+            className="text-button hover:underline"
+          >
             Terms of Service
           </a>
           {" | "}
@@ -889,7 +966,8 @@ export default function SubmitForm() {
             href="https://www.convex.dev/legal/privacy"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-button hover:underline">
+            className="text-button hover:underline"
+          >
             Privacy Policy
           </a>
         </p>
@@ -902,7 +980,10 @@ export default function SubmitForm() {
 
       {/* Error modal */}
       {showError && (
-        <ErrorModal message={errorMessage} onClose={() => setShowError(false)} />
+        <ErrorModal
+          message={errorMessage}
+          onClose={() => setShowError(false)}
+        />
       )}
 
       {showGenerateWarning && (
