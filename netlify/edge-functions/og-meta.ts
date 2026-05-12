@@ -92,6 +92,22 @@ async function fetchComponent(slug: string): Promise<ComponentData | null> {
 // Replace meta tags in HTML with component-specific values.
 // Works by finding all <meta ...> tags (including multiline) and replacing
 // the ones that match known OG/Twitter attributes.
+function injectCanonical(html: string, canonicalUrl: string): string {
+  const escaped = escapeAttr(canonicalUrl);
+  if (html.includes('rel="canonical"')) {
+    html = html.replace(
+      /<link\b[^>]*rel="canonical"[^>]*\/?>/,
+      `<link rel="canonical" href="${escaped}" />`
+    );
+  } else {
+    html = html.replace(
+      "</head>",
+      `  <link rel="canonical" href="${escaped}" />\n</head>`
+    );
+  }
+  return html;
+}
+
 function injectMetaTags(html: string, component: ComponentData): string {
   const title = escapeAttr(component.componentName || component.name);
   const fullTitle = `${title} | ${SITE_NAME}`;
@@ -167,6 +183,12 @@ function injectMetaTags(html: string, component: ComponentData): string {
       `  <meta name="robots" content="${robots}" />\n</head>`
     );
   }
+
+  // Canonical for component detail pages uses the clean slug URL
+  html = injectCanonical(
+    html,
+    `${SITE_ORIGIN}/components/${component.slug || ""}`
+  );
 
   return html;
 }
@@ -257,6 +279,8 @@ export default async (
           '  <meta name="robots" content="noindex, nofollow" />\n</head>'
         );
       }
+      const canonicalUrl = `${SITE_ORIGIN}${url.pathname.replace(/\/+$/, "")}`;
+      html = injectCanonical(html, canonicalUrl);
       const headers = new Headers(response.headers);
       headers.set("content-type", "text/html; charset=utf-8");
       return new Response(html, { status: response.status, headers });
@@ -267,7 +291,19 @@ export default async (
   const slug = extractSlug(url.pathname);
 
   if (!slug) {
-    return context.next();
+    // Non-component routes still need canonical tags to prevent
+    // query-string duplicates (e.g. /submit vs /submit?submit=true)
+    const response = await context.next();
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("text/html")) {
+      let html = await response.text();
+      const canonicalUrl = `${SITE_ORIGIN}${url.pathname.replace(/\/+$/, "") || "/components"}`;
+      html = injectCanonical(html, canonicalUrl);
+      const headers = new Headers(response.headers);
+      headers.set("content-type", "text/html; charset=utf-8");
+      return new Response(html, { status: response.status, headers });
+    }
+    return response;
   }
 
   // Fetch component data and SPA response in parallel

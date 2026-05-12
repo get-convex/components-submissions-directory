@@ -60,6 +60,14 @@
   to = "https://giant-grouse-674.convex.site/api/badge?slug=:splat"
   status = 200
 
+# ============ Non-page paths (prevent SPA fallback from serving HTML) ============
+# Image URLs referenced in component descriptions don't exist as files;
+# without this rule the SPA fallback serves index.html, creating duplicate pages.
+[[redirects]]
+  from = "/components/images/*"
+  to = "/404.html"
+  status = 404
+
 # ============ SPA Routes ============
 
 # Serve index.html for /components root

@@ -1,0 +1,12 @@
+# Prevent indexing of admin, auth, and internal routes
+/components/submissions/admin
+  X-Robots-Tag: noindex, nofollow
+
+/components/callback
+  X-Robots-Tag: noindex, nofollow
+
+/components/profile/*
+  X-Robots-Tag: noindex, nofollow
+
+/components/dashboard
+  X-Robots-Tag: noindex, nofollow
