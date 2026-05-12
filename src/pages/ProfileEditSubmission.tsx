@@ -1,9 +1,7 @@
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useCallback, useEffect, useState } from "react";
 import { Toaster, toast } from "sonner";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkBreaks from "remark-breaks";
+import { Markdown } from "../components/Markdown";
 import {
   ArrowLeft,
   Lightning,
@@ -16,13 +14,11 @@ import { Id } from "../../convex/_generated/dataModel";
 import AiLoadingDots from "../components/AiLoadingDots";
 import { useAuth } from "../lib/auth";
 import Header from "../components/Header";
-import { markdownComponents } from "../components/markdownComponents";
 import ReadmePreviewNotice from "../components/ReadmePreviewNotice";
 
 function useBasePath() {
   return "/components";
 }
-
 
 interface ProfileEditSubmissionProps {
   packageId: string;
@@ -40,12 +36,17 @@ function GenerateWarningModal({
   return (
     <div
       className="fixed inset-0 flex items-center justify-center p-4"
-      style={{ zIndex: 2147483647 }}>
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      style={{ zIndex: 2147483647 }}
+    >
+      <div
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative w-full max-w-md p-6 rounded-lg bg-white border border-border shadow-lg">
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 p-1 rounded-full text-text-secondary hover:bg-bg-hover">
+          className="absolute top-3 right-3 p-1 rounded-full text-text-secondary hover:bg-bg-hover"
+        >
           <X size={16} />
         </button>
         <div className="flex items-start gap-3">
@@ -54,11 +55,13 @@ function GenerateWarningModal({
           </div>
           <div className="space-y-3">
             <div>
-              <h3 className="text-lg font-medium text-text-primary">Regenerate content</h3>
+              <h3 className="text-lg font-medium text-text-primary">
+                Regenerate content
+              </h3>
               <p className="mt-1 text-sm text-text-secondary">
-                This uses shared AI generation and is limited to 5 times per hour per account.
-                Please only regenerate when you really need a fresh draft and edit the current
-                content when you can.
+                This uses shared AI generation and is limited to 5 times per
+                hour per account. Please only regenerate when you really need a
+                fresh draft and edit the current content when you can.
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -66,14 +69,16 @@ function GenerateWarningModal({
                 type="button"
                 onClick={onConfirm}
                 disabled={isLoading}
-                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 {isLoading ? <AiLoadingDots size={14} /> : "Continue"}
               </button>
               <button
                 type="button"
                 onClick={onClose}
                 disabled={isLoading}
-                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50">
+                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
+              >
                 Cancel
               </button>
             </div>
@@ -285,7 +290,9 @@ export default function ProfileEditSubmission({
         <div className="flex items-center justify-center py-24">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-button mx-auto mb-4"></div>
-            <p className="text-sm text-text-secondary">Redirecting to sign in...</p>
+            <p className="text-sm text-text-secondary">
+              Redirecting to sign in...
+            </p>
           </div>
         </div>
       </div>
@@ -322,7 +329,8 @@ export default function ProfileEditSubmission({
               Submission not found
             </h1>
             <p className="text-sm text-text-secondary">
-              This submission is unavailable or you do not have permission to edit it.
+              This submission is unavailable or you do not have permission to
+              edit it.
             </p>
           </div>
         </div>
@@ -344,10 +352,12 @@ export default function ProfileEditSubmission({
 
         <div className="flex flex-col gap-6 mb-6 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h1 className="text-2xl font-medium text-text-primary">Edit Submission</h1>
+            <h1 className="text-2xl font-medium text-text-primary">
+              Edit Submission
+            </h1>
             <p className="text-sm text-text-secondary mt-1">
-              Review your generated content, update package details, and save changes for
-              re-review.
+              Review your generated content, update package details, and save
+              changes for re-review.
             </p>
           </div>
           <div className="rounded-lg border border-border bg-white px-4 py-3 text-sm text-text-secondary overflow-hidden">
@@ -403,7 +413,9 @@ export default function ProfileEditSubmission({
                   placeholder="e.g., Convex Agent"
                   className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-button focus:ring-2 focus:ring-button/20"
                 />
-                <p className="text-xs text-text-tertiary mt-1">Human-readable display name</p>
+                <p className="text-xs text-text-tertiary mt-1">
+                  Human-readable display name
+                </p>
               </div>
 
               <div>
@@ -459,8 +471,8 @@ export default function ProfileEditSubmission({
                     Component Directory Content
                   </label>
                   <p className="text-xs text-text-secondary mt-1">
-                    Generate or refine the same Description, Use cases, How it works, and README
-                    content used on the public component page.
+                    Generate or refine the same Description, Use cases, How it
+                    works, and README content used on the public component page.
                   </p>
                 </div>
                 <button
@@ -474,7 +486,9 @@ export default function ProfileEditSubmission({
                   ) : (
                     <>
                       <Lightning size={16} weight="bold" />
-                      {showContentSection ? "Regenerate Content" : "Generate Content"}
+                      {showContentSection
+                        ? "Regenerate Content"
+                        : "Generate Content"}
                     </>
                   )}
                 </button>
@@ -482,8 +496,8 @@ export default function ProfileEditSubmission({
 
               {!canGenerate && (
                 <p className="text-xs text-text-tertiary mb-3">
-                  Requires the saved repository URL, npm URL, component name, and short
-                  description.
+                  Requires the saved repository URL, npm URL, component name,
+                  and short description.
                 </p>
               )}
 
@@ -501,7 +515,9 @@ export default function ProfileEditSubmission({
                         </p>
                         <textarea
                           value={generatedDescription}
-                          onChange={(e) => setGeneratedDescription(e.target.value)}
+                          onChange={(e) =>
+                            setGeneratedDescription(e.target.value)
+                          }
                           disabled={isSubmitting}
                           rows={4}
                           className="w-full flex-1 px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20 resize-y min-h-[100px]"
@@ -513,12 +529,9 @@ export default function ProfileEditSubmission({
                         </p>
                         <div className="flex-1 rounded-lg border border-border bg-bg-primary p-3 overflow-y-auto min-h-[100px]">
                           <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm, remarkBreaks]}
-                              components={markdownComponents as never}
-                            >
+                            <Markdown>
                               {generatedDescription || "*No description yet*"}
-                            </ReactMarkdown>
+                            </Markdown>
                           </div>
                         </div>
                       </div>
@@ -549,12 +562,9 @@ export default function ProfileEditSubmission({
                         </p>
                         <div className="flex-1 rounded-lg border border-border bg-bg-primary p-3 overflow-y-auto min-h-[180px] max-h-[400px]">
                           <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm, remarkBreaks]}
-                              components={markdownComponents as never}
-                            >
+                            <Markdown>
                               {generatedUseCases || "*No use cases yet*"}
-                            </ReactMarkdown>
+                            </Markdown>
                           </div>
                         </div>
                       </div>
@@ -573,7 +583,9 @@ export default function ProfileEditSubmission({
                         </p>
                         <textarea
                           value={generatedHowItWorks}
-                          onChange={(e) => setGeneratedHowItWorks(e.target.value)}
+                          onChange={(e) =>
+                            setGeneratedHowItWorks(e.target.value)
+                          }
                           disabled={isSubmitting}
                           rows={8}
                           className="w-full flex-1 px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20 resize-y min-h-[180px]"
@@ -585,12 +597,9 @@ export default function ProfileEditSubmission({
                         </p>
                         <div className="flex-1 rounded-lg border border-border bg-bg-primary p-3 overflow-y-auto min-h-[180px] max-h-[400px]">
                           <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm, remarkBreaks]}
-                              components={markdownComponents as never}
-                            >
+                            <Markdown>
                               {generatedHowItWorks || "*No content yet*"}
-                            </ReactMarkdown>
+                            </Markdown>
                           </div>
                         </div>
                       </div>
@@ -603,15 +612,12 @@ export default function ProfileEditSubmission({
                       <label className="text-sm font-medium text-text-primary mb-1 block">
                         README Preview
                       </label>
-                      <ReadmePreviewNotice readmeIncludeSource={readmeIncludeSource} />
+                      <ReadmePreviewNotice
+                        readmeIncludeSource={readmeIncludeSource}
+                      />
                       <div className="rounded-lg border border-border bg-bg-primary p-3 max-h-64 overflow-y-auto">
                         <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm, remarkBreaks]}
-                            components={markdownComponents as never}
-                          >
-                            {readmeIncludedMarkdown}
-                          </ReactMarkdown>
+                          <Markdown>{readmeIncludedMarkdown}</Markdown>
                         </div>
                       </div>
                     </div>
@@ -622,7 +628,9 @@ export default function ProfileEditSubmission({
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">Tags</label>
+                <label className="block text-sm font-medium text-text-primary mb-1">
+                  Tags
+                </label>
                 <input
                   type="text"
                   value={tags}
@@ -660,7 +668,9 @@ export default function ProfileEditSubmission({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-1">Logo</label>
+              <label className="block text-sm font-medium text-text-primary mb-1">
+                Logo
+              </label>
               <div className="rounded-lg border border-border bg-bg-primary p-3 space-y-3">
                 {currentLogoUrl && !clearExistingLogo && !logoFile && (
                   <div className="flex items-center gap-3">
@@ -715,14 +725,16 @@ export default function ProfileEditSubmission({
 
                 {logoFile && (
                   <p className="text-xs text-text-secondary">
-                    Selected logo: <span className="text-text-primary">{logoFile.name}</span>
+                    Selected logo:{" "}
+                    <span className="text-text-primary">{logoFile.name}</span>
                   </p>
                 )}
               </div>
             </div>
 
             {/* Original submitted text (read-only reference, shown when available) */}
-            {(submission?.submittedShortDescription || submission?.submittedLongDescription) && (
+            {(submission?.submittedShortDescription ||
+              submission?.submittedLongDescription) && (
               <div className="pt-3 border-t border-border/50">
                 <button
                   type="button"

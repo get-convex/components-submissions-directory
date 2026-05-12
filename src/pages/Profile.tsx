@@ -5,10 +5,7 @@ import { Id } from "../../convex/_generated/dataModel";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Toaster, toast } from "sonner";
 import Header from "../components/Header";
-import CodeBlock from "../components/CodeBlock";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkBreaks from "remark-breaks";
+import { Markdown } from "../components/Markdown";
 import {
   Package,
   CheckCircle,
@@ -60,13 +57,18 @@ function BadgeSnippet({ slug }: { slug: string }) {
 
   return (
     <div className="mt-3 pt-3 border-t border-border/50">
-      <p className="text-xs text-text-secondary mb-2">Add badge to your README</p>
+      <p className="text-xs text-text-secondary mb-2">
+        Add badge to your README
+      </p>
       <div className="flex items-center gap-2 rounded-md bg-[#1a1a1a] px-3 py-2 font-mono text-xs text-gray-300">
-        <code className="flex-1 overflow-x-auto whitespace-nowrap">{badgeMarkdown}</code>
+        <code className="flex-1 overflow-x-auto whitespace-nowrap">
+          {badgeMarkdown}
+        </code>
         <button
           onClick={handleCopy}
           title={copied ? "Copied!" : "Copy markdown"}
-          className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors">
+          className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors"
+        >
           {copied ? (
             <Check size={14} className="text-green-400" />
           ) : (
@@ -90,7 +92,10 @@ function BadgeSnippet({ slug }: { slug: string }) {
 
 // Status badge component (synced with Submit.tsx and Admin.tsx)
 function StatusBadge({ status }: { status?: string }) {
-  const statusConfig: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
+  const statusConfig: Record<
+    string,
+    { label: string; className: string; icon: React.ReactNode }
+  > = {
     pending: {
       label: "Pending",
       className: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
@@ -122,7 +127,8 @@ function StatusBadge({ status }: { status?: string }) {
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${config.className}`}>
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${config.className}`}
+    >
       {config.icon}
       {config.label}
     </span>
@@ -133,21 +139,24 @@ function StatusBadge({ status }: { status?: string }) {
 function VisibilityBadge({ visibility }: { visibility?: string }) {
   if (!visibility || visibility === "visible") return null;
 
-  const visibilityConfig: Record<string, { label: string; className: string; icon: React.ReactNode }> =
-    {
-      hidden: {
-        label: "Hidden",
-        className: "bg-gray-500/10 text-gray-600 border-gray-500/20",
-        icon: <EyeSlash size={14} />,
-      },
-    };
+  const visibilityConfig: Record<
+    string,
+    { label: string; className: string; icon: React.ReactNode }
+  > = {
+    hidden: {
+      label: "Hidden",
+      className: "bg-gray-500/10 text-gray-600 border-gray-500/20",
+      icon: <EyeSlash size={14} />,
+    },
+  };
 
   const config = visibilityConfig[visibility];
   if (!config) return null;
 
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${config.className}`}>
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${config.className}`}
+    >
       {config.icon}
       {config.label}
     </span>
@@ -200,24 +209,33 @@ function RequestModal({
   return (
     <div
       className="fixed inset-0 flex items-start justify-center pt-12 p-4 overflow-y-auto"
-      style={{ zIndex: 2147483647 }}>
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      style={{ zIndex: 2147483647 }}
+    >
+      <div
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative w-full max-w-md p-6 rounded-lg bg-white border border-border shadow-lg">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors">
+          className="absolute top-4 right-4 p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
+        >
           <X size={20} />
         </button>
 
-        <h2 className="text-lg font-medium text-text-primary mb-2">Request for {packageName}</h2>
+        <h2 className="text-lg font-medium text-text-primary mb-2">
+          Request for {packageName}
+        </h2>
         <p className="text-sm text-text-secondary mb-4">
-          Send a note to the Convex team about this submission. Use this to request a re-review,
-          report an issue, or ask to remove your component.
+          Send a note to the Convex team about this submission. Use this to
+          request a re-review, report an issue, or ask to remove your component.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">Message</label>
+            <label className="block text-sm font-medium text-text-primary mb-1">
+              Message
+            </label>
             <textarea
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -232,13 +250,15 @@ function RequestModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors">
+              className="flex-1 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors"
+            >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting || !note.trim()}
-              className="flex-1 px-4 py-2 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+              className="flex-1 px-4 py-2 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               {isSubmitting ? "Sending..." : "Send Request"}
             </button>
           </div>
@@ -264,9 +284,13 @@ function ViewNotesModal({
     includeInactive: showInactive,
   });
   const markAsRead = useMutation(api.packages.markPackageNotesAsRead);
-  const markOneNoteRead = useMutation(api.packages.markPackageCommentReadForUser);
+  const markOneNoteRead = useMutation(
+    api.packages.markPackageCommentReadForUser,
+  );
   const deleteMessage = useMutation(api.packages.deletePackageComment);
-  const updateMessageStatus = useMutation(api.packages.updatePackageCommentStatus);
+  const updateMessageStatus = useMutation(
+    api.packages.updatePackageCommentStatus,
+  );
 
   // Calculate unread count in active thread
   const unreadCount =
@@ -308,7 +332,9 @@ function ViewNotesModal({
       if (status === "active") {
         toast.success("Message restored");
       } else {
-        toast.success(status === "hidden" ? "Message hidden" : "Message archived");
+        toast.success(
+          status === "hidden" ? "Message hidden" : "Message archived",
+        );
       }
     } catch {
       toast.error("Failed to update message");
@@ -337,8 +363,12 @@ function ViewNotesModal({
   return (
     <div
       className="fixed inset-0 flex items-start justify-center pt-12 p-4 overflow-y-auto"
-      style={{ zIndex: 2147483647 }}>
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      style={{ zIndex: 2147483647 }}
+    >
+      <div
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative w-full max-w-lg max-h-[80vh] flex flex-col rounded-lg bg-white border border-border shadow-lg">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
@@ -351,24 +381,31 @@ function ViewNotesModal({
                 </span>
               )}
             </h3>
-            <p className="text-xs text-text-secondary truncate max-w-xs">{packageName}</p>
+            <p className="text-xs text-text-secondary truncate max-w-xs">
+              {packageName}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowInactive((prev) => !prev)}
-              className="text-xs text-text-secondary hover:text-text-primary transition-colors">
-              {showInactive ? "Hide hidden or archived" : "Show hidden or archived"}
+              className="text-xs text-text-secondary hover:text-text-primary transition-colors"
+            >
+              {showInactive
+                ? "Hide hidden or archived"
+                : "Show hidden or archived"}
             </button>
             {unreadCount > 0 && (
               <button
                 onClick={handleMarkAllAsRead}
-                className="px-3 py-1.5 text-xs rounded-full border border-border bg-white text-text-primary hover:bg-bg-hover transition-colors">
+                className="px-3 py-1.5 text-xs rounded-full border border-border bg-white text-text-primary hover:bg-bg-hover transition-colors"
+              >
                 Mark all read
               </button>
             )}
             <button
               onClick={onClose}
-              className="p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors">
+              className="p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
+            >
               <X size={20} />
             </button>
           </div>
@@ -394,10 +431,13 @@ function ViewNotesModal({
                   note.isFromAdmin
                     ? "bg-green-50 border border-green-200 ml-4"
                     : "bg-bg-hover/50 border border-border mr-4"
-                }`}>
+                }`}
+              >
                 <div className="flex items-center gap-2 text-xs text-text-secondary mb-2">
                   <User size={12} />
-                  <span className="font-medium">{note.isFromAdmin ? "Convex Team" : "You"}</span>
+                  <span className="font-medium">
+                    {note.isFromAdmin ? "Convex Team" : "You"}
+                  </span>
                   <span>{formatNoteDate(note.createdAt)}</span>
                   {note.isFromAdmin && note.userHasRead === false && (
                     <span className="px-1.5 py-0.5 rounded-full bg-green-500 text-white text-[10px] font-medium">
@@ -405,7 +445,9 @@ function ViewNotesModal({
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-text-primary whitespace-pre-wrap">{note.content}</p>
+                <p className="text-sm text-text-primary whitespace-pre-wrap">
+                  {note.content}
+                </p>
                 {note.status && note.status !== "active" && (
                   <p className="mt-2 text-xs text-text-secondary">
                     Status: {note.status === "hidden" ? "Hidden" : "Archived"}
@@ -416,17 +458,23 @@ function ViewNotesModal({
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     {note.isOwnMessage && (
                       <>
-                        {(!note.status || note.status === "active") ? (
+                        {!note.status || note.status === "active" ? (
                           <>
                             <button
-                              onClick={() => handleSetStatus(note._id, "hidden")}
-                              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+                              onClick={() =>
+                                handleSetStatus(note._id, "hidden")
+                              }
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                            >
                               <EyeSlash size={12} />
                               Hide
                             </button>
                             <button
-                              onClick={() => handleSetStatus(note._id, "archived")}
-                              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+                              onClick={() =>
+                                handleSetStatus(note._id, "archived")
+                              }
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                            >
                               <Archive size={12} />
                               Archive
                             </button>
@@ -434,14 +482,16 @@ function ViewNotesModal({
                         ) : (
                           <button
                             onClick={() => handleSetStatus(note._id, "active")}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                          >
                             <Eye size={12} />
                             Restore
                           </button>
                         )}
                         <button
                           onClick={() => handleDelete(note._id)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors">
+                          className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                        >
                           <Trash size={12} />
                           Delete
                         </button>
@@ -451,7 +501,8 @@ function ViewNotesModal({
                       <button
                         onClick={() => handleMarkOneRead(note._id)}
                         className="inline-flex items-center px-2 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
-                        title="Mark this message as read">
+                        title="Mark this message as read"
+                      >
                         Mark read
                       </button>
                     )}
@@ -473,24 +524,17 @@ function ViewNotesModal({
   );
 }
 
-// Shared markdown code component override for CodeBlock rendering
-const markdownCodeComponents = {
-  code({ className, children, ...rest }: { className?: string; children?: React.ReactNode; [key: string]: unknown }) {
-    const match = /language-(\w+)/.exec(className || "");
-    const code = String(children).replace(/\n$/, "");
-    if (match || code.includes("\n")) {
-      return <CodeBlock code={code} language={match?.[1]} />;
-    }
-    return <code className={className} {...rest}>{children}</code>;
-  },
-  pre({ children }: { children?: React.ReactNode }) {
-    return <>{children}</>;
-  },
-};
-
 // Edit submission modal
-function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose: () => void }) {
-  const submission = useQuery(api.packages.getMySubmissionForEdit, { packageId });
+function EditModal({
+  packageId,
+  onClose,
+}: {
+  packageId: Id<"packages">;
+  onClose: () => void;
+}) {
+  const submission = useQuery(api.packages.getMySubmissionForEdit, {
+    packageId,
+  });
   const categories = useQuery(api.packages.listCategories);
   const updateSubmission = useMutation(api.packages.updateMySubmission);
   const generateUploadUrl = useMutation(api.packages.generateUploadUrl);
@@ -515,7 +559,9 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
   const [generatedUseCases, setGeneratedUseCases] = useState("");
   const [generatedHowItWorks, setGeneratedHowItWorks] = useState("");
   const [readmeIncludedMarkdown, setReadmeIncludedMarkdown] = useState("");
-  const [readmeIncludeSource, setReadmeIncludeSource] = useState<"markers" | "full" | "">("");
+  const [readmeIncludeSource, setReadmeIncludeSource] = useState<
+    "markers" | "full" | ""
+  >("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [showContentSection, setShowContentSection] = useState(false);
 
@@ -538,7 +584,12 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
       setReadmeIncludedMarkdown(submission.readmeIncludedMarkdown || "");
       setReadmeIncludeSource(submission.readmeIncludeSource || "");
       setShowContentSection(
-        !!(submission.generatedDescription || submission.generatedUseCases || submission.generatedHowItWorks || submission.contentModelVersion === 2),
+        !!(
+          submission.generatedDescription ||
+          submission.generatedUseCases ||
+          submission.generatedHowItWorks ||
+          submission.contentModelVersion === 2
+        ),
       );
     }
   }, [submission]);
@@ -560,7 +611,9 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
     const desc = shortDescription || submission.shortDescription || "";
 
     if (!repoUrl || !npmUrl || !name || !desc) {
-      toast.error("Need repo URL, npm URL, component name, and short description to generate content");
+      toast.error(
+        "Need repo URL, npm URL, component name, and short description to generate content",
+      );
       return;
     }
 
@@ -651,8 +704,12 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
     return (
       <div
         className="fixed inset-0 flex items-start justify-center pt-12 p-4 overflow-y-auto"
-        style={{ zIndex: 2147483647 }}>
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+        style={{ zIndex: 2147483647 }}
+      >
+        <div
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+          onClick={onClose}
+        />
         <div className="relative w-full max-w-lg p-6 rounded-lg bg-white border border-border shadow-lg">
           <div className="flex justify-center py-8">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-button"></div>
@@ -662,21 +719,33 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
     );
   }
 
-  const canGenerate = !!(submission.repositoryUrl && submission.npmUrl && (componentName || submission.componentName) && (shortDescription || submission.shortDescription));
+  const canGenerate = !!(
+    submission.repositoryUrl &&
+    submission.npmUrl &&
+    (componentName || submission.componentName) &&
+    (shortDescription || submission.shortDescription)
+  );
 
   return (
     <div
       className="fixed inset-0 flex items-start justify-center pt-6 p-4 overflow-y-auto"
-      style={{ zIndex: 2147483647 }}>
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      style={{ zIndex: 2147483647 }}
+    >
+      <div
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative w-full max-w-2xl p-6 rounded-lg bg-white border border-border shadow-lg my-4">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors">
+          className="absolute top-4 right-4 p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
+        >
           <X size={20} />
         </button>
 
-        <h2 className="text-lg font-medium text-text-primary mb-1">Edit Submission</h2>
+        <h2 className="text-lg font-medium text-text-primary mb-1">
+          Edit Submission
+        </h2>
         <p className="text-xs text-text-secondary mb-4">{submission.name}</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -691,7 +760,9 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
               placeholder="e.g., Convex Agent"
               className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-button focus:ring-2 focus:ring-button/20"
             />
-            <p className="text-xs text-text-tertiary mt-1">Human-readable display name</p>
+            <p className="text-xs text-text-tertiary mt-1">
+              Human-readable display name
+            </p>
           </div>
 
           <div>
@@ -757,7 +828,8 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
 
             {!canGenerate && (
               <p className="text-xs text-text-tertiary mb-2">
-                Requires a GitHub repo URL, npm URL, component name, and short description.
+                Requires a GitHub repo URL, npm URL, component name, and short
+                description.
               </p>
             )}
 
@@ -791,14 +863,11 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
                   />
                   {generatedUseCases && (
                     <div className="mt-1 rounded border border-border bg-bg-primary p-2">
-                      <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">Preview</p>
+                      <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
+                        Preview
+                      </p>
                       <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm, remarkBreaks]}
-                          components={markdownCodeComponents as never}
-                        >
-                          {generatedUseCases}
-                        </ReactMarkdown>
+                        <Markdown>{generatedUseCases}</Markdown>
                       </div>
                     </div>
                   )}
@@ -818,14 +887,11 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
                   />
                   {generatedHowItWorks && (
                     <div className="mt-1 rounded border border-border bg-bg-primary p-2">
-                      <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">Preview</p>
+                      <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
+                        Preview
+                      </p>
                       <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm, remarkBreaks]}
-                          components={markdownCodeComponents as never}
-                        >
-                          {generatedHowItWorks}
-                        </ReactMarkdown>
+                        <Markdown>{generatedHowItWorks}</Markdown>
                       </div>
                     </div>
                   )}
@@ -844,12 +910,7 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
                     </p>
                     <div className="rounded-lg border border-border bg-bg-primary p-3 max-h-48 overflow-y-auto">
                       <div className="prose prose-sm max-w-none text-text-primary text-xs">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm, remarkBreaks]}
-                          components={markdownCodeComponents as never}
-                        >
-                          {readmeIncludedMarkdown}
-                        </ReactMarkdown>
+                        <Markdown>{readmeIncludedMarkdown}</Markdown>
                       </div>
                     </div>
                   </div>
@@ -859,11 +920,14 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">Category</label>
+            <label className="block text-sm font-medium text-text-primary mb-1">
+              Category
+            </label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-button focus:ring-2 focus:ring-button/20">
+              className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-button focus:ring-2 focus:ring-button/20"
+            >
               <option value="">Select a category</option>
               {categories?.map((cat) => (
                 <option key={cat.category} value={cat.category}>
@@ -874,7 +938,9 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">Tags</label>
+            <label className="block text-sm font-medium text-text-primary mb-1">
+              Tags
+            </label>
             <input
               type="text"
               value={tags}
@@ -885,7 +951,9 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">Demo URL</label>
+            <label className="block text-sm font-medium text-text-primary mb-1">
+              Demo URL
+            </label>
             <input
               type="url"
               value={demoUrl}
@@ -896,7 +964,9 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">Video URL</label>
+            <label className="block text-sm font-medium text-text-primary mb-1">
+              Video URL
+            </label>
             <input
               type="url"
               value={videoUrl}
@@ -907,7 +977,9 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1">Logo</label>
+            <label className="block text-sm font-medium text-text-primary mb-1">
+              Logo
+            </label>
             <div className="rounded-lg border border-border bg-bg-primary p-3 space-y-3">
               {currentLogoUrl && !clearExistingLogo && !logoFile && (
                 <div className="flex items-center gap-3">
@@ -923,7 +995,8 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
                       setClearExistingLogo(true);
                     }}
                     disabled={isSubmitting}
-                    className="px-3 py-1.5 rounded-full text-xs font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors disabled:opacity-50">
+                    className="px-3 py-1.5 rounded-full text-xs font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors disabled:opacity-50"
+                  >
                     Remove current logo
                   </button>
                 </div>
@@ -931,12 +1004,15 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
 
               {clearExistingLogo && !logoFile && (
                 <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-white px-3 py-2">
-                  <p className="text-xs text-text-secondary">Current logo will be removed when you save.</p>
+                  <p className="text-xs text-text-secondary">
+                    Current logo will be removed when you save.
+                  </p>
                   <button
                     type="button"
                     onClick={() => setClearExistingLogo(false)}
                     disabled={isSubmitting}
-                    className="px-3 py-1.5 rounded-full text-xs font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors disabled:opacity-50">
+                    className="px-3 py-1.5 rounded-full text-xs font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors disabled:opacity-50"
+                  >
                     Keep logo
                   </button>
                 </div>
@@ -958,13 +1034,14 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
 
               {logoFile && (
                 <p className="text-xs text-text-secondary">
-                  Selected logo: <span className="text-text-primary">{logoFile.name}</span>
+                  Selected logo:{" "}
+                  <span className="text-text-primary">{logoFile.name}</span>
                 </p>
               )}
 
               <p className="text-xs text-text-tertiary">
-                PNG, WebP, or SVG. Saving will replace the current logo and can regenerate the
-                thumbnail if that admin setting is enabled.
+                PNG, WebP, or SVG. Saving will replace the current logo and can
+                regenerate the thumbnail if that admin setting is enabled.
               </p>
             </div>
           </div>
@@ -973,13 +1050,15 @@ function EditModal({ packageId, onClose }: { packageId: Id<"packages">; onClose:
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors">
+              className="flex-1 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors"
+            >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 px-4 py-2 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50">
+              className="flex-1 px-4 py-2 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50"
+            >
               {isSubmitting ? "Saving..." : "Save Changes"}
             </button>
           </div>
@@ -1007,13 +1086,15 @@ function ApiUsageModal({ onClose }: { onClose: () => void }) {
       name: "Search components",
       method: "GET",
       path: "/api/components/search?q=auth",
-      description: "Search by name, description, category, or tags. Supports pagination.",
+      description:
+        "Search by name, description, category, or tags. Supports pagination.",
     },
     {
       name: "Get component",
       method: "GET",
       path: "/api/components/detail?slug=agent",
-      description: "Full component profile with install command, docs, and metadata.",
+      description:
+        "Full component profile with install command, docs, and metadata.",
     },
     {
       name: "Install command",
@@ -1046,25 +1127,34 @@ function ApiUsageModal({ onClose }: { onClose: () => void }) {
       await navigator.clipboard.writeText(text);
       setCopiedIdx(idx);
       setTimeout(() => setCopiedIdx(null), 2000);
-    } catch { /* noop */ }
+    } catch {
+      /* noop */
+    }
   };
 
   return (
     <div
       className="fixed inset-0 flex items-start justify-center pt-8 p-4 overflow-y-auto"
-      style={{ zIndex: 2147483647 }}>
-      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      style={{ zIndex: 2147483647 }}
+    >
+      <div
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="relative w-full max-w-2xl rounded-lg bg-white border border-border shadow-lg my-4">
         <div className="flex items-center justify-between p-5 border-b border-border">
           <div>
-            <h2 className="text-lg font-medium text-text-primary">Components REST API</h2>
+            <h2 className="text-lg font-medium text-text-primary">
+              Components REST API
+            </h2>
             <p className="text-xs text-text-secondary mt-0.5">
               Programmatic access to the Convex Components Directory
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors">
+            className="p-1 rounded-full text-text-secondary hover:bg-bg-hover transition-colors"
+          >
             <X size={20} />
           </button>
         </div>
@@ -1072,32 +1162,50 @@ function ApiUsageModal({ onClose }: { onClose: () => void }) {
         <div className="p-5 space-y-6 max-h-[70vh] overflow-y-auto">
           {/* What it does */}
           <div>
-            <h3 className="text-sm font-medium text-text-primary mb-2">What you can do</h3>
+            <h3 className="text-sm font-medium text-text-primary mb-2">
+              What you can do
+            </h3>
             <ul className="space-y-1.5 text-xs text-text-secondary">
               <li className="flex items-start gap-2">
-                <CheckCircle size={14} className="text-green-600 mt-0.5 shrink-0" />
+                <CheckCircle
+                  size={14}
+                  className="text-green-600 mt-0.5 shrink-0"
+                />
                 Search and discover approved Convex components
               </li>
               <li className="flex items-start gap-2">
-                <CheckCircle size={14} className="text-green-600 mt-0.5 shrink-0" />
+                <CheckCircle
+                  size={14}
+                  className="text-green-600 mt-0.5 shrink-0"
+                />
                 Get install commands for any package manager
               </li>
               <li className="flex items-start gap-2">
-                <CheckCircle size={14} className="text-green-600 mt-0.5 shrink-0" />
+                <CheckCircle
+                  size={14}
+                  className="text-green-600 mt-0.5 shrink-0"
+                />
                 Fetch component metadata, docs links, and trust signals
               </li>
               <li className="flex items-start gap-2">
-                <CheckCircle size={14} className="text-green-600 mt-0.5 shrink-0" />
-                Feed to coding agents, automate dependency discovery, build tooling
+                <CheckCircle
+                  size={14}
+                  className="text-green-600 mt-0.5 shrink-0"
+                />
+                Feed to coding agents, automate dependency discovery, build
+                tooling
               </li>
             </ul>
           </div>
 
           {/* Authentication */}
           <div>
-            <h3 className="text-sm font-medium text-text-primary mb-2">Authentication</h3>
+            <h3 className="text-sm font-medium text-text-primary mb-2">
+              Authentication
+            </h3>
             <p className="text-xs text-text-secondary mb-2">
-              Pass your API key as a Bearer token. Anonymous access works at lower rate limits.
+              Pass your API key as a Bearer token. Anonymous access works at
+              lower rate limits.
             </p>
             <div className="rounded-md bg-[#1a1a1a] px-3 py-2">
               <code className="text-xs text-gray-300">
@@ -1108,41 +1216,67 @@ function ApiUsageModal({ onClose }: { onClose: () => void }) {
 
           {/* Rate limits */}
           <div>
-            <h3 className="text-sm font-medium text-text-primary mb-2">Rate limits</h3>
+            <h3 className="text-sm font-medium text-text-primary mb-2">
+              Rate limits
+            </h3>
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-lg border border-border p-3">
-                <p className="text-xs font-medium text-text-primary">With API key</p>
-                <p className="text-lg font-medium text-text-primary mt-1">100 <span className="text-xs font-normal text-text-secondary">req/min</span></p>
+                <p className="text-xs font-medium text-text-primary">
+                  With API key
+                </p>
+                <p className="text-lg font-medium text-text-primary mt-1">
+                  100{" "}
+                  <span className="text-xs font-normal text-text-secondary">
+                    req/min
+                  </span>
+                </p>
               </div>
               <div className="rounded-lg border border-border p-3">
-                <p className="text-xs font-medium text-text-primary">Anonymous</p>
-                <p className="text-lg font-medium text-text-primary mt-1">10 <span className="text-xs font-normal text-text-secondary">req/min</span></p>
+                <p className="text-xs font-medium text-text-primary">
+                  Anonymous
+                </p>
+                <p className="text-lg font-medium text-text-primary mt-1">
+                  10{" "}
+                  <span className="text-xs font-normal text-text-secondary">
+                    req/min
+                  </span>
+                </p>
               </div>
             </div>
           </div>
 
           {/* Endpoints */}
           <div>
-            <h3 className="text-sm font-medium text-text-primary mb-2">Endpoints</h3>
+            <h3 className="text-sm font-medium text-text-primary mb-2">
+              Endpoints
+            </h3>
             <div className="space-y-2">
               {endpoints.map((ep, idx) => {
                 const curlCmd = `curl -H "Authorization: Bearer YOUR_KEY" "https://www.convex.dev${ep.path}"`;
                 return (
-                  <div key={idx} className="rounded-lg border border-border p-3">
+                  <div
+                    key={idx}
+                    className="rounded-lg border border-border p-3"
+                  >
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-text-primary">{ep.name}</span>
+                      <span className="text-xs font-medium text-text-primary">
+                        {ep.name}
+                      </span>
                       <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-bg-secondary text-text-secondary">
                         {ep.method}
                       </span>
                     </div>
-                    <p className="text-xs text-text-secondary mb-2">{ep.description}</p>
+                    <p className="text-xs text-text-secondary mb-2">
+                      {ep.description}
+                    </p>
                     <div className="flex items-center gap-1.5 rounded-md bg-[#1a1a1a] px-2.5 py-1.5">
                       <code className="flex-1 text-[11px] text-gray-300 overflow-x-auto whitespace-nowrap">
                         {curlCmd}
                       </code>
                       <button
                         onClick={() => handleCopy(curlCmd, idx)}
-                        className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors">
+                        className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors"
+                      >
                         {copiedIdx === idx ? (
                           <Check size={12} className="text-green-400" />
                         ) : (
@@ -1158,9 +1292,12 @@ function ApiUsageModal({ onClose }: { onClose: () => void }) {
 
           {/* Also available */}
           <div>
-            <h3 className="text-sm font-medium text-text-primary mb-2">Also available</h3>
+            <h3 className="text-sm font-medium text-text-primary mb-2">
+              Also available
+            </h3>
             <p className="text-xs text-text-secondary mb-2">
-              For LLM consumption, the directory also publishes these content endpoints (no API key required):
+              For LLM consumption, the directory also publishes these content
+              endpoints (no API key required):
             </p>
             <ul className="space-y-1 text-xs">
               <li>
@@ -1168,20 +1305,26 @@ function ApiUsageModal({ onClose }: { onClose: () => void }) {
                   href="https://www.convex.dev/components/llms.txt"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-button hover:underline">
+                  className="text-button hover:underline"
+                >
                   /components/llms.txt
                 </a>
-                <span className="text-text-secondary ml-1.5">Full directory index for LLMs</span>
+                <span className="text-text-secondary ml-1.5">
+                  Full directory index for LLMs
+                </span>
               </li>
               <li>
                 <a
                   href="https://www.convex.dev/components/components.md"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-button hover:underline">
+                  className="text-button hover:underline"
+                >
                   /components/components.md
                 </a>
-                <span className="text-text-secondary ml-1.5">Markdown index grouped by category</span>
+                <span className="text-text-secondary ml-1.5">
+                  Markdown index grouped by category
+                </span>
               </li>
             </ul>
           </div>
@@ -1190,7 +1333,8 @@ function ApiUsageModal({ onClose }: { onClose: () => void }) {
         <div className="p-4 border-t border-border">
           <button
             onClick={onClose}
-            className="w-full px-4 py-2 rounded-full text-sm font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors">
+            className="w-full px-4 py-2 rounded-full text-sm font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors"
+          >
             Close
           </button>
         </div>
@@ -1231,12 +1375,16 @@ function SubmissionCard({
   const [hashHighlight, setHashHighlight] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const displayName = submission.componentName || submission.name;
-  const submittedDate = new Date(submission.submittedAt).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-  const hasOriginalText = submission.submittedShortDescription || submission.submittedLongDescription;
+  const submittedDate = new Date(submission.submittedAt).toLocaleDateString(
+    "en-US",
+    {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    },
+  );
+  const hasOriginalText =
+    submission.submittedShortDescription || submission.submittedLongDescription;
 
   // Scroll into view + ring highlight when arriving via #pkg-<id> hash.
   // Confined to one-time DOM sync based on URL hash.
@@ -1266,7 +1414,8 @@ function SubmissionCard({
         hashHighlight
           ? "border-[#E05C35] ring-2 ring-[#E05C35]"
           : "border-border hover:border-border-hover"
-      }`}>
+      }`}
+    >
       <div className="flex gap-4">
         {/* Thumbnail */}
         <div className="w-20 h-12 flex-shrink-0 rounded bg-bg-secondary overflow-hidden">
@@ -1290,13 +1439,18 @@ function SubmissionCard({
               {canViewDetail ? (
                 <a
                   href={`${basePath}/${submission.slug}`}
-                  className="text-sm font-medium text-text-primary hover:text-button transition-colors">
+                  className="text-sm font-medium text-text-primary hover:text-button transition-colors"
+                >
                   {displayName}
                 </a>
               ) : (
-                <span className="text-sm font-medium text-text-primary">{displayName}</span>
+                <span className="text-sm font-medium text-text-primary">
+                  {displayName}
+                </span>
               )}
-              <p className="text-xs text-text-tertiary mt-0.5">Submitted {submittedDate}</p>
+              <p className="text-xs text-text-tertiary mt-0.5">
+                Submitted {submittedDate}
+              </p>
             </div>
 
             {/* Status badges */}
@@ -1317,31 +1471,37 @@ function SubmissionCard({
           <div className="flex flex-wrap items-center gap-2 mt-3">
             <button
               onClick={() => onEdit(submission._id)}
-              className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+              className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+            >
               <PencilSimple size={14} />
               Edit
             </button>
             <button
               onClick={() => onRequestRefresh(submission._id, displayName)}
-              className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+              className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+            >
               <ChatCircleText size={14} />
               Send Request
             </button>
             <button
               onClick={() => onViewNotes(submission._id, displayName)}
-              className="relative inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+              className="relative inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+            >
               <Bell size={14} />
               Messages
               {submission.unreadAdminReplies > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full bg-green-500 text-white">
-                  {submission.unreadAdminReplies > 9 ? "9+" : submission.unreadAdminReplies}
+                  {submission.unreadAdminReplies > 9
+                    ? "9+"
+                    : submission.unreadAdminReplies}
                 </span>
               )}
             </button>
             {canViewDetail && (
               <a
                 href={`${basePath}/${submission.slug}`}
-                className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
+                className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+              >
                 <Eye size={14} />
                 View
               </a>
@@ -1400,9 +1560,18 @@ export default function Profile() {
   const basePath = useBasePath();
   const { isAuthenticated, isLoading: authLoading, signIn } = useAuth();
   const user = useQuery(api.auth.loggedInUser);
-  const submissions = useQuery(api.packages.getMySubmissions, isAuthenticated ? {} : "skip");
-  const apiAccessStatus = useQuery(api.apiKeys.getMyApiAccessStatus, isAuthenticated ? {} : "skip");
-  const apiKeyInfo = useQuery(api.apiKeys.getMyApiKey, isAuthenticated ? {} : "skip");
+  const submissions = useQuery(
+    api.packages.getMySubmissions,
+    isAuthenticated ? {} : "skip",
+  );
+  const apiAccessStatus = useQuery(
+    api.apiKeys.getMyApiAccessStatus,
+    isAuthenticated ? {} : "skip",
+  );
+  const apiKeyInfo = useQuery(
+    api.apiKeys.getMyApiKey,
+    isAuthenticated ? {} : "skip",
+  );
   const generateApiKeyMutation = useMutation(api.apiKeys.generateApiKey);
   const revokeApiKeyMutation = useMutation(api.apiKeys.revokeApiKey);
 
@@ -1421,7 +1590,9 @@ export default function Profile() {
   // API key state
   const [showApiUsageModal, setShowApiUsageModal] = useState(false);
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
-  const [newlyGeneratedKey, setNewlyGeneratedKey] = useState<string | null>(null);
+  const [newlyGeneratedKey, setNewlyGeneratedKey] = useState<string | null>(
+    null,
+  );
   const [apiKeyLoading, setApiKeyLoading] = useState(false);
   const [keyCopied, setKeyCopied] = useState(false);
 
@@ -1432,7 +1603,9 @@ export default function Profile() {
       setNewlyGeneratedKey(key);
       toast.success("API key generated");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to generate API key");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to generate API key",
+      );
     } finally {
       setApiKeyLoading(false);
     }
@@ -1457,7 +1630,9 @@ export default function Profile() {
       await navigator.clipboard.writeText(text);
       setKeyCopied(true);
       setTimeout(() => setKeyCopied(false), 2000);
-    } catch { /* noop */ }
+    } catch {
+      /* noop */
+    }
   };
 
   // Loading state
@@ -1489,10 +1664,14 @@ export default function Profile() {
             <button
               onClick={() => {
                 // Save current path to return after sign-in
-                localStorage.setItem("authReturnPath", window.location.pathname);
+                localStorage.setItem(
+                  "authReturnPath",
+                  window.location.pathname,
+                );
                 signIn();
               }}
-              className="px-6 py-2.5 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors">
+              className="px-6 py-2.5 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors"
+            >
               Sign In
             </button>
           </div>
@@ -1507,10 +1686,13 @@ export default function Profile() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Page title with submit CTA */}
         <div className="flex items-center justify-between mb-8">
-          <h1 className="text-xl font-medium text-text-primary">Component Submissions</h1>
+          <h1 className="text-xl font-medium text-text-primary">
+            Component Submissions
+          </h1>
           <a
             href={`${basePath}/submit`}
-            className="inline-flex items-center gap-1 px-4 py-2 text-sm rounded-full bg-button text-white hover:bg-button-hover transition-colors">
+            className="inline-flex items-center gap-1 px-4 py-2 text-sm rounded-full bg-button text-white hover:bg-button-hover transition-colors"
+          >
             <Plus size={16} />
             Submit New
           </a>
@@ -1522,7 +1704,9 @@ export default function Profile() {
             {user?.email?.[0]?.toUpperCase() || "U"}
           </div>
           <div>
-            <h1 className="text-lg font-medium text-text-primary">My Profile</h1>
+            <h1 className="text-lg font-medium text-text-primary">
+              My Profile
+            </h1>
             <p className="text-sm text-text-secondary">{user?.email}</p>
           </div>
         </div>
@@ -1545,7 +1729,8 @@ export default function Profile() {
               </p>
               <a
                 href={`${basePath}/submit?submit=true`}
-                className="inline-flex items-center gap-1 px-4 py-2 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors">
+                className="inline-flex items-center gap-1 px-4 py-2 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors"
+              >
                 Submit Your First Component
               </a>
             </div>
@@ -1562,7 +1747,9 @@ export default function Profile() {
                   onRequestRefresh={(id, name) =>
                     setRequestModal({ packageId: id, packageName: name })
                   }
-                  onViewNotes={(id, name) => setNotesModal({ packageId: id, packageName: name })}
+                  onViewNotes={(id, name) =>
+                    setNotesModal({ packageId: id, packageName: name })
+                  }
                   onEdit={(id) => {
                     window.location.href = `${basePath}/profile/edit/${id}`;
                   }}
@@ -1574,151 +1761,184 @@ export default function Profile() {
 
         {/* API Access Section (only visible when globally enabled AND user has been granted access) */}
         {apiAccessStatus?.globalEnabled && apiAccessStatus?.userGranted && (
-        <div className="mt-12 pt-6 border-t border-border">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Key size={18} className="text-text-primary" />
-              <h3 className="text-sm font-medium text-text-primary">API Access</h3>
+          <div className="mt-12 pt-6 border-t border-border">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Key size={18} className="text-text-primary" />
+                <h3 className="text-sm font-medium text-text-primary">
+                  API Access
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowApiUsageModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+              >
+                <Info size={14} />
+                How to use the API
+              </button>
             </div>
-            <button
-              onClick={() => setShowApiUsageModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
-              <Info size={14} />
-              How to use the API
-            </button>
-          </div>
 
-          <div className="p-4 rounded-lg border border-border bg-white">
-            {/* Newly generated key (shown once) */}
-            {newlyGeneratedKey && (
-              <div className="mb-4 p-3 rounded-lg border border-green-200 bg-green-50">
-                <p className="text-xs font-medium text-green-800 mb-1.5">
-                  Your API key has been generated. Copy it now. You will not see it again.
-                </p>
-                <div className="flex items-center gap-2 rounded-md bg-[#1a1a1a] px-3 py-2">
-                  <code className="flex-1 text-sm text-green-300 font-mono overflow-x-auto whitespace-nowrap">
-                    {newlyGeneratedKey}
-                  </code>
+            <div className="p-4 rounded-lg border border-border bg-white">
+              {/* Newly generated key (shown once) */}
+              {newlyGeneratedKey && (
+                <div className="mb-4 p-3 rounded-lg border border-green-200 bg-green-50">
+                  <p className="text-xs font-medium text-green-800 mb-1.5">
+                    Your API key has been generated. Copy it now. You will not
+                    see it again.
+                  </p>
+                  <div className="flex items-center gap-2 rounded-md bg-[#1a1a1a] px-3 py-2">
+                    <code className="flex-1 text-sm text-green-300 font-mono overflow-x-auto whitespace-nowrap">
+                      {newlyGeneratedKey}
+                    </code>
+                    <button
+                      onClick={() => handleCopyKey(newlyGeneratedKey)}
+                      className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors"
+                    >
+                      {keyCopied ? (
+                        <Check size={14} className="text-green-400" />
+                      ) : (
+                        <Copy size={14} className="text-gray-400" />
+                      )}
+                    </button>
+                  </div>
                   <button
-                    onClick={() => handleCopyKey(newlyGeneratedKey)}
-                    className="shrink-0 p-1 rounded hover:bg-white/10 transition-colors">
-                    {keyCopied ? (
-                      <Check size={14} className="text-green-400" />
+                    onClick={() => setNewlyGeneratedKey(null)}
+                    className="mt-2 text-xs text-green-700 hover:text-green-900 transition-colors"
+                  >
+                    I have copied my key
+                  </button>
+                </div>
+              )}
+
+              {apiKeyInfo ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-text-primary font-mono">
+                        {apiKeyInfo.keyPrefix}
+                      </p>
+                      <p className="text-xs text-text-secondary mt-0.5">
+                        Created{" "}
+                        {new Date(apiKeyInfo.createdAt).toLocaleDateString(
+                          "en-US",
+                          { year: "numeric", month: "short", day: "numeric" },
+                        )}
+                        {apiKeyInfo.lastUsedAt && (
+                          <>
+                            {" "}
+                            &middot; Last used{" "}
+                            {new Date(apiKeyInfo.lastUsedAt).toLocaleDateString(
+                              "en-US",
+                              { month: "short", day: "numeric" },
+                            )}
+                          </>
+                        )}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border bg-green-500/10 text-green-600 border-green-500/20">
+                        Active
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 text-xs text-text-secondary">
+                    <span className="flex items-center gap-1">
+                      <Terminal size={12} />
+                      {apiKeyInfo.requestCount.toLocaleString()} requests
+                    </span>
+                    <span>100 req/min limit</span>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2 border-t border-border/50">
+                    <button
+                      onClick={() => setShowApiUsageModal(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                    >
+                      <Terminal size={14} />
+                      View endpoints
+                    </button>
+                    {showRevokeConfirm ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-text-secondary">
+                          Revoke this key?
+                        </span>
+                        <button
+                          onClick={handleRevokeApiKey}
+                          disabled={apiKeyLoading}
+                          className="px-3 py-1.5 text-xs rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                        >
+                          {apiKeyLoading ? "Revoking..." : "Yes, revoke"}
+                        </button>
+                        <button
+                          onClick={() => setShowRevokeConfirm(false)}
+                          className="px-3 py-1.5 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     ) : (
-                      <Copy size={14} className="text-gray-400" />
+                      <button
+                        onClick={() => setShowRevokeConfirm(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <ArrowsClockwise size={14} />
+                        Revoke and regenerate
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <Key size={28} className="mx-auto text-text-tertiary mb-2" />
+                  <p className="text-sm text-text-secondary mb-1">
+                    Generate an API key to access the Components REST API
+                  </p>
+                  <p className="text-xs text-text-tertiary mb-4">
+                    Search components, get install commands, and fetch metadata
+                    programmatically. Useful for coding agents, CI pipelines,
+                    and custom tooling.
+                  </p>
+                  <button
+                    onClick={handleGenerateApiKey}
+                    disabled={apiKeyLoading}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-sm rounded-full bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50"
+                  >
+                    {apiKeyLoading ? (
+                      <>
+                        <SpinnerGap size={16} className="animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Key size={16} />
+                        Generate API Key
+                      </>
                     )}
                   </button>
                 </div>
-                <button
-                  onClick={() => setNewlyGeneratedKey(null)}
-                  className="mt-2 text-xs text-green-700 hover:text-green-900 transition-colors">
-                  I have copied my key
-                </button>
-              </div>
-            )}
-
-            {apiKeyInfo ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-text-primary font-mono">{apiKeyInfo.keyPrefix}</p>
-                    <p className="text-xs text-text-secondary mt-0.5">
-                      Created {new Date(apiKeyInfo.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
-                      {apiKeyInfo.lastUsedAt && (
-                        <> &middot; Last used {new Date(apiKeyInfo.lastUsedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</>
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border bg-green-500/10 text-green-600 border-green-500/20">
-                      Active
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 text-xs text-text-secondary">
-                  <span className="flex items-center gap-1">
-                    <Terminal size={12} />
-                    {apiKeyInfo.requestCount.toLocaleString()} requests
-                  </span>
-                  <span>100 req/min limit</span>
-                </div>
-
-                <div className="flex items-center gap-2 pt-2 border-t border-border/50">
-                  <button
-                    onClick={() => setShowApiUsageModal(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors">
-                    <Terminal size={14} />
-                    View endpoints
-                  </button>
-                  {showRevokeConfirm ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-text-secondary">Revoke this key?</span>
-                      <button
-                        onClick={handleRevokeApiKey}
-                        disabled={apiKeyLoading}
-                        className="px-3 py-1.5 text-xs rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50">
-                        {apiKeyLoading ? "Revoking..." : "Yes, revoke"}
-                      </button>
-                      <button
-                        onClick={() => setShowRevokeConfirm(false)}
-                        className="px-3 py-1.5 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover transition-colors">
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setShowRevokeConfirm(true)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors">
-                      <ArrowsClockwise size={14} />
-                      Revoke and regenerate
-                    </button>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <Key size={28} className="mx-auto text-text-tertiary mb-2" />
-                <p className="text-sm text-text-secondary mb-1">
-                  Generate an API key to access the Components REST API
-                </p>
-                <p className="text-xs text-text-tertiary mb-4">
-                  Search components, get install commands, and fetch metadata programmatically.
-                  Useful for coding agents, CI pipelines, and custom tooling.
-                </p>
-                <button
-                  onClick={handleGenerateApiKey}
-                  disabled={apiKeyLoading}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-sm rounded-full bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50">
-                  {apiKeyLoading ? (
-                    <>
-                      <SpinnerGap size={16} className="animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Key size={16} />
-                      Generate API Key
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
         )}
 
         {/* Status and Visibility Guide */}
         <div className="mt-12 pt-6 border-t border-border">
-          <h3 className="text-sm font-medium text-text-primary mb-3">Status Guide</h3>
+          <h3 className="text-sm font-medium text-text-primary mb-3">
+            Status Guide
+          </h3>
           <ul className="space-y-2 text-xs mb-6">
             <li className="flex items-center gap-2">
               <StatusBadge status="pending" />
-              <span className="text-text-secondary">Awaiting initial review</span>
+              <span className="text-text-secondary">
+                Awaiting initial review
+              </span>
             </li>
             <li className="flex items-center gap-2">
               <StatusBadge status="in_review" />
-              <span className="text-text-secondary">Currently being evaluated</span>
+              <span className="text-text-secondary">
+                Currently being evaluated
+              </span>
             </li>
             <li className="flex items-center gap-2">
               <StatusBadge status="approved" />
@@ -1726,69 +1946,101 @@ export default function Profile() {
             </li>
             <li className="flex items-center gap-2">
               <StatusBadge status="changes_requested" />
-              <span className="text-text-secondary">Needs updates before approval</span>
+              <span className="text-text-secondary">
+                Needs updates before approval
+              </span>
             </li>
             <li className="flex items-center gap-2">
               <StatusBadge status="rejected" />
-              <span className="text-text-secondary">Does not meet requirements</span>
+              <span className="text-text-secondary">
+                Does not meet requirements
+              </span>
             </li>
             <li className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-amber-500/10 text-amber-600 border-amber-500/20">
                 <Star size={14} weight="fill" />
                 Featured
               </span>
-              <span className="text-text-secondary">Highlighted on convex.dev/components</span>
+              <span className="text-text-secondary">
+                Highlighted on convex.dev/components
+              </span>
             </li>
           </ul>
 
-          <h3 className="text-sm font-medium text-text-primary mb-3">Visibility Guide</h3>
+          <h3 className="text-sm font-medium text-text-primary mb-3">
+            Visibility Guide
+          </h3>
           <ul className="space-y-2 text-xs">
             <li className="flex items-center gap-2">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-green-500/10 text-green-600 border-green-500/20">
                 <Eye size={14} />
                 Visible
               </span>
-              <span className="text-text-secondary">Shown in directory (if approved)</span>
+              <span className="text-text-secondary">
+                Shown in directory (if approved)
+              </span>
             </li>
             <li className="flex items-center gap-2">
               <VisibilityBadge visibility="hidden" />
-              <span className="text-text-secondary">Temporarily hidden from directory</span>
+              <span className="text-text-secondary">
+                Temporarily hidden from directory
+              </span>
             </li>
           </ul>
 
-          <h3 className="text-sm font-medium text-text-primary mb-3 mt-6">Badges</h3>
+          <h3 className="text-sm font-medium text-text-primary mb-3 mt-6">
+            Badges
+          </h3>
           <ul className="space-y-2 text-xs">
             <li className="flex items-center gap-2">
               <span
                 className="inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: "rgb(203, 237, 182)", color: "rgb(34, 137, 9)" }}>
+                style={{
+                  backgroundColor: "rgb(203, 237, 182)",
+                  color: "rgb(34, 137, 9)",
+                }}
+              >
                 Convex Verified
               </span>
-              <span className="text-text-secondary">Reviewed and verified by the Convex team</span>
+              <span className="text-text-secondary">
+                Reviewed and verified by the Convex team
+              </span>
             </li>
             <li className="flex items-center gap-2">
               <span
                 className="inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded-full"
-                style={{ backgroundColor: "#E9DDC2", color: "rgb(87, 74, 48)" }}>
+                style={{ backgroundColor: "#E9DDC2", color: "rgb(87, 74, 48)" }}
+              >
                 Community
               </span>
-              <span className="text-text-secondary">Submitted by a community member</span>
+              <span className="text-text-secondary">
+                Submitted by a community member
+              </span>
             </li>
           </ul>
         </div>
 
         {/* Account help section */}
         <div className="mt-12 pt-6 border-t border-border">
-          <h3 className="text-sm font-medium text-text-primary mb-3">Need help?</h3>
+          <h3 className="text-sm font-medium text-text-primary mb-3">
+            Need help?
+          </h3>
           <div className="p-4 rounded-lg border border-border bg-white">
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 rounded-full bg-bg-secondary flex items-center justify-center flex-shrink-0">
                 <ChatCircleText size={16} className="text-text-secondary" />
               </div>
               <div className="flex-1">
-                <h4 className="text-sm font-medium text-text-primary">Remove a component or close your account</h4>
+                <h4 className="text-sm font-medium text-text-primary">
+                  Remove a component or close your account
+                </h4>
                 <p className="text-xs text-text-secondary mt-1">
-                  To request removal of a component from the directory, use the "Send Request" button on any of your submissions above. You can also use it to request account removal or any other changes. The Convex team will follow up in your Messages thread. You can also reach us directly at devx at convex . dev.
+                  To request removal of a component from the directory, use the
+                  "Send Request" button on any of your submissions above. You
+                  can also use it to request account removal or any other
+                  changes. The Convex team will follow up in your Messages
+                  thread. You can also reach us directly at devx at convex .
+                  dev.
                 </p>
               </div>
             </div>
@@ -1820,7 +2072,6 @@ export default function Profile() {
       {showApiUsageModal && (
         <ApiUsageModal onClose={() => setShowApiUsageModal(false)} />
       )}
-
     </div>
   );
 }
