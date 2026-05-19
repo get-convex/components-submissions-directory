@@ -87,7 +87,9 @@ export default function Directory() {
     setFeatured(feat);
   }, [convex, sortBy]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   useEffect(() => {
     // Keep one-shot fetches lightweight, but refetch when the page becomes active again
@@ -223,9 +225,9 @@ export default function Directory() {
                             ? "Newest"
                             : sortBy === "verified"
                               ? "Verified"
-                            : sortBy === "rating"
-                              ? "Highest rated"
-                              : "Recently updated"}
+                              : sortBy === "rating"
+                                ? "Highest rated"
+                                : "Recently updated"}
                       </span>
                     </span>
                     <ChevronDownIcon
@@ -298,9 +300,9 @@ export default function Directory() {
                         ? "Newest"
                         : sortBy === "verified"
                           ? "Verified"
-                        : sortBy === "rating"
-                          ? "Highest rated"
-                          : "Recently updated"}
+                          : sortBy === "rating"
+                            ? "Highest rated"
+                            : "Recently updated"}
                   </span>
                   <ChevronDownIcon
                     className={`w-3.5 h-3.5 text-text-secondary transition-transform ${sortOpen ? "rotate-180" : ""}`}
@@ -356,7 +358,7 @@ export default function Directory() {
               <section className="mb-10">
                 <h2 className="text-lg font-semibold text-text-primary mb-1">Featured</h2>
                 <p className="text-sm text-text-secondary mb-4">
-                  Bring out the latest and greatest with our featured components.
+                  New and popular components from the Convex team and community.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                   {featured!.slice(0, featuredFirstRowCount).map((comp) => (
@@ -456,13 +458,11 @@ export default function Directory() {
             )}
 
             {/* Grouped by category when no search/filter, otherwise flat grid */}
-            {components &&
-            displayComponents.length > 0 &&
-            !searchTerm.trim() ? (
+            {components && displayComponents.length > 0 && !searchTerm.trim() ? (
               <>
                 {categoryItems.map((cat) => {
                   const catComponents = displayComponents.filter(
-                    (c) => c.category === cat.category,
+                    (c) => c.category === cat.category
                   );
                   if (catComponents.length === 0) return null;
                   const sectionKey = `category:${cat.category}`;
@@ -511,9 +511,7 @@ export default function Directory() {
                 })}
                 {/* Uncategorized components */}
                 {displayComponents.filter(
-                  (c) =>
-                    !c.category ||
-                    !categoryItems.find((cat) => cat.category === c.category)
+                  (c) => !c.category || !categoryItems.find((cat) => cat.category === c.category)
                 ).length > 0 && (
                   <section className="mb-10">
                     <h2 className="text-lg font-semibold text-text-primary mb-1">Other</h2>
@@ -524,8 +522,7 @@ export default function Directory() {
                       {displayComponents
                         .filter(
                           (c) =>
-                            !c.category ||
-                            !categoryItems.find((cat) => cat.category === c.category)
+                            !c.category || !categoryItems.find((cat) => cat.category === c.category)
                         )
                         .slice(0, visibleBySection["category:__other__"] ?? groupedCardsPerLoad)
                         .map((comp) => (
@@ -552,7 +549,8 @@ export default function Directory() {
                         ))}
                     </div>
                     {displayComponents.filter(
-                      (c) => !c.category || !categoryItems.find((cat) => cat.category === c.category),
+                      (c) =>
+                        !c.category || !categoryItems.find((cat) => cat.category === c.category)
                     ).length > (visibleBySection["category:__other__"] ?? groupedCardsPerLoad) && (
                       <div className="mt-5 flex justify-center">
                         <button
@@ -569,27 +567,27 @@ export default function Directory() {
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {displayComponents.slice(0, flatVisibleCount).map((comp) => (
-                      <ComponentCard
-                        key={comp._id}
-                        name={comp.name}
-                        componentName={comp.componentName}
-                        slug={comp.slug}
-                        shortDescription={comp.shortDescription}
-                        description={comp.description}
-                        category={comp.category}
-                        thumbnailUrl={comp.thumbnailUrl}
-                        showThumbnail={!comp.hideThumbnailInCategory}
-                        authorUsername={comp.authorUsername}
-                        authorAvatar={comp.authorAvatar}
-                        weeklyDownloads={comp.weeklyDownloads}
-                        convexVerified={comp.convexVerified}
-                        communitySubmitted={comp.communitySubmitted}
-                        featured={comp.featured}
-                        npmUrl={comp.npmUrl}
-                        repositoryUrl={comp.repositoryUrl}
-                        className={directoryCardHoverClass}
-                      />
-                    ))}
+                    <ComponentCard
+                      key={comp._id}
+                      name={comp.name}
+                      componentName={comp.componentName}
+                      slug={comp.slug}
+                      shortDescription={comp.shortDescription}
+                      description={comp.description}
+                      category={comp.category}
+                      thumbnailUrl={comp.thumbnailUrl}
+                      showThumbnail={!comp.hideThumbnailInCategory}
+                      authorUsername={comp.authorUsername}
+                      authorAvatar={comp.authorAvatar}
+                      weeklyDownloads={comp.weeklyDownloads}
+                      convexVerified={comp.convexVerified}
+                      communitySubmitted={comp.communitySubmitted}
+                      featured={comp.featured}
+                      npmUrl={comp.npmUrl}
+                      repositoryUrl={comp.repositoryUrl}
+                      className={directoryCardHoverClass}
+                    />
+                  ))}
                 </div>
                 {hasMoreFlatResults && (
                   <div className="mt-5 flex justify-center">
@@ -611,21 +609,18 @@ export default function Directory() {
 
             {/* For Agents Section */}
             <section className="mt-12 pt-8 border-t border-border">
-              <h2 className="text-lg font-semibold text-text-primary mb-2">
-                For Agents
-              </h2>
+              <h2 className="text-lg font-semibold text-text-primary mb-2">For Agents</h2>
               <p className="text-sm text-text-secondary mb-4">
-                AI agents and coding assistants can consume the Convex Components Directory
-                through machine-readable content endpoints. These files auto-update as new
-                components are approved and listed.
+                AI agents and coding assistants can consume the Convex Components Directory through
+                machine-readable content endpoints. These files auto-update as new components are
+                approved and listed.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
                   href="/components/llms.txt"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-border text-text-primary hover:bg-bg-hover transition-colors"
-                >
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-border text-text-primary hover:bg-bg-hover transition-colors">
                   <Robot size={16} />
                   llms.txt
                   <ArrowSquareOut size={14} className="text-text-tertiary" />
@@ -634,8 +629,7 @@ export default function Directory() {
                   href="/components/components.md"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-border text-text-primary hover:bg-bg-hover transition-colors"
-                >
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-border text-text-primary hover:bg-bg-hover transition-colors">
                   <FileText size={16} />
                   components.md
                   <ArrowSquareOut size={14} className="text-text-tertiary" />
