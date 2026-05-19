@@ -358,7 +358,7 @@ export default function Directory() {
               <section className="mb-10">
                 <h2 className="text-lg font-semibold text-text-primary mb-1">Featured</h2>
                 <p className="text-sm text-text-secondary mb-4">
-                  New and popular components from the Convex team and community.
+                  New and popular components from the Convex team and community.{" "}
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                   {featured!.slice(0, featuredFirstRowCount).map((comp) => (
