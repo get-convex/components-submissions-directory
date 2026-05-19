@@ -2,6 +2,13 @@
 
 ## completed
 
+- [x] Submit form optional thumbnail upload with generation protection (2026-05-19 UTC)
+  - Submitters can upload 16:9 thumbnails on `SubmitForm.tsx`; uploads are protected from auto and manual generation via `thumbnailUploadedByUser`.
+  - Admin `ComponentDetailsEditor` hide-thumbnail checkbox now persists immediately (matches Admin inline Hide Thumb toggle).
+  - Profile `SubmissionCard` shows `thumbnailUrl` from `getMySubmissions` with no extra client changes.
+  - Files: `convex/schema.ts`, `convex/packages.ts`, `convex/thumbnails.ts`, `convex/thumbnailGenerator.ts`, `src/pages/SubmitForm.tsx`, `src/components/ComponentDetailsEditor.tsx`, `src/pages/Admin.tsx`, `files.md`, `changelog.md`, `task.md`
+  - Verification: `ReadLints` clean on edited frontend files; `npx tsc --noEmit -p convex/tsconfig.json` passed; `npm run build` passed (Netlify `npm run build` step).
+
 - [x] Restore GitHub owner avatar URLs for organizations (2026-05-15 04:34 UTC)
   - Root cause: author avatar generation used `https://avatars.githubusercontent.com/{owner}`, which can fail for organization owners such as `get-convex`.
   - Fix: restored `https://github.com/{owner}.png` in new submission author data, admin auto-fill, and the avatar URL migration path.

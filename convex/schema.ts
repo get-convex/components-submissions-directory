@@ -106,6 +106,8 @@ const applicationTables = {
     thumbnailUrl: v.optional(v.string()),
     // Convex file storage ID for uploaded thumbnail (16:9, max 3MB)
     thumbnailStorageId: v.optional(v.id("_storage")),
+    // True when submitter or admin uploaded a thumbnail file (skip auto/manual generation overwrite)
+    thumbnailUploadedByUser: v.optional(v.boolean()),
     // --- Logo and thumbnail generation fields ---
     // Convex file storage ID for the user-uploaded logo (png/webp/svg)
     logoStorageId: v.optional(v.id("_storage")),

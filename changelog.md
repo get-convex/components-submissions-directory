@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Optional component thumbnail upload on submit form (2026-05-19 UTC)
+  - `src/pages/SubmitForm.tsx`: submitters can upload a 16:9 thumbnail (.webp, .png, .jpg, max 3MB) below the logo field. Client validates type and size before submit. Upload runs after package creation (thumbnail before logo so auto-generation respects the upload).
+  - `convex/schema.ts`: added `thumbnailUploadedByUser` flag on packages.
+  - `convex/packages.ts`: `saveThumbnail` now allows package owners or admins and marks user uploads; `saveLogo` skips auto thumbnail generation when a user thumbnail exists; `updateComponentDetails` with `clearThumbnail` clears the flag; `toAdminPackage` exposes the flag for Admin.
+  - `convex/thumbnailGenerator.ts` and `convex/thumbnails.ts`: auto, manual, and batch generation skip packages with user-uploaded thumbnails; manual admin generation returns a clear error if a protected thumbnail exists.
+  - `src/components/ComponentDetailsEditor.tsx`: generate controls hidden when protected; hide-thumbnail checkbox saves immediately to stay in sync with Admin inline Hide Thumb toggle.
+  - `src/pages/Admin.tsx`: passes `thumbnailUploadedByUser` into `PackageComponentDetailsEditor`.
+  - Profile submission cards already read `thumbnailUrl` from `getMySubmissions`, so uploaded thumbnails appear after submit.
+  - Verification: `ReadLints` clean on edited frontend files; `npx tsc --noEmit -p convex/tsconfig.json` passed; `npm run build` passed (Netlify build step).
+
 - Share this page dropdown on the component detail sidebar (2026-04-21 17:37 UTC)
   - `src/pages/ComponentDetail.tsx`: added an inline `ShareThisPage` component rendered between the rating stars and the "How to get help" button. Supports Share on X, LinkedIn, Bluesky, Reddit, Mastodon, Other... (uses `navigator.share` when available, otherwise copies the URL), and Copy link with a check-icon confirmation. Styling matches the existing Markdown dropdown on the same page (white menu, `shadow-hover`, `hover:bg-bg-hover`), not a new dark variant.
   - Accessibility: trigger uses `aria-expanded` and `aria-haspopup="menu"`, menu uses `role="menu"` with `role="menuitem"` children, and an `sr-only` `aria-live="polite"` region announces "Link copied". Outside click and Escape both close the menu.

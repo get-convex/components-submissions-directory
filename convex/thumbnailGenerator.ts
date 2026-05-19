@@ -27,6 +27,16 @@ export const generateThumbnailForPackage = action({
   handler: async (ctx, args) => {
     await requireAdminIdentity(ctx);
 
+    const hasUserThumbnail: boolean = await ctx.runQuery(
+      internal.thumbnails._packageHasUserUploadedThumbnail,
+      { packageId: args.packageId },
+    );
+    if (hasUserThumbnail) {
+      throw new ConvexError(
+        "This component has a user-uploaded thumbnail. Clear it before generating a new one.",
+      );
+    }
+
     await ctx.scheduler.runAfter(
       0,
       internal.thumbnailGenerator._generateThumbnailForPackage,
@@ -84,6 +94,12 @@ export const _generateThumbnailForPackage = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const hasUserThumbnail: boolean = await ctx.runQuery(
+      internal.thumbnails._packageHasUserUploadedThumbnail,
+      { packageId: args.packageId },
+    );
+    if (hasUserThumbnail) return null;
+
     const jobId: Id<"thumbnailJobs"> = await ctx.runMutation(
       internal.thumbnails._createThumbnailJob,
       { packageId: args.packageId, templateId: args.templateId },
@@ -122,6 +138,11 @@ export const _generateThumbnailForPackage = internalAction({
 async function checkAutoGenPrereqs(ctx: any, packageId: Id<"packages">) {
   const enabled: boolean = await ctx.runQuery(internal.thumbnails._getAutoGenerateThumbnailEnabled, {});
   if (!enabled) return null;
+  const hasUserThumbnail: boolean = await ctx.runQuery(
+    internal.thumbnails._packageHasUserUploadedThumbnail,
+    { packageId },
+  );
+  if (hasUserThumbnail) return null;
   const logoData = await ctx.runQuery(internal.thumbnails._getPackageLogo, { packageId });
   if (!logoData) return null;
   const template = await ctx.runQuery(internal.thumbnails._getTemplateForSubmit, { packageId });
@@ -229,6 +250,12 @@ export const _autoGenerateThumbnailWithTemplate = internalAction({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const hasUserThumbnail: boolean = await ctx.runQuery(
+      internal.thumbnails._packageHasUserUploadedThumbnail,
+      { packageId: args.packageId },
+    );
+    if (hasUserThumbnail) return null;
+
     const [logoData, template] = await Promise.all([
       ctx.runQuery(internal.thumbnails._getPackageLogo, { packageId: args.packageId }),
       resolveTemplate(ctx, args.templateId).catch(() => null),

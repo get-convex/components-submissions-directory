@@ -365,8 +365,9 @@ const adminPackageValidator = v.object({
   logoStorageId: v.optional(v.id("_storage")),
   logoUrl: v.optional(v.string()),
   selectedTemplateId: v.optional(v.id("thumbnailTemplates")),
-  thumbnailGeneratedAt: v.optional(v.number()),
-  convexVerified: v.optional(v.boolean()),
+    thumbnailGeneratedAt: v.optional(v.number()),
+    thumbnailUploadedByUser: v.optional(v.boolean()),
+    convexVerified: v.optional(v.boolean()),
   communitySubmitted: v.optional(v.boolean()),
   authorUsername: v.optional(v.string()),
   authorAvatar: v.optional(v.string()),
@@ -655,6 +656,7 @@ function toAdminPackage(pkg: any) {
     logoUrl: pkg.logoUrl,
     selectedTemplateId: pkg.selectedTemplateId,
     thumbnailGeneratedAt: pkg.thumbnailGeneratedAt,
+    thumbnailUploadedByUser: pkg.thumbnailUploadedByUser,
     convexVerified: pkg.convexVerified,
     communitySubmitted: pkg.communitySubmitted,
     authorUsername: pkg.authorUsername,
@@ -5630,13 +5632,13 @@ export const saveThumbnail = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    await requireAdminIdentity(ctx);
-    // Resolve the storage URL for display
+    await requirePackageOwnerOrAdmin(ctx, args.packageId);
+
     const url = await ctx.storage.getUrl(args.storageId);
-    // Patch directly without reading first
-    await ctx.db.patch("packages", args.packageId, {
+    await ctx.db.patch(args.packageId, {
       thumbnailStorageId: args.storageId,
       thumbnailUrl: url ?? undefined,
+      thumbnailUploadedByUser: true,
     });
     return null;
   },
@@ -5670,12 +5672,14 @@ export const saveLogo = mutation({
       )
       .first();
     if (setting?.value) {
-      // Schedule auto-generation in background
-      await ctx.scheduler.runAfter(
-        0,
-        internal.thumbnailGenerator._autoGenerateThumbnail,
-        { packageId: args.packageId },
-      );
+      const pkg = await ctx.db.get(args.packageId);
+      if (pkg?.thumbnailUploadedByUser !== true) {
+        await ctx.scheduler.runAfter(
+          0,
+          internal.thumbnailGenerator._autoGenerateThumbnail,
+          { packageId: args.packageId },
+        );
+      }
     }
 
     return null;
@@ -5810,6 +5814,7 @@ export const updateComponentDetails = mutation({
     if (clearThumbnail) {
       patch.thumbnailUrl = undefined;
       patch.thumbnailStorageId = undefined;
+      patch.thumbnailUploadedByUser = undefined;
     }
     if (Object.keys(patch).length > 0) {
       await ctx.db.patch(packageId, patch);

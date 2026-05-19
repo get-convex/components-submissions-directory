@@ -33,6 +33,7 @@ interface ComponentDetailsEditorProps {
   videoUrl?: string;
   demoUrl?: string;
   thumbnailUrl?: string;
+  thumbnailUploadedByUser?: boolean;
   hideThumbnailInCategory?: boolean;
   convexVerified?: boolean;
   communitySubmitted?: boolean;
@@ -84,6 +85,7 @@ export function ComponentDetailsEditor({
   videoUrl: initialVideoUrl,
   demoUrl: initialDemoUrl,
   thumbnailUrl: initialThumbUrl,
+  thumbnailUploadedByUser: initialThumbnailUploadedByUser,
   hideThumbnailInCategory: initialHideThumbnailInCategory,
   convexVerified: initialVerified,
   communitySubmitted: initialCommunitySubmitted,
@@ -154,6 +156,9 @@ export function ComponentDetailsEditor({
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [clearingLogo, setClearingLogo] = useState(false);
   const [generatingThumb, setGeneratingThumb] = useState(false);
+  const [thumbnailUploadedByUser, setThumbnailUploadedByUser] = useState(
+    initialThumbnailUploadedByUser === true,
+  );
   const [selectedGenTemplate, setSelectedGenTemplate] = useState<
     Id<"thumbnailTemplates"> | ""
   >(initialSelectedTemplateId || "");
@@ -221,6 +226,10 @@ export function ComponentDetailsEditor({
   useEffect(() => {
     setHideThumbnailInCategory(initialHideThumbnailInCategory || false);
   }, [initialHideThumbnailInCategory]);
+
+  useEffect(() => {
+    setThumbnailUploadedByUser(initialThumbnailUploadedByUser === true);
+  }, [initialThumbnailUploadedByUser]);
 
   useEffect(() => {
     setLogoUrl(initialLogoUrl || "");
@@ -359,8 +368,8 @@ export function ComponentDetailsEditor({
 
       const { storageId } = await result.json();
 
-      // Save to the package
       await saveThumbnail({ packageId, storageId });
+      setThumbnailUploadedByUser(true);
       toast.success("Thumbnail uploaded");
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Upload failed";
@@ -427,7 +436,32 @@ export function ComponentDetailsEditor({
   };
 
   // Generate thumbnail from logo + template
+  const handleHideThumbnailInCategoryChange = async (checked: boolean) => {
+    setHideThumbnailInCategory(checked);
+    try {
+      await updateDetails({
+        packageId,
+        hideThumbnailInCategory: checked,
+      });
+      toast.success(
+        checked
+          ? "Thumbnail hidden in category listings"
+          : "Thumbnail shown in category listings",
+      );
+    } catch (error) {
+      setHideThumbnailInCategory(!checked);
+      const msg = error instanceof Error ? error.message : "Update failed";
+      toast.error(msg);
+    }
+  };
+
   const handleGenerateThumbnail = async () => {
+    if (thumbnailUploadedByUser) {
+      toast.error(
+        "This component has a user-uploaded thumbnail. Clear it before generating a new one.",
+      );
+      return;
+    }
     setGeneratingThumb(true);
     try {
       const args: {
@@ -705,7 +739,7 @@ export function ComponentDetailsEditor({
           </div>
 
           {/* Thumbnail generation controls */}
-          {logoUrl && (
+          {logoUrl && !thumbnailUploadedByUser && (
             <div className="mt-2 space-y-2">
               <label className="text-[10px] uppercase tracking-wider text-text-secondary block">
                 Generate Thumbnail
@@ -752,6 +786,12 @@ export function ComponentDetailsEditor({
               )}
             </div>
           )}
+          {thumbnailUploadedByUser && (
+            <p className="mt-2 text-[10px] text-text-secondary">
+              User-uploaded thumbnail is protected. Clear the thumbnail to
+              enable generation.
+            </p>
+          )}
         </div>
       )}
 
@@ -784,7 +824,10 @@ export function ComponentDetailsEditor({
           </button>
           {thumbnailUrl && (
             <button
-              onClick={() => setThumbnailUrl("")}
+              onClick={() => {
+                setThumbnailUrl("");
+                setThumbnailUploadedByUser(false);
+              }}
               disabled={uploading || saving}
               className="text-xs px-3 py-1.5 rounded bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
             >
@@ -802,7 +845,9 @@ export function ComponentDetailsEditor({
               type="checkbox"
               id={`hide-thumb-cat-${packageId}`}
               checked={hideThumbnailInCategory}
-              onChange={(e) => setHideThumbnailInCategory(e.target.checked)}
+              onChange={(e) =>
+                void handleHideThumbnailInCategoryChange(e.target.checked)
+              }
               className="rounded"
             />
             <label

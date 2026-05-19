@@ -418,6 +418,16 @@ export const _getTemplateById = internalQuery({
   },
 });
 
+// Internal: whether package has a user-uploaded thumbnail that must not be overwritten
+export const _packageHasUserUploadedThumbnail = internalQuery({
+  args: { packageId: v.id("packages") },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const pkg = await ctx.db.get(args.packageId);
+    return pkg?.thumbnailUploadedByUser === true;
+  },
+});
+
 // Internal: get package logo storage ID for generation
 export const _getPackageLogo = internalQuery({
   args: { packageId: v.id("packages") },
@@ -442,18 +452,25 @@ export const _saveGeneratedThumbnail = internalMutation({
     templateId: v.optional(v.id("thumbnailTemplates")),
     generatedBy: v.string(),
   },
+  returns: v.null(),
   handler: async (ctx, args) => {
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) return null;
+    if (pkg.thumbnailUploadedByUser === true) {
+      return null;
+    }
+
     const url = await ctx.storage.getUrl(args.storageId);
     await ctx.db.patch(args.packageId, {
       thumbnailStorageId: args.storageId,
       thumbnailUrl: url ?? undefined,
+      thumbnailUploadedByUser: false,
       selectedTemplateId: args.templateId,
       thumbnailGeneratedAt: Date.now(),
       thumbnailGeneratedBy: args.generatedBy,
-      thumbnailGenerationVersion:
-        ((await ctx.db.get(args.packageId))?.thumbnailGenerationVersion ?? 0) +
-        1,
+      thumbnailGenerationVersion: (pkg.thumbnailGenerationVersion ?? 0) + 1,
     });
+    return null;
   },
 });
 
@@ -485,7 +502,7 @@ export const _getPackagesWithLogos = internalQuery({
     const all = await ctx.db.query("packages").take(1000);
     const withLogos: Array<{ _id: Id<"packages">; thumbnailUrl?: string }> = [];
     for (const p of all) {
-      if (p.logoStorageId) {
+      if (p.logoStorageId && p.thumbnailUploadedByUser !== true) {
         withLogos.push({ _id: p._id, thumbnailUrl: p.thumbnailUrl });
       }
     }
