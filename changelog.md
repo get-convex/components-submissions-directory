@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Profile thumbnail upload and replace for owned submissions (2026-05-19 UTC)
+  - `src/pages/ProfileEditSubmission.tsx`: Edit flow from Profile (`/profile/edit/:packageId`) now mirrors SubmitForm thumbnail upload (preview, replace, remove, validation). Thumbnail uploads before logo on save so auto-generation respects user uploads.
+  - `src/pages/Profile.tsx`: legacy `EditModal` kept in sync with the same thumbnail controls.
+  - `convex/packages.ts`: `getMySubmissionForEdit` returns `thumbnailUrl` and `thumbnailUploadedByUser`; new `clearThumbnail` mutation for owners and admins.
+  - Verification: `ReadLints` clean; `npm run build` passed.
+
 - Optional component thumbnail upload on submit form (2026-05-19 UTC)
   - `src/pages/SubmitForm.tsx`: submitters can upload a 16:9 thumbnail (.webp, .png, .jpg, max 3MB) below the logo field. Client validates type and size before submit. Upload runs after package creation (thumbnail before logo so auto-generation respects the upload).
   - `convex/schema.ts`: added `thumbnailUploadedByUser` flag on packages.

@@ -2,6 +2,12 @@
 
 ## completed
 
+- [x] Profile edit thumbnail upload and replace (2026-05-19 UTC)
+  - Users can add, replace, or remove thumbnails from Profile edit (`ProfileEditSubmission.tsx`, linked from Profile Edit button).
+  - Backend: `clearThumbnail` mutation; `getMySubmissionForEdit` includes thumbnail fields.
+  - Files: `convex/packages.ts`, `src/pages/ProfileEditSubmission.tsx`, `src/pages/Profile.tsx`, `files.md`, `changelog.md`, `task.md`
+  - Verification: `npm run build` passed.
+
 - [x] Submit form optional thumbnail upload with generation protection (2026-05-19 UTC)
   - Submitters can upload 16:9 thumbnails on `SubmitForm.tsx`; uploads are protected from auto and manual generation via `thumbnailUploadedByUser`.
   - Admin `ComponentDetailsEditor` hide-thumbnail checkbox now persists immediately (matches Admin inline Hide Thumb toggle).

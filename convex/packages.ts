@@ -5250,6 +5250,8 @@ export const getMySubmissionForEdit = query({
       demoUrl: v.optional(v.string()),
       videoUrl: v.optional(v.string()),
       logoUrl: v.optional(v.string()),
+      thumbnailUrl: v.optional(v.string()),
+      thumbnailUploadedByUser: v.optional(v.boolean()),
       repositoryUrl: v.optional(v.string()),
       npmUrl: v.string(),
       generatedDescription: v.optional(v.string()),
@@ -5287,6 +5289,8 @@ export const getMySubmissionForEdit = query({
       demoUrl: pkg.demoUrl,
       videoUrl: pkg.videoUrl,
       logoUrl: pkg.logoUrl,
+      thumbnailUrl: pkg.thumbnailUrl,
+      thumbnailUploadedByUser: pkg.thumbnailUploadedByUser,
       repositoryUrl: pkg.repositoryUrl,
       npmUrl: pkg.npmUrl,
       generatedDescription: pkg.generatedDescription,
@@ -5697,6 +5701,23 @@ export const clearLogo = mutation({
     await ctx.db.patch(args.packageId, {
       logoStorageId: undefined,
       logoUrl: undefined,
+    });
+    return null;
+  },
+});
+
+// Clear the thumbnail from a package (owner or admin)
+export const clearThumbnail = mutation({
+  args: {
+    packageId: v.id("packages"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requirePackageOwnerOrAdmin(ctx, args.packageId);
+    await ctx.db.patch(args.packageId, {
+      thumbnailUrl: undefined,
+      thumbnailStorageId: undefined,
+      thumbnailUploadedByUser: undefined,
     });
     return null;
   },

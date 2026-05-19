@@ -39,6 +39,9 @@ function useBasePath() {
   return "/components";
 }
 
+const THUMBNAIL_MAX_BYTES = 3 * 1024 * 1024;
+const THUMBNAIL_ALLOWED_TYPES = ["image/webp", "image/png", "image/jpeg"];
+
 // Badge snippet component for showing README badge markdown
 function BadgeSnippet({ slug }: { slug: string }) {
   const [copied, setCopied] = useState(false);
@@ -540,6 +543,8 @@ function EditModal({
   const generateUploadUrl = useMutation(api.packages.generateUploadUrl);
   const saveLogo = useMutation(api.packages.saveLogo);
   const clearLogo = useMutation(api.packages.clearLogo);
+  const saveThumbnail = useMutation(api.packages.saveThumbnail);
+  const clearThumbnail = useMutation(api.packages.clearThumbnail);
   const previewContent = useAction(api.seoContent.previewDirectoryContent);
 
   const [componentName, setComponentName] = useState("");
@@ -552,6 +557,9 @@ function EditModal({
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [currentLogoUrl, setCurrentLogoUrl] = useState("");
   const [clearExistingLogo, setClearExistingLogo] = useState(false);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [currentThumbnailUrl, setCurrentThumbnailUrl] = useState("");
+  const [clearExistingThumbnail, setClearExistingThumbnail] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // V2 content state
@@ -578,6 +586,9 @@ function EditModal({
       setCurrentLogoUrl(submission.logoUrl || "");
       setLogoFile(null);
       setClearExistingLogo(false);
+      setCurrentThumbnailUrl(submission.thumbnailUrl || "");
+      setThumbnailFile(null);
+      setClearExistingThumbnail(false);
       setGeneratedDescription(submission.generatedDescription || "");
       setGeneratedUseCases(submission.generatedUseCases || "");
       setGeneratedHowItWorks(submission.generatedHowItWorks || "");
@@ -669,6 +680,24 @@ function EditModal({
         readmeIncludedMarkdown: readmeIncludedMarkdown || undefined,
         readmeIncludeSource: readmeIncludeSource || undefined,
       });
+
+      if (clearExistingThumbnail && currentThumbnailUrl && !thumbnailFile) {
+        await clearThumbnail({ packageId });
+      }
+
+      if (thumbnailFile) {
+        const thumbUploadUrl = await generateUploadUrl();
+        const thumbRes = await fetch(thumbUploadUrl, {
+          method: "POST",
+          headers: { "Content-Type": thumbnailFile.type },
+          body: thumbnailFile,
+        });
+        if (!thumbRes.ok) {
+          throw new Error("Thumbnail upload failed");
+        }
+        const { storageId: thumbStorageId } = await thumbRes.json();
+        await saveThumbnail({ packageId, storageId: thumbStorageId });
+      }
 
       if (clearExistingLogo && currentLogoUrl && !logoFile) {
         await clearLogo({ packageId });
@@ -1040,8 +1069,93 @@ function EditModal({
               )}
 
               <p className="text-xs text-text-tertiary">
-                PNG, WebP, or SVG. Saving will replace the current logo and can
-                regenerate the thumbnail if that admin setting is enabled.
+                PNG, WebP, or SVG. Auto thumbnail generation only runs when you
+                have not uploaded your own thumbnail.
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1">
+              Component Thumbnail
+            </label>
+            <div className="rounded-lg border border-border bg-bg-primary p-3 space-y-3">
+              {currentThumbnailUrl &&
+                !clearExistingThumbnail &&
+                !thumbnailFile && (
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={currentThumbnailUrl}
+                      alt={`${submission.name} thumbnail`}
+                      className="h-[45px] w-20 rounded border border-border bg-white object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setThumbnailFile(null);
+                        setClearExistingThumbnail(true);
+                      }}
+                      disabled={isSubmitting}
+                      className="px-3 py-1.5 rounded-full text-xs font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors disabled:opacity-50"
+                    >
+                      Remove current thumbnail
+                    </button>
+                  </div>
+                )}
+
+              {clearExistingThumbnail && !thumbnailFile && (
+                <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-white px-3 py-2">
+                  <p className="text-xs text-text-secondary">
+                    Current thumbnail will be removed when you save.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setClearExistingThumbnail(false)}
+                    disabled={isSubmitting}
+                    className="px-3 py-1.5 rounded-full text-xs font-normal border border-border text-text-secondary hover:bg-bg-hover transition-colors disabled:opacity-50"
+                  >
+                    Keep thumbnail
+                  </button>
+                </div>
+              )}
+
+              <input
+                type="file"
+                accept="image/webp,image/png,image/jpeg,.webp,.png,.jpg,.jpeg"
+                onChange={(e) => {
+                  const nextFile = e.target.files?.[0] || null;
+                  if (!nextFile) {
+                    setThumbnailFile(null);
+                    return;
+                  }
+                  if (!THUMBNAIL_ALLOWED_TYPES.includes(nextFile.type)) {
+                    toast.error("Only .webp, .png, and .jpg files are allowed");
+                    e.target.value = "";
+                    return;
+                  }
+                  if (nextFile.size > THUMBNAIL_MAX_BYTES) {
+                    toast.error("Thumbnail must be under 3MB");
+                    e.target.value = "";
+                    return;
+                  }
+                  setThumbnailFile(nextFile);
+                  setClearExistingThumbnail(false);
+                }}
+                disabled={isSubmitting}
+                className="w-full text-sm text-text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-medium file:bg-bg-secondary file:text-text-primary hover:file:bg-bg-hover"
+              />
+
+              {thumbnailFile && (
+                <p className="text-xs text-text-secondary">
+                  Selected thumbnail:{" "}
+                  <span className="text-text-primary">{thumbnailFile.name}</span>
+                </p>
+              )}
+
+              <p className="text-xs text-text-tertiary">
+                16:9, 1536x864 recommended. .webp, .png, or .jpg, max 3MB. Your
+                upload will not be replaced by auto or manual thumbnail
+                generation.
               </p>
             </div>
           </div>
