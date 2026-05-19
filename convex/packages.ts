@@ -1091,7 +1091,7 @@ function buildPackageInsertData(args: any, validated: any, packageName: string, 
 
   const authorUsername = validated.parsedRepo?.owner;
   const authorAvatar = validated.parsedRepo
-    ? `https://avatars.githubusercontent.com/${validated.parsedRepo.owner}`
+    ? `https://github.com/${validated.parsedRepo.owner}.png`
     : undefined;
 
   let skillMd: string | undefined;
@@ -5721,7 +5721,7 @@ export const autoFillAuthorFromRepo = mutation({
 
     const owner = match[1];
     const authorUsername = owner;
-    const authorAvatar = `https://avatars.githubusercontent.com/${owner}`;
+    const authorAvatar = `https://github.com/${owner}.png`;
 
     // Always overwrite when admin clicks auto-fill
     await ctx.db.patch("packages", args.packageId, { authorUsername, authorAvatar });
@@ -6619,9 +6619,8 @@ export const generateMissingSlugs = mutation({
 
 // ============ AVATAR URL MIGRATION ============
 
-// Admin mutation: Migrate old GitHub avatar URLs to the new format
-// Old: https://github.com/{username}.png
-// New: https://avatars.githubusercontent.com/{username}
+// Admin mutation: Migrate CDN avatar URLs back to GitHub owner avatars.
+// Keep https://github.com/{owner}.png so organization avatars resolve.
 export const migrateAvatarUrls = mutation({
   args: {},
   returns: v.object({
@@ -6637,13 +6636,13 @@ export const migrateAvatarUrls = mutation({
     let skipped = 0;
 
     for (const pkg of packages) {
-      const oldPattern = /^https:\/\/github\.com\/([^/]+)\.png$/;
-      
-      if (pkg.authorAvatar && oldPattern.test(pkg.authorAvatar)) {
-        const match = pkg.authorAvatar.match(oldPattern);
+      const cdnPattern = /^https:\/\/avatars\.githubusercontent\.com\/([^/?#]+)(?:[?#].*)?$/;
+
+      if (pkg.authorAvatar && cdnPattern.test(pkg.authorAvatar)) {
+        const match = pkg.authorAvatar.match(cdnPattern);
         if (match) {
           const username = match[1];
-          const newUrl = `https://avatars.githubusercontent.com/${username}`;
+          const newUrl = `https://github.com/${username}.png`;
           await ctx.db.patch(pkg._id, { authorAvatar: newUrl });
           updated++;
         }

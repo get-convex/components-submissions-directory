@@ -2,6 +2,13 @@
 
 ## completed
 
+- [x] Restore GitHub owner avatar URLs for organizations (2026-05-15 04:34 UTC)
+  - Root cause: author avatar generation used `https://avatars.githubusercontent.com/{owner}`, which can fail for organization owners such as `get-convex`.
+  - Fix: restored `https://github.com/{owner}.png` in new submission author data, admin auto-fill, and the avatar URL migration path.
+  - Guardrail: documented that owner avatars should not be changed back to the CDN username format.
+  - Files: `convex/packages.ts`, `task.md`, `changelog.md`, `files.md`
+  - Verification: `ReadLints` clean on edited files; `npx tsc --noEmit -p convex/tsconfig.json` passed.
+
 - [x] Add Auto AI Review completion status to Slack when enabled (2026-05-04 18:50 UTC)
   - PRD: `prds/auto-ai-review-slack-status.md`
   - Fix: `convex/packages.ts` now sends one grouped completion Slack message when `autoAiReview` is enabled and both security scan and AI review have terminal results. If `autoAiReview` is off, the existing security-only Slack completion message still sends unchanged.

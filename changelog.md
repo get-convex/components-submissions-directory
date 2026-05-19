@@ -31,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- GitHub avatar URLs now use `https://github.com/{owner}.png` again (2026-05-15 04:34 UTC)
+  - `convex/packages.ts`: restored avatar generation for new submissions and admin author auto-fill so organization avatars such as `get-convex` load correctly.
+  - `migrateAvatarUrls` now converts `https://avatars.githubusercontent.com/{owner}` values back to `https://github.com/{owner}.png`.
+  - Keep this format. Do not change owner-based avatars back to `avatars.githubusercontent.com` by username because that can break organization avatars.
+
 - Related components now appear below the sidebar on mobile component detail pages (2026-05-04 18:49 UTC)
   - `src/pages/ComponentDetail.tsx`: extracted the Related Components card grid into a shared renderer, kept the desktop placement at the bottom of the main content column, and rendered the mobile copy after the sidebar so the page reads main content, sidebar, then related components on narrow screens.
   - `files.md`: updated the component detail page description to document the desktop and mobile placement behavior.
