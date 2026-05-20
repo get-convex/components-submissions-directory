@@ -47,6 +47,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Removed admin-only `/components/documentation` from `sitemap.xml` (2026-05-20 UTC)
+  - `convex/http.ts`: documentation routes are `noindex, nofollow` (SPA, edge function, and docs) so they should not appear in the sitemap.
+
 - GitHub avatar URLs now use `https://github.com/{owner}.png` again (2026-05-15 04:34 UTC)
   - `convex/packages.ts`: restored avatar generation for new submissions and admin author auto-fill so organization avatars such as `get-convex` load correctly.
   - `migrateAvatarUrls` now converts `https://avatars.githubusercontent.com/{owner}` values back to `https://github.com/{owner}.png`.

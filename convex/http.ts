@@ -1345,11 +1345,6 @@ http.route({
         changefreq: "weekly",
         priority: "0.4",
       },
-      {
-        loc: `${origin}/components/documentation`,
-        changefreq: "monthly",
-        priority: "0.4",
-      },
     ];
 
     const urls: string[] = [];
