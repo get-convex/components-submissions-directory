@@ -1,7 +1,6 @@
 import posthog from "posthog-js";
 import { PostHogProvider as Provider } from "posthog-js/react";
 import { useEffect } from "react";
-import PostHogPageView from "./PostHogPageView";
 import { useAnalyticsCookies } from "../lib/useAnalyticsCookies";
 
 export default function PostHogProvider({
@@ -24,7 +23,6 @@ export default function PostHogProvider({
       api_host: apiHost,
       ui_host: "https://us.posthog.com/",
       debug: false,
-      capture_pageview: false,
       // Cookieless tracking by default until consent is given.
       // https://posthog.com/tutorials/cookieless-tracking
       persistence: "memory",
@@ -40,9 +38,6 @@ export default function PostHogProvider({
   }, [allowsCookies]);
 
   return (
-    <Provider client={posthog}>
-      <PostHogPageView />
-      {children}
-    </Provider>
+    <Provider client={posthog}>{children}</Provider>
   );
 }
