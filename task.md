@@ -2,6 +2,12 @@
 
 ## completed
 
+- [x] Clarify submit form "Component Directory Content" is optional (2026-05-27 20:12 UTC)
+  - User reported confusion when submitting without clicking "Generate Content." Investigated backend: all generated content fields are `v.optional()` in schema, action args, and insert mutation. No server validation requires them.
+  - Fix: added "(optional)" label and updated helper text to explain users can skip and add content later from their profile.
+  - Files: `src/pages/SubmitForm.tsx`, `changelog.md`, `task.md`, `files.md`
+  - Verification: `ReadLints` clean; `npm run build` passed.
+
 - [x] Profile edit thumbnail upload and replace (2026-05-19 UTC)
   - Users can add, replace, or remove thumbnails from Profile edit (`ProfileEditSubmission.tsx`, linked from Profile Edit button).
   - Backend: `clearThumbnail` mutation; `getMySubmissionForEdit` includes thumbnail fields.

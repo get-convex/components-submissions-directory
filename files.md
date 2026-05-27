@@ -113,7 +113,7 @@ Preflight checker page at `/components/submit/check`. Allows developers to valid
 
 ### `src/pages/SubmitForm.tsx`
 
-Public component submission form. Uses the v2 generated content workflow for Description, Use cases, How it works, and README preview instead of the older long-description-first flow. The submit page now opens a warning modal before AI generation, passes source metadata into the preview action, and is covered by the shared backend `once per hour per signed-in account` cooldown used to discourage unnecessary regenerations. Optional logo upload (png, webp, svg) and optional component thumbnail upload (webp, png, jpg, max 3MB, 16:9 recommended) appear below Video URL. After `submitPackage`, the client uploads thumbnail first then logo so `saveLogo` auto-generation respects user thumbnails via `thumbnailUploadedByUser`.
+Public component submission form. Uses the v2 generated content workflow for Description, Use cases, How it works, and README preview instead of the older long-description-first flow. The "Component Directory Content" section is labeled "(optional)" with helper text explaining users can skip and generate content later from their profile. The submit page opens a warning modal before AI generation, passes source metadata into the preview action, and is covered by the shared backend `once per hour per signed-in account` cooldown used to discourage unnecessary regenerations. Optional logo upload (png, webp, svg) and optional component thumbnail upload (webp, png, jpg, max 3MB, 16:9 recommended) appear below Video URL. After `submitPackage`, the client uploads thumbnail first then logo so `saveLogo` auto-generation respects user thumbnails via `thumbnailUploadedByUser`.
 
 ### `convex/apiKeys.ts`
 

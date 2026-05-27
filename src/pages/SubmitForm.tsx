@@ -615,7 +615,7 @@ export default function SubmitForm() {
             <div className="pt-4 border-t border-border">
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium text-text-primary">
-                  Component Directory Content
+                  Component Directory Content (optional){" "}
                 </label>
                 {contentGenerated && (
                   <span className="text-xs text-green-600 font-medium flex items-center gap-1">
@@ -625,7 +625,8 @@ export default function SubmitForm() {
               </div>
               <p className="text-xs text-text-secondary mb-3">
                 Generate a description, use cases, and "how it works" section from your GitHub
-                README and npm package. You can edit the results before submitting.
+                README and npm package. You can edit the results before submitting. If you skip this
+                step, you can generate content later from your profile page.
               </p>
               <button
                 type="button"

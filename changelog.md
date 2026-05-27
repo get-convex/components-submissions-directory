@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Submit form "Component Directory Content" section now marked as optional (2026-05-27 UTC)
+  - `src/pages/SubmitForm.tsx`: label shows "(optional)" in tertiary text; helper text explains users can skip and generate content later from their profile page.
+  - Context: a user reported confusion thinking content generation was required before submitting. Generated content fields have always been optional on the backend.
+
 ### Added
 
 - Profile thumbnail upload and replace for owned submissions (2026-05-19 UTC)
