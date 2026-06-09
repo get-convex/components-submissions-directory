@@ -215,6 +215,13 @@ Session updates complete on 2026-04-21 UTC.
 
 ## to do
 
+- [ ] Component pages: HTTP one-shot load so Googlebot can render content (2026-06-09 10:38 UTC)
+  - Problem: `convex.dev/components/*` stuck at "Discovered - currently not indexed". GSC Live Test showed an empty render; console showed the Convex websocket stuck `connecting` with `ModifyQuerySet` messages never sent, so content never loads for Googlebot.
+  - Fix: load initial component data over HTTP via `ConvexHttpClient` (same `/api/query` the edge function uses), keep the live `useQuery` for reactivity. Frontend-only, no Convex deploy.
+  - PRD: `prds/component-http-fallback.md`
+  - Files: `src/lib/convexHttp.ts` (new), `src/pages/ComponentDetail.tsx`
+  - Validation: GSC URL Inspection Live Test (rendered HTML + screenshot populated), Request Indexing, confirm live features still work.
+
 - [x] Mirror all comment/note writes to Slack (2026-04-18)
   - `addPackageComment`: removed `if (!isAdmin)` gate, Slack now fires for both admin and submitter with role-based `From:` label
   - `requestSubmissionRefresh`: added Slack notification after `packageComments` insert (`From: Submitter`)

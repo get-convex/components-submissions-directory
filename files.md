@@ -617,6 +617,10 @@ Admin editor for directory-specific fields: slug, category, tags, descriptions, 
 
 "Use with agents and CLI" section for ComponentDetail page. Rendered by `ComponentDetail.tsx` only for `in_review` and `approved` review states. Shows single copy prompt optimized for AI agents (Claude style) using the shared Diffs-based `CodeBlock` renderer, plus an agent-friendly summary with install command, setup steps, and verification checklist. Multi-platform MCP install section (Cursor, Claude Desktop, ChatGPT tabs) and MCP ready badge are temporarily commented out while public host MCP routing is being debugged. Code preserved for easy re-enablement. Respects feature flags (VITE_AGENT_INSTALL_ENABLED, VITE_MCP_BADGES_ENABLED, VITE_MCP_ENABLED) for controlled rollout.
 
+### `src/lib/convexHttp.ts`
+
+Module-level `ConvexHttpClient` plus the `useComponentBySlug(slug)` hook. The hook reads component data through the reactive `useQuery` websocket subscription and, in parallel, issues a one-shot HTTP query to the same public `packages:getComponentBySlug` function (the `/api/query` endpoint). It returns the live value once the websocket connects and the HTTP result otherwise, preserving the `undefined` (loading) / `null` (not found) / document contract. This lets search engine renderers (e.g. Googlebot), which often cannot complete the Convex websocket within their render budget, still receive content so `ComponentDetail.tsx` renders a crawlable page.
+
 ### `src/lib/categories.ts`
 
 Static category definitions and `getCategoryLabel` helper.

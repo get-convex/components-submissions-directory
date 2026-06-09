@@ -20,6 +20,7 @@ import Header from "../components/Header";
 import CodeBlock from "../components/CodeBlock";
 import { Markdown } from "../components/Markdown";
 import { useDirectoryCategories } from "../lib/categories";
+import { useComponentBySlug } from "../lib/convexHttp";
 import { buildComponentClientUrls } from "../../shared/componentUrls";
 import {
   setComponentSeoTags,
@@ -887,7 +888,9 @@ interface GitHubIssue {
 }
 
 export default function ComponentDetail({ slug }: ComponentDetailProps) {
-  const component = useQuery(api.packages.getComponentBySlug, { slug });
+  // Loads over websocket (reactive) with a one-shot HTTP fallback so search
+  // engine renderers that cannot complete the websocket still get content.
+  const component = useComponentBySlug(slug);
   const relatedComponents = useQuery(
     api.packages.getRelatedComponents,
     component ? { packageId: component._id } : "skip",

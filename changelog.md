@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- HTTP one-shot load for component detail pages so search engine renderers can index content (2026-06-09 10:38 UTC)
+  - `src/lib/convexHttp.ts` (new): module-level `ConvexHttpClient` and `useComponentBySlug` hook that returns the live `useQuery` value when the websocket is connected and a one-shot HTTP result (`/api/query`) otherwise.
+  - `src/pages/ComponentDetail.tsx`: swapped the single `useQuery(api.packages.getComponentBySlug, ...)` call for `useComponentBySlug(slug)`; loading/not-found branches unchanged.
+  - Context: Google Search Console showed `convex.dev/components/*` stuck at "Discovered - currently not indexed". The Live URL test rendered an empty page; the captured console showed the Convex websocket stuck `connecting` with `ModifyQuerySet` messages never sent, so content never loaded for Googlebot. HTTP completes inside the render budget, so content now renders for crawlers that execute JS. Frontend-only; reuses the already-deployed public query (no Convex deploy). No-JS/AI crawlers still need server HTML (edge injection or Next.js SSR) as a follow-up.
+  - PRD: `prds/component-http-fallback.md`
+  - Verification: `ReadLints` clean on edited files; `npx tsc -p . --noEmit` passed; `npx vite build` passed.
+
 - Profile thumbnail upload and replace for owned submissions (2026-05-19 UTC)
   - `src/pages/ProfileEditSubmission.tsx`: Edit flow from Profile (`/profile/edit/:packageId`) now mirrors SubmitForm thumbnail upload (preview, replace, remove, validation). Thumbnail uploads before logo on save so auto-generation respects user uploads.
   - `src/pages/Profile.tsx`: legacy `EditModal` kept in sync with the same thumbnail controls.
