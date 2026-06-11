@@ -1,6 +1,8 @@
 // Pure helper to build SKILL.md from v2 content model fields.
 // Shared between seoContent.ts (action, "use node") and packages.ts / seoContentDb.ts (mutations).
 
+import { normalizeMarkdown } from "./normalizeMarkdown";
+
 export interface SkillMdContentInput {
   description: string;
   useCases: string;
@@ -58,11 +60,11 @@ export function buildSkillMdFromContent(
   lines.push("");
   lines.push("## Use cases");
   lines.push("");
-  lines.push(content.useCases);
+  lines.push(normalizeMarkdown(content.useCases));
   lines.push("");
   lines.push("## How it works");
   lines.push("");
-  lines.push(content.howItWorks);
+  lines.push(normalizeMarkdown(content.howItWorks));
   lines.push("");
   lines.push("## When NOT to use");
   lines.push("");

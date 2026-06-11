@@ -15,6 +15,7 @@ import {
   DEFAULT_CONTENT_PROMPT_TEMPLATE,
 } from "../shared/seoPromptTemplate";
 import { buildSkillMdFromContent } from "../shared/buildSkillMd";
+import { normalizeMarkdown } from "../shared/normalizeMarkdown";
 
 // Helper to call AI provider with unified interface
 async function callAiProvider(
@@ -848,7 +849,11 @@ function parseContentAiResponse(raw: string): ContentGenerationResponse {
   if (!parsed.description || !parsed.useCases || !parsed.howItWorks) {
     throw new ConvexError("AI response missing required content fields");
   }
-  return parsed;
+  return {
+    description: parsed.description,
+    useCases: normalizeMarkdown(parsed.useCases),
+    howItWorks: normalizeMarkdown(parsed.howItWorks),
+  };
 }
 
 export const generateDirectoryContent = internalAction({

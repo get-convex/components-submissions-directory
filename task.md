@@ -2,6 +2,12 @@
 
 ## completed
 
+- [x] Fix Unicode bullet use-case lists rendering as one paragraph (2026-06-11 13:30 UTC)
+  - Root cause: LLM-generated `generatedUseCases` used `•` instead of markdown `-` list markers.
+  - Fix: composable `normalizeMarkdown` pipeline in `shared/normalizeMarkdown.ts`; applied at render, save, and export; prompt now requires `- ` per line.
+  - Files: `shared/normalizeMarkdown.ts`, `shared/seoPromptTemplate.ts`, `src/components/Markdown.tsx`, `convex/seoContent.ts`, `convex/packages.ts`, `convex/http.ts`, `convex/router.ts`, `shared/buildSkillMd.ts`, `changelog.md`, `task.md`, `files.md`
+  - Verification: `npx tsc --noEmit` passed.
+
 - [x] Clarify submit form "Component Directory Content" is optional (2026-05-27 20:12 UTC)
   - User reported confusion when submitting without clicking "Generate Content." Investigated backend: all generated content fields are `v.optional()` in schema, action args, and insert mutation. No server validation requires them.
   - Fix: added "(optional)" label and updated helper text to explain users can skip and add content later from their profile.

@@ -2,6 +2,7 @@ import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { buildComponentUrls } from "../shared/componentUrls";
+import { normalizeMarkdown } from "../shared/normalizeMarkdown";
 import { resolveApiCaller, rateLimitHeaders, type ApiCallerResult } from "./apiKeys";
 
 const http = httpRouter();
@@ -216,12 +217,12 @@ function buildComponentMarkdown(pkg: any): string {
 
     if (pkg.generatedUseCases) {
       lines.push(`## Use cases\n`);
-      lines.push(`${pkg.generatedUseCases}\n`);
+      lines.push(`${normalizeMarkdown(pkg.generatedUseCases)}\n`);
     }
 
     if (pkg.generatedHowItWorks) {
       lines.push(`## How it works\n`);
-      lines.push(`${pkg.generatedHowItWorks}\n`);
+      lines.push(`${normalizeMarkdown(pkg.generatedHowItWorks)}\n`);
     }
 
     if (pkg.readmeIncludedMarkdown) {
@@ -419,13 +420,13 @@ http.route({
 
       if (pkg.generatedUseCases) {
         lines.push("## Use Cases");
-        lines.push(pkg.generatedUseCases);
+        lines.push(normalizeMarkdown(pkg.generatedUseCases));
         lines.push("");
       }
 
       if (pkg.generatedHowItWorks) {
         lines.push("## How It Works");
-        lines.push(pkg.generatedHowItWorks);
+        lines.push(normalizeMarkdown(pkg.generatedHowItWorks));
         lines.push("");
       }
     } else {
@@ -1199,7 +1200,7 @@ http.route({
       const clientIp = getClientIp(request);
       const { hashIp, normalizeRepoUrl } = await import("./preflight");
       const hashedIp = await hashIp(clientIp);
-      const normalizedUrl = normalizeRepoUrl(body.repoUrl!);
+      const normalizedUrl = normalizeRepoUrl(body.repoUrl);
 
       // Check rate limit
       const rateLimitCheck = await ctx.runQuery(internal.preflight._checkRateLimit, {

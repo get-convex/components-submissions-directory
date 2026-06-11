@@ -13,6 +13,7 @@ import { getAdminIdentity, requireAdminIdentity } from "./auth";
 import { api, internal } from "./_generated/api";
 import { Id, Doc } from "./_generated/dataModel";
 import { buildSkillMdFromContent } from "../shared/buildSkillMd";
+import { normalizeMarkdown } from "../shared/normalizeMarkdown";
 
 // ============ HELPER: Recount category package/verified counts ============
 // Recalculates denormalized counts on the categories table after approval/visibility changes.
@@ -1096,8 +1097,15 @@ function buildPackageInsertData(args: any, validated: any, packageName: string, 
     ? `https://github.com/${validated.parsedRepo.owner}.png`
     : undefined;
 
+  const generatedUseCases = args.generatedUseCases
+    ? normalizeMarkdown(args.generatedUseCases)
+    : undefined;
+  const generatedHowItWorks = args.generatedHowItWorks
+    ? normalizeMarkdown(args.generatedHowItWorks)
+    : undefined;
+
   let skillMd: string | undefined;
-  if (args.generatedDescription && args.generatedUseCases && args.generatedHowItWorks) {
+  if (args.generatedDescription && generatedUseCases && generatedHowItWorks) {
     skillMd = buildSkillMdFromContent(
       {
         name: packageName,
@@ -1112,8 +1120,8 @@ function buildPackageInsertData(args: any, validated: any, packageName: string, 
       },
       {
         description: args.generatedDescription,
-        useCases: args.generatedUseCases,
-        howItWorks: args.generatedHowItWorks,
+        useCases: generatedUseCases,
+        howItWorks: generatedHowItWorks,
       },
     );
   }
@@ -1136,8 +1144,8 @@ function buildPackageInsertData(args: any, validated: any, packageName: string, 
     authorAvatar,
     communitySubmitted: true,
     generatedDescription: args.generatedDescription,
-    generatedUseCases: args.generatedUseCases,
-    generatedHowItWorks: args.generatedHowItWorks,
+    generatedUseCases,
+    generatedHowItWorks,
     readmeIncludedMarkdown: args.readmeIncludedMarkdown,
     readmeIncludeSource: args.readmeIncludeSource,
     contentModelVersion: args.generatedDescription ? 2 : undefined,
@@ -5165,6 +5173,12 @@ function buildSubmissionUpdates(args: any, pkg: any) {
   ] as const;
   for (const f of fields) {
     if (args[f] !== undefined) updates[f] = args[f];
+  }
+  if (typeof updates.generatedUseCases === "string") {
+    updates.generatedUseCases = normalizeMarkdown(updates.generatedUseCases);
+  }
+  if (typeof updates.generatedHowItWorks === "string") {
+    updates.generatedHowItWorks = normalizeMarkdown(updates.generatedHowItWorks);
   }
 
   if (

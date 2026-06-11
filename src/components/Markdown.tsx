@@ -9,6 +9,7 @@ import {
   resolveRepositoryImageSrc,
   resolveRepositoryMarkdownHref,
 } from "../lib/markdownLinks";
+import { normalizeMarkdown } from "../../shared/normalizeMarkdown";
 
 const VIDEO_EXT_RE = /\.(mp4|webm|mov)(\?.*)?$/i;
 
@@ -121,13 +122,14 @@ export function Markdown({ children, repositoryUrl }: MarkdownProps) {
     () => buildComponents(repositoryUrl),
     [repositoryUrl],
   );
+  const normalized = useMemo(() => normalizeMarkdown(children), [children]);
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm, remarkAlert]}
       rehypePlugins={[rehypeRaw]}
       components={components as never}
     >
-      {children}
+      {normalized}
     </ReactMarkdown>
   );
 }

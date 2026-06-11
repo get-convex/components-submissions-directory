@@ -511,11 +511,15 @@ Shared AI review prompt metadata. Defines the single source of truth for the vis
 
 ### `shared/buildSkillMd.ts`
 
-Pure helper that builds SKILL.md content from v2 content model fields (description, useCases, howItWorks). Shared between `convex/seoContent.ts` (action, "use node" runtime) and mutation files (`convex/packages.ts`, `convex/seoContentDb.ts`) so that SKILL.md is generated during submit, profile edit, admin edit, content model migration, and admin regeneration.
+Pure helper that builds SKILL.md content from v2 content model fields (description, useCases, howItWorks). Shared between `convex/seoContent.ts` (action, "use node" runtime) and mutation files (`convex/packages.ts`, `convex/seoContentDb.ts`) so that SKILL.md is generated during submit, profile edit, admin edit, content model migration, and admin regeneration. Runs `useCases` and `howItWorks` through `normalizeMarkdown` before assembly.
+
+### `shared/normalizeMarkdown.ts`
+
+Composable markdown cleanup pipeline for LLM- and user-authored content before remark-gfm parses it. Exports `MarkdownNormalizer`, individual normalizers (`normalizeLineEndings`, `normalizeUnicodeBullets`), and `normalizeMarkdown()` which runs `DEFAULT_MARKDOWN_NORMALIZERS` in order. Used by `src/components/Markdown.tsx`, content generation (`convex/seoContent.ts`), package saves (`convex/packages.ts`), markdown/llms HTTP output (`convex/http.ts`, `convex/router.ts`), and `shared/buildSkillMd.ts`. Add new normalizers to the default array when more predictable-parse fixes are needed.
 
 ### `shared/seoPromptTemplate.ts`
 
-Shared SEO prompt template and placeholder list. Keeps the default SEO fallback prompt aligned between `convex/aiSettings.ts`, `convex/seoContent.ts`, and the Admin SEO Prompt Settings UI while adding placeholders for GitHub README grounding and Convex docs context.
+Shared SEO prompt template and placeholder list. Keeps the default SEO fallback prompt aligned between `convex/aiSettings.ts`, `convex/seoContent.ts`, and the Admin SEO Prompt Settings UI while adding placeholders for GitHub README grounding and Convex docs context. The v2 content prompt requires `useCases` as markdown unordered lists with `- ` per line (not Unicode bullets).
 
 ### `src/pages/Documentation.tsx`
 

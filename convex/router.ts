@@ -1,6 +1,7 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { normalizeMarkdown } from "../shared/normalizeMarkdown";
 
 const http = httpRouter();
 
@@ -221,12 +222,12 @@ function buildComponentMarkdown(pkg: any): string {
 
     if (pkg.generatedUseCases) {
       lines.push(`## Use cases\n`);
-      lines.push(`${pkg.generatedUseCases}\n`);
+      lines.push(`${normalizeMarkdown(pkg.generatedUseCases)}\n`);
     }
 
     if (pkg.generatedHowItWorks) {
       lines.push(`## How it works\n`);
-      lines.push(`${pkg.generatedHowItWorks}\n`);
+      lines.push(`${normalizeMarkdown(pkg.generatedHowItWorks)}\n`);
     }
 
     if (pkg.readmeIncludedMarkdown) {

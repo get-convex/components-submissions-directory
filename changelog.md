@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Component use-case lists rendering as a single paragraph when LLM output used Unicode bullets (2026-06-11 13:30 UTC)
+  - Root cause: generated `useCases` markdown used `•` instead of `-`, so remark-gfm treated the block as plain text.
+  - Fix: added composable `shared/normalizeMarkdown.ts` pipeline (line endings + Unicode bullets) applied at render, ingest, and markdown export. Tightened `DEFAULT_CONTENT_PROMPT_TEMPLATE` to require `- ` list syntax.
+  - Files: `shared/normalizeMarkdown.ts`, `shared/seoPromptTemplate.ts`, `src/components/Markdown.tsx`, `convex/seoContent.ts`, `convex/packages.ts`, `convex/http.ts`, `convex/router.ts`, `shared/buildSkillMd.ts`
+  - Verification: `npx tsc --noEmit` passed.
+
 ### Changed
 
 - Submit form "Component Directory Content" section now marked as optional (2026-05-27 UTC)

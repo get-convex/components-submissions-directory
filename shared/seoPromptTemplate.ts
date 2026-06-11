@@ -115,14 +115,14 @@ Generate the following as valid JSON (no markdown fences, just raw JSON):
 {
   "description": "A 2-4 sentence technical description of this component. Explain what it does, what problem it solves, and what the developer gets. Use specifics from the README when available. Do not repeat the short description verbatim.",
 
-  "useCases": "A markdown section (no heading) with 3-5 bullet points. Each bullet describes a concrete scenario where a developer would reach for this component. Be specific about the technical problem being solved. Use real developer language.",
+  "useCases": "A markdown unordered list (no heading) with 3-5 items. Each item must be on its own line and start with '- ' (hyphen space). Do not use Unicode bullets like •. Each item describes a concrete scenario where a developer would reach for this component. Be specific about the technical problem being solved. Use real developer language.",
 
   "howItWorks": "A markdown section (no heading) with 2-4 short paragraphs explaining the technical approach. Cover the key APIs, architecture decisions, and integration pattern. Reference actual function names, config options, or setup steps from the README when available. Keep it factual."
 }
 
 Rules:
 - description: 2-4 sentences, technical, specific. Under 500 characters.
-- useCases: 3-5 markdown bullet points starting with a use case verb or scenario
+- useCases: 3-5 markdown list items, one per line, each starting with '- ' (never • or other bullet characters)
 - howItWorks: 2-4 paragraphs, reference actual APIs and patterns from the README
 - Never claim a feature unless it appears in the README or the provided component data
 - Cross-check Convex terminology against the Convex docs context before writing
