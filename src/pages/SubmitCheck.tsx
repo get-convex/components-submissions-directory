@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import { useAuth } from "../lib/auth";
 import { useConnectAuth } from "../lib/connectAuth";
 import Header from "../components/Header";
@@ -44,6 +46,8 @@ export default function SubmitCheck() {
   const basePath = useBasePath();
   const { isAuthenticated, isLoading: authLoading, signIn } = useAuth();
   const { getAccessToken } = useConnectAuth();
+  // Admins (@convex.dev) bypass the rate limit and cache on the backend
+  const isAdmin = useQuery(api.auth.isAdmin) ?? false;
   const [repoUrl, setRepoUrl] = useState("");
   const [npmUrl, setNpmUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -281,6 +285,7 @@ export default function SubmitCheck() {
           onClose={() => setShowWarning(false)}
           onConfirm={runPreflightCheck}
           isLoading={isLoading}
+          isAdmin={isAdmin}
         />
       )}
     </div>
@@ -292,10 +297,12 @@ function PreflightWarningModal({
   onClose,
   onConfirm,
   isLoading,
+  isAdmin,
 }: {
   onClose: () => void;
   onConfirm: () => void;
   isLoading: boolean;
+  isAdmin: boolean;
 }) {
   // Close on ESC unless a request is in flight
   useEffect(() => {
@@ -329,10 +336,9 @@ function PreflightWarningModal({
             <div>
               <h3 className="text-lg font-medium text-text-primary">Run preflight check</h3>
               <p className="mt-1 text-sm text-text-secondary">
-                This analysis checks your repository against Convex component requirements. Itw is
-                limited to 10 checks per hour per IP. Results for the same repository are cached for
-                30 minutes, so re-running within that window returns the cached result and does not
-                count against your limit.
+                {isAdmin
+                  ? "This analysis checks your repository against Convex component requirements. As an admin you have no rate limit and every run is fresh, bypassing the 30 minute cache."
+                  : "This analysis checks your repository against Convex component requirements. It is limited to 10 checks per hour per IP. Results for the same repository are cached for 30 minutes, so re-running within that window returns the cached result and does not count against your limit."}
               </p>
             </div>
             <div className="flex items-center gap-3">

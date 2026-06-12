@@ -2,6 +2,25 @@
 
 ## completed
 
+- [x] Rotate `GITHUB_TOKEN` and confirm AI review passes again (2026-06-12 00:11 UTC)
+  - Old classic token expired 2026-06-03, causing every review to fail. A fine-grained replacement was rejected by the Exa Labs org policy (403: fine-grained tokens with lifetime over 366 days forbidden), so a new classic token with `public_repo` scope was set via `npx convex env set GITHUB_TOKEN`.
+  - Verification: `npx convex run aiReview:runPreflightCheck` on exa-labs/exa-convex returned `status: "passed"` with all 14 criteria passing.
+  - PRD: `prds/ai-review-github-token-401.md`
+
+- [x] Preflight check admin bypass for @convex.dev users (2026-06-11 21:55 UTC)
+  - Admins signed in with an `@convex.dev` email skip the 10 checks/hour rate limit, the 30-minute repo cache, and the in-flight gate on `/api/preflight`, so every run is fresh.
+  - Frontend warning modal shows admin-specific copy and the "checks remaining" footer hides for admins (backend omits `remaining`).
+  - PRD: `prds/preflight-admin-bypass.md`
+  - Files: `convex/http.ts`, `src/pages/SubmitCheck.tsx`
+  - Verification: `ReadLints` clean; `npx tsc --noEmit` passed.
+
+- [x] Fix AI reviews failing with false "No convex.config.ts found" (2026-06-11 21:48 UTC)
+  - Root cause: expired/revoked `GITHUB_TOKEN` env var made GitHub return 401 for every request, and `fetchGitHubRepo` treated all non-OK responses as missing files.
+  - Fix: `githubFetch` helper in `convex/aiReview.ts` retries without the token on 401 and throws a clear `ConvexError` on 403/429 so reviews record `error` instead of false `failed`.
+  - PRD: `prds/ai-review-github-token-401.md`
+  - Files: `convex/aiReview.ts`, `prds/ai-review-github-token-401.md`, `changelog.md`, `task.md`
+  - Verification: `npx tsc -p convex --noEmit` passed; `npx convex run aiReview:runPreflightCheck` shows 401 fallback warning and clean `error` status.
+
 - [x] Fix Unicode bullet use-case lists rendering as one paragraph (2026-06-11 13:30 UTC)
   - Root cause: LLM-generated `generatedUseCases` used `•` instead of markdown `-` list markers.
   - Fix: composable `normalizeMarkdown` pipeline in `shared/normalizeMarkdown.ts`; applied at render, save, and export; prompt now requires `- ` per line.

@@ -7,7 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Preflight check admin bypass for users signed in with an `@convex.dev` email (2026-06-11 21:55 UTC)
+  - `/api/preflight` now skips the 10 checks/hour rate limit, the 30-minute per-repo cache, and the one-concurrent-check gate for admins, so every admin run returns a fresh result.
+  - `src/pages/SubmitCheck.tsx` warning modal shows admin-specific copy (no limits, cache bypassed) via `api.auth.isAdmin`; the "checks remaining" footer no longer shows for admins.
+  - Non-admin behavior unchanged. Admin runs still write `preflightChecks` records, which refresh the cache for everyone else.
+  - PRD: `prds/preflight-admin-bypass.md`
+
 ### Fixed
+
+- AI reviews failing every repo with false "No convex.config.ts found" (2026-06-11 21:48 UTC)
+  - Root cause: the `GITHUB_TOKEN` Convex environment variable expired or was revoked. GitHub returns 401 for every request carrying an invalid token, even public repos, and `fetchGitHubRepo` treated all non-OK responses as missing files.
+  - Fix: new `githubFetch` helper in `convex/aiReview.ts` drops the token and retries unauthenticated on 401, and throws a clear `ConvexError` on 403/429 so rate limits record review status `error` instead of a false `failed`.
+  - Token rotated to a new classic `public_repo` token (2026-06-12 00:11 UTC). A fine-grained token was rejected by the Exa Labs org policy (403 for fine-grained tokens with lifetime over 366 days), so classic remains the right choice for cross-org public repo reads. This also restores `seoContent.ts` readme fetches and `packages.ts` GitHub stats.
+  - PRD: `prds/ai-review-github-token-401.md`
+  - Verification: `npx tsc -p convex --noEmit` passed; `runPreflightCheck` on exa-labs/exa-convex returned `status: "passed"` with all 14 criteria passing.
 
 - Component use-case lists rendering as a single paragraph when LLM output used Unicode bullets (2026-06-11 13:30 UTC)
   - Root cause: generated `useCases` markdown used `•` instead of `-`, so remark-gfm treated the block as plain text.

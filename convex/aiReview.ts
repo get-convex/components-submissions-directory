@@ -203,13 +203,35 @@ export async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
   const [, owner, repo] = match;
   console.log("Fetching GitHub repo:", owner, "/", repo, "from URL:", repoUrl);
 
-  const headers: Record<string, string> = {
-    Accept: "application/vnd.github.v3+json",
-    "User-Agent": "Convex-NPM-Directory",
-  };
+  // An expired or revoked GITHUB_TOKEN makes GitHub return 401 for every
+  // request, including public repos. Track token validity so we can fall back
+  // to unauthenticated requests instead of reporting "no convex.config.ts".
+  let useToken = Boolean(githubToken);
 
-  if (githubToken) {
-    headers["Authorization"] = `Bearer ${githubToken}`;
+  async function githubFetch(url: string): Promise<Response> {
+    const headers: Record<string, string> = {
+      Accept: "application/vnd.github.v3+json",
+      "User-Agent": "Convex-NPM-Directory",
+    };
+    if (githubToken && useToken) {
+      headers["Authorization"] = `Bearer ${githubToken}`;
+    }
+    let response = await fetch(url, { headers });
+    if (response.status === 401 && githubToken && useToken) {
+      console.warn(
+        "GitHub token rejected with 401 (expired or revoked). Retrying without authentication. Update GITHUB_TOKEN in Convex environment variables."
+      );
+      useToken = false;
+      delete headers["Authorization"];
+      response = await fetch(url, { headers });
+    }
+    // Surface rate limits as review errors instead of false "file not found"
+    if (response.status === 403 || response.status === 429) {
+      throw new ConvexError(
+        "GitHub API rate limit reached or access forbidden while fetching repository contents. Check the GITHUB_TOKEN environment variable and retry."
+      );
+    }
+    return response;
   }
 
   const files: Array<{ name: string; content: string }> = [];
@@ -227,13 +249,13 @@ export async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
   // Helper to fetch file content
   async function fetchFileContent(path: string): Promise<{ found: boolean; content: string }> {
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-    const response = await fetch(url, { headers });
+    const response = await githubFetch(url);
     if (!response.ok) {
       return { found: false, content: "" };
     }
     const data = await response.json();
     if (data.type === "file" && data.download_url) {
-      const contentResponse = await fetch(data.download_url, { headers });
+      const contentResponse = await githubFetch(data.download_url);
       if (contentResponse.ok) {
         const content = await contentResponse.text();
         return { found: true, content };
@@ -256,7 +278,7 @@ export async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
     path: string
   ): Promise<Array<{ name: string; download_url: string }>> {
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
-    const response = await fetch(url, { headers });
+    const response = await githubFetch(url);
     if (!response.ok) {
       return [];
     }
@@ -275,7 +297,7 @@ export async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
   // First, try to discover monorepo package directories
   const monorepoPackages: string[] = [];
   const packagesUrl = `https://api.github.com/repos/${owner}/${repo}/contents/packages`;
-  const packagesResponse = await fetch(packagesUrl, { headers });
+  const packagesResponse = await githubFetch(packagesUrl);
   if (packagesResponse.ok) {
     const packagesData = await packagesResponse.json();
     if (Array.isArray(packagesData)) {
@@ -441,7 +463,7 @@ export async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
       for (const file of dirFiles) {
         // Skip the config file if it's in this directory
         if (file.name === "convex.config.ts") continue;
-        const contentResponse = await fetch(file.download_url, { headers });
+        const contentResponse = await githubFetch(file.download_url);
         if (contentResponse.ok) {
           const content = await contentResponse.text();
           const fullPath = dirPath ? `${dirPath}/${file.name}` : file.name;

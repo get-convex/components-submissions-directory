@@ -97,7 +97,7 @@ Database schema definition. Defines the `packages` table with all package fields
 Preflight checker page at `/components/submit/check`. Allows developers to validate their GitHub repository against review criteria before submitting. Features:
 - Authentication required (auto-redirects to sign in if not authenticated)
 - Input form for GitHub repository URL (required) and optional npm package URL
-- Pre-check `PreflightWarningModal` that confirms the 10 checks/hour per IP rate limit and 30-minute per-repo cache before the request fires (matches the `GenerateWarningModal` design from SubmitForm)
+- Pre-check `PreflightWarningModal` that confirms the 10 checks/hour per IP rate limit and 30-minute per-repo cache before the request fires (matches the `GenerateWarningModal` design from SubmitForm). Admins detected via `api.auth.isAdmin` see admin-specific copy instead: no rate limit, every run fresh, cache bypassed
 - Loading state with spinner during check execution
 - Detailed results display with:
   - Overall status (passed, failed, partial, error) with icon and color coding
@@ -323,7 +323,7 @@ MCP endpoints temporarily disabled (commented out) while public host routing is 
 - Code preserved for easy re-enablement when routing is fixed
 
 Preflight check endpoint (requires authentication):
-- `/api/preflight` (POST): Requires valid auth token in Authorization header. Accepts `repoUrl` and optional `npmUrl`, validates repo against review criteria, returns status, summary, and criteria. Implements IP-based rate limiting (10 checks/hour), in-flight limits (1 concurrent check per IP), and 30-minute result caching by normalized repo URL. Returns 401 for missing auth, 429 for rate limit violations. The route now awaits the async `hashIp()` helper after the move from Node.js `crypto` to Web Crypto in the default Convex runtime.
+- `/api/preflight` (POST): Requires valid auth token in Authorization header. Accepts `repoUrl` and optional `npmUrl`, validates repo against review criteria, returns status, summary, and criteria. Implements IP-based rate limiting (10 checks/hour), in-flight limits (1 concurrent check per IP), and 30-minute result caching by normalized repo URL. Admins with an `@convex.dev` email bypass all three gates and always get a fresh run (their runs still refresh the cache for others). Returns 401 for missing auth, 429 for rate limit violations. The route now awaits the async `hashIp()` helper after the move from Node.js `crypto` to Web Crypto in the default Convex runtime.
 
 ### `convex/convex.config.ts`
 
@@ -776,6 +776,7 @@ Project level Claude skills in standard Agent Skills directory format (`skill-na
 ### `prds/`
 
 Product requirements documents:
+- `ai-review-github-token-401.md`: Root cause and fix for AI reviews failing every repo with a false "No convex.config.ts found" after the `GITHUB_TOKEN` env var expired; documents the 401 unauthenticated fallback and 403/429 error surfacing in `convex/aiReview.ts`
 - `scale-optimization.md`: Bandwidth and subscription reduction following OpenClaw patterns: compound indexes, one-shot fetches, change detection, denormalized category counts, search-indexed REST API
 - `claude-skills-alignment.md`: Documents the missing Claude skill coverage for security and workflow rules and the updates that brought `.claude/skills` back in sync with the active Cursor rule set
 - `ai-review-prompt-v6.md`: Documents the v6 AI review model update, including package entry point checks, wrapper-aware helper guidance, and the repo evidence expansion for `package.json` plus client and test files

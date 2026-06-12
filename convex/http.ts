@@ -1175,6 +1175,9 @@ http.route({
         );
       }
 
+      // Admins (@convex.dev emails) bypass rate limiting and caching for unlimited fresh runs
+      const isAdmin = identity.email?.endsWith("@convex.dev") ?? false;
+
       const body = (await request.json()) as { repoUrl?: string; npmUrl?: string };
 
       if (!body.repoUrl) {
@@ -1208,7 +1211,7 @@ http.route({
         now: Date.now(),
       });
 
-      if (!rateLimitCheck.allowed) {
+      if (!isAdmin && !rateLimitCheck.allowed) {
         const retryAfter = rateLimitCheck.resetAt
           ? Math.ceil((rateLimitCheck.resetAt - Date.now()) / 1000)
           : 3600;
@@ -1229,10 +1232,12 @@ http.route({
         );
       }
 
-      // Check for in-flight request from same IP
-      const hasInFlight = await ctx.runQuery(internal.preflight._hasInFlightCheck, {
-        hashedIp,
-      });
+      // Check for in-flight request from same IP (admins skip this gate)
+      const hasInFlight = isAdmin
+        ? false
+        : await ctx.runQuery(internal.preflight._hasInFlightCheck, {
+            hashedIp,
+          });
 
       if (hasInFlight) {
         return new Response(
@@ -1243,11 +1248,13 @@ http.route({
         );
       }
 
-      // Check for cached result
-      const cachedResult = await ctx.runQuery(internal.preflight._getCachedResult, {
-        normalizedRepoUrl: normalizedUrl,
-        now: Date.now(),
-      });
+      // Check for cached result (admins always get a fresh run)
+      const cachedResult = isAdmin
+        ? null
+        : await ctx.runQuery(internal.preflight._getCachedResult, {
+            normalizedRepoUrl: normalizedUrl,
+            now: Date.now(),
+          });
 
       if (cachedResult) {
         return new Response(
@@ -1290,7 +1297,8 @@ http.route({
           summary: result.summary,
           criteria: result.criteria,
           cached: false,
-          remaining: rateLimitCheck.remaining - 1,
+          // Admins have no limit, so omit the remaining count
+          remaining: isAdmin ? undefined : rateLimitCheck.remaining - 1,
         }),
         { status: 200, headers: corsHeaders }
       );
