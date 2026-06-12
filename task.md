@@ -2,6 +2,13 @@
 
 ## completed
 
+- [x] Fix weekly downloads showing 0 for new packages (2026-06-12 00:25 UTC)
+  - Root cause: npm's `point/last-week` API alias lagged nine days, so packages published inside the lag window (like `@exalabs/convex-exa`, published 2026-06-03) reported 0 weekly downloads while npmjs.com showed 70.
+  - Fix: `fetchNpmPackageHandler` now uses an explicit 7-day window ending today. Admin refresh pipeline, logs, and scoped-name encoding were all verified working.
+  - PRD: `prds/npm-weekly-downloads-stale-window.md`
+  - Files: `convex/packages.ts`, `prds/npm-weekly-downloads-stale-window.md`, `changelog.md`, `task.md`
+  - Verification: `ReadLints` clean; live curl of `point/2026-06-05:2026-06-11/@exalabs/convex-exa` returns 70. Needs an admin Refresh on the Exa package after deploy to update the stored value.
+
 - [x] Rotate `GITHUB_TOKEN` and confirm AI review passes again (2026-06-12 00:11 UTC)
   - Old classic token expired 2026-06-03, causing every review to fail. A fine-grained replacement was rejected by the Exa Labs org policy (403: fine-grained tokens with lifetime over 366 days forbidden), so a new classic token with `public_repo` scope was set via `npx convex env set GITHUB_TOKEN`.
   - Verification: `npx convex run aiReview:runPreflightCheck` on exa-labs/exa-convex returned `status: "passed"` with all 14 criteria passing.

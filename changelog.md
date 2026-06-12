@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Weekly downloads showing 0 for newly published packages like `@exalabs/convex-exa` (2026-06-12 00:25 UTC)
+  - Root cause: npm's `downloads/point/last-week` alias was serving a stale window (nine days behind). The Exa package was published 2026-06-03, so the stale window genuinely contained zero downloads while npmjs.com showed 70/wk.
+  - Fix: `fetchNpmPackageHandler` in `convex/packages.ts` now requests an explicit 7-day window (`point/<today-6d>:<today>`), which matches the number npmjs.com displays. The admin refresh pipeline itself was working correctly.
+  - PRD: `prds/npm-weekly-downloads-stale-window.md`
+  - Verification: live API calls confirmed `point/2026-06-05:2026-06-11` returns 70 while `last-week` returned 0.
+
 - AI reviews failing every repo with false "No convex.config.ts found" (2026-06-11 21:48 UTC)
   - Root cause: the `GITHUB_TOKEN` Convex environment variable expired or was revoked. GitHub returns 401 for every request carrying an invalid token, even public repos, and `fetchGitHubRepo` treated all non-OK responses as missing files.
   - Fix: new `githubFetch` helper in `convex/aiReview.ts` drops the token and retries unauthenticated on 401, and throws a clear `ConvexError` on 403/429 so rate limits record review status `error` instead of a false `failed`.

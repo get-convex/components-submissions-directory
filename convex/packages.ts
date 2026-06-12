@@ -784,8 +784,13 @@ export async function fetchNpmPackageHandler(_ctx: any, args: { packageName: str
     const encodedName = name.startsWith("@") ? name.replace("/", "%2F") : name;
     const registryUrl = `https://registry.npmjs.org/${encodedName}`;
 
-    // Use encodeURIComponent for the downloads API
-    const downloadsUrl = `https://api.npmjs.org/downloads/point/last-week/${encodeURIComponent(name)}`;
+    // Use an explicit 7-day window instead of "last-week": npm's last-week
+    // alias can lag several days behind, which reports 0 for new packages.
+    // This matches the weekly number shown on npmjs.com.
+    const toDateString = (d: Date) => d.toISOString().slice(0, 10);
+    const weekEnd = new Date();
+    const weekStart = new Date(weekEnd.getTime() - 6 * 24 * 60 * 60 * 1000);
+    const downloadsUrl = `https://api.npmjs.org/downloads/point/${toDateString(weekStart)}:${toDateString(weekEnd)}/${encodeURIComponent(name)}`;
     // npm API supports a wide date range for cumulative all-time downloads
     const allTimeDownloadsUrl = `https://api.npmjs.org/downloads/point/2015-01-01:2099-12-31/${encodeURIComponent(name)}`;
 

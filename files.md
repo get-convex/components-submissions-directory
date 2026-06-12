@@ -776,6 +776,7 @@ Project level Claude skills in standard Agent Skills directory format (`skill-na
 ### `prds/`
 
 Product requirements documents:
+- `npm-weekly-downloads-stale-window.md`: Root cause and fix for weekly downloads showing 0 on newly published packages; npm's `point/last-week` API alias lagged nine days, replaced with an explicit 7-day window in `fetchNpmPackageHandler`
 - `ai-review-github-token-401.md`: Root cause and fix for AI reviews failing every repo with a false "No convex.config.ts found" after the `GITHUB_TOKEN` env var expired; documents the 401 unauthenticated fallback and 403/429 error surfacing in `convex/aiReview.ts`
 - `scale-optimization.md`: Bandwidth and subscription reduction following OpenClaw patterns: compound indexes, one-shot fetches, change detection, denormalized category counts, search-indexed REST API
 - `claude-skills-alignment.md`: Documents the missing Claude skill coverage for security and workflow rules and the updates that brought `.claude/skills` back in sync with the active Cursor rule set
