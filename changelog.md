@@ -9,14 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Crawlable server-injected body content for component pages to fix "Crawled - currently not indexed" in Google Search Console (2026-06-16 12:35 UTC)
-  - Root cause: the directory is a client-rendered Vite + React SPA, so Googlebot received an empty `<body>` (`<div id="root"></div>`) on first crawl. Only meta tags were injected server-side; all visible content required JavaScript. The GSC Live Test passed (it renders JS synchronously), but the normal indexing pipeline saw thin/empty content. The `/components` index also had zero crawlable `<a href>` links in raw HTML.
-  - Fix: `netlify/edge-functions/og-meta.ts` now injects real content into `#root` for both component detail pages (h1, value prop, install command, about, benefits, use cases, FAQ, outbound links) and the `/components` index (intro + internal links to every approved component). Content is reused from the existing `packages:getComponentBySlug` and `packages:listApprovedComponents` queries.
+- Edge-prerendered crawlable body content for component detail pages to help with "Crawled - currently not indexed" in Google Search Console (2026-06-16 12:50 UTC)
+  - Context: component detail pages (`/components/<slug>`) are a client-rendered Vite + React SPA, so the initial HTML `<body>` is empty (`<div id="root"></div>`) until JS runs. Googlebot can render JS (the GSC Live Test renders fine and shows a screenshot), but that happens in a deferred second pass subject to rendering budget/timeouts. Putting the content in the first-pass HTML removes that dependency and makes indexing more reliable.
+  - Fix: `netlify/edge-functions/og-meta.ts` injects real content into `#root` for component detail pages only (h1, value prop, install command, about, benefits, use cases, FAQ, outbound links), reusing the existing `packages:getComponentBySlug` query. Only injected when the slug resolves to a live (non-hidden/archived/deleted) component.
   - No frontend changes: `createRoot()` clears `#root` children on mount, so React replaces the injected content with the normal styled app — no hydration-mismatch risk and no visual change. The injected wrapper uses on-theme inline styles (`#F7EEDB`/`#1a1a1a`) to keep the brief pre-hydration paint unobtrusive; content stays visible (not `display:none`) so Google fully weights it.
-  - The sitemap was confirmed healthy (robots.txt references it, returns 200 valid XML); the GSC "Sitemaps: Temporary processing error" is a transient GSC-side state, not a code issue.
+  - Scope note: the `/components` directory index is intentionally out of scope here — the `og-meta` edge function's `/components/*` path does not match the bare `/components` URL, so injecting there needs a separate Netlify path-matching change. The sitemap is healthy (robots.txt references it, returns 200 valid XML); the GSC "Sitemaps: Temporary processing error" is a transient GSC-side state.
   - Files: `netlify/edge-functions/og-meta.ts`
   - PRD: `prds/seo-crawlable-body-injection.md`
-  - Verification: edge function passes ESLint; injection regex + HTML escaping validated locally. Recrawl/indexing impact will surface in GSC over the following days.
+  - Verification: confirmed on deploy preview 33 — `/components/abdssamie/convex-analytics` raw HTML contains the injected `<h1>` and content (9 KB vs ~4 KB empty shell). Recrawl/indexing impact will surface in GSC over the following days.
 
 - Preflight check admin bypass for users signed in with an `@convex.dev` email (2026-06-11 21:55 UTC)
   - `/api/preflight` now skips the 10 checks/hour rate limit, the 30-minute per-repo cache, and the one-concurrent-check gate for admins, so every admin run returns a fresh result.

@@ -143,29 +143,6 @@ function renderComponentSeoBody(c: ComponentData): string {
   return `<div data-seo-prerender style="${SEO_WRAP_STYLE}">${parts.join("")}</div>`;
 }
 
-// Build the crawlable body for the /components directory index, including
-// internal links to every approved component detail page.
-function renderDirectorySeoBody(components: DirectoryCard[]): string {
-  const items = components
-    .filter((c) => c.slug)
-    .map((c) => {
-      const name = escapeHtml(c.componentName || c.name);
-      const desc = escapeHtml(c.shortDescription || c.description || "");
-      const href = escapeAttr(`/components/${c.slug}`);
-      return `<li><a href="${href}">${name}</a>${desc ? ` — ${desc}` : ""}</li>`;
-    })
-    .join("");
-
-  return (
-    `<div data-seo-prerender style="${SEO_WRAP_STYLE}">` +
-    `<h1>Convex Components</h1>` +
-    `<p>Discover and submit npm packages built with Convex. A curated directory of ` +
-    `components, libraries, and tools for the Convex ecosystem.</p>` +
-    `<h2>Browse components</h2><ul>${items}</ul>` +
-    `</div>`
-  );
-}
-
 // Inject server-rendered content into the empty #root so crawlers see real
 // content. createRoot() replaces these children on client mount.
 function injectRootContent(html: string, innerHtml: string): string {
@@ -195,15 +172,6 @@ interface ComponentData {
   thumbnailUrl?: string;
   slug?: string;
   reviewStatus?: ReviewStatus;
-}
-
-interface DirectoryCard {
-  name: string;
-  componentName?: string;
-  description: string;
-  shortDescription?: string;
-  slug?: string;
-  category?: string;
 }
 
 function getRobotsContent(reviewStatus?: ReviewStatus): string {
@@ -340,32 +308,6 @@ function injectMetaTags(html: string, component: ComponentData): string {
   return html;
 }
 
-async function fetchApprovedComponents(): Promise<DirectoryCard[]> {
-  const convexCloudUrl =
-    Deno.env.get("VITE_CONVEX_URL") || defaultConvexCloudUrl;
-  const apiUrl = `${convexCloudUrl}/api/query`;
-
-  try {
-    const res = await fetch(apiUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        path: "packages:listApprovedComponents",
-        args: {},
-        format: "json",
-      }),
-    });
-    if (!res.ok) return [];
-    const json = await res.json();
-    if (json.status === "success" && Array.isArray(json.value)) {
-      return json.value as DirectoryCard[];
-    }
-    return [];
-  } catch {
-    return [];
-  }
-}
-
 function getConvexSiteUrl(): string {
   return (
     Deno.env.get("VITE_CONVEX_URL")?.replace(".convex.cloud", ".convex.site") ||
@@ -464,26 +406,14 @@ export default async (
   const slug = extractSlug(url.pathname);
 
   if (!slug) {
-    const isDirectoryIndex =
-      url.pathname === "/components" || url.pathname === "/components/";
-
-    // Fetch the component list (for the index) and the SPA response in parallel.
-    const [components, response] = await Promise.all([
-      isDirectoryIndex ? fetchApprovedComponents() : Promise.resolve([]),
-      context.next(),
-    ]);
-
+    // Non-component routes still need canonical tags to prevent
+    // query-string duplicates (e.g. /submit vs /submit?submit=true)
+    const response = await context.next();
     const contentType = response.headers.get("content-type") || "";
     if (contentType.includes("text/html")) {
       let html = await response.text();
-      // Non-component routes still need canonical tags to prevent
-      // query-string duplicates (e.g. /submit vs /submit?submit=true)
       const canonicalUrl = `${SITE_ORIGIN}${url.pathname.replace(/\/+$/, "") || "/components"}`;
       html = injectCanonical(html, canonicalUrl);
-      // Inject crawlable directory content + internal links on the index.
-      if (isDirectoryIndex && components.length > 0) {
-        html = injectRootContent(html, renderDirectorySeoBody(components));
-      }
       const headers = new Headers(response.headers);
       headers.set("content-type", "text/html; charset=utf-8");
       return new Response(html, { status: response.status, headers });
