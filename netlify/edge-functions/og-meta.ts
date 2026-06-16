@@ -66,12 +66,11 @@ function paragraphs(text: string): string {
     .join("");
 }
 
-// Inline styles keep the brief pre-hydration paint on-theme (createRoot wipes
-// #root on mount, so this content is replaced by the styled app with no visual
-// change). Content stays visible (not display:none) so Google fully weights it.
-const SEO_WRAP_STYLE =
-  "max-width:720px;margin:0 auto;padding:48px 24px;" +
-  "font-family:Georgia,serif;color:#1a1a1a;background:#F7EEDB;line-height:1.6;";
+// Hidden from users to avoid a flash of unstyled content before React mounts
+// (the page stays blank during load, then the real app renders). The block is
+// still present in the first-pass HTML, so crawlers that do not execute JS read
+// it; createRoot() removes it on mount.
+const SEO_WRAP_STYLE = "display:none;";
 
 // Build the crawlable body for a component detail page.
 function renderComponentSeoBody(c: ComponentData): string {
