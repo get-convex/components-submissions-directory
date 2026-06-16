@@ -2,6 +2,14 @@
 
 ## completed
 
+- [x] Fix "Crawled - currently not indexed" by injecting crawlable body content (2026-06-16 12:35 UTC)
+  - Root cause: client-rendered SPA served an empty `<body>` to Googlebot; only meta tags were server-injected. GSC Live Test passed (renders JS) but normal indexing saw thin content. The `/components` index had no crawlable internal links in raw HTML.
+  - Fix: `netlify/edge-functions/og-meta.ts` injects real content into `#root` for component detail pages (h1, value prop, install, about, benefits, use cases, FAQ, links) and the directory index (intro + links to every approved component), reusing `getComponentBySlug` and `listApprovedComponents`. `createRoot()` replaces it on mount, so no visual change.
+  - Confirmed sitemap/robots.txt are healthy; the GSC "Sitemaps: Temporary processing error" is transient.
+  - PRD: `prds/seo-crawlable-body-injection.md`
+  - Files: `netlify/edge-functions/og-meta.ts`, `prds/seo-crawlable-body-injection.md`, `changelog.md`, `task.md`, `files.md`
+  - Verification: `ReadLints` clean; injection regex + escaping validated locally. Recrawl impact tracked in GSC ("Validate Fix" + request indexing).
+
 - [x] Fix weekly downloads showing 0 for new packages (2026-06-12 00:25 UTC)
   - Root cause: npm's `point/last-week` API alias lagged nine days, so packages published inside the lag window (like `@exalabs/convex-exa`, published 2026-06-03) reported 0 weekly downloads while npmjs.com showed 70.
   - Fix: `fetchNpmPackageHandler` now uses an explicit 7-day window ending today. Admin refresh pipeline, logs, and scoped-name encoding were all verified working.

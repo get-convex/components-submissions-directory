@@ -48,15 +48,162 @@ function escapeAttr(str: string): string {
     .replace(/>/g, "&gt;");
 }
 
+// Escape text destined for HTML body content.
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// Convert plain text with blank-line paragraphs into <p> blocks.
+function paragraphs(text: string): string {
+  return text
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => `<p>${escapeHtml(p).replace(/\n/g, "<br/>")}</p>`)
+    .join("");
+}
+
+// Inline styles keep the brief pre-hydration paint on-theme (createRoot wipes
+// #root on mount, so this content is replaced by the styled app with no visual
+// change). Content stays visible (not display:none) so Google fully weights it.
+const SEO_WRAP_STYLE =
+  "max-width:720px;margin:0 auto;padding:48px 24px;" +
+  "font-family:Georgia,serif;color:#1a1a1a;background:#F7EEDB;line-height:1.6;";
+
+// Build the crawlable body for a component detail page.
+function renderComponentSeoBody(c: ComponentData): string {
+  const title = escapeHtml(c.componentName || c.name);
+  const intro = c.seoValueProp || c.shortDescription || c.description || "";
+  const about = c.longDescription || c.generatedDescription || "";
+
+  const parts: string[] = [];
+  parts.push(
+    `<nav><a href="/components">Convex Components</a></nav>`
+  );
+  parts.push(`<h1>${title}</h1>`);
+  if (intro) parts.push(`<p>${escapeHtml(intro)}</p>`);
+
+  if (c.installCommand) {
+    parts.push(
+      `<h2>Installation</h2><pre><code>${escapeHtml(c.installCommand)}</code></pre>`
+    );
+  }
+
+  if (about && about !== intro) {
+    parts.push(`<h2>About ${title}</h2>${paragraphs(about)}`);
+  }
+
+  if (c.seoBenefits && c.seoBenefits.length > 0) {
+    const items = c.seoBenefits
+      .map((b) => `<li>${escapeHtml(b)}</li>`)
+      .join("");
+    parts.push(`<h2>Benefits</h2><ul>${items}</ul>`);
+  }
+
+  if (c.seoUseCases && c.seoUseCases.length > 0) {
+    const items = c.seoUseCases
+      .map(
+        (u) =>
+          `<h3>${escapeHtml(u.query)}</h3>${paragraphs(u.answer)}`
+      )
+      .join("");
+    parts.push(`<h2>Use cases</h2>${items}`);
+  }
+
+  if (c.seoFaq && c.seoFaq.length > 0) {
+    const items = c.seoFaq
+      .map(
+        (f) =>
+          `<h3>${escapeHtml(f.question)}</h3>${paragraphs(f.answer)}`
+      )
+      .join("");
+    parts.push(`<h2>Frequently asked questions</h2>${items}`);
+  }
+
+  const links: string[] = [];
+  if (c.npmUrl)
+    links.push(`<li><a href="${escapeAttr(c.npmUrl)}">npm package</a></li>`);
+  if (c.repositoryUrl)
+    links.push(
+      `<li><a href="${escapeAttr(c.repositoryUrl)}">Source repository</a></li>`
+    );
+  if (c.homepageUrl)
+    links.push(
+      `<li><a href="${escapeAttr(c.homepageUrl)}">Homepage</a></li>`
+    );
+  if (c.demoUrl)
+    links.push(`<li><a href="${escapeAttr(c.demoUrl)}">Live demo</a></li>`);
+  if (links.length > 0) {
+    parts.push(`<h2>Links</h2><ul>${links.join("")}</ul>`);
+  }
+
+  return `<div data-seo-prerender style="${SEO_WRAP_STYLE}">${parts.join("")}</div>`;
+}
+
+// Build the crawlable body for the /components directory index, including
+// internal links to every approved component detail page.
+function renderDirectorySeoBody(components: DirectoryCard[]): string {
+  const items = components
+    .filter((c) => c.slug)
+    .map((c) => {
+      const name = escapeHtml(c.componentName || c.name);
+      const desc = escapeHtml(c.shortDescription || c.description || "");
+      const href = escapeAttr(`/components/${c.slug}`);
+      return `<li><a href="${href}">${name}</a>${desc ? ` — ${desc}` : ""}</li>`;
+    })
+    .join("");
+
+  return (
+    `<div data-seo-prerender style="${SEO_WRAP_STYLE}">` +
+    `<h1>Convex Components</h1>` +
+    `<p>Discover and submit npm packages built with Convex. A curated directory of ` +
+    `components, libraries, and tools for the Convex ecosystem.</p>` +
+    `<h2>Browse components</h2><ul>${items}</ul>` +
+    `</div>`
+  );
+}
+
+// Inject server-rendered content into the empty #root so crawlers see real
+// content. createRoot() replaces these children on client mount.
+function injectRootContent(html: string, innerHtml: string): string {
+  return html.replace(
+    /<div id="root">\s*<\/div>/,
+    `<div id="root">${innerHtml}</div>`
+  );
+}
+
 interface ComponentData {
   componentName?: string;
   name: string;
   shortDescription?: string;
   description: string;
+  longDescription?: string;
+  generatedDescription?: string;
   seoValueProp?: string;
+  seoBenefits?: string[];
+  seoUseCases?: Array<{ query: string; answer: string }>;
+  seoFaq?: Array<{ question: string; answer: string }>;
+  installCommand?: string;
+  npmUrl?: string;
+  repositoryUrl?: string;
+  homepageUrl?: string;
+  demoUrl?: string;
+  category?: string;
   thumbnailUrl?: string;
   slug?: string;
   reviewStatus?: ReviewStatus;
+}
+
+interface DirectoryCard {
+  name: string;
+  componentName?: string;
+  description: string;
+  shortDescription?: string;
+  slug?: string;
+  category?: string;
 }
 
 function getRobotsContent(reviewStatus?: ReviewStatus): string {
@@ -193,6 +340,32 @@ function injectMetaTags(html: string, component: ComponentData): string {
   return html;
 }
 
+async function fetchApprovedComponents(): Promise<DirectoryCard[]> {
+  const convexCloudUrl =
+    Deno.env.get("VITE_CONVEX_URL") || defaultConvexCloudUrl;
+  const apiUrl = `${convexCloudUrl}/api/query`;
+
+  try {
+    const res = await fetch(apiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: "packages:listApprovedComponents",
+        args: {},
+        format: "json",
+      }),
+    });
+    if (!res.ok) return [];
+    const json = await res.json();
+    if (json.status === "success" && Array.isArray(json.value)) {
+      return json.value as DirectoryCard[];
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
 function getConvexSiteUrl(): string {
   return (
     Deno.env.get("VITE_CONVEX_URL")?.replace(".convex.cloud", ".convex.site") ||
@@ -291,14 +464,26 @@ export default async (
   const slug = extractSlug(url.pathname);
 
   if (!slug) {
-    // Non-component routes still need canonical tags to prevent
-    // query-string duplicates (e.g. /submit vs /submit?submit=true)
-    const response = await context.next();
+    const isDirectoryIndex =
+      url.pathname === "/components" || url.pathname === "/components/";
+
+    // Fetch the component list (for the index) and the SPA response in parallel.
+    const [components, response] = await Promise.all([
+      isDirectoryIndex ? fetchApprovedComponents() : Promise.resolve([]),
+      context.next(),
+    ]);
+
     const contentType = response.headers.get("content-type") || "";
     if (contentType.includes("text/html")) {
       let html = await response.text();
+      // Non-component routes still need canonical tags to prevent
+      // query-string duplicates (e.g. /submit vs /submit?submit=true)
       const canonicalUrl = `${SITE_ORIGIN}${url.pathname.replace(/\/+$/, "") || "/components"}`;
       html = injectCanonical(html, canonicalUrl);
+      // Inject crawlable directory content + internal links on the index.
+      if (isDirectoryIndex && components.length > 0) {
+        html = injectRootContent(html, renderDirectorySeoBody(components));
+      }
       const headers = new Headers(response.headers);
       headers.set("content-type", "text/html; charset=utf-8");
       return new Response(html, { status: response.status, headers });
@@ -322,7 +507,12 @@ export default async (
   }
 
   const originalHtml = await response.text();
-  const modifiedHtml = injectMetaTags(originalHtml, component);
+  let modifiedHtml = injectMetaTags(originalHtml, component);
+  // Inject crawlable body content; createRoot() replaces it on client mount.
+  modifiedHtml = injectRootContent(
+    modifiedHtml,
+    renderComponentSeoBody(component)
+  );
 
   // Preserve original headers but update content-type and caching
   const headers = new Headers(response.headers);

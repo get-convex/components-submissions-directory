@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Crawlable server-injected body content for component pages to fix "Crawled - currently not indexed" in Google Search Console (2026-06-16 12:35 UTC)
+  - Root cause: the directory is a client-rendered Vite + React SPA, so Googlebot received an empty `<body>` (`<div id="root"></div>`) on first crawl. Only meta tags were injected server-side; all visible content required JavaScript. The GSC Live Test passed (it renders JS synchronously), but the normal indexing pipeline saw thin/empty content. The `/components` index also had zero crawlable `<a href>` links in raw HTML.
+  - Fix: `netlify/edge-functions/og-meta.ts` now injects real content into `#root` for both component detail pages (h1, value prop, install command, about, benefits, use cases, FAQ, outbound links) and the `/components` index (intro + internal links to every approved component). Content is reused from the existing `packages:getComponentBySlug` and `packages:listApprovedComponents` queries.
+  - No frontend changes: `createRoot()` clears `#root` children on mount, so React replaces the injected content with the normal styled app — no hydration-mismatch risk and no visual change. The injected wrapper uses on-theme inline styles (`#F7EEDB`/`#1a1a1a`) to keep the brief pre-hydration paint unobtrusive; content stays visible (not `display:none`) so Google fully weights it.
+  - The sitemap was confirmed healthy (robots.txt references it, returns 200 valid XML); the GSC "Sitemaps: Temporary processing error" is a transient GSC-side state, not a code issue.
+  - Files: `netlify/edge-functions/og-meta.ts`
+  - PRD: `prds/seo-crawlable-body-injection.md`
+  - Verification: edge function passes ESLint; injection regex + HTML escaping validated locally. Recrawl/indexing impact will surface in GSC over the following days.
+
 - Preflight check admin bypass for users signed in with an `@convex.dev` email (2026-06-11 21:55 UTC)
   - `/api/preflight` now skips the 10 checks/hour rate limit, the 30-minute per-repo cache, and the one-concurrent-check gate for admins, so every admin run returns a fresh result.
   - `src/pages/SubmitCheck.tsx` warning modal shows admin-specific copy (no limits, cache bypassed) via `api.auth.isAdmin`; the "checks remaining" footer no longer shows for admins.
