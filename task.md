@@ -2,6 +2,17 @@
 
 ## completed
 
+- [x] Edge-prerender crawlable content for component detail pages (2026-06-16 12:50 UTC)
+  - Component detail pages (`/components/<slug>`) are a client-rendered SPA, so the first-pass HTML body is empty until JS runs. Googlebot renders JS but in a deferred pass subject to budget/timeouts; injecting content into the first-pass HTML makes indexing more reliable (helps clear "Crawled - currently not indexed").
+  - Fix: `netlify/edge-functions/og-meta.ts` injects real content into `#root` for component detail pages only (h1, value prop, install, about, benefits, use cases, FAQ, links), reusing `getComponentBySlug`. `createRoot()` replaces it on mount, so no visual change.
+  - Scope: `/components` index is out of scope (the `/components/*` edge path doesn't match bare `/components`; needs a separate path-matching change). Sitemap/robots.txt confirmed healthy.
+  - PRD: `prds/seo-crawlable-body-injection.md`
+  - Files: `netlify/edge-functions/og-meta.ts`, `prds/seo-crawlable-body-injection.md`, `changelog.md`, `task.md`, `files.md`
+  - Verification: confirmed on deploy preview 33 — detail page raw HTML contains injected `<h1>` + content (9 KB vs ~4 KB empty shell).
+
+- [ ] Inject crawlable content on the `/components` index (follow-up)
+  - Blocked on Netlify path matching: the `og-meta` edge function `path = "/components/*"` does not match the bare `/components` URL, so the index branch never runs there. Needs an added `[[edge_functions]] path = "/components"` entry (or equivalent) before the index injection can ship.
+
 - [x] Fix weekly downloads showing 0 for new packages (2026-06-12 00:25 UTC)
   - Root cause: npm's `point/last-week` API alias lagged nine days, so packages published inside the lag window (like `@exalabs/convex-exa`, published 2026-06-03) reported 0 weekly downloads while npmjs.com showed 70.
   - Fix: `fetchNpmPackageHandler` now uses an explicit 7-day window ending today. Admin refresh pipeline, logs, and scoped-name encoding were all verified working.

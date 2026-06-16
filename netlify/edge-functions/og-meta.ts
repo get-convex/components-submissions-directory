@@ -48,12 +48,126 @@ function escapeAttr(str: string): string {
     .replace(/>/g, "&gt;");
 }
 
+// Escape text destined for HTML body content.
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+// Convert plain text with blank-line paragraphs into <p> blocks.
+function paragraphs(text: string): string {
+  return text
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => `<p>${escapeHtml(p).replace(/\n/g, "<br/>")}</p>`)
+    .join("");
+}
+
+// Hidden from users to avoid a flash of unstyled content before React mounts
+// (the page stays blank during load, then the real app renders). The block is
+// still present in the first-pass HTML, so crawlers that do not execute JS read
+// it; createRoot() removes it on mount.
+const SEO_WRAP_STYLE = "display:none;";
+
+// Build the crawlable body for a component detail page.
+function renderComponentSeoBody(c: ComponentData): string {
+  const title = escapeHtml(c.componentName || c.name);
+  const intro = c.seoValueProp || c.shortDescription || c.description || "";
+  const about = c.longDescription || c.generatedDescription || "";
+
+  const parts: string[] = [];
+  parts.push(
+    `<nav><a href="/components">Convex Components</a></nav>`
+  );
+  parts.push(`<h1>${title}</h1>`);
+  if (intro) parts.push(`<p>${escapeHtml(intro)}</p>`);
+
+  if (c.installCommand) {
+    parts.push(
+      `<h2>Installation</h2><pre><code>${escapeHtml(c.installCommand)}</code></pre>`
+    );
+  }
+
+  if (about && about !== intro) {
+    parts.push(`<h2>About ${title}</h2>${paragraphs(about)}`);
+  }
+
+  if (c.seoBenefits && c.seoBenefits.length > 0) {
+    const items = c.seoBenefits
+      .map((b) => `<li>${escapeHtml(b)}</li>`)
+      .join("");
+    parts.push(`<h2>Benefits</h2><ul>${items}</ul>`);
+  }
+
+  if (c.seoUseCases && c.seoUseCases.length > 0) {
+    const items = c.seoUseCases
+      .map(
+        (u) =>
+          `<h3>${escapeHtml(u.query)}</h3>${paragraphs(u.answer)}`
+      )
+      .join("");
+    parts.push(`<h2>Use cases</h2>${items}`);
+  }
+
+  if (c.seoFaq && c.seoFaq.length > 0) {
+    const items = c.seoFaq
+      .map(
+        (f) =>
+          `<h3>${escapeHtml(f.question)}</h3>${paragraphs(f.answer)}`
+      )
+      .join("");
+    parts.push(`<h2>Frequently asked questions</h2>${items}`);
+  }
+
+  const links: string[] = [];
+  if (c.npmUrl)
+    links.push(`<li><a href="${escapeAttr(c.npmUrl)}">npm package</a></li>`);
+  if (c.repositoryUrl)
+    links.push(
+      `<li><a href="${escapeAttr(c.repositoryUrl)}">Source repository</a></li>`
+    );
+  if (c.homepageUrl)
+    links.push(
+      `<li><a href="${escapeAttr(c.homepageUrl)}">Homepage</a></li>`
+    );
+  if (c.demoUrl)
+    links.push(`<li><a href="${escapeAttr(c.demoUrl)}">Live demo</a></li>`);
+  if (links.length > 0) {
+    parts.push(`<h2>Links</h2><ul>${links.join("")}</ul>`);
+  }
+
+  return `<div data-seo-prerender style="${SEO_WRAP_STYLE}">${parts.join("")}</div>`;
+}
+
+// Inject server-rendered content into the empty #root so crawlers see real
+// content. createRoot() replaces these children on client mount.
+function injectRootContent(html: string, innerHtml: string): string {
+  return html.replace(
+    /<div id="root">\s*<\/div>/,
+    `<div id="root">${innerHtml}</div>`
+  );
+}
+
 interface ComponentData {
   componentName?: string;
   name: string;
   shortDescription?: string;
   description: string;
+  longDescription?: string;
+  generatedDescription?: string;
   seoValueProp?: string;
+  seoBenefits?: string[];
+  seoUseCases?: Array<{ query: string; answer: string }>;
+  seoFaq?: Array<{ question: string; answer: string }>;
+  installCommand?: string;
+  npmUrl?: string;
+  repositoryUrl?: string;
+  homepageUrl?: string;
+  demoUrl?: string;
+  category?: string;
   thumbnailUrl?: string;
   slug?: string;
   reviewStatus?: ReviewStatus;
@@ -322,7 +436,12 @@ export default async (
   }
 
   const originalHtml = await response.text();
-  const modifiedHtml = injectMetaTags(originalHtml, component);
+  let modifiedHtml = injectMetaTags(originalHtml, component);
+  // Inject crawlable body content; createRoot() replaces it on client mount.
+  modifiedHtml = injectRootContent(
+    modifiedHtml,
+    renderComponentSeoBody(component)
+  );
 
   // Preserve original headers but update content-type and caching
   const headers = new Headers(response.headers);

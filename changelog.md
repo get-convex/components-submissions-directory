@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Edge-prerendered crawlable body content for component detail pages to help with "Crawled - currently not indexed" in Google Search Console (2026-06-16 12:50 UTC)
+  - Context: component detail pages (`/components/<slug>`) are a client-rendered Vite + React SPA, so the initial HTML `<body>` is empty (`<div id="root"></div>`) until JS runs. Googlebot can render JS (the GSC Live Test renders fine and shows a screenshot), but that happens in a deferred second pass subject to rendering budget/timeouts. Putting the content in the first-pass HTML removes that dependency and makes indexing more reliable.
+  - Fix: `netlify/edge-functions/og-meta.ts` injects real content into `#root` for component detail pages only (h1, value prop, install command, about, benefits, use cases, FAQ, outbound links), reusing the existing `packages:getComponentBySlug` query. Only injected when the slug resolves to a live (non-hidden/archived/deleted) component.
+  - No frontend changes: `createRoot()` clears `#root` children on mount, so React replaces the injected content with the normal styled app — no hydration-mismatch risk and no visual change. The injected wrapper is `display:none` so users see the usual blank-then-content load with no flash of unstyled content; the markup is still present in the first-pass HTML for crawlers that do not execute JS.
+  - Scope note: the `/components` directory index is intentionally out of scope here — the `og-meta` edge function's `/components/*` path does not match the bare `/components` URL, so injecting there needs a separate Netlify path-matching change. The sitemap is healthy (robots.txt references it, returns 200 valid XML); the GSC "Sitemaps: Temporary processing error" is a transient GSC-side state.
+  - Files: `netlify/edge-functions/og-meta.ts`
+  - PRD: `prds/seo-crawlable-body-injection.md`
+  - Verification: confirmed on deploy preview 33 — `/components/abdssamie/convex-analytics` raw HTML contains the injected `<h1>` and content (9 KB vs ~4 KB empty shell). Recrawl/indexing impact will surface in GSC over the following days.
+
 - Preflight check admin bypass for users signed in with an `@convex.dev` email (2026-06-11 21:55 UTC)
   - `/api/preflight` now skips the 10 checks/hour rate limit, the 30-minute per-repo cache, and the one-concurrent-check gate for admins, so every admin run returns a fresh result.
   - `src/pages/SubmitCheck.tsx` warning modal shows admin-specific copy (no limits, cache bypassed) via `api.auth.isAdmin`; the "checks remaining" footer no longer shows for admins.
