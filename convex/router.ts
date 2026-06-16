@@ -2,8 +2,10 @@ import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { normalizeMarkdown } from "../shared/normalizeMarkdown";
+import { buildComponentUrls } from "../shared/componentUrls";
 
 const http = httpRouter();
+const DIRECTORY_ORIGIN = "https://www.convex.dev";
 
 http.route({
   path: "/api/export-csv",
@@ -102,11 +104,14 @@ http.route({
       const desc =
         pkg.seoValueProp || pkg.shortDescription || pkg.description || "";
       const category = pkg.category || "general";
+      const componentLinks = slug
+        ? buildComponentUrls(slug, DIRECTORY_ORIGIN)
+        : null;
       const url = slug
-        ? `https://www.convex.dev/components/${slug}`
+        ? componentLinks?.detailUrl || pkg.npmUrl
         : pkg.npmUrl;
       const mdUrl = slug
-        ? `https://www.convex.dev/api/markdown?slug=${slug}`
+        ? componentLinks?.markdownUrl || ""
         : "";
 
       lines.push(`## ${name}`);
