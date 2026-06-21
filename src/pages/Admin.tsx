@@ -6324,13 +6324,10 @@ function AiProviderSettingsPanel() {
     <div className="mb-4 rounded-lg border border-border bg-bg-card overflow-hidden">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors"
-      >
+        className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors">
         <div className="flex items-center gap-2">
           <Gear size={16} weight="bold" className="text-text-secondary" />
-          <span className="text-sm font-medium text-text-primary">
-            AI Provider Settings
-          </span>
+          <span className="text-sm font-medium text-text-primary">AI Provider Settings</span>
           {providerSettings.activeProvider && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
               {providerSettings.activeProvider}
@@ -6348,9 +6345,9 @@ function AiProviderSettingsPanel() {
         <div className="p-4 border-t border-border space-y-4">
           <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary">
             <p>
-              Configure AI providers for component reviews. By default,
-              environment variables (ANTHROPIC_API_KEY, CONVEX_OPENAI_API_KEY)
-              are used. Settings here override environment variables.
+              Configure AI providers for component reviews. By default, environment variables
+              (ANTHROPIC_API_KEY, CONVEX_OPENAI_API_KEY) are used. Settings here override
+              environment variables.
             </p>
           </div>
 
@@ -6365,8 +6362,7 @@ function AiProviderSettingsPanel() {
                   activeProvider === p
                     ? "bg-button text-white border-button"
                     : "border-border text-text-secondary hover:bg-bg-hover"
-                }`}
-              >
+                }`}>
                 {p === "env" ? "Env Vars (Default)" : p}
               </button>
             ))}
@@ -6375,15 +6371,12 @@ function AiProviderSettingsPanel() {
           {/* Anthropic */}
           <div className="p-3 rounded-lg border border-border space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-text-primary">
-                Anthropic (Claude)
-              </span>
+              <span className="text-sm font-medium text-text-primary">Anthropic (Claude)</span>
               <a
-                href="https://docs.anthropic.com/en/docs/models"
+                href="https://platform.claude.com/docs/en/about-claude/models/overview"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-button hover:underline"
-              >
+                className="text-xs text-button hover:underline">
                 Model docs
               </a>
             </div>
@@ -6407,14 +6400,12 @@ function AiProviderSettingsPanel() {
               <button
                 onClick={() => handleSaveProvider("anthropic")}
                 disabled={isSaving}
-                className="px-3 py-1 text-xs rounded bg-button text-white hover:bg-button-hover disabled:opacity-50"
-              >
+                className="px-3 py-1 text-xs rounded bg-button text-white hover:bg-button-hover disabled:opacity-50">
                 Save
               </button>
               <button
                 onClick={() => setClearConfirmProvider("anthropic")}
-                className="px-3 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50"
-              >
+                className="px-3 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50">
                 Clear (use env)
               </button>
             </div>
@@ -6426,15 +6417,12 @@ function AiProviderSettingsPanel() {
           {/* OpenAI */}
           <div className="p-3 rounded-lg border border-border space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-text-primary">
-                OpenAI
-              </span>
+              <span className="text-sm font-medium text-text-primary">OpenAI</span>
               <a
                 href="https://platform.openai.com/docs/models"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-button hover:underline"
-              >
+                className="text-xs text-button hover:underline">
                 Model docs
               </a>
             </div>
@@ -6458,14 +6446,12 @@ function AiProviderSettingsPanel() {
               <button
                 onClick={() => handleSaveProvider("openai")}
                 disabled={isSaving}
-                className="px-3 py-1 text-xs rounded bg-button text-white hover:bg-button-hover disabled:opacity-50"
-              >
+                className="px-3 py-1 text-xs rounded bg-button text-white hover:bg-button-hover disabled:opacity-50">
                 Save
               </button>
               <button
                 onClick={() => setClearConfirmProvider("openai")}
-                className="px-3 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50"
-              >
+                className="px-3 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50">
                 Clear (use env)
               </button>
             </div>
@@ -6477,15 +6463,12 @@ function AiProviderSettingsPanel() {
           {/* Gemini */}
           <div className="p-3 rounded-lg border border-border space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-text-primary">
-                Google Gemini
-              </span>
+              <span className="text-sm font-medium text-text-primary">Google Gemini</span>
               <a
                 href="https://ai.google.dev/gemini-api/docs/models"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-button hover:underline"
-              >
+                className="text-xs text-button hover:underline">
                 Model docs
               </a>
             </div>
@@ -6509,14 +6492,12 @@ function AiProviderSettingsPanel() {
               <button
                 onClick={() => handleSaveProvider("gemini")}
                 disabled={isSaving}
-                className="px-3 py-1 text-xs rounded bg-button text-white hover:bg-button-hover disabled:opacity-50"
-              >
+                className="px-3 py-1 text-xs rounded bg-button text-white hover:bg-button-hover disabled:opacity-50">
                 Save
               </button>
               <button
                 onClick={() => setClearConfirmProvider("gemini")}
-                className="px-3 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50"
-              >
+                className="px-3 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50">
                 Clear (use env)
               </button>
             </div>
@@ -6531,9 +6512,7 @@ function AiProviderSettingsPanel() {
       <ConfirmModal
         isOpen={clearConfirmProvider !== null}
         onClose={() => setClearConfirmProvider(null)}
-        onConfirm={() =>
-          clearConfirmProvider && handleClearProvider(clearConfirmProvider)
-        }
+        onConfirm={() => clearConfirmProvider && handleClearProvider(clearConfirmProvider)}
         title="Clear API Key Settings?"
         message={`This will permanently delete your saved ${clearConfirmProvider?.toUpperCase()} API key and model configuration. The app will fall back to using environment variables (ANTHROPIC_API_KEY, CONVEX_OPENAI_API_KEY). This affects ALL AI features including AI Review and SEO Content generation.`}
         confirmText="Yes, Clear Settings"

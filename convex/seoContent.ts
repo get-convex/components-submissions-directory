@@ -40,9 +40,12 @@ async function callAiProvider(
 
   if (provider === "openai") {
     const client = new OpenAI({ apiKey });
+    // GPT-5 family rejects `max_tokens` on Chat Completions and requires
+    // `max_completion_tokens` (also accepted by gpt-4o and other current models).
+    // Budget is generous so reasoning tokens don't starve the visible output.
     const response = await client.chat.completions.create({
       model,
-      max_tokens: 2000,
+      max_completion_tokens: 4000,
       messages: [{ role: "user", content: prompt }],
     });
     const content = response.choices[0]?.message?.content;
@@ -549,8 +552,8 @@ function buildSeoCandidates(providerSettings: any) {
       gemini: process.env.GEMINI_API_KEY ?? process.env.CONVEX_GEMINI_API_KEY,
     },
     defaultEnvModels: {
-      anthropic: "claude-sonnet-4-20250514",
-      openai: "gpt-4o",
+      anthropic: "claude-sonnet-4-6",
+      openai: "gpt-5.5",
       gemini: "gemini-1.5-pro",
     },
   });

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated OpenAI env-fallback model to `gpt-5.5` and fixed Chat Completions token param (2026-06-21 23:55 UTC)
+  - `convex/seoContent.ts` env default moved from `gpt-4o` to `gpt-5.5`; `convex/aiReview.ts` env default moved from the non-catalog `gpt-5.2` to `gpt-5.5` (current flagship per the [OpenAI models catalog](https://developers.openai.com/api/docs/models)).
+  - Both OpenAI Chat Completions calls now send `max_completion_tokens` instead of `max_tokens`. GPT-5 models reject `max_tokens` with a 400, so the prior `gpt-5.2` default in `aiReview.ts` would have failed whenever the OpenAI env fallback fired. `max_completion_tokens` is also accepted by `gpt-4o` and admin-configured models, so the shared helper stays compatible with any model an admin sets.
+  - Budget raised to 4000 (seoContent) / 4096 (aiReview) so reasoning tokens on GPT-5 do not starve the visible output and return empty content.
+  - Files: `convex/seoContent.ts`, `convex/aiReview.ts`
+  - Verification: `npx tsc -p convex --noEmit` passed; `ReadLints` clean. Runtime success requires a valid `CONVEX_OPENAI_API_KEY` on the Convex deployment.
+
+- Admin AI Provider Settings: Anthropic "Model docs" link now points to `https://platform.claude.com/docs/en/about-claude/models/overview` (2026-06-21 23:55 UTC)
+  - `src/pages/Admin.tsx`: updated the outdated `docs.anthropic.com/en/docs/models` link; remainder of the diff is Prettier formatting only (no behavior change).
+
+### Fixed
+
+- AI content generation failing with "All AI providers failed. anthropic (env): 404 ... model: claude-sonnet-4-20250514" (2026-06-21 23:47 UTC)
+  - Root cause: `convex/seoContent.ts` `buildSeoCandidates` set the Anthropic env-fallback default to `claude-sonnet-4-20250514`, a model ID the Anthropic API no longer serves, so every env-based Anthropic request returned `404 not_found_error`. When the OpenAI key was also invalid, the fallback chain exhausted and surfaced the "All AI providers failed" error.
+  - Fix: updated the default to `claude-sonnet-4-6` (Claude Sonnet 4.6 Claude API ID per the [Anthropic models overview](https://platform.claude.com/docs/en/about-claude/models/overview)). `convex/aiProviderFallback.ts` was intentionally left unchanged; it passes `defaultEnvModels[provider]` through verbatim and never hardcodes a model.
+  - Files: `convex/seoContent.ts`
+  - Verification: `npx tsc -p convex --noEmit` passed; `ReadLints` clean. Runtime success still depends on a valid `ANTHROPIC_API_KEY` on the Convex deployment.
+
 ### Added
 
 - Edge-prerendered crawlable body content for component detail pages to help with "Crawled - currently not indexed" in Google Search Console (2026-06-16 12:50 UTC)

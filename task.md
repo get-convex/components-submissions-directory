@@ -2,6 +2,19 @@
 
 ## completed
 
+- [x] Update OpenAI env-fallback model to gpt-5.5 and fix Chat Completions token param (2026-06-21 23:55 UTC)
+  - `convex/seoContent.ts`: `gpt-4o` -> `gpt-5.5`. `convex/aiReview.ts`: stale `gpt-5.2` -> `gpt-5.5`.
+  - Both OpenAI calls now use `max_completion_tokens` (GPT-5 rejects `max_tokens`; `gpt-4o` and admin-set models accept the new param too), with budget bumped to 4000/4096 so reasoning tokens don't starve visible output.
+  - `src/pages/Admin.tsx`: Anthropic "Model docs" link updated to `platform.claude.com/.../models/overview`; rest of that file's diff is Prettier formatting only.
+  - Files: `convex/seoContent.ts`, `convex/aiReview.ts`, `src/pages/Admin.tsx`, `changelog.md`, `task.md`
+  - Verification: `npx tsc -p convex --noEmit` passed; `ReadLints` clean. Needs a valid `CONVEX_OPENAI_API_KEY` on the deployment to succeed at runtime.
+
+- [x] Update Anthropic env-fallback model to Claude Sonnet 4.6 (2026-06-21 23:47 UTC)
+  - `convex/seoContent.ts` `buildSeoCandidates` used the deprecated default `claude-sonnet-4-20250514`, which returned a 404 `not_found_error` from the Anthropic API ("All AI providers failed").
+  - Fix: changed the env default to `claude-sonnet-4-6` (Claude Sonnet 4.6 API ID per the Anthropic models overview). `convex/aiProviderFallback.ts` needs no change — it passes `defaultEnvModels[provider]` straight through without hardcoding any model.
+  - Files: `convex/seoContent.ts`, `changelog.md`, `task.md`
+  - Verification: `npx tsc -p convex --noEmit` passed; `ReadLints` clean on `seoContent.ts` and `aiProviderFallback.ts`. Requires a valid `ANTHROPIC_API_KEY` (and ideally `CONVEX_OPENAI_API_KEY`) on the Convex deployment for the fallback chain to fully succeed at runtime.
+
 - [x] Edge-prerender crawlable content for component detail pages (2026-06-16 12:50 UTC)
   - Component detail pages (`/components/<slug>`) are a client-rendered SPA, so the first-pass HTML body is empty until JS runs. Googlebot renders JS but in a deferred pass subject to budget/timeouts; injecting content into the first-pass HTML makes indexing more reliable (helps clear "Crawled - currently not indexed").
   - Fix: `netlify/edge-functions/og-meta.ts` injects real content into `#root` for component detail pages only (h1, value prop, install, about, benefits, use cases, FAQ, links), reusing `getComponentBySlug`. `createRoot()` replaces it on mount, so no visual change.
