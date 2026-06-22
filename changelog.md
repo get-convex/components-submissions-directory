@@ -21,6 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `getPromptVersions` / `getSeoPromptVersions` threw `ReturnsValidationError` on the admin prompt-history view (2026-06-21 17:14 UTC)
+  - Root cause: both queries return full documents from `.take(50)`, which always include the system field `_creationTime`. The hand-written `returns:` object validators omitted `_creationTime`, and Convex object validators reject extra properties at runtime, so every call that returned at least one row failed validation.
+  - Fix: removed the `returns:` validators from both admin queries and let TypeScript inference cover the full `Doc<>` shape, following Convex's updated return-validator guidance (validators are for exact runtime contracts, not standard well-typed queries). Returned objects now include `_creationTime`; the `Admin.tsx` consumers only read existing fields, so the superset is backward compatible.
+  - Files: `convex/aiSettings.ts`
+  - Verification: `ReadLints` clean (`v` still used by other functions in the file).
+
 - AI content generation failing with "All AI providers failed. anthropic (env): 404 ... model: claude-sonnet-4-20250514" (2026-06-21 23:47 UTC)
   - Root cause: `convex/seoContent.ts` `buildSeoCandidates` set the Anthropic env-fallback default to `claude-sonnet-4-20250514`, a model ID the Anthropic API no longer serves, so every env-based Anthropic request returned `404 not_found_error`. When the OpenAI key was also invalid, the fallback chain exhausted and surfaced the "All AI providers failed" error.
   - Fix: updated the default to `claude-sonnet-4-6` (Claude Sonnet 4.6 Claude API ID per the [Anthropic models overview](https://platform.claude.com/docs/en/about-claude/models/overview)). `convex/aiProviderFallback.ts` was intentionally left unchanged; it passes `defaultEnvModels[provider]` through verbatim and never hardcodes a model.

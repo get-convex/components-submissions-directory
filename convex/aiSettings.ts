@@ -235,19 +235,10 @@ export const getActivePrompt = query({
 });
 
 // Get all prompt versions for history
+// No returns validator: full docs include the system field `_creationTime`,
+// which a hand-written object validator would reject. Rely on TS inference.
 export const getPromptVersions = query({
   args: {},
-  returns: v.array(
-    v.object({
-      _id: v.id("aiPromptVersions"),
-      content: v.string(),
-      isActive: v.boolean(),
-      isDefault: v.boolean(),
-      createdAt: v.number(),
-      createdBy: v.optional(v.string()),
-      notes: v.optional(v.string()),
-    }),
-  ),
   handler: async (ctx) => {
     await requireAdminIdentity(ctx);
     const versions = await ctx.db
@@ -513,19 +504,10 @@ export const getSeoActivePrompt = query({
 });
 
 // Get all SEO prompt versions for history
+// No returns validator: full docs include the system field `_creationTime`,
+// which a hand-written object validator would reject. Rely on TS inference.
 export const getSeoPromptVersions = query({
   args: {},
-  returns: v.array(
-    v.object({
-      _id: v.id("seoPromptVersions"),
-      content: v.string(),
-      isActive: v.boolean(),
-      isDefault: v.boolean(),
-      createdAt: v.number(),
-      createdBy: v.optional(v.string()),
-      notes: v.optional(v.string()),
-    }),
-  ),
   handler: async (ctx) => {
     await requireAdminIdentity(ctx);
     const versions = await ctx.db

@@ -2,6 +2,12 @@
 
 ## completed
 
+- [x] Fix `ReturnsValidationError` in `getPromptVersions` / `getSeoPromptVersions` (2026-06-21 17:14 UTC)
+  - Root cause: full docs returned by `.take(50)` include `_creationTime`, but the `returns:` object validators omitted it, and Convex rejects extra properties at runtime.
+  - Fix: removed the `returns:` validators from both admin queries (Option B), relying on TS inference per Convex's updated return-validator guidance. Consumers in `Admin.tsx` only read existing fields, so adding `_creationTime` is backward compatible.
+  - Files: `convex/aiSettings.ts`, `changelog.md`, `task.md`, `files.md`
+  - Verification: `ReadLints` clean; `v` still used by other functions in the file.
+
 - [x] Update OpenAI env-fallback model to gpt-5.5 and fix Chat Completions token param (2026-06-21 23:55 UTC)
   - `convex/seoContent.ts`: `gpt-4o` -> `gpt-5.5`. `convex/aiReview.ts`: stale `gpt-5.2` -> `gpt-5.5`.
   - Both OpenAI calls now use `max_completion_tokens` (GPT-5 rejects `max_tokens`; `gpt-4o` and admin-set models accept the new param too), with budget bumped to 4000/4096 so reasoning tokens don't starve visible output.
