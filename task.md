@@ -2,11 +2,12 @@
 
 ## completed
 
-- [x] Fix README relative/root-relative links resolving to app origin (404) instead of GitHub (2026-06-26 11:57 UTC)
-  - Root cause: `resolveRepositoryMarkdownHref` early-returned any `/`-prefixed href, so a root-relative README link like `[example/README.md](/example/README.md)` resolved against the app origin (`https://www.convex.dev/example/README.md`, 404) instead of the GitHub repo root. The base ref was also hardcoded to `/blob/main/`, which 404s for `master`-default repos.
-  - Fix: relative and root-relative links now resolve against `https://github.com/<owner>/<repo>/blob/HEAD/...` (`HEAD` works for both `main` and `master`). Added shared `parseGitHubSlug` helper and applied the same root-relative handling to `resolveRepositoryImageSrc`. Anchors, absolute, and protocol-relative URLs pass through unchanged.
+- [x] Fix README relative links resolving to app origin (404), including monorepo subdir repos (2026-06-26 19:10 UTC)
+  - Symptoms: exa `[example/README.md](/example/README.md)` → `convex.dev/example/README.md` (404); posthog `[example app](../../examples/example-convex/)` → `convex.dev/examples/example-convex/` (404). The posthog link is in the stored `readmeIncludedMarkdown` snapshot (older README revision), not the current GitHub README.
+  - Root cause: `markdownLinks.ts` returned root-relative (`/x`) hrefs untouched, and only parsed bare `owner/repo` — so monorepo subdirectory URLs (`github.com/PostHog/posthog-js/tree/main/packages/convex`) didn't parse (link passed through → resolved against the page path → `convex.dev/...`), and `../../` relative links resolved against the repo root instead of the README's subdir. Base ref was hardcoded to `main` (404s on `master` repos).
+  - Fix: resolver now parses `owner`/`repo`/`ref`/subdir from the repository URL, resolves relative links against the README's subdir (so `../../examples/example-convex/` → repo-root `examples/example-convex/`), maps root-relative `/x` to repo root, and builds `https://github.com/<owner>/<repo>/blob/<ref>/<path>` (GitHub 301s `/blob/<dir>`→`/tree/<dir>`). `ref` = branch from URL else `HEAD`. Images use `raw.githubusercontent.com/<owner>/<repo>/<ref>/`. Preserves query/`#frag`; anchors/absolute/`//`/non-GitHub pass through unchanged.
   - Files: `src/lib/markdownLinks.ts`, `changelog.md`, `task.md`, `files.md`
-  - Verification: `ReadLints` clean; Node check confirmed correct resolution for relative/root-relative/`./` paths and pass-through for `#`/`http`/`//` links; `curl` confirmed `blob/HEAD/example/README.md` → 200 and `blob/main/...` → 404 for this repo.
+  - Verification: `ReadLints` clean; Node sim confirmed exa + posthog cases and pass-throughs; `curl` confirmed `blob/main/examples/example-convex/` → 301→tree, `blob/main/packages/convex/CONTRIBUTING.md` → 200, `blob/HEAD/example/README.md` → 200.
 
 - [x] Fix `ReturnsValidationError` in `getPromptVersions` / `getSeoPromptVersions` (2026-06-21 17:14 UTC)
   - Root cause: full docs returned by `.take(50)` include `_creationTime`, but the `returns:` object validators omitted it, and Convex rejects extra properties at runtime.
