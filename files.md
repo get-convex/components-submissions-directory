@@ -517,6 +517,10 @@ Pure helper that builds SKILL.md content from v2 content model fields (descripti
 
 Composable markdown cleanup pipeline for LLM- and user-authored content before remark-gfm parses it. Exports `MarkdownNormalizer`, individual normalizers (`normalizeLineEndings`, `normalizeUnicodeBullets`), and `normalizeMarkdown()` which runs `DEFAULT_MARKDOWN_NORMALIZERS` in order. Used by `src/components/Markdown.tsx`, content generation (`convex/seoContent.ts`), package saves (`convex/packages.ts`), markdown/llms HTTP output (`convex/http.ts`, `convex/router.ts`), and `shared/buildSkillMd.ts`. Add new normalizers to the default array when more predictable-parse fixes are needed.
 
+### `src/lib/markdownLinks.ts`
+
+Resolves relative links and image sources inside rendered README markdown against the source GitHub repository (consumed by `src/components/Markdown.tsx`). `resolveRepositoryMarkdownHref` rewrites both relative (`example/README.md`) and root-relative (`/example/README.md`) links to `https://github.com/<owner>/<repo>/blob/HEAD/...`; `resolveRepositoryImageSrc` rewrites relative/root-relative image paths to `https://raw.githubusercontent.com/<owner>/<repo>/HEAD/...`. Uses `HEAD` so links work regardless of default branch (`main` vs `master`). Anchors (`#...`), absolute URLs (`http:`, `mailto:`, etc.), and protocol-relative (`//...`) URLs are passed through unchanged. Shared `parseGitHubSlug` helper extracts `owner`/`repo` from the repository URL. Without a parseable GitHub repo URL, the original href/src is returned as-is.
+
 ### `shared/seoPromptTemplate.ts`
 
 Shared SEO prompt template and placeholder list. Keeps the default SEO fallback prompt aligned between `convex/aiSettings.ts`, `convex/seoContent.ts`, and the Admin SEO Prompt Settings UI while adding placeholders for GitHub README grounding and Convex docs context. The v2 content prompt requires `useCases` as markdown unordered lists with `- ` per line (not Unicode bullets).

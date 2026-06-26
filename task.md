@@ -2,6 +2,12 @@
 
 ## completed
 
+- [x] Fix README relative/root-relative links resolving to app origin (404) instead of GitHub (2026-06-26 11:57 UTC)
+  - Root cause: `resolveRepositoryMarkdownHref` early-returned any `/`-prefixed href, so a root-relative README link like `[example/README.md](/example/README.md)` resolved against the app origin (`https://www.convex.dev/example/README.md`, 404) instead of the GitHub repo root. The base ref was also hardcoded to `/blob/main/`, which 404s for `master`-default repos.
+  - Fix: relative and root-relative links now resolve against `https://github.com/<owner>/<repo>/blob/HEAD/...` (`HEAD` works for both `main` and `master`). Added shared `parseGitHubSlug` helper and applied the same root-relative handling to `resolveRepositoryImageSrc`. Anchors, absolute, and protocol-relative URLs pass through unchanged.
+  - Files: `src/lib/markdownLinks.ts`, `changelog.md`, `task.md`, `files.md`
+  - Verification: `ReadLints` clean; Node check confirmed correct resolution for relative/root-relative/`./` paths and pass-through for `#`/`http`/`//` links; `curl` confirmed `blob/HEAD/example/README.md` → 200 and `blob/main/...` → 404 for this repo.
+
 - [x] Fix `ReturnsValidationError` in `getPromptVersions` / `getSeoPromptVersions` (2026-06-21 17:14 UTC)
   - Root cause: full docs returned by `.take(50)` include `_creationTime`, but the `returns:` object validators omitted it, and Convex rejects extra properties at runtime.
   - Fix: removed the `returns:` validators from both admin queries (Option B), relying on TS inference per Convex's updated return-validator guidance. Consumers in `Admin.tsx` only read existing fields, so adding `_creationTime` is backward compatible.
