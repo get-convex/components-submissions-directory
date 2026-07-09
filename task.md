@@ -9,7 +9,7 @@
   - Files: `src/lib/markdownLinks.ts`, `changelog.md`, `task.md`, `files.md`
   - Verification: `ReadLints` clean; Node sim confirmed exa + posthog cases and pass-throughs; `curl` confirmed `blob/main/examples/example-convex/` → 301→tree, `blob/main/packages/convex/CONTRIBUTING.md` → 200, `blob/HEAD/example/README.md` → 200.
 
-- [x] In-app review status notifications for submitters (2026-07-07 21:00 UTC)
+- [x] In-app review status notifications for submitters (2026-07-09 04:14 UTC)
   - Users now see a "Status updates" section in the header bell when their submission moves to in_review, approved, changes_requested, or rejected. Fires for admin manual review and all AI auto-review paths (auto in_review on submit, auto approve/reject) since every transition flows through `updateReviewStatusHelper`.
   - New `statusNotifications` table + `createStatusNotification` helper (skips no-op transitions, pending state, missing submitter email, and duplicate unread rows). New `convex/notifications.ts` with the bell feed query and mark-read mutations (JWT email ownership checks). `Header.tsx` renders copy per status with colored dots, includes the count in the badge, marks read on click, and offers "Mark all read".
   - PRD: `prds/status-change-notifications.md`
