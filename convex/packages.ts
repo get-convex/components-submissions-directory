@@ -1811,7 +1811,48 @@ type ReviewStatusArgs = {
   reviewedBy: string;
 };
 
+// Insert a statusNotifications row for the submitter when reviewStatus actually
+// changes. Skips the initial "pending" state, packages without a submitter
+// email, and duplicate unread notifications for the same package + status.
+async function createStatusNotification(
+  ctx: MutationCtx,
+  pkg: Doc<"packages"> | null,
+  previousStatus: Doc<"packages">["reviewStatus"],
+  newStatus: ReviewStatusArgs["reviewStatus"],
+  createdAt: number,
+) {
+  if (!pkg) return;
+  if (newStatus === "pending") return;
+  if (previousStatus === newStatus) return;
+  const recipientEmail = pkg.submitterEmail;
+  if (!recipientEmail) return;
+
+  // Dedupe: skip if an identical unread notification already exists
+  const unread = await ctx.db
+    .query("statusNotifications")
+    .withIndex("by_recipientEmail_and_read", (q) =>
+      q.eq("recipientEmail", recipientEmail).eq("read", false),
+    )
+    .take(200);
+  const duplicate = unread.some(
+    (n) => n.packageId === pkg._id && n.reviewStatus === newStatus,
+  );
+  if (duplicate) return;
+
+  await ctx.db.insert("statusNotifications", {
+    packageId: pkg._id,
+    recipientEmail,
+    reviewStatus: newStatus,
+    createdAt,
+    read: false,
+  });
+}
+
 async function updateReviewStatusHelper(ctx: any, args: ReviewStatusArgs) {
+  // Capture the previous status before patching so we only notify on real transitions
+  const existingPkg = await ctx.db.get("packages", args.packageId);
+  const previousStatus = existingPkg?.reviewStatus;
+
   const reviewedAt = Date.now();
   await ctx.db.patch("packages", args.packageId, {
     reviewStatus: args.reviewStatus,
@@ -1820,6 +1861,11 @@ async function updateReviewStatusHelper(ctx: any, args: ReviewStatusArgs) {
     ...(args.reviewStatus === "approved" && { approvedAt: reviewedAt }),
     ...(args.reviewNotes !== undefined && { reviewNotes: args.reviewNotes }),
   });
+
+  // Notify the submitter about the status change (in-app bell).
+  // Fires for every path that changes status: admin manual review, auto AI
+  // review setting in_review on submit, and AI auto approve/reject.
+  await createStatusNotification(ctx, existingPkg, previousStatus, args.reviewStatus, reviewedAt);
 
   let shouldAutoGenerateSeo =
     args.reviewStatus === "approved" ||

@@ -17,6 +17,7 @@ import type * as contentGenerationLimits from "../contentGenerationLimits.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
 import type * as http from "../http.js";
+import type * as notifications from "../notifications.js";
 import type * as packages from "../packages.js";
 import type * as payments from "../payments.js";
 import type * as paymentsDb from "../paymentsDb.js";
@@ -46,6 +47,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   dashboard: typeof dashboard;
   http: typeof http;
+  notifications: typeof notifications;
   packages: typeof packages;
   payments: typeof payments;
   paymentsDb: typeof paymentsDb;

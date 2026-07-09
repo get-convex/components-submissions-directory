@@ -1,5 +1,5 @@
 import { useAuth } from "../lib/auth";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useState, useRef, useEffect } from "react";
 import {
@@ -43,12 +43,20 @@ export default function Header() {
     api.packages.getAdminUnreadMessagesByPackage,
     isAuthenticated && isAdmin ? {} : "skip",
   );
+  const statusFeed = useQuery(
+    api.notifications.getMyStatusNotifications,
+    isAuthenticated ? {} : "skip",
+  );
+  const markStatusRead = useMutation(api.notifications.markStatusNotificationRead);
+  const markAllStatusRead = useMutation(api.notifications.markAllStatusNotificationsRead);
 
   const userItems = userFeed ?? [];
   const adminItems = adminFeed ?? [];
+  const statusItems = statusFeed ?? [];
   const totalUnread =
     userItems.reduce((sum, item) => sum + item.unreadCount, 0) +
-    adminItems.reduce((sum, item) => sum + item.unreadCount, 0);
+    adminItems.reduce((sum, item) => sum + item.unreadCount, 0) +
+    statusItems.length;
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -78,18 +86,77 @@ export default function Header() {
     return `${d}d ago`;
   };
 
+  // Copy and dot color for each review status notification
+  const statusDisplay = (
+    status: "in_review" | "approved" | "changes_requested" | "rejected",
+    packageName: string,
+  ): { message: string; dotColor: string } => {
+    switch (status) {
+      case "in_review":
+        return { message: `${packageName} is now in review`, dotColor: "#2563EB" };
+      case "approved":
+        return { message: `${packageName} was approved`, dotColor: "#16A34A" };
+      case "changes_requested":
+        return { message: `Changes requested for ${packageName}`, dotColor: "#D97706" };
+      case "rejected":
+        return { message: `${packageName} was not approved`, dotColor: "#DC2626" };
+    }
+  };
+
   const renderBellDropdown = () => (
     <div className="fixed sm:absolute left-1/2 sm:left-auto -translate-x-1/2 sm:translate-x-0 sm:right-0 top-[70px] sm:top-full mt-0 sm:mt-2 w-[calc(100vw-1rem)] sm:w-80 max-w-sm rounded-lg border border-border bg-white shadow-lg z-50 overflow-hidden">
       <div className="px-3 py-2 border-b border-border flex items-center justify-between">
         <span className="text-sm font-medium text-text-primary">Notifications</span>
-        <span className="text-xs text-text-secondary">
-          {totalUnread > 0 ? `${totalUnread} new` : "All caught up"}
-        </span>
+        <div className="flex items-center gap-2">
+          {statusItems.length > 0 && (
+            <button
+              type="button"
+              onClick={() => void markAllStatusRead()}
+              className="text-xs text-text-secondary hover:text-text-primary transition-colors">
+              Mark all read
+            </button>
+          )}
+          <span className="text-xs text-text-secondary">
+            {totalUnread > 0 ? `${totalUnread} new` : "All caught up"}
+          </span>
+        </div>
       </div>
       <div className="max-h-96 overflow-y-auto py-1">
-        {userItems.length === 0 && adminItems.length === 0 && (
+        {userItems.length === 0 && adminItems.length === 0 && statusItems.length === 0 && (
           <div className="px-3 py-6 text-center text-sm text-text-secondary">
             No new messages
+          </div>
+        )}
+
+        {statusItems.length > 0 && (
+          <div>
+            <div className="px-3 py-1.5 text-[11px] font-medium uppercase tracking-wide text-text-secondary">
+              Status updates
+            </div>
+            {statusItems.map((item) => {
+              const { message, dotColor } = statusDisplay(item.reviewStatus, item.packageName);
+              return (
+                <a
+                  key={item.notificationId}
+                  href={`${basePath}/profile#pkg-${item.packageId}`}
+                  onClick={() => {
+                    void markStatusRead({ notificationId: item.notificationId });
+                    setBellOpen(false);
+                  }}
+                  className="flex items-center gap-2 px-3 py-2 hover:bg-bg-hover transition-colors">
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: dotColor }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-text-primary truncate">{message}</div>
+                    <div className="text-xs text-text-secondary">
+                      {formatRelative(item.createdAt)}
+                    </div>
+                  </div>
+                </a>
+              );
+            })}
           </div>
         )}
 

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- In-app review status notifications for submitters (2026-07-07 21:00 UTC)
+  - New `statusNotifications` table (`convex/schema.ts`) records one row per real review status transition (in_review, approved, changes_requested, rejected), written from `updateReviewStatusHelper` in `convex/packages.ts`. Every status change path flows through that helper, so notifications fire for admin manual review, auto AI review setting in_review on submit, and AI auto approve/reject, regardless of the Auto AI Review toggle state.
+  - New `convex/notifications.ts`: `getMyStatusNotifications` (unread feed for the header bell, minimal metadata only), `markStatusNotificationRead`, `markAllStatusNotificationsRead`. Ownership checks compare `recipientEmail` against the caller's WorkOS JWT email.
+  - `src/components/Header.tsx`: bell dropdown gains a "Status updates" section with per-status copy ("X is now in review", "X was approved", "Changes requested for X", "X was not approved") and status-colored dots; badge count includes status notifications; items mark read on click and link to `/components/profile#pkg-<id>`; "Mark all read" button in the dropdown header.
+  - Dedupe and idempotency: no notification when status did not change, on the initial pending state, when the package has no submitter email, or when an identical unread notification already exists.
+  - PRD: `prds/status-change-notifications.md`
+  - Verification: `npx tsc -p convex --noEmit` passed; app tsc shows only pre-existing errors (CodeBlock, CategoryPage, Directory); eslint clean on new code; `npx convex dev --once` deployed schema and functions.
+
 ### Changed
 
 - Updated OpenAI env-fallback model to `gpt-5.5` and fixed Chat Completions token param (2026-06-21 23:55 UTC)

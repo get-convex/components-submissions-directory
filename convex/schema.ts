@@ -318,6 +318,22 @@ const applicationTables = {
   })
     .index("by_package_and_created", ["packageId", "createdAt"]),
 
+  // Review status change notifications shown in the submitter's header bell
+  statusNotifications: defineTable({
+    packageId: v.id("packages"),
+    recipientEmail: v.string(),
+    reviewStatus: v.union(
+      v.literal("in_review"),
+      v.literal("approved"),
+      v.literal("changes_requested"),
+      v.literal("rejected"),
+    ),
+    createdAt: v.number(),
+    read: v.boolean(),
+  })
+    .index("by_recipientEmail_and_read", ["recipientEmail", "read"])
+    .index("by_package", ["packageId"]),
+
   // Historical AI review runs for admin audit and comparison
   aiReviewRuns: defineTable({
     packageId: v.id("packages"),

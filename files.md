@@ -234,6 +234,10 @@ Seed script for importing official Convex components from convex.dev/components.
 Run via CLI: `npx convex run seed:seedOfficialComponents '{"importAsPending": true}'`
 Production: `npx convex run --prod seed:seedOfficialComponents '{"importAsPending": true}'`
 
+### `convex/notifications.ts`
+
+Review status notifications for submitters. `getMyStatusNotifications` returns the current user's unread status change notifications (package name, slug, status, timestamp only) for the header bell, keyed by the caller's JWT email via the `by_recipientEmail_and_read` index. `markStatusNotificationRead` and `markAllStatusNotificationsRead` flip the `read` flag with owner checks and idempotent early returns. Rows are inserted by `createStatusNotification` in `convex/packages.ts` whenever `updateReviewStatusHelper` applies a real status transition.
+
 ### `convex/slack.ts`
 
 Internal Slack notifications: `sendMessage` (`internalAction`) POSTs `{ text }` to `SLACK_WEBHOOK_URL`. No-op if unset. Errors are logged only. Scheduled from `submitPackage` (new submissions), `addPackageComment` (private messages from both submitters and admins, with role-based `From:` label), `requestSubmissionRefresh` (submitter "Send Request" from Profile), `addPackageNote` (admin internal notes and legacy request replies, with distinct first-line labels), and the shared package review completion helper. Review completion sends the existing security-only message when Auto AI Review is off, or one grouped security plus AI review message after both checks finish when Auto AI Review is on.
@@ -371,7 +375,7 @@ Shared header component with auth state management. Uses `useAuth()` from `src/l
 - Admin-only navigation links (Admin, Docs) visible only to @convex.dev users
 - Social icons (GitHub, Discord) and Docs icon linking to external resources
 - User menu with avatar, My Submissions link, and Sign Out button
-- Notifications bell (Phosphor `Bell`) placed right of the Submit link and in the mobile header row. Default state is an outline bell matching the other header icon styling (`text-text-secondary hover:text-text-primary`, size 16). When unread messages exist, the bell switches to a filled `#E05C35` icon and renders a count badge. Opens a dropdown with two sections: "Messages from Convex Team" (current user's unread admin replies) and, for admins only, "Incoming messages" (unread submitter messages across all components). Each item links to `/components/profile#pkg-<id>` (user) or `/components/submissions/admin#pkg-<id>` (admin). Powered by `api.packages.getMyUnreadAdminRepliesByPackage` and `api.packages.getAdminUnreadMessagesByPackage`.
+- Notifications bell (Phosphor `Bell`) placed right of the Submit link and in the mobile header row. Default state is an outline bell matching the other header icon styling (`text-text-secondary hover:text-text-primary`, size 16). When unread items exist, the bell switches to a filled `#E05C35` icon and renders a count badge. Opens a dropdown with three sections: "Status updates" (current user's unread review status changes with per-status copy and colored dots, marked read on click, with a "Mark all read" button), "Messages from Convex Team" (current user's unread admin replies) and, for admins only, "Incoming messages" (unread submitter messages across all components). Each item links to `/components/profile#pkg-<id>` (user) or `/components/submissions/admin#pkg-<id>` (admin). Powered by `api.notifications.getMyStatusNotifications`, `api.packages.getMyUnreadAdminRepliesByPackage`, and `api.packages.getAdminUnreadMessagesByPackage`.
 - Sticky positioning with top padding for floating effect
 - Mobile responsive with separate dropdown menu card (rounded-2xl) below header pill
 - Header height: 3.438rem

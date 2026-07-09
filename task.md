@@ -9,6 +9,13 @@
   - Files: `src/lib/markdownLinks.ts`, `changelog.md`, `task.md`, `files.md`
   - Verification: `ReadLints` clean; Node sim confirmed exa + posthog cases and pass-throughs; `curl` confirmed `blob/main/examples/example-convex/` → 301→tree, `blob/main/packages/convex/CONTRIBUTING.md` → 200, `blob/HEAD/example/README.md` → 200.
 
+- [x] In-app review status notifications for submitters (2026-07-07 21:00 UTC)
+  - Users now see a "Status updates" section in the header bell when their submission moves to in_review, approved, changes_requested, or rejected. Fires for admin manual review and all AI auto-review paths (auto in_review on submit, auto approve/reject) since every transition flows through `updateReviewStatusHelper`.
+  - New `statusNotifications` table + `createStatusNotification` helper (skips no-op transitions, pending state, missing submitter email, and duplicate unread rows). New `convex/notifications.ts` with the bell feed query and mark-read mutations (JWT email ownership checks). `Header.tsx` renders copy per status with colored dots, includes the count in the badge, marks read on click, and offers "Mark all read".
+  - PRD: `prds/status-change-notifications.md`
+  - Files: `convex/schema.ts`, `convex/packages.ts`, `convex/notifications.ts`, `src/components/Header.tsx`, `changelog.md`, `files.md`
+  - Verification: `npx tsc -p convex --noEmit` passed; app tsc only shows pre-existing errors; eslint clean on new code; `npx convex dev --once` deployed the table indexes and functions.
+
 - [x] Fix `ReturnsValidationError` in `getPromptVersions` / `getSeoPromptVersions` (2026-06-21 17:14 UTC)
   - Root cause: full docs returned by `.take(50)` include `_creationTime`, but the `returns:` object validators omitted it, and Convex rejects extra properties at runtime.
   - Fix: removed the `returns:` validators from both admin queries (Option B), relying on TS inference per Convex's updated return-validator guidance. Consumers in `Admin.tsx` only read existing fields, so adding `_creationTime` is backward compatible.
