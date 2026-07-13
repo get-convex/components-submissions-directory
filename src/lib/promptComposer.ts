@@ -108,6 +108,9 @@ export function generateUniversalPrompt(
     promptParts.push("Documentation:");
     promptParts.push(`- Markdown: ${urls.markdownUrl}`);
     promptParts.push(`- LLMs.txt: ${urls.llmsUrl}`);
+    if (component.skillMd) {
+      promptParts.push(`- Skill: ${urls.skillUrl}`);
+    }
   }
 
   if (component.repositoryUrl) {
@@ -189,6 +192,9 @@ export function generateClaudePrompt(
     parts.push("Documentation:");
     parts.push(`- ${urls.markdownUrl}`);
     parts.push(`- ${urls.llmsUrl}`);
+    if (component.skillMd) {
+      parts.push(`- Skill: ${urls.skillUrl}`);
+    }
   }
 
   parts.push("");
@@ -230,6 +236,55 @@ export function generateManualSafetyPrompt(
 
   parts.push("");
   parts.push(`Install command: ${component.installCommand}`);
+
+  return parts.join("\n");
+}
+
+/**
+ * Kebab-case skill folder name, matching the `name:` in the generated
+ * SKILL.md frontmatter (see shared/buildSkillMd.ts).
+ */
+export function getSkillFolderName(component: PromptComponentData): string {
+  const base = component.name || component.componentName || "component";
+  return base
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
+ * Generate an agent prompt that installs the component's SKILL.md into the
+ * correct skills folder for whatever harness the agent runs in.
+ */
+export function generateSkillInstallPrompt(
+  component: PromptComponentData,
+  origin: string,
+  convexUrl?: string,
+): string {
+  const displayName = component.componentName || component.name;
+  const urls = component.slug
+    ? buildComponentClientUrls(component.slug, origin, convexUrl)
+    : null;
+  const folder = getSkillFolderName(component);
+
+  const parts: string[] = [];
+  parts.push(`Install the ${displayName} agent skill in this project.`);
+  parts.push("");
+  if (urls) {
+    parts.push(`1. Fetch the skill file: ${urls.skillUrl}`);
+  } else {
+    parts.push("1. Fetch the component's SKILL.md file");
+  }
+  parts.push(
+    `2. Save it as SKILL.md inside the skills folder for your harness, in a folder named "${folder}":`,
+  );
+  parts.push(`   - Claude Code: .claude/skills/${folder}/SKILL.md`);
+  parts.push(`   - Cursor: .cursor/skills/${folder}/SKILL.md`);
+  parts.push(`   - Codex: .codex/skills/${folder}/SKILL.md`);
+  parts.push(`   - Other agents: .agents/skills/${folder}/SKILL.md`);
+  parts.push(
+    "3. Read the skill and follow its instructions when working with this component.",
+  );
 
   return parts.join("\n");
 }

@@ -114,6 +114,9 @@ http.route({
       lines.push(`## ${name}`);
       lines.push(`- URL: ${url}`);
       if (mdUrl) lines.push(`- Markdown: ${mdUrl}`);
+      if (componentLinks && hasPublicSkill(pkg)) {
+        lines.push(`- Skill: ${componentLinks.skillUrl}`);
+      }
       lines.push(`- npm: ${pkg.npmUrl || ""}`);
       lines.push(`- Category: ${category}`);
       lines.push(`- Description: ${desc}`);
@@ -166,6 +169,51 @@ http.route({
   }),
 });
 
+// ============ SKILL.md ENDPOINT ============
+// Serves the raw agent SKILL.md for a component (for /components/<slug>/SKILL.md)
+http.route({
+  path: "/api/skill",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    const url = new URL(request.url);
+    const slug = url.searchParams.get("slug") || "";
+
+    if (!slug) {
+      return new Response("# Not Found\n\nNo slug provided.", {
+        status: 404,
+        headers: markdownHeaders(),
+      });
+    }
+
+    const pkg = await ctx.runQuery(internal.packages._getPackageBySlug, {
+      slug,
+    });
+
+    if (
+      !pkg ||
+      pkg.visibility === "hidden" ||
+      pkg.visibility === "archived" ||
+      pkg.hideSeoAndSkillContentOnDetailPage === true ||
+      !pkg.skillMd
+    ) {
+      return new Response(`# Not Found\n\nNo skill available for "${slug}".`, {
+        status: 404,
+        headers: markdownHeaders(),
+      });
+    }
+
+    return new Response(pkg.skillMd, {
+      status: 200,
+      headers: markdownHeaders(),
+    });
+  }),
+});
+
+// True when a package's SKILL.md may be exposed publicly
+function hasPublicSkill(pkg: any): boolean {
+  return Boolean(pkg.skillMd) && pkg.hideSeoAndSkillContentOnDetailPage !== true;
+}
+
 const CATEGORY_LABELS: Record<string, string> = {
   ai: "AI",
   auth: "Auth",
@@ -194,6 +242,10 @@ function buildComponentMarkdown(pkg: any): string {
   if (pkg.slug)
     lines.push(
       `- [Convex Components Directory](https://www.convex.dev/components/${pkg.slug})`,
+    );
+  if (pkg.slug && hasPublicSkill(pkg))
+    lines.push(
+      `- [Agent skill (SKILL.md)](${buildComponentUrls(pkg.slug, DIRECTORY_ORIGIN).skillUrl})`,
     );
   if (pkg.demoUrl) lines.push(`- [Live demo](${pkg.demoUrl})`);
   lines.push("");
@@ -343,6 +395,9 @@ http.route({
         lines.push(`- [npm](${pkg.npmUrl})`);
         if (pkg.repositoryUrl) lines.push(` | [GitHub](${pkg.repositoryUrl})`);
         if (mdUrl) lines.push(` | [Markdown](${mdUrl})`);
+        if (componentLinks && hasPublicSkill(pkg)) {
+          lines.push(` | [Skill](${componentLinks.skillUrl})`);
+        }
         lines.push("\n");
       }
     }
@@ -403,6 +458,9 @@ http.route({
     lines.push(`- Directory: ${componentLinks.detailUrl}`);
     lines.push(`- Markdown: ${componentLinks.markdownUrl}`);
     lines.push(`- llms.txt: ${componentLinks.llmsUrl}`);
+    if (hasPublicSkill(pkg)) {
+      lines.push(`- Skill: ${componentLinks.skillUrl}`);
+    }
     lines.push(`- npm: ${pkg.npmUrl || ""}`);
     if (pkg.repositoryUrl) lines.push(`- GitHub: ${pkg.repositoryUrl}`);
     if (pkg.demoUrl) lines.push(`- Demo: ${pkg.demoUrl}`);
@@ -607,6 +665,12 @@ http.route({
 
 http.route({
   path: "/api/markdown",
+  method: "OPTIONS",
+  handler: contentOptionsHandler(),
+});
+
+http.route({
+  path: "/api/skill",
   method: "OPTIONS",
   handler: contentOptionsHandler(),
 });

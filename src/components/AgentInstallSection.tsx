@@ -7,7 +7,11 @@
 
 import { useState, useMemo } from "react";
 import { CheckIcon, CopyIcon, ExternalLinkIcon } from "@radix-ui/react-icons";
-import { generateClaudePrompt } from "../lib/promptComposer";
+import {
+  generateClaudePrompt,
+  generateSkillInstallPrompt,
+} from "../lib/promptComposer";
+import { buildComponentClientUrls } from "../../shared/componentUrls";
 import CodeBlock from "./CodeBlock";
 import {
   isMcpReady,
@@ -42,6 +46,7 @@ interface ComponentData {
   authorUsername?: string;
   convexVerified?: boolean;
   skillMd?: string;
+  hideSeoAndSkillContentOnDetailPage?: boolean;
   seoValueProp?: string;
   seoBenefits?: string[];
   seoUseCases?: { query: string; answer: string }[];
@@ -56,9 +61,37 @@ interface AgentInstallSectionProps {
 export function AgentInstallSection({ component }: AgentInstallSectionProps) {
   const [mcpCopied, setMcpCopied] = useState(false);
   const [selectedPlatform, setSelectedPlatform] = useState<McpPlatform>("cursor");
+  const [skillCopied, setSkillCopied] = useState(false);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined;
+
+  // Skill availability and URLs
+  const skillAvailable = Boolean(
+    component.skillMd &&
+      component.slug &&
+      component.hideSeoAndSkillContentOnDetailPage !== true,
+  );
+  const skillUrl = useMemo(() => {
+    if (!component.slug) return "";
+    return buildComponentClientUrls(component.slug, origin, convexUrl).skillUrl;
+  }, [component.slug, origin, convexUrl]);
+  const skillInstallPrompt = useMemo(
+    () => generateSkillInstallPrompt(component, origin, convexUrl),
+    [component, origin, convexUrl],
+  );
+
+  // Copy raw SKILL.md contents
+  const handleCopySkill = async () => {
+    if (!component.skillMd) return;
+    try {
+      await navigator.clipboard.writeText(component.skillMd);
+      setSkillCopied(true);
+      setTimeout(() => setSkillCopied(false), 2000);
+    } catch {
+      // Silent fail
+    }
+  };
 
   // Check MCP readiness
   const mcpReady = useMemo(() => isMcpReady(component as Parameters<typeof isMcpReady>[0]), [component]);
@@ -134,6 +167,55 @@ export function AgentInstallSection({ component }: AgentInstallSectionProps) {
           </span>
           <CodeBlock code={agentPrompt} language="markdown" filename="agent-prompt.md" />
         </div>
+
+        {/* Skill install section */}
+        {skillAvailable && (
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-text-secondary capitalize tracking-wider">
+                Skill
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCopySkill}
+                  className="flex items-center gap-1.5 px-2 py-1 rounded text-xs hover:bg-bg-hover transition-colors"
+                  title={skillCopied ? "Copied" : "Copy raw SKILL.md"}>
+                  {skillCopied ? (
+                    <>
+                      <CheckIcon className="w-3.5 h-3.5 text-green-600" />
+                      <span className="text-green-600">Copied</span>
+                    </>
+                  ) : (
+                    <>
+                      <CopyIcon className="w-3.5 h-3.5 text-text-secondary" />
+                      <span className="text-text-secondary">Copy skill</span>
+                    </>
+                  )}
+                </button>
+                <a
+                  href={skillUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-2 py-1 rounded text-xs hover:bg-bg-hover transition-colors text-text-secondary"
+                  title="Open raw SKILL.md">
+                  <ExternalLinkIcon className="w-3.5 h-3.5" />
+                  <span>View SKILL.md</span>
+                </a>
+              </div>
+            </div>
+
+            <div>
+              <span className="text-xs font-medium text-text-secondary capitalize tracking-wider">
+                Paste this prompt into any agent
+              </span>
+              <CodeBlock
+                code={skillInstallPrompt}
+                language="markdown"
+                filename="install-skill-prompt.md"
+              />
+            </div>
+          </div>
+        )}
 
         {/* Multi-Platform MCP Install Section - temporarily disabled
         {MCP_ENABLED && mcpReady && (

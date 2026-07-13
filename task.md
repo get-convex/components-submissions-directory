@@ -2,6 +2,17 @@
 
 ## completed
 
+- [x] Skill URL and agent install (2026-07-13 19:05 UTC)
+  - SKILL.md now served at `/components/<slug>/SKILL.md` via new `/api/skill` GET + OPTIONS routes in `convex/http.ts` (404 for hidden/archived/missing/`hideSeoAndSkillContentOnDetailPage`), `skillPath`/`skillUrl` in `shared/componentUrls.ts`, and SKILL.md proxying in the `component-markdown` edge function.
+  - Skill block in "Use with agents and CLI" (`AgentInstallSection.tsx`): Copy skill, View SKILL.md, and an install skill agent prompt labeled "Paste this prompt into any agent" (`generateSkillInstallPrompt` + `getSkillFolderName` in `promptComposer.ts`). Harness tabs and curl one liners were removed 2026-07-13 19:35 UTC per feedback.
+  - Skill URL in Claude/universal prompts and discovery endpoints (`/api/component-llms`, `/api/llms.txt`, `/api/markdown-index`, `buildComponentMarkdown`, `buildMarkdownDoc`); detail page footer SKILL.md link; removed dead `handleCopySkill`/`skillCopied`; Download Skill folder-hint tooltip.
+  - Detail page polish (2026-07-13 19:42 UTC): author row order swapped so "For Agents" renders before "Download Skill"; footer link text changed from generic "View llms.txt" / "View SKILL.md" to `{component.name} llms.txt` / `{component.name} SKILL.md` for better anchor-text SEO/AEO signals.
+  - Footer spacing and headings (2026-07-13 20:01 UTC): removed the doubled divider above Related Components and centered the llms/SKILL link row between the two dividers (24px each side); added a "For LLMs and AI agents" h3 above the links for AEO/SEO context; restyled the all-caps Keywords label into a semantic h3 matching the "From the README.md" heading style.
+  - Admin: "Update Skill"/"Generate Skill" button next to Update README calling new `rebuildSkillMd` mutation, plus "Backfill Skills" button triggering `backfillAllSkillMd` (batched, self-scheduling) for approved packages missing `skillMd`.
+  - PRD: `prds/skill-url-and-agent-install.md`
+  - Files: `convex/http.ts`, `convex/seoContentDb.ts`, `shared/componentUrls.ts`, `netlify/edge-functions/component-markdown.ts`, `src/components/AgentInstallSection.tsx`, `src/lib/promptComposer.ts`, `src/pages/ComponentDetail.tsx`, `src/pages/Admin.tsx`, `changelog.md`, `files.md`
+  - Verification: `npx tsc -p convex --noEmit` and `npm run build` passed; curl on dev deployment confirmed `/api/skill` 200/404 behavior and skill links in llms.txt, component-llms, markdown, and markdown-index outputs.
+
 - [x] Fix README relative links resolving to app origin (404), including monorepo subdir repos (2026-06-26 19:10 UTC)
   - Symptoms: exa `[example/README.md](/example/README.md)` → `convex.dev/example/README.md` (404); posthog `[example app](../../examples/example-convex/)` → `convex.dev/examples/example-convex/` (404). The posthog link is in the stored `readmeIncludedMarkdown` snapshot (older README revision), not the current GitHub README.
   - Root cause: `markdownLinks.ts` returned root-relative (`/x`) hrefs untouched, and only parsed bare `owner/repo` — so monorepo subdirectory URLs (`github.com/PostHog/posthog-js/tree/main/packages/convex`) didn't parse (link passed through → resolved against the page path → `convex.dev/...`), and `../../` relative links resolved against the repo root instead of the README's subdir. Base ref was hardcoded to `main` (404s on `master` repos).

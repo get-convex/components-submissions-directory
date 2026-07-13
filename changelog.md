@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Stable SKILL.md URLs and agent skill install experience (2026-07-13 19:05 UTC)
+  - Every component's generated `skillMd` is now served at `https://www.convex.dev/components/<slug>/SKILL.md`. New `/api/skill?slug=` GET + OPTIONS routes in `convex/http.ts` return raw markdown with CORS headers, and 404 for hidden or archived packages, missing skills, or packages with `hideSeoAndSkillContentOnDetailPage` set. The `component-markdown` Netlify edge function (`netlify/edge-functions/component-markdown.ts`) now recognizes the `SKILL.md` filename and proxies it to the new route; the existing `/components/*/*.md` path in `netlify.toml` already matched.
+  - `shared/componentUrls.ts` builders gained `skillPath`/`skillUrl` (`buildComponentPaths`, `buildComponentUrls`, `buildComponentApiUrls`, `buildComponentClientUrls`).
+  - New Skill block in the "Use with agents and CLI" section (`src/components/AgentInstallSection.tsx`), shown only when a skill exists: a Copy skill button for the raw markdown, a View SKILL.md link, and an install skill agent prompt ("Paste this prompt into any agent") via new `generateSkillInstallPrompt` in `src/lib/promptComposer.ts` (with shared `getSkillFolderName` matching the skill frontmatter kebab name). Harness tabs with per-harness curl commands were built first, then removed the same day (2026-07-13 19:35 UTC) in favor of the single agent prompt.
+  - Skill URL added to agent discovery surfaces: `generateClaudePrompt` and `generateUniversalPrompt` documentation lists, `/api/component-llms`, `/api/llms.txt` index, `/api/markdown-index`, `buildComponentMarkdown` (convex/http.ts), and `buildMarkdownDoc` (`src/pages/ComponentDetail.tsx`). Detail page footer gained a "View SKILL.md" link next to "View llms.txt"; the Download Skill button got a folder hint tooltip; the dead `handleCopySkill`/`skillCopied` code was removed.
+  - Admin: new "Update Skill"/"Generate Skill" button (`src/pages/Admin.tsx`) next to Update README calls the new `rebuildSkillMd` mutation in `convex/seoContentDb.ts` (deterministic rebuild via `tryBuildSkillMd`, no AI call; ConvexError toast when v2 content is missing). New "Backfill Skills" button in Auto-Refresh Settings triggers `backfillAllSkillMd`, a batched self-scheduling backfill that builds skills for approved packages with v2 content but no `skillMd`.
+  - PRD: `prds/skill-url-and-agent-install.md`
+  - Verification: `npx tsc -p convex --noEmit` and `npm run build` passed; curl against the dev deployment confirmed 200 markdown for `/api/skill?slug=better-auth`, 404 for unknown/missing slugs, and skill links present in `/api/llms.txt`, `/api/component-llms`, `/api/markdown`, and `/api/markdown-index`.
+
 - In-app review status notifications for submitters (2026-07-09 04:14 UTC)
   - New `statusNotifications` table (`convex/schema.ts`) records one row per real review status transition (in_review, approved, changes_requested, rejected), written from `updateReviewStatusHelper` in `convex/packages.ts`. Every status change path flows through that helper, so notifications fire for admin manual review, auto AI review setting in_review on submit, and AI auto approve/reject, regardless of the Auto AI Review toggle state.
   - New `convex/notifications.ts`: `getMyStatusNotifications` (unread feed for the header bell, minimal metadata only), `markStatusNotificationRead`, `markAllStatusNotificationsRead`. Ownership checks compare `recipientEmail` against the caller's WorkOS JWT email.
@@ -18,6 +27,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Verification: `npx tsc -p convex --noEmit` passed; app tsc shows only pre-existing errors (CodeBlock, CategoryPage, Directory); eslint clean on new code; `npx convex dev --once` deployed schema and functions.
 
 ### Changed
+
+- Component detail page header and footer link polish (2026-07-13 19:42 UTC)
+  - Author row order swapped in `src/pages/ComponentDetail.tsx`: "For Agents" now renders before "Download Skill".
+  - Footer link anchor text changed from generic "View llms.txt" / "View SKILL.md" to `{component.name} llms.txt` / `{component.name} SKILL.md` so each component page emits descriptive, entity-specific anchor text for SEO/AEO crawlers. Hrefs unchanged.
+
+- Component detail footer spacing and heading cleanup (2026-07-13 20:01 UTC)
+  - Removed the doubled divider above Related Components in `src/pages/ComponentDetail.tsx` (the llms link row had a `border-b` stacked on the Related section's `border-t`) and equalized the vertical spacing so the llms.txt/SKILL.md links sit centered between the two dividers (24px above and below; Related section margin `mt-8` -> `mt-6`).
+  - Added a "For LLMs and AI agents" `h3` above the llms.txt/SKILL.md links so crawlers and answer engines get labeled context for the agent files (AEO/SEO), and the links appear in the page heading outline for screen readers.
+  - Keywords label restyled from all-caps `text-xs` uppercase `p` to a semantic `h3` matching the "From the README.md" heading style (`text-base font-semibold text-text-primary`).
 
 - Updated OpenAI env-fallback model to `gpt-5.5` and fixed Chat Completions token param (2026-06-21 23:55 UTC)
   - `convex/seoContent.ts` env default moved from `gpt-4o` to `gpt-5.5`; `convex/aiReview.ts` env default moved from the non-catalog `gpt-5.2` to `gpt-5.5` (current flagship per the [OpenAI models catalog](https://developers.openai.com/api/docs/models)).

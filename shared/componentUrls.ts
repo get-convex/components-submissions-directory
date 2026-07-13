@@ -20,6 +20,7 @@ export function buildComponentPaths(
   detailPath: string;
   markdownPath: string;
   llmsPath: string;
+  skillPath: string;
 } {
   const cleanBasePath = normalizeBasePath(basePath);
   const cleanSlug = slug.replace(/^\/+|\/+$/g, "");
@@ -30,6 +31,7 @@ export function buildComponentPaths(
     detailPath,
     markdownPath: `${detailPath}/${leaf}.md`,
     llmsPath: `${detailPath}/llms.txt`,
+    skillPath: `${detailPath}/SKILL.md`,
   };
 }
 
@@ -41,12 +43,14 @@ export function buildComponentUrls(
   detailUrl: string;
   markdownUrl: string;
   llmsUrl: string;
+  skillUrl: string;
 } {
   const paths = buildComponentPaths(slug, basePath);
   return {
     detailUrl: new URL(paths.detailPath, origin).toString(),
     markdownUrl: new URL(paths.markdownPath, origin).toString(),
     llmsUrl: new URL(paths.llmsPath, origin).toString(),
+    skillUrl: new URL(paths.skillPath, origin).toString(),
   };
 }
 
@@ -67,12 +71,14 @@ export function buildComponentApiUrls(
 ): {
   markdownUrl: string;
   llmsUrl: string;
+  skillUrl: string;
 } {
   const convexSiteOrigin = toConvexSiteOrigin(convexUrl);
   const encodedSlug = encodeURIComponent(slug);
   return {
     markdownUrl: `${convexSiteOrigin}/api/markdown?slug=${encodedSlug}`,
     llmsUrl: `${convexSiteOrigin}/api/component-llms?slug=${encodedSlug}`,
+    skillUrl: `${convexSiteOrigin}/api/skill?slug=${encodedSlug}`,
   };
 }
 
@@ -84,6 +90,7 @@ export function buildComponentClientUrls(
   detailUrl: string;
   markdownUrl: string;
   llmsUrl: string;
+  skillUrl: string;
 } {
   const aliasUrls = buildComponentUrls(slug, appOrigin);
   if (convexUrl && isLocalOrigin(appOrigin)) {
@@ -92,6 +99,7 @@ export function buildComponentClientUrls(
       detailUrl: aliasUrls.detailUrl,
       markdownUrl: apiUrls.markdownUrl,
       llmsUrl: apiUrls.llmsUrl,
+      skillUrl: apiUrls.skillUrl,
     };
   }
   return aliasUrls;

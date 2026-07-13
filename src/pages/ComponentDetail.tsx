@@ -129,6 +129,8 @@ function buildMarkdownDoc(c: {
   generatedHowItWorks?: string;
   readmeIncludedMarkdown?: string;
   contentModelVersion?: number;
+  skillMd?: string;
+  hideSeoAndSkillContentOnDetailPage?: boolean;
 }): string {
   const lines: string[] = [];
   lines.push(`# ${c.componentName || c.name}\n`);
@@ -145,6 +147,10 @@ function buildMarkdownDoc(c: {
   if (c.slug)
     lines.push(
       `- [Convex Components Directory](https://www.convex.dev/components/${c.slug})`,
+    );
+  if (c.slug && c.skillMd && c.hideSeoAndSkillContentOnDetailPage !== true)
+    lines.push(
+      `- [Agent skill (SKILL.md)](https://www.convex.dev/components/${c.slug}/SKILL.md)`,
     );
   lines.push("");
 
@@ -914,7 +920,6 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
   const [showHelpModal, setShowHelpModal] = useState(false);
   const [showSecurityReportModal, setShowSecurityReportModal] = useState(false);
   const [pageCopied, setPageCopied] = useState(false);
-  const [skillCopied, setSkillCopied] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // GitHub issues state
@@ -1073,15 +1078,6 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
     } catch {}
   };
 
-  const handleCopySkill = async () => {
-    if (!component?.skillMd) return;
-    try {
-      await navigator.clipboard.writeText(component.skillMd);
-      setSkillCopied(true);
-      setTimeout(() => setSkillCopied(false), 2000);
-    } catch {}
-  };
-
   const handleDownloadSkill = () => {
     if (!component?.skillMd) return;
     const blob = new Blob([component.skillMd], { type: "text/markdown" });
@@ -1167,7 +1163,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
     if (!relatedComponents || relatedComponents.length === 0) return null;
 
     return (
-      <div className="mt-8 pt-6 border-t border-border">
+      <div className="mt-6 pt-6 border-t border-border">
         <h2 className="text-sm font-semibold text-text-primary capitalize tracking-wider mb-4">
           Related Components
         </h2>
@@ -1588,20 +1584,6 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 </>
               )}
 
-              {/* Download Skill button - only shows if SKILL.md has been generated */}
-              {showAgentContent && component.skillMd && (
-                <>
-                  <span className="text-text-secondary/40">|</span>
-                  <button
-                    onClick={handleDownloadSkill}
-                    className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
-                  >
-                    <FileArrowDown className="w-3.5 h-3.5" weight="bold" />
-                    Download Skill
-                  </button>
-                </>
-              )}
-
               {/* Agent install anchor link */}
               {showAgentContent && (
                 <>
@@ -1613,6 +1595,21 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                     <ClipboardText className="w-3.5 h-3.5" weight="bold" />
                     For Agents
                   </a>
+                </>
+              )}
+
+              {/* Download Skill button - only shows if SKILL.md has been generated */}
+              {showAgentContent && component.skillMd && (
+                <>
+                  <span className="text-text-secondary/40">|</span>
+                  <button
+                    onClick={handleDownloadSkill}
+                    title="Save into a named skills folder, e.g. .claude/skills/<component-name>/SKILL.md"
+                    className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition-colors"
+                  >
+                    <FileArrowDown className="w-3.5 h-3.5" weight="bold" />
+                    Download Skill
+                  </button>
                 </>
               )}
 
@@ -1993,9 +1990,9 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
             {/* Keywords */}
             {component.tags && component.tags.length > 0 && (
               <div className="mt-8 mb-6">
-                <p className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-2">
+                <h3 className="text-base font-semibold text-text-primary mb-4">
                   Keywords
-                </p>
+                </h3>
                 <div className="flex flex-wrap gap-1.5">
                   {component.tags.map((tag: string) => (
                     <span
@@ -2011,16 +2008,29 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
 
             {/* llms link (badge hidden on detail page, kept on Profile/Submit) */}
             {componentLinks && !hideSeoAndSkillContent && (
-              <div className="mt-8 pt-6 border-t border-border pb-6 border-b">
-                <div>
+              <div className="mt-8 pt-6 border-t border-border">
+                <h3 className="text-base font-semibold text-text-primary mb-4">
+                  For LLMs and AI agents
+                </h3>
+                <div className="flex items-center gap-4">
                   <a
                     href={componentLinks.llmsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-text-secondary hover:text-text-primary transition-colors underline"
                   >
-                    View llms.txt
+                    {component.name} llms.txt
                   </a>
+                  {component.skillMd && (
+                    <a
+                      href={componentLinks.skillUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-text-secondary hover:text-text-primary transition-colors underline"
+                    >
+                      {component.name} SKILL.md
+                    </a>
+                  )}
                 </div>
               </div>
             )}

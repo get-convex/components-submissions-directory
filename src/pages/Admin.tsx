@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useMutation, useQuery, useAction } from "convex/react";
+import { ConvexError } from "convex/values";
 import { api } from "../../convex/_generated/api";
 import { useAuth } from "../lib/auth";
 import { Toaster, toast } from "sonner";
@@ -3083,6 +3084,7 @@ function InlineActions({
   rewardStatus,
   defaultRewardAmount,
   reviewedBy,
+  hasSkillMd,
 }: {
   packageId: Id<"packages">;
   currentStatus: ReviewStatus | undefined;
@@ -3108,6 +3110,7 @@ function InlineActions({
   rewardStatus?: "not_sent" | "sent" | "delivered" | "failed";
   defaultRewardAmount?: number;
   reviewedBy?: string;
+  hasSkillMd?: boolean;
 }) {
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -3125,6 +3128,7 @@ function InlineActions({
   const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [isRegeneratingSeo, setIsRegeneratingSeo] = useState(false);
   const [isRefreshingReadme, setIsRefreshingReadme] = useState(false);
+  const [isRebuildingSkill, setIsRebuildingSkill] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isGeneratingSlug, setIsGeneratingSlug] = useState(false);
 
@@ -3150,6 +3154,7 @@ function InlineActions({
   const autoFillAuthor = useMutation(api.packages.autoFillAuthorFromRepo);
   const regenerateSeo = useAction(api.seoContent.regenerateDirectoryContent);
   const refreshReadme = useAction(api.seoContent.refreshReadmeContent);
+  const rebuildSkill = useMutation(api.seoContentDb.rebuildSkillMd);
   const refreshNpmData = useAction(api.packages.refreshNpmData);
   const generateSlug = useMutation(api.packages.generateSlugForPackage);
 
@@ -3395,6 +3400,24 @@ function InlineActions({
       toast.error("Failed to refresh README");
     } finally {
       setIsRefreshingReadme(false);
+    }
+  };
+
+  // Rebuild SKILL.md from current directory content (deterministic, no AI call)
+  const handleRebuildSkill = async () => {
+    if (isRebuildingSkill) return;
+    setIsRebuildingSkill(true);
+    try {
+      await rebuildSkill({ packageId });
+      toast.success(hasSkillMd ? "Skill updated" : "Skill generated");
+    } catch (error) {
+      const message =
+        error instanceof ConvexError && typeof error.data === "string"
+          ? error.data
+          : "Failed to rebuild skill";
+      toast.error(message);
+    } finally {
+      setIsRebuildingSkill(false);
     }
   };
 
@@ -3691,6 +3714,29 @@ function InlineActions({
                   <>
                     <FileText size={14} weight="bold" />
                     <span>Update README</span>
+                  </>
+                )}
+              </button>
+            </Tooltip>
+
+            {/* Rebuild SKILL.md from current directory content */}
+            <Tooltip
+              content={
+                isRebuildingSkill
+                  ? "Rebuilding skill..."
+                  : "Rebuild SKILL.md from current directory content (no AI call)"
+              }>
+              <button
+                onClick={handleRebuildSkill}
+                disabled={isLoading || isRebuildingSkill}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all disabled:opacity-50 border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+              >
+                {isRebuildingSkill ? (
+                  <AiLoadingDots size={14} />
+                ) : (
+                  <>
+                    <Robot size={14} weight="bold" />
+                    <span>{hasSkillMd ? "Update Skill" : "Generate Skill"}</span>
                   </>
                 )}
               </button>
@@ -4725,6 +4771,24 @@ function AutoRefreshSettingsPanel() {
   const triggerRefreshAllPackages = useAction(
     api.packages.triggerManualRefreshAllPackages,
   );
+  const backfillSkills = useMutation(api.seoContentDb.backfillAllSkillMd);
+  const [isBackfillingSkills, setIsBackfillingSkills] = useState(false);
+
+  // One-time backfill: build SKILL.md for approved packages missing one
+  const handleBackfillSkills = async () => {
+    if (isBackfillingSkills) return;
+    setIsBackfillingSkills(true);
+    try {
+      await backfillSkills({});
+      toast.success(
+        "Skill backfill started. Approved components with generated content but no SKILL.md will be patched in the background.",
+      );
+    } catch (error) {
+      toast.error("Failed to start skill backfill");
+    } finally {
+      setIsBackfillingSkills(false);
+    }
+  };
 
   const handleToggleEnabled = async () => {
     if (!refreshSettings) return;
@@ -4960,6 +5024,20 @@ function AutoRefreshSettingsPanel() {
                 className={isRefreshingApproved ? "animate-pulse" : ""}
               />
               {isRefreshingApproved ? "Refreshing..." : "Refresh Approved Only"}
+            </button>
+            {/* One-time SKILL.md backfill button */}
+            <button
+              onClick={handleBackfillSkills}
+              disabled={isBackfillingSkills}
+              title="Build SKILL.md for approved components that have generated content but no skill yet"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-border bg-white text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Robot
+                size={16}
+                weight="bold"
+                className={isBackfillingSkills ? "animate-pulse" : ""}
+              />
+              {isBackfillingSkills ? "Starting..." : "Backfill Skills"}
             </button>
           </div>
 
@@ -9373,6 +9451,7 @@ function AdminDashboard({
                         rewardStatus={pkg.rewardStatus}
                         defaultRewardAmount={defaultRewardAmount}
                         reviewedBy={pkg.reviewedBy}
+                        hasSkillMd={Boolean(pkg.skillMd)}
                       />
                     </div>
                   )}
