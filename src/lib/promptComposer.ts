@@ -103,19 +103,23 @@ export function generateUniversalPrompt(
   promptParts.push("Install command:");
   promptParts.push(`\`${component.installCommand}\``);
 
+  // Collect documentation links so the header only renders when links exist
+  const docLines: string[] = [];
   if (urls) {
-    promptParts.push("");
-    promptParts.push("Documentation:");
-    promptParts.push(`- Markdown: ${urls.markdownUrl}`);
-    promptParts.push(`- LLMs.txt: ${urls.llmsUrl}`);
+    docLines.push(`- Markdown: ${urls.markdownUrl}`);
+    docLines.push(`- LLMs.txt: ${urls.llmsUrl}`);
     if (component.skillMd) {
-      promptParts.push(`- Skill: ${urls.skillUrl}`);
+      docLines.push(`- Skill: ${urls.skillUrl}`);
     }
   }
-
   if (component.repositoryUrl) {
-    promptParts.push(`- Repository: ${component.repositoryUrl}`);
+    docLines.push(`- Repository: ${component.repositoryUrl}`);
     sourceFieldsUsed.push("repositoryUrl");
+  }
+  if (docLines.length > 0) {
+    promptParts.push("");
+    promptParts.push("Documentation:");
+    promptParts.push(...docLines);
   }
 
   promptParts.push("");
@@ -190,8 +194,8 @@ export function generateClaudePrompt(
   if (urls) {
     parts.push("");
     parts.push("Documentation:");
-    parts.push(`- ${urls.markdownUrl}`);
-    parts.push(`- ${urls.llmsUrl}`);
+    parts.push(`- Markdown: ${urls.markdownUrl}`);
+    parts.push(`- LLMs.txt: ${urls.llmsUrl}`);
     if (component.skillMd) {
       parts.push(`- Skill: ${urls.skillUrl}`);
     }

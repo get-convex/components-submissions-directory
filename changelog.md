@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Official get-convex components list for agents and humans (2026-07-14 04:50 UTC)
+  - New auto-updating endpoints scoped to components built by the Convex team: `https://www.convex.dev/components/get-convex-llms.txt` and `https://www.convex.dev/components/get-convex.md`. A component qualifies when its `repositoryUrl` is under `github.com/get-convex/` or its npm name starts with `@convex-dev/` (`isOfficialPackage` in `convex/http.ts`). Both reuse `_listApprovedPackages` live at request time, so newly approved official components appear automatically with no cron or admin flag.
+  - `convex/http.ts`: extracted shared `buildLlmsTxtBody` and `buildMarkdownIndexBody` builders from the existing `/api/llms.txt` and `/api/markdown-index` handlers, added `GET /api/get-convex-llms.txt` and `GET /api/get-convex-markdown` routes, and cross-linked the official list from the main llms.txt header (and back).
+  - `netlify.toml`: redirects for the two new `/components/` paths; `netlify/edge-functions/og-meta.ts`: direct proxy branches for both (redirects do not fire after the edge function runs).
+  - `src/pages/Directory.tsx`: For Agents section gained a second row with `get-convex-llms.txt` and `get-convex.md` buttons plus copy explaining the official-only scope.
+  - PRD: `prds/get-convex-official-list.md`
+  - Verification: `npx tsc -p convex --noEmit` and `npm run build` passed; curl on the dev deployment returned 200 with exactly the 10 `@convex-dev/` scoped components on both new routes, and the full-directory endpoints unchanged apart from the new cross-link header line.
+
 - Stable SKILL.md URLs and agent skill install experience (2026-07-13 19:05 UTC)
   - Every component's generated `skillMd` is now served at `https://www.convex.dev/components/<slug>/SKILL.md`. New `/api/skill?slug=` GET + OPTIONS routes in `convex/http.ts` return raw markdown with CORS headers, and 404 for hidden or archived packages, missing skills, or packages with `hideSeoAndSkillContentOnDetailPage` set. The `component-markdown` Netlify edge function (`netlify/edge-functions/component-markdown.ts`) now recognizes the `SKILL.md` filename and proxies it to the new route; the existing `/components/*/*.md` path in `netlify.toml` already matched.
   - `shared/componentUrls.ts` builders gained `skillPath`/`skillUrl` (`buildComponentPaths`, `buildComponentUrls`, `buildComponentApiUrls`, `buildComponentClientUrls`).
@@ -27,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Verification: `npx tsc -p convex --noEmit` passed; app tsc shows only pre-existing errors (CodeBlock, CategoryPage, Directory); eslint clean on new code; `npx convex dev --once` deployed schema and functions.
 
 ### Changed
+
+- Labeled documentation links in the agent copy prompt (2026-07-14 18:30 UTC)
+  - The "Copy prompt" block in "Use with agents and CLI" (built by `generateClaudePrompt` in `src/lib/promptComposer.ts`) listed the markdown and llms URLs as bare bullets while the skill URL had a `Skill:` label. Both now carry `Markdown:` and `LLMs.txt:` labels, matching `generateUniversalPrompt`, so agents know what each URL contains before fetching.
+  - Fixed a related edge case in `generateUniversalPrompt`: the `- Repository:` bullet was pushed outside the `if (urls)` block, so a component with a repo URL but no slug produced a stray bullet with no `Documentation:` header. Documentation lines are now collected first and the header only renders when at least one link exists.
 
 - Component detail page header and footer link polish (2026-07-13 19:42 UTC)
   - Author row order swapped in `src/pages/ComponentDetail.tsx`: "For Agents" now renders before "Download Skill".

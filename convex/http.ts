@@ -72,6 +72,67 @@ http.route({
 });
 
 // ============ LLMs.txt ENDPOINT ============
+// Shared response headers for the directory-level llms.txt lists (1 hour cache)
+function llmsIndexHeaders(): Record<string, string> {
+  return {
+    "Content-Type": "text/plain; charset=utf-8",
+    "Cache-Control": "public, max-age=3600, s-maxage=3600",
+    "Access-Control-Allow-Origin": "*",
+  };
+}
+
+// Builds the llms.txt body for a set of packages (full directory or official-only)
+function buildLlmsTxtBody(
+  packages: any[],
+  opts: { title: string; intro: string; extraHeaderLines?: string[] },
+): string {
+  const lines: string[] = [];
+  lines.push(`# ${opts.title}`);
+  lines.push(`# ${opts.intro}`);
+  lines.push(
+    `# ${packages.length} components | Updated ${new Date().toISOString().slice(0, 10)}`,
+  );
+  for (const extra of opts.extraHeaderLines ?? []) {
+    lines.push(`# ${extra}`);
+  }
+  lines.push("");
+
+  const sorted = [...packages].sort((a: any, b: any) =>
+    (a.name || "").localeCompare(b.name || ""),
+  );
+
+  for (const pkg of sorted) {
+    const name = pkg.componentName || pkg.name || "Unknown";
+    const slug = pkg.slug || "";
+    const desc = (pkg.contentModelVersion === 2 && pkg.generatedDescription)
+      ? pkg.generatedDescription.slice(0, 200)
+      : (pkg.seoValueProp || pkg.shortDescription || pkg.description || "");
+    const category = pkg.category || "general";
+    const componentLinks = slug
+      ? buildComponentUrls(slug, DIRECTORY_ORIGIN)
+      : null;
+    const url = slug
+      ? componentLinks?.detailUrl || pkg.npmUrl
+      : pkg.npmUrl;
+    const mdUrl = slug
+      ? componentLinks?.markdownUrl || ""
+      : "";
+
+    lines.push(`## ${name}`);
+    lines.push(`- URL: ${url}`);
+    if (mdUrl) lines.push(`- Markdown: ${mdUrl}`);
+    if (componentLinks && hasPublicSkill(pkg)) {
+      lines.push(`- Skill: ${componentLinks.skillUrl}`);
+    }
+    lines.push(`- npm: ${pkg.npmUrl || ""}`);
+    lines.push(`- Category: ${category}`);
+    lines.push(`- Description: ${desc}`);
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
 http.route({
   path: "/api/llms.txt",
   method: "GET",
@@ -80,56 +141,52 @@ http.route({
       internal.packages._listApprovedPackages,
     );
 
-    const lines: string[] = [];
-    lines.push("# Convex Components Directory");
-    lines.push(
-      "# A curated index of open-source components for the Convex backend platform.",
-    );
-    lines.push(
-      `# ${packages.length} components | Updated ${new Date().toISOString().slice(0, 10)}`,
-    );
-    lines.push("");
+    const body = buildLlmsTxtBody(packages, {
+      title: "Convex Components Directory",
+      intro:
+        "A curated index of open-source components for the Convex backend platform.",
+      extraHeaderLines: [
+        `Official components by the Convex team: ${DIRECTORY_ORIGIN}/components/get-convex-llms.txt`,
+      ],
+    });
 
-    const sorted = [...packages].sort((a: any, b: any) =>
-      (a.name || "").localeCompare(b.name || ""),
-    );
-
-    for (const pkg of sorted) {
-      const name = pkg.componentName || pkg.name || "Unknown";
-      const slug = pkg.slug || "";
-      const desc = (pkg.contentModelVersion === 2 && pkg.generatedDescription)
-        ? pkg.generatedDescription.slice(0, 200)
-        : (pkg.seoValueProp || pkg.shortDescription || pkg.description || "");
-      const category = pkg.category || "general";
-      const componentLinks = slug
-        ? buildComponentUrls(slug, DIRECTORY_ORIGIN)
-        : null;
-      const url = slug
-        ? componentLinks?.detailUrl || pkg.npmUrl
-        : pkg.npmUrl;
-      const mdUrl = slug
-        ? componentLinks?.markdownUrl || ""
-        : "";
-
-      lines.push(`## ${name}`);
-      lines.push(`- URL: ${url}`);
-      if (mdUrl) lines.push(`- Markdown: ${mdUrl}`);
-      if (componentLinks && hasPublicSkill(pkg)) {
-        lines.push(`- Skill: ${componentLinks.skillUrl}`);
-      }
-      lines.push(`- npm: ${pkg.npmUrl || ""}`);
-      lines.push(`- Category: ${category}`);
-      lines.push(`- Description: ${desc}`);
-      lines.push("");
-    }
-
-    return new Response(lines.join("\n"), {
+    return new Response(body, {
       status: 200,
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "public, max-age=3600, s-maxage=3600",
-        "Access-Control-Allow-Origin": "*",
-      },
+      headers: llmsIndexHeaders(),
+    });
+  }),
+});
+
+// ============ OFFICIAL GET-CONVEX LLMs.txt ENDPOINT ============
+// True when a component is an official Convex team component:
+// repo lives in the get-convex GitHub org, or npm name is @convex-dev/ scoped.
+function isOfficialPackage(pkg: any): boolean {
+  const repo = (pkg.repositoryUrl || "").toLowerCase();
+  if (/github\.com\/get-convex(\/|$)/.test(repo)) return true;
+  return typeof pkg.name === "string" && pkg.name.startsWith("@convex-dev/");
+}
+
+http.route({
+  path: "/api/get-convex-llms.txt",
+  method: "GET",
+  handler: httpAction(async (ctx) => {
+    const packages = await ctx.runQuery(
+      internal.packages._listApprovedPackages,
+    );
+    const official = packages.filter(isOfficialPackage);
+
+    const body = buildLlmsTxtBody(official, {
+      title: "Convex Official Components",
+      intro:
+        "Open-source components built by the Convex team (github.com/get-convex).",
+      extraHeaderLines: [
+        `Full directory including community components: ${DIRECTORY_ORIGIN}/components/llms.txt`,
+      ],
+    });
+
+    return new Response(body, {
+      status: 200,
+      headers: llmsIndexHeaders(),
     });
   }),
 });
@@ -341,6 +398,69 @@ function markdownHeaders(): Record<string, string> {
 }
 
 // ============ MARKDOWN INDEX ENDPOINT ============
+// Builds the markdown index body for a set of packages, grouped by category
+function buildMarkdownIndexBody(
+  packages: any[],
+  opts: { title: string; intro: string },
+): string {
+  const lines: string[] = [];
+  lines.push(`# ${opts.title}\n`);
+  lines.push(`${opts.intro}\n`);
+  lines.push(`**${packages.length} components** | Updated ${new Date().toISOString().slice(0, 10)}\n`);
+
+  // Group by category
+  const byCategory: Record<string, any[]> = {};
+  for (const pkg of packages) {
+    const cat = pkg.category || "general";
+    if (!byCategory[cat]) byCategory[cat] = [];
+    byCategory[cat].push(pkg);
+  }
+
+  // Sort categories alphabetically
+  const sortedCategories = Object.keys(byCategory).sort();
+
+  for (const category of sortedCategories) {
+    const catLabel = CATEGORY_LABELS[category] || category;
+    lines.push(`## ${catLabel}\n`);
+
+    // Sort packages within category by name
+    const sortedPkgs = byCategory[category].sort((a: any, b: any) =>
+      (a.name || "").localeCompare(b.name || ""),
+    );
+
+    for (const pkg of sortedPkgs) {
+      const name = pkg.componentName || pkg.name || "Unknown";
+      const desc = pkg.shortDescription || pkg.description || "";
+      const slug = pkg.slug || "";
+      const componentLinks = slug
+        ? buildComponentUrls(slug, DIRECTORY_ORIGIN)
+        : null;
+      const detailUrl = slug
+        ? componentLinks?.detailUrl || pkg.npmUrl
+        : pkg.npmUrl;
+      const mdUrl = slug
+        ? componentLinks?.markdownUrl || ""
+        : "";
+
+      lines.push(`### [${name}](${detailUrl})\n`);
+      if (desc) lines.push(`${desc}\n`);
+      lines.push(`- Install: \`${pkg.installCommand || `npm install ${pkg.name}`}\``);
+      lines.push(`- [npm](${pkg.npmUrl})`);
+      if (pkg.repositoryUrl) lines.push(` | [GitHub](${pkg.repositoryUrl})`);
+      if (mdUrl) lines.push(` | [Markdown](${mdUrl})`);
+      if (componentLinks && hasPublicSkill(pkg)) {
+        lines.push(` | [Skill](${componentLinks.skillUrl})`);
+      }
+      lines.push("\n");
+    }
+  }
+
+  lines.push("---\n");
+  lines.push("[View full directory](https://www.convex.dev/components)\n");
+
+  return lines.join("\n");
+}
+
 // Returns markdown listing all approved components (for /components.md)
 http.route({
   path: "/api/markdown-index",
@@ -350,62 +470,37 @@ http.route({
       internal.packages._listApprovedPackages,
     );
 
-    const lines: string[] = [];
-    lines.push("# Convex Components Directory\n");
-    lines.push("A curated index of open-source components for the Convex backend platform.\n");
-    lines.push(`**${packages.length} components** | Updated ${new Date().toISOString().slice(0, 10)}\n`);
+    const body = buildMarkdownIndexBody(packages, {
+      title: "Convex Components Directory",
+      intro:
+        "A curated index of open-source components for the Convex backend platform.",
+    });
 
-    // Group by category
-    const byCategory: Record<string, any[]> = {};
-    for (const pkg of packages) {
-      const cat = pkg.category || "general";
-      if (!byCategory[cat]) byCategory[cat] = [];
-      byCategory[cat].push(pkg);
-    }
+    return new Response(body, {
+      status: 200,
+      headers: markdownHeaders(),
+    });
+  }),
+});
 
-    // Sort categories alphabetically
-    const sortedCategories = Object.keys(byCategory).sort();
+// ============ OFFICIAL GET-CONVEX MARKDOWN INDEX ENDPOINT ============
+// Returns markdown listing only official get-convex components (for /components/get-convex.md)
+http.route({
+  path: "/api/get-convex-markdown",
+  method: "GET",
+  handler: httpAction(async (ctx) => {
+    const packages = await ctx.runQuery(
+      internal.packages._listApprovedPackages,
+    );
+    const official = packages.filter(isOfficialPackage);
 
-    for (const category of sortedCategories) {
-      const catLabel = CATEGORY_LABELS[category] || category;
-      lines.push(`## ${catLabel}\n`);
+    const body = buildMarkdownIndexBody(official, {
+      title: "Convex Official Components",
+      intro:
+        "Open-source components built by the Convex team ([github.com/get-convex](https://github.com/get-convex)). For the full directory including community components, see [components.md](https://www.convex.dev/components/components.md).",
+    });
 
-      // Sort packages within category by name
-      const sortedPkgs = byCategory[category].sort((a: any, b: any) =>
-        (a.name || "").localeCompare(b.name || ""),
-      );
-
-      for (const pkg of sortedPkgs) {
-        const name = pkg.componentName || pkg.name || "Unknown";
-        const desc = pkg.shortDescription || pkg.description || "";
-        const slug = pkg.slug || "";
-        const componentLinks = slug
-          ? buildComponentUrls(slug, DIRECTORY_ORIGIN)
-          : null;
-        const detailUrl = slug
-          ? componentLinks?.detailUrl || pkg.npmUrl
-          : pkg.npmUrl;
-        const mdUrl = slug
-          ? componentLinks?.markdownUrl || ""
-          : "";
-
-        lines.push(`### [${name}](${detailUrl})\n`);
-        if (desc) lines.push(`${desc}\n`);
-        lines.push(`- Install: \`${pkg.installCommand || `npm install ${pkg.name}`}\``);
-        lines.push(`- [npm](${pkg.npmUrl})`);
-        if (pkg.repositoryUrl) lines.push(` | [GitHub](${pkg.repositoryUrl})`);
-        if (mdUrl) lines.push(` | [Markdown](${mdUrl})`);
-        if (componentLinks && hasPublicSkill(pkg)) {
-          lines.push(` | [Skill](${componentLinks.skillUrl})`);
-        }
-        lines.push("\n");
-      }
-    }
-
-    lines.push("---\n");
-    lines.push("[View full directory](https://www.convex.dev/components)\n");
-
-    return new Response(lines.join("\n"), {
+    return new Response(body, {
       status: 200,
       headers: markdownHeaders(),
     });

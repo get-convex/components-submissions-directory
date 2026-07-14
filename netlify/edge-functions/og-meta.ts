@@ -358,6 +358,32 @@ export default async (
       },
     });
   }
+
+  // Proxy the official get-convex llms.txt list directly to Convex.
+  if (url.pathname === "/components/get-convex-llms.txt") {
+    const res = await fetch(`${siteUrl}/api/get-convex-llms.txt`);
+    return new Response(res.body, {
+      status: res.status,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "public, max-age=300, s-maxage=600",
+      },
+    });
+  }
+
+  // Proxy the official get-convex markdown index directly to Convex.
+  if (url.pathname === "/components/get-convex.md") {
+    const res = await fetch(`${siteUrl}/api/get-convex-markdown`, {
+      headers: { accept: "text/markdown, text/plain;q=0.9, */*;q=0.8" },
+    });
+    return new Response(res.body, {
+      status: res.status,
+      headers: {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Cache-Control": "public, max-age=300, s-maxage=600",
+      },
+    });
+  }
   const llmsMatch = url.pathname.match(/^\/components\/(.+)\/llms\.txt$/);
   if (llmsMatch) {
     const slug = llmsMatch[1];

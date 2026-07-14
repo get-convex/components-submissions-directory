@@ -23,6 +23,20 @@
   status = 200
   force = true
 
+# Official get-convex components llms.txt
+[[redirects]]
+  from = "/components/get-convex-llms.txt"
+  to = "https://giant-grouse-674.convex.site/api/get-convex-llms.txt"
+  status = 200
+  force = true
+
+# Official get-convex components markdown
+[[redirects]]
+  from = "/components/get-convex.md"
+  to = "https://giant-grouse-674.convex.site/api/get-convex-markdown"
+  status = 200
+  force = true
+
 # Main directory markdown (both paths supported)
 [[redirects]]
   from = "/components.md"

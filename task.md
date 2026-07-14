@@ -2,6 +2,17 @@
 
 ## completed
 
+- [x] Label markdown and llms URLs in the agent copy prompt (2026-07-14 18:30 UTC)
+  - `generateClaudePrompt` now emits `- Markdown:` and `- LLMs.txt:` labels alongside the existing `- Skill:` label, matching `generateUniversalPrompt`. Also fixed the stray `- Repository:` bullet in `generateUniversalPrompt` when a component has a repo URL but no slug (documentation lines are collected first; the header only renders when links exist).
+  - Files: `src/lib/promptComposer.ts`, `changelog.md`, `task.md`
+  - Verification: `ReadLints` clean on `promptComposer.ts`; prompt is a pure string template so no runtime behavior change beyond the label text.
+
+- [x] Official get-convex components list for agents (2026-07-14 04:50 UTC)
+  - New `/components/get-convex-llms.txt` and `/components/get-convex.md` endpoints listing only components with a `github.com/get-convex/` repo or `@convex-dev/` npm scope. Served live from `_listApprovedPackages` (auto-updates on approval). Shared `buildLlmsTxtBody`/`buildMarkdownIndexBody` builders keep the full-directory endpoints byte-compatible; main llms.txt and the official list cross-link each other. Netlify redirects + og-meta proxy branches added; Directory For Agents section gained the two new buttons with official-only copy.
+  - PRD: `prds/get-convex-official-list.md`
+  - Files: `convex/http.ts`, `netlify.toml`, `netlify/edge-functions/og-meta.ts`, `src/pages/Directory.tsx`, `changelog.md`, `files.md`
+  - Verification: `npx tsc -p convex --noEmit` and `npm run build` passed; curl on dev deployment returned 200 with exactly the 10 `@convex-dev/` components on both routes; full-directory endpoints unchanged apart from the cross-link header line.
+
 - [x] Skill URL and agent install (2026-07-13 19:05 UTC)
   - SKILL.md now served at `/components/<slug>/SKILL.md` via new `/api/skill` GET + OPTIONS routes in `convex/http.ts` (404 for hidden/archived/missing/`hideSeoAndSkillContentOnDetailPage`), `skillPath`/`skillUrl` in `shared/componentUrls.ts`, and SKILL.md proxying in the `component-markdown` edge function.
   - Skill block in "Use with agents and CLI" (`AgentInstallSection.tsx`): Copy skill, View SKILL.md, and an install skill agent prompt labeled "Paste this prompt into any agent" (`generateSkillInstallPrompt` + `getSkillFolderName` in `promptComposer.ts`). Harness tabs and curl one liners were removed 2026-07-13 19:35 UTC per feedback.

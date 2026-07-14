@@ -635,6 +635,30 @@ export default function Directory() {
                   <ArrowSquareOut size={14} className="text-text-tertiary" />
                 </a>
               </div>
+              <p className="text-sm text-text-secondary mt-5 mb-4">
+                Only want official components built by the Convex team? These lists include
+                components from the get-convex GitHub org and the @convex-dev npm scope.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <a
+                  href="/components/get-convex-llms.txt"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-border text-text-primary hover:bg-bg-hover transition-colors">
+                  <Robot size={16} />
+                  get-convex-llms.txt
+                  <ArrowSquareOut size={14} className="text-text-tertiary" />
+                </a>
+                <a
+                  href="/components/get-convex.md"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-border text-text-primary hover:bg-bg-hover transition-colors">
+                  <FileText size={16} />
+                  get-convex.md
+                  <ArrowSquareOut size={14} className="text-text-tertiary" />
+                </a>
+              </div>
             </section>
           </main>
         </div>
