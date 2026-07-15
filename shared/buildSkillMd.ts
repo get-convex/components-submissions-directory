@@ -20,6 +20,7 @@ export interface SkillMdPackageInput {
   demoUrl?: string;
   installCommand?: string;
   slug?: string;
+  version?: string;
 }
 
 export function buildSkillMdFromContent(
@@ -36,6 +37,7 @@ export function buildSkillMdFromContent(
   const repoUrl = pkg.repositoryUrl || "";
   const npmUrl = pkg.npmUrl || "";
   const installCmd = pkg.installCommand || `npm install ${pkg.name}`;
+  const version = pkg.version || "";
 
   const lines: string[] = [];
 
@@ -44,7 +46,12 @@ export function buildSkillMdFromContent(
   lines.push(
     `description: ${shortDesc} Use this skill whenever working with ${displayName} or related Convex component functionality.`,
   );
+  if (version) lines.push(`version: ${version}`);
   lines.push("---");
+  lines.push("");
+  lines.push(
+    `> Agents: read this skill fully before writing code that uses ${displayName}. Follow the installation and configuration steps exactly.`,
+  );
   lines.push("");
   lines.push(`# ${displayName}`);
   lines.push("");
@@ -58,6 +65,10 @@ export function buildSkillMdFromContent(
   lines.push(installCmd);
   lines.push("```");
   lines.push("");
+  if (version && pkg.name) {
+    lines.push(`Current npm version: \`${pkg.name}@${version}\``);
+    lines.push("");
+  }
   lines.push("## Use cases");
   lines.push("");
   lines.push(normalizeMarkdown(content.useCases));

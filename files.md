@@ -262,7 +262,7 @@ Internal rate-limit helpers for generated component directory content. Allows up
 
 ### `convex/seoContentDb.ts`
 
-Internal mutations for persisting AI-generated SEO content plus the public admin edit mutation. Separated from `seoContent.ts` because Convex mutations cannot live in `"use node"` files. Contains `_saveSeoContent` (saves SEO fields and SKILL.md content), `_updateSeoStatus`, `_setSeoError`, `_updateReadmeOnly` (patches only the README markdown and source fields without touching AI content), and `updateSeoContent` (public admin mutation for directly patching SEO fields without AI regeneration). Also contains skill maintenance mutations: `rebuildSkillMd` (admin, deterministically rebuilds SKILL.md from v2 generated content via `tryBuildSkillMd`, throws `ConvexError` when content is missing; powers the Admin Update Skill button) and `backfillAllSkillMd` (admin, kicks off `_backfillSkillMdBatch`, a paginated self-scheduling internal mutation that builds SKILL.md for approved packages with v2 content but no skill). Internal mutations omit `returns:` validators per Convex best practices (TypeScript inference suffices for non-client-facing functions).
+Internal mutations for persisting AI-generated SEO content plus the public admin edit mutation. Separated from `seoContent.ts` because Convex mutations cannot live in `"use node"` files. Contains `_saveSeoContent` (saves SEO fields and SKILL.md content), `_updateSeoStatus`, `_setSeoError`, `_updateReadmeOnly` (patches only the README markdown and source fields without touching AI content), and `updateSeoContent` (public admin mutation for directly patching SEO fields without AI regeneration). Also contains skill maintenance mutations: `rebuildSkillMd` (admin, deterministically rebuilds SKILL.md from v2 generated content via `tryBuildSkillMd`, throws `ConvexError` when content is missing; powers the Admin Update Skill button) `backfillAllSkillMd` (admin, kicks off `_backfillSkillMdBatch`, a paginated self-scheduling internal mutation that builds SKILL.md for approved packages with v2 content but no skill), and `rebuildAllSkillMd` (admin, same batch worker with `force: true` to rewrite skills for all approved packages with v2 content after skill template changes; skips no-op writes). Internal mutations omit `returns:` validators per Convex best practices (TypeScript inference suffices for non-client-facing functions).
 
 ### `convex/payments.ts`
 
@@ -321,7 +321,7 @@ Main HTTP router with all API endpoints. Defines:
 - `/api/skill?slug=<slug>` endpoint serving the raw generated SKILL.md for a single component (404 for hidden/archived packages, missing skills, or `hideSeoAndSkillContentOnDetailPage`); backs the `/components/<slug>/SKILL.md` alias. Component markdown, llms.txt, and index outputs include skill links when a public skill exists
 - `/api/markdown-index` endpoint serving markdown listing of all approved components
 - `/api/llms.txt` endpoint serving a plain-text index of all approved components (header cross-links the official list)
-- `/api/get-convex-llms.txt` and `/api/get-convex-markdown` endpoints serving the same formats filtered to official Convex team components (`isOfficialPackage`: `github.com/get-convex/` repo or `@convex-dev/` npm scope); back the `/components/get-convex-llms.txt` and `/components/get-convex.md` aliases. Shared `buildLlmsTxtBody`/`buildMarkdownIndexBody` builders generate both the full and official lists
+- `/api/get-convex-llms.txt` and `/api/get-convex-markdown` endpoints serving the same formats filtered to official Convex team components (`isOfficialPackage`: `github.com/get-convex/` repo or `@convex-dev/` npm scope); back the `/components/get-convex-llms.txt` and `/components/get-convex.md` aliases. Shared `buildLlmsTxtBody`/`buildMarkdownIndexBody` builders generate both the full and official lists; each entry carries a `- Version:` line from `packages.version` and both headers open with a one-line agent instruction (`AGENT_INSTRUCTION_LINE`) to fetch a component's SKILL.md before writing code. Per-component markdown and llms.txt outputs include the same instruction pointing at the skill URL when a public skill exists
 - `/api/component-llms?slug=<slug>` endpoint serving llms.txt format for a single component
 
 MCP endpoints temporarily disabled (commented out) while public host routing is being debugged:
@@ -519,7 +519,7 @@ Shared AI review prompt metadata. Defines the single source of truth for the vis
 
 ### `shared/buildSkillMd.ts`
 
-Pure helper that builds SKILL.md content from v2 content model fields (description, useCases, howItWorks). Shared between `convex/seoContent.ts` (action, "use node" runtime) and mutation files (`convex/packages.ts`, `convex/seoContentDb.ts`) so that SKILL.md is generated during submit, profile edit, admin edit, content model migration, and admin regeneration. Runs `useCases` and `howItWorks` through `normalizeMarkdown` before assembly.
+Pure helper that builds SKILL.md content from v2 content model fields (description, useCases, howItWorks). Shared between `convex/seoContent.ts` (action, "use node" runtime) and mutation files (`convex/packages.ts`, `convex/seoContentDb.ts`) so that SKILL.md is generated during submit, profile edit, admin edit, content model migration, and admin regeneration. Runs `useCases` and `howItWorks` through `normalizeMarkdown` before assembly. Emits the npm version in the YAML frontmatter (`version:`) and a pinned `Current npm version: package@x.y.z` line after the install command, plus a one-line agent instruction blockquote right after the frontmatter.
 
 ### `shared/normalizeMarkdown.ts`
 
@@ -788,6 +788,7 @@ Project level Claude skills in standard Agent Skills directory format (`skill-na
 ### `prds/`
 
 Product requirements documents:
+- `skill-version-and-agent-instructions.md`: npm version numbers in SKILL.md frontmatter and all llms.txt/markdown index entries, skillMd rebuild on npm version change in `_updateNpmDataAndTimestamp`, one-line agent instruction block across agent-facing outputs, and the `rebuildAllSkillMd` force rebuild
 - `npm-weekly-downloads-stale-window.md`: Root cause and fix for weekly downloads showing 0 on newly published packages; npm's `point/last-week` API alias lagged nine days, replaced with an explicit 7-day window in `fetchNpmPackageHandler`
 - `ai-review-github-token-401.md`: Root cause and fix for AI reviews failing every repo with a false "No convex.config.ts found" after the `GITHUB_TOKEN` env var expired; documents the 401 unauthenticated fallback and 403/429 error surfacing in `convex/aiReview.ts`
 - `scale-optimization.md`: Bandwidth and subscription reduction following OpenClaw patterns: compound indexes, one-shot fetches, change detection, denormalized category counts, search-indexed REST API

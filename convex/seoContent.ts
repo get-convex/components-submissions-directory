@@ -422,6 +422,7 @@ function buildSkillMd(pkg: any, seoContent: SeoContentResponse): string {
   const repoUrl = pkg.repositoryUrl || "";
   const npmUrl = pkg.npmUrl || "";
   const installCmd = pkg.installCommand || `npm install ${pkg.name}`;
+  const version = pkg.version || "";
 
   // Build "pushy" trigger contexts per Anthropic guidelines
   const triggerContexts = buildTriggerContexts(category, tags, seoContent, displayName);
@@ -432,7 +433,14 @@ function buildSkillMd(pkg: any, seoContent: SeoContentResponse): string {
   lines.push("---");
   lines.push(`name: ${kebabName}`);
   lines.push(`description: ${valueProp} ${triggerContexts}`);
+  if (version) lines.push(`version: ${version}`);
   lines.push("---");
+  lines.push("");
+
+  // One-line agent instruction (matches shared/buildSkillMd.ts)
+  lines.push(
+    `> Agents: read this skill fully before writing code that uses ${displayName}. Follow the installation and configuration steps exactly.`,
+  );
   lines.push("");
 
   // Main title
@@ -454,6 +462,10 @@ function buildSkillMd(pkg: any, seoContent: SeoContentResponse): string {
   lines.push(installCmd);
   lines.push("```");
   lines.push("");
+  if (version && pkg.name) {
+    lines.push(`Current npm version: \`${pkg.name}@${version}\``);
+    lines.push("");
+  }
 
   // Benefits/capabilities
   if (seoContent.benefits && seoContent.benefits.length > 0) {

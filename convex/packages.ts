@@ -1122,6 +1122,7 @@ function buildPackageInsertData(args: any, validated: any, packageName: string, 
         demoUrl: validated.demoUrl,
         installCommand: packageData.installCommand,
         slug,
+        version: packageData.version,
       },
       {
         description: args.generatedDescription,
@@ -4016,6 +4017,28 @@ export const _updateNpmDataAndTimestamp = internalMutation({
     if (args.allTimeDownloads !== undefined) {
       patch.allTimeDownloads = args.allTimeDownloads;
     }
+
+    // Rebuild SKILL.md when the npm version changed so the stored skill
+    // stays in sync with the version pinned in its frontmatter and install section.
+    const pkg = await ctx.db.get(args.packageId);
+    if (
+      pkg &&
+      pkg.version !== args.version &&
+      pkg.skillMd &&
+      pkg.generatedDescription &&
+      pkg.generatedUseCases &&
+      pkg.generatedHowItWorks
+    ) {
+      patch.skillMd = buildSkillMdFromContent(
+        { ...pkg, version: args.version },
+        {
+          description: pkg.generatedDescription,
+          useCases: pkg.generatedUseCases,
+          howItWorks: pkg.generatedHowItWorks,
+        },
+      );
+    }
+
     await ctx.db.patch(args.packageId, patch);
     return null;
   },
@@ -5256,6 +5279,7 @@ function buildSubmissionUpdates(args: any, pkg: any) {
         demoUrl: (args.demoUrl ?? pkg.demoUrl) || undefined,
         installCommand: pkg.installCommand,
         slug: pkg.slug || undefined,
+        version: pkg.version,
       },
       { description: desc, useCases, howItWorks },
     );

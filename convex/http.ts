@@ -81,6 +81,10 @@ function llmsIndexHeaders(): Record<string, string> {
   };
 }
 
+// One-line instruction telling agents how to use the skill links in these files
+const AGENT_INSTRUCTION_LINE =
+  "Agents: before writing code that uses a component, fetch its Skill link (SKILL.md) for setup steps, configuration, and usage patterns.";
+
 // Builds the llms.txt body for a set of packages (full directory or official-only)
 function buildLlmsTxtBody(
   packages: any[],
@@ -89,6 +93,7 @@ function buildLlmsTxtBody(
   const lines: string[] = [];
   lines.push(`# ${opts.title}`);
   lines.push(`# ${opts.intro}`);
+  lines.push(`# ${AGENT_INSTRUCTION_LINE}`);
   lines.push(
     `# ${packages.length} components | Updated ${new Date().toISOString().slice(0, 10)}`,
   );
@@ -125,6 +130,7 @@ function buildLlmsTxtBody(
       lines.push(`- Skill: ${componentLinks.skillUrl}`);
     }
     lines.push(`- npm: ${pkg.npmUrl || ""}`);
+    lines.push(`- Version: ${pkg.version || "0.0.0"}`);
     lines.push(`- Category: ${category}`);
     lines.push(`- Description: ${desc}`);
     lines.push("");
@@ -287,6 +293,13 @@ function buildComponentMarkdown(pkg: any): string {
   if (pkg.shortDescription) lines.push(`${pkg.shortDescription}\n`);
   else if (pkg.description) lines.push(`${pkg.description}\n`);
 
+  if (pkg.slug && hasPublicSkill(pkg)) {
+    const skillUrl = buildComponentUrls(pkg.slug, DIRECTORY_ORIGIN).skillUrl;
+    lines.push(
+      `> Agents: fetch the [skill (SKILL.md)](${skillUrl}) before writing code that uses ${pkg.name}. It contains setup steps, configuration, and usage patterns.\n`,
+    );
+  }
+
   lines.push(`## Install\n`);
   lines.push("```bash");
   lines.push(pkg.installCommand || `npm install ${pkg.name}`);
@@ -406,6 +419,7 @@ function buildMarkdownIndexBody(
   const lines: string[] = [];
   lines.push(`# ${opts.title}\n`);
   lines.push(`${opts.intro}\n`);
+  lines.push(`> ${AGENT_INSTRUCTION_LINE}\n`);
   lines.push(`**${packages.length} components** | Updated ${new Date().toISOString().slice(0, 10)}\n`);
 
   // Group by category
@@ -444,6 +458,7 @@ function buildMarkdownIndexBody(
 
       lines.push(`### [${name}](${detailUrl})\n`);
       if (desc) lines.push(`${desc}\n`);
+      lines.push(`- Version: ${pkg.version || "0.0.0"}`);
       lines.push(`- Install: \`${pkg.installCommand || `npm install ${pkg.name}`}\``);
       lines.push(`- [npm](${pkg.npmUrl})`);
       if (pkg.repositoryUrl) lines.push(` | [GitHub](${pkg.repositoryUrl})`);
@@ -542,6 +557,12 @@ http.route({
     lines.push(`# ${name}`);
     lines.push(`# ${desc}`);
     lines.push(`# Category: ${catLabel}`);
+    if (hasPublicSkill(pkg)) {
+      const skillUrl = buildComponentUrls(slug, DIRECTORY_ORIGIN).skillUrl;
+      lines.push(
+        `# Agents: fetch the skill at ${skillUrl} before writing code that uses ${name}. It contains setup steps, configuration, and usage patterns.`,
+      );
+    }
     lines.push("");
 
     lines.push("## Install");

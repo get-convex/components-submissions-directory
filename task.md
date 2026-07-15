@@ -2,6 +2,12 @@
 
 ## completed
 
+- [x] Skill version numbers and agent instruction block (2026-07-15 05:05 UTC)
+  - Version lines added to every entry in `/components/llms.txt`, `/components/get-convex-llms.txt`, `/components/components.md`, `/components/get-convex.md` (live from `packages.version`); SKILL.md frontmatter gains `version:` plus a pinned `Current npm version: package@x.y.z` line in both the v2 and legacy v1 builders. `_updateNpmDataAndTimestamp` rebuilds `skillMd` when the npm refresh (cron or admin button) picks up a new version. One-line agent instruction added to index headers, each SKILL.md, per-component markdown, and per-component llms.txt. New admin `rebuildAllSkillMd` force rebuild (ran on dev: 7 packages patched).
+  - PRD: `prds/skill-version-and-agent-instructions.md`
+  - Files: `convex/http.ts`, `shared/buildSkillMd.ts`, `convex/seoContent.ts`, `convex/packages.ts`, `convex/seoContentDb.ts`, `changelog.md`, `files.md`
+  - Verification: `npx tsc -p convex --noEmit` and `npm run build` passed; curl on dev confirmed version lines + instruction headers on all four indexes and in rebuilt skills; simulated version bump 0.2.0 -> 0.2.1 -> 0.2.0 through `_updateNpmDataAndTimestamp` rebuilt the cronjobs skill both directions.
+
 - [x] Label markdown and llms URLs in the agent copy prompt (2026-07-14 18:30 UTC)
   - `generateClaudePrompt` now emits `- Markdown:` and `- LLMs.txt:` labels alongside the existing `- Skill:` label, matching `generateUniversalPrompt`. Also fixed the stray `- Repository:` bullet in `generateUniversalPrompt` when a component has a repo URL but no slug (documentation lines are collected first; the header only renders when links exist).
   - Files: `src/lib/promptComposer.ts`, `changelog.md`, `task.md`

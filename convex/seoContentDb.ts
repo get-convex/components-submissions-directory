@@ -326,12 +326,14 @@ export const rebuildSkillMd = mutation({
 
 const SKILL_BACKFILL_BATCH_SIZE = 100;
 
-// Internal batch worker: pages through packages, builds skillMd where missing,
-// and schedules itself for the next page to stay within transaction limits.
+// Internal batch worker: pages through packages, builds skillMd where missing
+// (or for all packages with v2 content when force is set), and schedules itself
+// for the next page to stay within transaction limits.
 export const _backfillSkillMdBatch = internalMutation({
   args: {
     cursor: v.union(v.string(), v.null()),
     patchedSoFar: v.number(),
+    force: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -343,9 +345,10 @@ export const _backfillSkillMdBatch = internalMutation({
     const updates: Promise<void>[] = [];
     for (const pkg of page.page) {
       if (pkg.reviewStatus !== "approved") continue;
-      if (pkg.skillMd) continue;
+      if (pkg.skillMd && !args.force) continue;
       const skillMd = tryBuildSkillMd(pkg);
       if (!skillMd) continue; // v1 model without v2 content; skipped until content is generated
+      if (skillMd === pkg.skillMd) continue; // already up to date
       updates.push(ctx.db.patch(pkg._id, { skillMd }));
       patched++;
     }
@@ -358,7 +361,7 @@ export const _backfillSkillMdBatch = internalMutation({
       await ctx.scheduler.runAfter(
         0,
         internal.seoContentDb._backfillSkillMdBatch,
-        { cursor: page.continueCursor, patchedSoFar: total },
+        { cursor: page.continueCursor, patchedSoFar: total, force: args.force },
       );
     }
     return null;
@@ -376,6 +379,23 @@ export const backfillAllSkillMd = mutation({
       0,
       internal.seoContentDb._backfillSkillMdBatch,
       { cursor: null, patchedSoFar: 0 },
+    );
+    return null;
+  },
+});
+
+// Admin mutation: force-rebuild skillMd for ALL approved packages with v2
+// content, even if they already have one. Used after skill template changes
+// (e.g. version frontmatter, agent instruction line).
+export const rebuildAllSkillMd = mutation({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
+    await ctx.scheduler.runAfter(
+      0,
+      internal.seoContentDb._backfillSkillMdBatch,
+      { cursor: null, patchedSoFar: 0, force: true },
     );
     return null;
   },
