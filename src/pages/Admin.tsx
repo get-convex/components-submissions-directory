@@ -110,6 +110,12 @@ const ADMIN_SETTINGS_SECTIONS: Array<AdminSettingsSection> = [
     icon: <Lightning size={14} weight="bold" />,
   },
   {
+    id: "settings-downloads-display",
+    label: "Downloads Display",
+    shortLabel: "Downloads",
+    icon: <DownloadSimple size={14} weight="bold" />,
+  },
+  {
     id: "settings-submit-listing",
     label: "Submit Listing Settings",
     shortLabel: "Submit",
@@ -5126,6 +5132,151 @@ function AutoRefreshSettingsPanel() {
   );
 }
 
+// Downloads display panel: controls whether Directory / ComponentDetail show
+// weekly downloads, all-time downloads, or both side by side.
+function DownloadsDisplaySettingsPanel() {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const displaySettings = useQuery(api.packages.getDownloadsDisplaySettings);
+  const updateSetting = useMutation(api.packages.updateAdminSetting);
+
+  if (!displaySettings) return null;
+
+  const handleToggle = async (
+    key: "showWeeklyDownloads" | "showAllTimeDownloads",
+    currentValue: boolean,
+  ) => {
+    try {
+      await updateSetting({ key, value: !currentValue });
+      toast.success("Downloads display updated");
+    } catch {
+      toast.error("Failed to update setting");
+    }
+  };
+
+  const modeLabel =
+    displaySettings.showWeeklyDownloads && displaySettings.showAllTimeDownloads
+      ? "Both"
+      : displaySettings.showAllTimeDownloads
+        ? "All time"
+        : displaySettings.showWeeklyDownloads
+          ? "Weekly"
+          : "Hidden";
+
+  return (
+    <div className="mb-4 rounded-lg border border-border bg-bg-card overflow-hidden">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <DownloadSimple size={16} weight="bold" className="text-text-secondary" />
+          <span className="text-sm font-medium text-text-primary">
+            Downloads Display
+          </span>
+          <span className="px-1.5 py-0.5 text-[10px] font-medium bg-bg-hover text-text-secondary rounded">
+            {modeLabel}
+          </span>
+        </div>
+        {isExpanded ? (
+          <CaretUp size={16} className="text-text-secondary" />
+        ) : (
+          <CaretDown size={16} className="text-text-secondary" />
+        )}
+      </button>
+
+      {isExpanded && (
+        <div className="p-4 border-t border-border space-y-4">
+          <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary space-y-2">
+            <p>
+              Controls which download numbers appear on the public Directory
+              and component detail pages.
+            </p>
+            <p>
+              Turn both on to show weekly and all-time side by side. The
+              Dashboard table always shows both columns regardless of these
+              toggles.
+            </p>
+          </div>
+
+          {/* Weekly downloads toggle */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-text-primary">
+                Show Weekly Downloads
+              </label>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Display downloads per week on public pages
+              </p>
+            </div>
+            <button
+              onClick={() =>
+                handleToggle(
+                  "showWeeklyDownloads",
+                  displaySettings.showWeeklyDownloads,
+                )
+              }
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                displaySettings.showWeeklyDownloads
+                  ? "bg-green-600"
+                  : "bg-gray-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  displaySettings.showWeeklyDownloads
+                    ? "translate-x-6"
+                    : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* All-time downloads toggle */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-text-primary">
+                Show All-Time Downloads
+              </label>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Display total downloads since 2015 on public pages
+              </p>
+            </div>
+            <button
+              onClick={() =>
+                handleToggle(
+                  "showAllTimeDownloads",
+                  displaySettings.showAllTimeDownloads,
+                )
+              }
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                displaySettings.showAllTimeDownloads
+                  ? "bg-green-600"
+                  : "bg-gray-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  displaySettings.showAllTimeDownloads
+                    ? "translate-x-6"
+                    : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          {!displaySettings.showWeeklyDownloads &&
+            !displaySettings.showAllTimeDownloads && (
+              <p className="text-xs text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg p-2">
+                Both toggles are off, so no download numbers will appear on
+                public pages.
+              </p>
+            )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Submit listing defaults panel for public submissions page pagination
 function SubmitListingSettingsPanel() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -9524,6 +9675,10 @@ function AdminDashboard({
 
               <div id="settings-auto-refresh" className="scroll-mt-28">
                 <AutoRefreshSettingsPanel />
+              </div>
+
+              <div id="settings-downloads-display" className="scroll-mt-28">
+                <DownloadsDisplaySettingsPanel />
               </div>
 
               <div id="settings-submit-listing" className="scroll-mt-28">

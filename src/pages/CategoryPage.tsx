@@ -70,22 +70,28 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
   const [categoryData, setCategoryData] = useState<any | undefined>(undefined);
   const [categories, setCategories] = useState<any[] | undefined>(undefined);
   const [components, setComponents] = useState<any[] | undefined>(undefined);
+  const [downloadsDisplay, setDownloadsDisplay] = useState<{
+    showWeeklyDownloads: boolean;
+    showAllTimeDownloads: boolean;
+  }>({ showWeeklyDownloads: true, showAllTimeDownloads: false });
 
   const fetchGeneration = useRef(0);
   const fetchData = useCallback(async () => {
     const gen = ++fetchGeneration.current;
-    const [catData, cats, comp] = await Promise.all([
+    const [catData, cats, comp, dlDisplay] = await Promise.all([
       convex.query(api.packages.getCategoryBySlug, { slug: categorySlug }),
       convex.query(api.packages.listCategories, {}),
       convex.query(api.packages.listApprovedComponents, {
         category: categorySlug,
         sortBy,
       }),
+      convex.query(api.packages.getDownloadsDisplaySettings, {}),
     ]);
     if (gen !== fetchGeneration.current) return;
     setCategoryData(catData);
     setCategories(cats);
     setComponents(comp);
+    setDownloadsDisplay(dlDisplay);
   }, [convex, categorySlug, sortBy]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -429,6 +435,9 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
                       authorUsername={comp.authorUsername}
                       authorAvatar={comp.authorAvatar}
                       weeklyDownloads={comp.weeklyDownloads}
+                      allTimeDownloads={comp.allTimeDownloads}
+                      showWeeklyDownloads={downloadsDisplay.showWeeklyDownloads}
+                      showAllTimeDownloads={downloadsDisplay.showAllTimeDownloads}
                       convexVerified={comp.convexVerified}
                       communitySubmitted={comp.communitySubmitted}
                       featured={comp.featured}

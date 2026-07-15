@@ -24,8 +24,14 @@ const getGridColumnCount = (): number => {
   return 4;
 };
 
+// Seed the directory search box from a ?q= param (set by the header search)
+const getInitialSearchTerm = (): string => {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("q") ?? "";
+};
+
 export default function Directory() {
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(getInitialSearchTerm);
   const [sortBy, setSortBy] = useState<SortBy>("downloads");
   const [sortOpen, setSortOpen] = useState(false);
   const [gridColumns, setGridColumns] = useState<number>(getGridColumnCount);
@@ -72,19 +78,25 @@ export default function Directory() {
   const [components, setComponents] = useState<any[] | undefined>(undefined);
   const [categories, setCategories] = useState<any[] | undefined>(undefined);
   const [featured, setFeatured] = useState<any[] | undefined>(undefined);
+  const [downloadsDisplay, setDownloadsDisplay] = useState<{
+    showWeeklyDownloads: boolean;
+    showAllTimeDownloads: boolean;
+  }>({ showWeeklyDownloads: true, showAllTimeDownloads: false });
 
   const fetchGeneration = useRef(0);
   const fetchData = useCallback(async () => {
     const gen = ++fetchGeneration.current;
-    const [comp, cats, feat] = await Promise.all([
+    const [comp, cats, feat, dlDisplay] = await Promise.all([
       convex.query(api.packages.listApprovedComponents, { sortBy }),
       convex.query(api.packages.listCategories, {}),
       convex.query(api.packages.getFeaturedComponents, {}),
+      convex.query(api.packages.getDownloadsDisplaySettings, {}),
     ]);
     if (gen !== fetchGeneration.current) return;
     setComponents(comp);
     setCategories(cats);
     setFeatured(feat);
+    setDownloadsDisplay(dlDisplay);
   }, [convex, sortBy]);
 
   useEffect(() => {
@@ -138,7 +150,7 @@ export default function Directory() {
         c.name.toLowerCase().includes(term) ||
         c.description.toLowerCase().includes(term) ||
         (c.shortDescription && c.shortDescription.toLowerCase().includes(term)) ||
-        (c.tags && c.tags.some((t) => t.toLowerCase().includes(term))) ||
+        (c.tags && c.tags.some((t: string) => t.toLowerCase().includes(term))) ||
         (c.authorUsername && c.authorUsername.toLowerCase().includes(term))
     );
   }, [components, searchTerm]);
@@ -375,6 +387,9 @@ export default function Directory() {
                       authorUsername={comp.authorUsername}
                       authorAvatar={comp.authorAvatar}
                       weeklyDownloads={comp.weeklyDownloads}
+                      allTimeDownloads={comp.allTimeDownloads}
+                      showWeeklyDownloads={downloadsDisplay.showWeeklyDownloads}
+                      showAllTimeDownloads={downloadsDisplay.showAllTimeDownloads}
                       convexVerified={comp.convexVerified}
                       communitySubmitted={comp.communitySubmitted}
                       featured={comp.featured}
@@ -403,6 +418,9 @@ export default function Directory() {
                           authorUsername={comp.authorUsername}
                           authorAvatar={comp.authorAvatar}
                           weeklyDownloads={comp.weeklyDownloads}
+                          allTimeDownloads={comp.allTimeDownloads}
+                          showWeeklyDownloads={downloadsDisplay.showWeeklyDownloads}
+                          showAllTimeDownloads={downloadsDisplay.showAllTimeDownloads}
                           convexVerified={comp.convexVerified}
                           communitySubmitted={comp.communitySubmitted}
                           featured={comp.featured}
@@ -488,6 +506,9 @@ export default function Directory() {
                             authorUsername={comp.authorUsername}
                             authorAvatar={comp.authorAvatar}
                             weeklyDownloads={comp.weeklyDownloads}
+                            allTimeDownloads={comp.allTimeDownloads}
+                            showWeeklyDownloads={downloadsDisplay.showWeeklyDownloads}
+                            showAllTimeDownloads={downloadsDisplay.showAllTimeDownloads}
                             convexVerified={comp.convexVerified}
                             communitySubmitted={comp.communitySubmitted}
                             featured={comp.featured}
@@ -539,6 +560,9 @@ export default function Directory() {
                             authorUsername={comp.authorUsername}
                             authorAvatar={comp.authorAvatar}
                             weeklyDownloads={comp.weeklyDownloads}
+                            allTimeDownloads={comp.allTimeDownloads}
+                            showWeeklyDownloads={downloadsDisplay.showWeeklyDownloads}
+                            showAllTimeDownloads={downloadsDisplay.showAllTimeDownloads}
                             convexVerified={comp.convexVerified}
                             communitySubmitted={comp.communitySubmitted}
                             featured={comp.featured}
@@ -580,6 +604,9 @@ export default function Directory() {
                       authorUsername={comp.authorUsername}
                       authorAvatar={comp.authorAvatar}
                       weeklyDownloads={comp.weeklyDownloads}
+                      allTimeDownloads={comp.allTimeDownloads}
+                      showWeeklyDownloads={downloadsDisplay.showWeeklyDownloads}
+                      showAllTimeDownloads={downloadsDisplay.showAllTimeDownloads}
                       convexVerified={comp.convexVerified}
                       communitySubmitted={comp.communitySubmitted}
                       featured={comp.featured}

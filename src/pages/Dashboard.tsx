@@ -75,6 +75,7 @@ function formatDate(ts: number): string {
 }
 
 function formatNumber(n: number): string {
+  if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1) + "B";
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
   if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
   return n.toLocaleString();
@@ -176,7 +177,13 @@ function downloadPdfReport(rows: ExportRow[], filterSummary: string) {
   setTimeout(() => w.print(), 400);
 }
 
-type SortField = "name" | "author" | "downloads" | "submittedAt" | "lastPublish";
+type SortField =
+  | "name"
+  | "author"
+  | "downloads"
+  | "allTimeDownloads"
+  | "submittedAt"
+  | "lastPublish";
 type SortDir = "asc" | "desc";
 type TypeFilter = "all" | "community" | "convex-team";
 type DateFilter = "all" | "pre-oct-2025" | "oct-2025-plus" | "custom";
@@ -504,6 +511,8 @@ export default function Dashboard() {
           return dir * resolveAuthor(a).localeCompare(resolveAuthor(b));
         case "downloads":
           return dir * (a.weeklyDownloads - b.weeklyDownloads);
+        case "allTimeDownloads":
+          return dir * ((a.allTimeDownloads ?? 0) - (b.allTimeDownloads ?? 0));
         case "submittedAt":
           return dir * ((a.submittedAt || a._creationTime) - (b.submittedAt || b._creationTime));
         case "lastPublish":
@@ -925,6 +934,7 @@ export default function Dashboard() {
                       <th className="py-2 px-3 text-xs font-medium text-text-secondary uppercase tracking-wide">Type</th>
                       <SortHeader label="Submitted" field="submittedAt" currentSort={sortField} currentDir={sortDir} onSort={handleSort} />
                       <SortHeader label="Wk Downloads" field="downloads" currentSort={sortField} currentDir={sortDir} onSort={handleSort} align="right" />
+                      <SortHeader label="All Time" field="allTimeDownloads" currentSort={sortField} currentDir={sortDir} onSort={handleSort} align="right" />
                       <SortHeader label="Last Published" field="lastPublish" currentSort={sortField} currentDir={sortDir} onSort={handleSort} />
                       <th className="py-2 px-3 text-xs font-medium text-text-secondary uppercase tracking-wide">Status</th>
                     </tr>
@@ -932,7 +942,7 @@ export default function Dashboard() {
                   <tbody>
                     {filteredPackages.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="py-8 text-center text-sm text-text-secondary">
+                        <td colSpan={8} className="py-8 text-center text-sm text-text-secondary">
                           No components match the current filters.
                         </td>
                       </tr>
@@ -993,6 +1003,14 @@ export default function Dashboard() {
                                   />
                                 </button>
                               </div>
+                            </td>
+                            <td className="py-2 px-3 text-sm text-text-primary text-right">
+                              {/* Dash until first refresh backfills a true all-time value */}
+                              <span className="font-mono">
+                                {pkg.allTimeDownloads !== undefined
+                                  ? formatNumber(pkg.allTimeDownloads)
+                                  : "—"}
+                              </span>
                             </td>
                             <td className="py-2 px-3 text-sm text-text-secondary">
                               {new Date(pkg.lastPublish).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}

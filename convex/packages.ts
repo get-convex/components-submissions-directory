@@ -174,6 +174,7 @@ const publicPackageValidator = v.object({
   totalFiles: v.number(),
   lastPublish: v.string(),
   weeklyDownloads: v.number(),
+  allTimeDownloads: v.optional(v.number()),
   collaborators: v.array(
     v.object({
       name: v.string(),
@@ -546,6 +547,8 @@ function toPublicPackage(pkg: any) {
     totalFiles: pkg.totalFiles ?? 0,
     lastPublish: pkg.lastPublish || "Unknown",
     weeklyDownloads: pkg.weeklyDownloads ?? 0,
+    // undefined (not 0) until the first corrected refresh fills it in
+    allTimeDownloads: pkg.allTimeDownloads,
     collaborators: pkg.collaborators || [],
     maintainerNames: pkg.maintainerNames,
     npmUrl: pkg.npmUrl || `https://www.npmjs.com/package/${pkg.name || ""}`,
@@ -765,8 +768,9 @@ const fetchNpmPackageReturnValidator = v.object({
   unpackedSize: v.number(),
   totalFiles: v.number(),
   lastPublish: v.string(),
-  weeklyDownloads: v.number(),
-  allTimeDownloads: v.number(),
+  // undefined = downloads API failed; caller preserves the stored value
+  weeklyDownloads: v.optional(v.number()),
+  allTimeDownloads: v.optional(v.number()),
   collaborators: v.array(
     v.object({
       name: v.string(),
@@ -776,6 +780,99 @@ const fetchNpmPackageReturnValidator = v.object({
   npmUrl: v.string(),
 });
 
+// npm asks API consumers to identify themselves; also lowers block risk
+const NPM_USER_AGENT =
+  "convex-components-directory (+https://www.convex.dev/components)";
+// npm has no download data before this date (same floor npmjs.com uses)
+const NPM_DOWNLOADS_EPOCH = "2015-01-10";
+// npm's point API silently clamps ranges to ~18 months; stay safely under it
+const NPM_MAX_WINDOW_DAYS = 540;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const toDateString = (d: Date) => d.toISOString().slice(0, 10);
+
+// Fetch last-week downloads via npm's alias endpoint. This is the exact
+// number npmjs.com shows (the most recent 7 fully-reported days). An explicit
+// date window ending today undercounts because npm data lags 1-2 days.
+// Returns undefined on failure so stored values are never zeroed out.
+async function fetchLastWeekDownloads(
+  packageName: string,
+): Promise<number | undefined> {
+  try {
+    const url = `https://api.npmjs.org/downloads/point/last-week/${encodeURIComponent(packageName)}`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "User-Agent": NPM_USER_AGENT },
+    });
+    if (!response.ok) return undefined;
+    const data = await response.json();
+    if (typeof data.downloads !== "number") return undefined;
+    return data.downloads;
+  } catch {
+    return undefined;
+  }
+}
+
+// Fetch downloads for one explicit date window.
+// Returns undefined on any failure or when npm clamps the range (a shifted
+// start date means the number does not cover the requested window).
+async function fetchDownloadsWindow(
+  packageName: string,
+  start: string,
+  end: string,
+): Promise<number | undefined> {
+  try {
+    const url = `https://api.npmjs.org/downloads/point/${start}:${end}/${encodeURIComponent(packageName)}`;
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "User-Agent": NPM_USER_AGENT },
+    });
+    if (!response.ok) return undefined;
+    const data = await response.json();
+    if (typeof data.downloads !== "number" || data.start !== start) {
+      return undefined;
+    }
+    return data.downloads;
+  } catch {
+    return undefined;
+  }
+}
+
+// Compute true all-time downloads by summing sequential windows of at most
+// 540 days from the package created date (npm clamps wider ranges to 18
+// months, so a single wide request silently undercounts).
+// Returns undefined if any window fails so the stored value is preserved.
+async function fetchAllTimeDownloads(
+  packageName: string,
+  createdIso: string | undefined,
+): Promise<number | undefined> {
+  const epochMs = new Date(NPM_DOWNLOADS_EPOCH).getTime();
+  const createdMs = createdIso ? new Date(createdIso).getTime() : NaN;
+  const todayMs = Date.now();
+  let cursor = Number.isFinite(createdMs)
+    ? Math.max(createdMs, epochMs)
+    : epochMs;
+  if (cursor > todayMs) cursor = todayMs;
+
+  let total = 0;
+  while (cursor <= todayMs) {
+    const windowEndMs = Math.min(
+      cursor + (NPM_MAX_WINDOW_DAYS - 1) * DAY_MS,
+      todayMs,
+    );
+    // Sequential on purpose: stays gentle on npm's API
+    const downloads = await fetchDownloadsWindow(
+      packageName,
+      toDateString(new Date(cursor)),
+      toDateString(new Date(windowEndMs)),
+    );
+    if (downloads === undefined) return undefined;
+    total += downloads;
+    cursor = windowEndMs + DAY_MS;
+  }
+  return total;
+}
+
 export async function fetchNpmPackageHandler(_ctx: any, args: { packageName: string }) {
     const name = decodeURIComponent(args.packageName.trim());
 
@@ -784,21 +881,11 @@ export async function fetchNpmPackageHandler(_ctx: any, args: { packageName: str
     const encodedName = name.startsWith("@") ? name.replace("/", "%2F") : name;
     const registryUrl = `https://registry.npmjs.org/${encodedName}`;
 
-    // Use an explicit 7-day window instead of "last-week": npm's last-week
-    // alias can lag several days behind, which reports 0 for new packages.
-    // This matches the weekly number shown on npmjs.com.
-    const toDateString = (d: Date) => d.toISOString().slice(0, 10);
-    const weekEnd = new Date();
-    const weekStart = new Date(weekEnd.getTime() - 6 * 24 * 60 * 60 * 1000);
-    const downloadsUrl = `https://api.npmjs.org/downloads/point/${toDateString(weekStart)}:${toDateString(weekEnd)}/${encodeURIComponent(name)}`;
-    // npm API supports a wide date range for cumulative all-time downloads
-    const allTimeDownloadsUrl = `https://api.npmjs.org/downloads/point/2015-01-01:2099-12-31/${encodeURIComponent(name)}`;
-
-    const [metadataResponse, downloadsResponse, allTimeResponse] = await Promise.all([
-      fetch(registryUrl, { method: "GET" }),
-      fetch(downloadsUrl, { method: "GET" }),
-      fetch(allTimeDownloadsUrl, { method: "GET" }),
-    ]);
+    // Metadata first: the all-time computation needs time.created
+    const metadataResponse = await fetch(registryUrl, {
+      method: "GET",
+      headers: { "User-Agent": NPM_USER_AGENT },
+    });
 
     if (!metadataResponse.ok) {
       throw new ConvexError(
@@ -806,20 +893,13 @@ export async function fetchNpmPackageHandler(_ctx: any, args: { packageName: str
       );
     }
 
-    // downloads API is optional: if it fails, just set weeklyDownloads = 0
-    let weeklyDownloads = 0;
-    if (downloadsResponse.ok) {
-      const downloadsData = await downloadsResponse.json();
-      weeklyDownloads = downloadsData.downloads ?? 0;
-    }
-
-    let allTimeDownloads = 0;
-    if (allTimeResponse.ok) {
-      const allTimeData = await allTimeResponse.json();
-      allTimeDownloads = allTimeData.downloads ?? 0;
-    }
-
     const metadata = await metadataResponse.json();
+
+    // undefined (not 0) on failure so stored values are never zeroed out
+    const [weeklyDownloads, allTimeDownloads] = await Promise.all([
+      fetchLastWeekDownloads(name),
+      fetchAllTimeDownloads(name, metadata.time?.created),
+    ]);
 
     // Get latest version info
     const latestVersion = metadata["dist-tags"]?.latest;
@@ -905,6 +985,16 @@ async function fetchAndUpdateNpmData(
   const repositoryUrl = existingPkg.repositoryUrl || packageData.repositoryUrl;
   const homepageUrl = existingPkg.homepageUrl || packageData.homepageUrl;
 
+  // Surface partial failures without losing data: undefined download fields
+  // are skipped by the mutation, keeping the last good stored values.
+  const failedFields: string[] = [];
+  if (packageData.weeklyDownloads === undefined) failedFields.push("weekly");
+  if (packageData.allTimeDownloads === undefined) failedFields.push("all-time");
+  const refreshError =
+    failedFields.length > 0
+      ? `npm downloads API failed for ${failedFields.join(" and ")} counts; kept previous values`
+      : undefined;
+
   await ctx.runMutation(internal.packages._updateNpmDataAndTimestamp, {
     packageId,
     description: packageData.description,
@@ -918,6 +1008,7 @@ async function fetchAndUpdateNpmData(
     weeklyDownloads: packageData.weeklyDownloads,
     allTimeDownloads: packageData.allTimeDownloads,
     collaborators: packageData.collaborators,
+    refreshError,
   });
 }
 
@@ -1134,6 +1225,8 @@ function buildPackageInsertData(args: any, validated: any, packageName: string, 
 
   return {
     ...packageData,
+    // New submissions have no prior data, so 0 is the correct fallback here
+    weeklyDownloads: packageData.weeklyDownloads ?? 0,
     repositoryUrl: validated.repositoryUrl,
     submitterName: args.submitterName,
     submitterEmail,
@@ -3223,6 +3316,15 @@ async function getAdminSettingsHelper(ctx: QueryCtx) {
     .query("adminSettingsNumeric")
     .withIndex("by_key", (q) => q.eq("key", "securityScanScheduleDays"))
     .first();
+  // Downloads display toggles for public pages (Directory, ComponentDetail)
+  const showWeeklyDownloads = await ctx.db
+    .query("adminSettings")
+    .withIndex("by_key", (q) => q.eq("key", "showWeeklyDownloads"))
+    .first();
+  const showAllTimeDownloads = await ctx.db
+    .query("adminSettings")
+    .withIndex("by_key", (q) => q.eq("key", "showAllTimeDownloads"))
+    .first();
 
   return {
     autoAiReview: autoAiReview?.value || false,
@@ -3240,6 +3342,9 @@ async function getAdminSettingsHelper(ctx: QueryCtx) {
     enableDevinScan: false,
     autoSecurityScan: autoSecurityScan?.value || false,
     securityScanScheduleDays: securityScanScheduleDays?.value ?? 0,
+    // Defaults: weekly on (current behavior), all-time off until enabled
+    showWeeklyDownloads: showWeeklyDownloads?.value ?? true,
+    showAllTimeDownloads: showAllTimeDownloads?.value ?? false,
   };
 }
 
@@ -3259,6 +3364,8 @@ const adminSettingsReturnValidator = v.object({
   enableDevinScan: v.boolean(),
   autoSecurityScan: v.boolean(),
   securityScanScheduleDays: v.number(),
+  showWeeklyDownloads: v.boolean(),
+  showAllTimeDownloads: v.boolean(),
 });
 
 export const getAdminSettings = query({
@@ -3274,6 +3381,30 @@ export const _getAdminSettings = internalQuery({
   returns: adminSettingsReturnValidator,
   handler: async (ctx) => {
     return await getAdminSettingsHelper(ctx);
+  },
+});
+
+// Public query: downloads display mode for Directory / ComponentDetail.
+// Lightweight on purpose (2 reads) since public pages call it on every load.
+export const getDownloadsDisplaySettings = query({
+  args: {},
+  returns: v.object({
+    showWeeklyDownloads: v.boolean(),
+    showAllTimeDownloads: v.boolean(),
+  }),
+  handler: async (ctx) => {
+    const weekly = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q) => q.eq("key", "showWeeklyDownloads"))
+      .first();
+    const allTime = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q) => q.eq("key", "showAllTimeDownloads"))
+      .first();
+    return {
+      showWeeklyDownloads: weekly?.value ?? true,
+      showAllTimeDownloads: allTime?.value ?? false,
+    };
   },
 });
 
@@ -3294,6 +3425,8 @@ export const updateAdminSetting = mutation({
       v.literal("enableSnykScan"),
       v.literal("enableDevinScan"),
       v.literal("autoSecurityScan"),
+      v.literal("showWeeklyDownloads"),
+      v.literal("showAllTimeDownloads"),
     ),
     value: v.boolean(),
   },
@@ -3987,7 +4120,7 @@ export const _updateNpmDataAndTimestamp = internalMutation({
     unpackedSize: v.number(),
     totalFiles: v.number(),
     lastPublish: v.string(),
-    weeklyDownloads: v.number(),
+    weeklyDownloads: v.optional(v.number()),
     allTimeDownloads: v.optional(v.number()),
     collaborators: v.array(
       v.object({
@@ -3995,6 +4128,8 @@ export const _updateNpmDataAndTimestamp = internalMutation({
         avatar: v.string(),
       }),
     ),
+    // Set when the downloads API partially failed (metadata still updated)
+    refreshError: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -4008,12 +4143,16 @@ export const _updateNpmDataAndTimestamp = internalMutation({
       unpackedSize: args.unpackedSize,
       totalFiles: args.totalFiles,
       lastPublish: args.lastPublish,
-      weeklyDownloads: args.weeklyDownloads,
       collaborators: args.collaborators,
       maintainerNames,
       lastRefreshedAt: Date.now(),
-      refreshError: undefined,
+      refreshError: args.refreshError,
     };
+    // Downloads fields are skipped when undefined (downloads API failed or
+    // returned a clamped range) so the last good stored value is preserved.
+    if (args.weeklyDownloads !== undefined) {
+      patch.weeklyDownloads = args.weeklyDownloads;
+    }
     if (args.allTimeDownloads !== undefined) {
       patch.allTimeDownloads = args.allTimeDownloads;
     }
@@ -4299,6 +4438,7 @@ const directoryCardValidator = v.object({
   authorUsername: v.optional(v.string()),
   authorAvatar: v.optional(v.string()),
   weeklyDownloads: v.number(),
+  allTimeDownloads: v.optional(v.number()),
   repositoryUrl: v.optional(v.string()),
   npmUrl: v.string(),
   installCommand: v.string(),
@@ -4320,7 +4460,15 @@ function sortPackages(
         (a.approvedAt ?? a.submittedAt ?? a._creationTime),
     );
   } else if (sortBy === "downloads") {
-    packages.sort((a, b) => b.weeklyDownloads - a.weeklyDownloads);
+    // Rank by all-time downloads regardless of what the cards display.
+    // Packages without a stored all-time value yet (new submissions before
+    // their first refresh) fall back to weekly so they don't sink to zero.
+    packages.sort((a, b) => {
+      const aTotal = a.allTimeDownloads ?? a.weeklyDownloads ?? 0;
+      const bTotal = b.allTimeDownloads ?? b.weeklyDownloads ?? 0;
+      if (bTotal !== aTotal) return bTotal - aTotal;
+      return (b.weeklyDownloads ?? 0) - (a.weeklyDownloads ?? 0);
+    });
   } else if (sortBy === "updated") {
     packages.sort(
       (a, b) =>
@@ -4367,6 +4515,7 @@ function toDirectoryCard(pkg: any) {
     authorUsername: pkg.authorUsername,
     authorAvatar: pkg.authorAvatar,
     weeklyDownloads: pkg.weeklyDownloads ?? 0,
+    allTimeDownloads: pkg.allTimeDownloads,
     repositoryUrl: pkg.repositoryUrl,
     npmUrl: pkg.npmUrl || `https://www.npmjs.com/package/${pkg.name || ""}`,
     installCommand: pkg.installCommand || `npm install ${pkg.name || ""}`,
@@ -4471,6 +4620,7 @@ const relatedCardValidator = v.object({
   authorUsername: v.optional(v.string()),
   authorAvatar: v.optional(v.string()),
   weeklyDownloads: v.number(),
+  allTimeDownloads: v.optional(v.number()),
   convexVerified: v.optional(v.boolean()),
   communitySubmitted: v.optional(v.boolean()),
   npmUrl: v.string(),
@@ -4506,6 +4656,7 @@ function scoreAndRankRelated(pkg: any, candidates: any[], limit: number) {
     authorUsername: s.pkg.authorUsername,
     authorAvatar: s.pkg.authorAvatar,
     weeklyDownloads: s.pkg.weeklyDownloads ?? 0,
+    allTimeDownloads: s.pkg.allTimeDownloads,
     convexVerified: s.pkg.convexVerified,
     communitySubmitted: s.pkg.communitySubmitted,
     npmUrl: s.pkg.npmUrl || `https://www.npmjs.com/package/${s.pkg.name || ""}`,
@@ -5691,6 +5842,7 @@ export const getFeaturedComponents = query({
       authorUsername: pkg.authorUsername,
       authorAvatar: pkg.authorAvatar,
       weeklyDownloads: pkg.weeklyDownloads ?? 0,
+      allTimeDownloads: pkg.allTimeDownloads,
       repositoryUrl: pkg.repositoryUrl,
       npmUrl: pkg.npmUrl || `https://www.npmjs.com/package/${pkg.name || ""}`,
       installCommand: pkg.installCommand || `npm install ${pkg.name || ""}`,
@@ -6118,6 +6270,74 @@ function toApiSearchCard(pkg: any) {
     convexVerified: pkg.convexVerified || false,
   };
 }
+
+// Public query: Header search for approved+visible components.
+// Full text search across name, componentName, description, and shortDescription.
+export const searchDirectoryComponents = query({
+  args: { searchTerm: v.string() },
+  returns: v.array(
+    v.object({
+      slug: v.string(),
+      displayName: v.string(),
+      packageName: v.string(),
+      shortDescription: v.optional(v.string()),
+      category: v.optional(v.string()),
+      convexVerified: v.boolean(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const term = args.searchTerm.trim();
+    if (!term) return [];
+
+    const [nameHits, compNameHits, descHits, shortDescHits] = await Promise.all([
+      ctx.db
+        .query("packages")
+        .withSearchIndex("search_name", (q) =>
+          q.search("name", term).eq("reviewStatus", "approved").eq("visibility", "visible"),
+        )
+        .take(10),
+      ctx.db
+        .query("packages")
+        .withSearchIndex("search_componentName", (q) =>
+          q.search("componentName", term).eq("reviewStatus", "approved").eq("visibility", "visible"),
+        )
+        .take(10),
+      ctx.db
+        .query("packages")
+        .withSearchIndex("search_description", (q) =>
+          q.search("description", term).eq("reviewStatus", "approved").eq("visibility", "visible"),
+        )
+        .take(10),
+      ctx.db
+        .query("packages")
+        .withSearchIndex("search_shortDescription", (q) =>
+          q
+            .search("shortDescription", term)
+            .eq("reviewStatus", "approved")
+            .eq("visibility", "visible"),
+        )
+        .take(10),
+    ]);
+
+    // Name matches rank first, then description matches; dedupe by id
+    const seen = new Set<string>();
+    const packages: any[] = [];
+    for (const pkg of [...nameHits, ...compNameHits, ...shortDescHits, ...descHits]) {
+      if (seen.has(pkg._id) || pkg.markedForDeletion) continue;
+      seen.add(pkg._id);
+      packages.push(pkg);
+    }
+
+    return packages.slice(0, 10).map((pkg: any) => ({
+      slug: pkg.slug || "",
+      displayName: pkg.componentName || pkg.name,
+      packageName: pkg.name,
+      shortDescription: pkg.shortDescription || pkg.description?.slice(0, 120) || undefined,
+      category: pkg.category || undefined,
+      convexVerified: pkg.convexVerified || false,
+    }));
+  },
+});
 
 // Internal query: Search approved+visible packages using search indexes (for REST API)
 export const _searchApprovedPackages = internalQuery({

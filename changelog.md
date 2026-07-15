@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Header search across the site (2026-07-15 06:20 UTC)
+  - New `src/components/HeaderSearch.tsx`: magnifying glass button in the header (desktop nav and mobile row) that opens a dropdown search with 300ms debounced typing, verified badges on results, and Enter or a footer button to jump to the full directory filtered by the term.
+  - New public query `searchDirectoryComponents` in `convex/packages.ts`: full text search across `name`, `componentName`, `description`, and `shortDescription` search indexes (approved and visible packages only, name matches ranked first, deduped, top 10).
+  - `src/pages/Directory.tsx` seeds its search box from a `?q=` URL param so header searches land on a pre-filtered directory.
+
+### Fixed
+
+- Featured cards on the Directory page were not showing all-time downloads after enabling the admin toggle (2026-07-15 06:15 UTC)
+  - Root cause: `getFeaturedComponents` in `convex/packages.ts` mapped its result inline and omitted `allTimeDownloads`, so Featured cards always received `undefined` and hid the figure (the never-show-0 rule). The flat list from `listApprovedComponents` was unaffected.
+  - Fix: one line adding `allTimeDownloads: pkg.allTimeDownloads` to the featured mapper. Verified in the browser: all 25 rendered cards (Featured and flat) now show the total, e.g. Stripe `401.2k total`.
+
+### Changed
+
+- Most downloads sort now ranks by all-time downloads (2026-07-15 06:20 UTC)
+  - `sortPackages` in `convex/packages.ts` sorts the `downloads` mode by `allTimeDownloads` instead of `weeklyDownloads`, independent of the admin display toggles. Applies to both the Directory dropdown and category pages since both use `listApprovedComponents`.
+  - New submissions without a stored all-time value yet fall back to their weekly count so they rank rather than sinking to zero; equal totals tie-break by weekly.
+  - Verified on dev: Expo Push Notifications (304k all-time, 19k/wk) now ranks above WorkOS AuthKit (292k all-time, 21k/wk), the reverse of the old weekly order.
+
+### Added
+
+- Accurate weekly and all-time downloads across the app (2026-07-15 06:10 UTC)
+  - All-time downloads are now truly all time. npm's point downloads API silently clamps any range to 18 months, so stored `allTimeDownloads` values were really "last 18 months". `fetchNpmPackageHandler` (`convex/packages.ts`) now sums sequential 540-day windows from the package created date (`metadata.time.created`, floored at 2015-01-10) with clamp detection on each response, and sends a `User-Agent` header on all npm calls.
+  - Weekly downloads now use npm's `last-week` alias endpoint, which is the exact number npmjs.com shows. The previous explicit 7-day window ending today undercounted by up to 40% because npm's per-day data lags 1-2 days (verified live: `@convex-dev/agent` 49,951 via window vs 86,832 via `last-week`).
+  - Download fetch failures can no longer zero out stored data: both fetchers return `undefined` on failure or clamp, `_updateNpmDataAndTimestamp` skips undefined download fields, and partial failures are recorded in `refreshError` (e.g. "npm downloads API failed for all-time counts; kept previous values").
+  - New Downloads Display panel in Admin (`src/pages/Admin.tsx`) with `showWeeklyDownloads` (default on) and `showAllTimeDownloads` (default off) toggles stored in `adminSettings`; new lightweight public query `getDownloadsDisplaySettings`. Directory, CategoryPage, and ComponentDetail (sidebar stats and related cards) render weekly, all-time, or both side by side (`5.7k/wk · 1.5M total`) per the toggles; packages without a stored all-time value show nothing rather than 0.
+  - Dashboard per-package table gained a sortable All Time column next to Wk Downloads (em dash until backfilled); download formatters gained a `B` tier for billion-scale counts; clarifying comment on `dashboard.totalDownloads` (it is the weekly sum).
+  - Backfill completed on dev: 48/48 packages refreshed (14 rate-limited packages retried successfully, zero refresh errors after). Spot checks match npm exactly: `@convex-dev/agent` 86,832/wk and 1,472,612 all time; `@turf/convex` 145,810,278 all time verified against an independent yearly-window sum.
+  - First-publish-date audit (2026-07-15 06:00 UTC): confirmed all-time counts start at each package's npm `time.created` date and never earlier. Recomputed sums independently for six packages spanning 2016 through 2025 first publishes (`@convex-dev/rate-limiter` 2024-10-22, `@convex-dev/agent` 2025-04-07, `@convex-dev/workpool` 2025-01-29, `@convex-dev/presence` 2025-05-28, `@convex-dev/resend` 2025-06-13, `@turf/convex` 2016-07-06); every stored value matched to the download and no package had a `refreshError`.
+  - PRD: `prds/downloads-display-and-alltime-accuracy.md`
+  - Verification: `npx tsc --noEmit -p .` and `npx tsc --noEmit -p convex` passed; live single-package and full backfill runs on the dev deployment verified against api.npmjs.org.
+
 - Version numbers and agent instruction block across skills, llms.txt, and markdown indexes (2026-07-15 05:05 UTC)
   - Every entry in `/components/llms.txt`, `/components/get-convex-llms.txt`, `/components/components.md`, and `/components/get-convex.md` now carries a `- Version:` line sourced live from `packages.version`, so agents can tell whether their training data is stale for a component. Shared `buildLlmsTxtBody` and `buildMarkdownIndexBody` in `convex/http.ts`.
   - Each generated SKILL.md now includes `version:` in its YAML frontmatter and a pinned `Current npm version: package@x.y.z` line after the install command. Both the v2 builder (`shared/buildSkillMd.ts`, new optional `version` on `SkillMdPackageInput`) and the legacy v1 builder (`buildSkillMd` in `convex/seoContent.ts`) emit it; the two explicit call sites in `convex/packages.ts` (submit path and `buildSubmissionUpdates`) now pass version through.

@@ -901,6 +901,11 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
     api.packages.getRelatedComponents,
     component ? { packageId: component._id } : "skip",
   );
+  // Downloads display mode from admin settings; default matches current
+  // behavior (weekly only) while the query loads.
+  const downloadsDisplay = useQuery(
+    api.packages.getDownloadsDisplaySettings,
+  ) ?? { showWeeklyDownloads: true, showAllTimeDownloads: false };
   const dynamicCategories = useDirectoryCategories();
   const getDynamicCategoryLabel = (id: string) =>
     dynamicCategories.find((c) => c.id === id)?.label || id;
@@ -1184,10 +1189,28 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 ? `${relDesc.slice(0, 100).trimEnd()}...`
                 : relDesc;
             const formatDownloads = (count: number): string => {
+              if (count >= 1000000000)
+                return `${(count / 1000000000).toFixed(1)}B`;
               if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
               if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
               return count.toString();
             };
+            // Same admin display mode as the main sidebar stats
+            const relDownloadParts: Array<string> = [];
+            if (downloadsDisplay.showWeeklyDownloads) {
+              relDownloadParts.push(
+                `${formatDownloads(rel.weeklyDownloads)}/wk`,
+              );
+            }
+            if (
+              downloadsDisplay.showAllTimeDownloads &&
+              rel.allTimeDownloads !== undefined
+            ) {
+              relDownloadParts.push(
+                `${formatDownloads(rel.allTimeDownloads)} total`,
+              );
+            }
+            const relDownloadsText = relDownloadParts.join(" \u00b7 ");
 
             return (
               <a
@@ -1219,10 +1242,14 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                       </div>
                     )}
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1 text-text-secondary">
-                        <DownloadIcon className="w-3.5 h-3.5" />
-                        <span>{formatDownloads(rel.weeklyDownloads)}/wk</span>
-                      </div>
+                      {relDownloadsText ? (
+                        <div className="flex items-center gap-1 text-text-secondary">
+                          <DownloadIcon className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">{relDownloadsText}</span>
+                        </div>
+                      ) : (
+                        <div />
+                      )}
                       <div className="flex items-center gap-1">
                         {rel.communitySubmitted && (
                           <span
@@ -1349,13 +1376,26 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
             {/* Community */}
             {component.communitySubmitted && <CommunityBadge size="md" />}
 
-            {/* Stats */}
-            <div className="space-y-1.5 text-sm text-text-secondary">
-              <div className="flex items-center gap-1.5">
-                <DownloadIcon className="w-3.5 h-3.5" />
-                {component.weeklyDownloads.toLocaleString()} / week
+            {/* Stats: weekly / all-time downloads per admin display mode */}
+            {(downloadsDisplay.showWeeklyDownloads ||
+              (downloadsDisplay.showAllTimeDownloads &&
+                component.allTimeDownloads !== undefined)) && (
+              <div className="space-y-1.5 text-sm text-text-secondary">
+                {downloadsDisplay.showWeeklyDownloads && (
+                  <div className="flex items-center gap-1.5">
+                    <DownloadIcon className="w-3.5 h-3.5" />
+                    {component.weeklyDownloads.toLocaleString()} / week
+                  </div>
+                )}
+                {downloadsDisplay.showAllTimeDownloads &&
+                  component.allTimeDownloads !== undefined && (
+                    <div className="flex items-center gap-1.5">
+                      <DownloadIcon className="w-3.5 h-3.5" />
+                      {component.allTimeDownloads.toLocaleString()} all time
+                    </div>
+                  )}
               </div>
-            </div>
+            )}
 
             {/* Source link */}
             {component.repositoryUrl && (

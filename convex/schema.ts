@@ -274,6 +274,10 @@ const applicationTables = {
       searchField: "description",
       filterFields: ["visibility", "reviewStatus"],
     })
+    .searchIndex("search_shortDescription", {
+      searchField: "shortDescription",
+      filterFields: ["visibility", "reviewStatus"],
+    })
     .searchIndex("search_maintainers", {
       searchField: "maintainerNames",
       filterFields: ["visibility", "reviewStatus"],

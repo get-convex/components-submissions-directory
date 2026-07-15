@@ -319,6 +319,23 @@ Session updates complete on 2026-04-21 UTC.
 
 ## to do
 
+- [x] Accurate weekly and all-time downloads across the app (2026-07-15 06:10 UTC)
+  - Fixed `allTimeDownloads` accuracy (npm clamps point ranges to 18 months) via chunked 540-day windows summed from the package created date, with clamp detection.
+  - Switched weekly count to npm's `last-week` alias endpoint. The prior explicit 7-day window ending today undercounted by up to 40% because npm data lags 1-2 days; `last-week` matches npmjs.com exactly.
+  - Download fetch failures now return `undefined` instead of 0, so `_updateNpmDataAndTimestamp` skips those fields and stored values are never zeroed; partial failures are logged in `refreshError`.
+  - Added `showWeeklyDownloads` / `showAllTimeDownloads` admin toggles (Downloads Display panel in Admin) with a lightweight public query `getDownloadsDisplaySettings`; Directory, CategoryPage, and ComponentDetail (sidebar + related cards) render weekly, all-time, or both per the toggles.
+  - Added a sortable All Time column to the Dashboard per-package table (dash for missing values); download formatters gained a `B` tier.
+  - Backfill run on dev: 48/48 packages refreshed. Verified against npm: `@convex-dev/agent` weekly 86,832 and all-time 1,472,612 exact match; `@turf/convex` all-time 145,810,278 matched an independent yearly-window sum. Zero refresh errors after retrying 14 rate-limited packages.
+  - First-publish-date audit (2026-07-15 06:00 UTC): confirmed all-time counts start at each package's npm `time.created` and never earlier. Independently recomputed six packages with 2016 through 2025 first publishes (rate-limiter, agent, workpool, presence, resend, @turf/convex); all stored values matched exactly, zero `refreshError` across all 49 packages.
+  - Follow-up fix (2026-07-15 06:15 UTC): Featured cards on Directory were missing all-time downloads because the `getFeaturedComponents` mapper omitted `allTimeDownloads`; added the field and verified in the browser that all rendered cards show the total.
+  - Follow-up change (2026-07-15 06:20 UTC): Most downloads sort in `sortPackages` now ranks by `allTimeDownloads` (weekly fallback for unrefreshed new submissions, weekly tie-break) regardless of display toggles; covers Directory and category pages via the shared `listApprovedComponents`. Verified order flip on dev: Expo Push Notifications above WorkOS AuthKit.
+
+- [x] Header search dropdown (2026-07-15 06:20 UTC)
+  - New `HeaderSearch` component (magnifying glass in desktop nav and mobile header row) with debounced full text search via new `searchDirectoryComponents` query across name, componentName, description, and shortDescription indexes; results link to detail pages and Enter jumps to the directory with `?q=` pre-filtering the search box.
+  - Files: `src/components/HeaderSearch.tsx` (new), `src/components/Header.tsx`, `src/pages/Directory.tsx`, `convex/packages.ts`
+  - PRD: `prds/downloads-display-and-alltime-accuracy.md`
+  - Files: `convex/packages.ts`, `convex/dashboard.ts`, `src/components/ComponentCard.tsx`, `src/pages/Directory.tsx`, `src/pages/CategoryPage.tsx`, `src/pages/ComponentDetail.tsx`, `src/pages/Dashboard.tsx`, `src/pages/Admin.tsx`
+
 - [ ] Component pages: HTTP one-shot load so Googlebot can render content (2026-06-09 10:38 UTC)
   - Problem: `convex.dev/components/*` stuck at "Discovered - currently not indexed". GSC Live Test showed an empty render; console showed the Convex websocket stuck `connecting` with `ModifyQuerySet` messages never sent, so content never loads for Googlebot.
   - Fix: load initial component data over HTTP via `ConvexHttpClient` (same `/api/query` the edge function uses), keep the live `useQuery` for reactivity. Frontend-only, no Convex deploy.

@@ -102,6 +102,8 @@ function computeDashboardStats(active: Array<DashboardPackage>) {
   let community = 0;
   let convexTeam = 0;
   let convexTeamSinceOct2025 = 0;
+  // Note: despite the name, totalDownloads is the sum of WEEKLY downloads
+  // across packages. totalAllTimeDownloads is the true all-time sum.
   let totalDownloads = 0;
   let totalAllTimeDownloads = 0;
   let communityDownloads = 0;

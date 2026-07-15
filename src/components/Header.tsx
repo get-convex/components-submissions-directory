@@ -16,6 +16,7 @@ import {
   Bell,
 } from "@phosphor-icons/react";
 import { FileTextIcon } from "@radix-ui/react-icons";
+import { HeaderSearch } from "./HeaderSearch";
 
 // Get base path for links (always /components)
 function useBasePath() {
@@ -273,6 +274,7 @@ export default function Header() {
           <div className="flex items-center gap-3">
             {/* Desktop right nav */}
             <nav className="hidden sm:flex items-center gap-3">
+              <HeaderSearch />
               <a
                 href={`${basePath}/submit`}
                 className="text-sm font-medium text-text-primary hover:text-text-secondary transition-colors">
@@ -340,6 +342,11 @@ export default function Header() {
                 <DiscordLogo size={16} />
               </a>
             </nav>
+
+            {/* Mobile search (always visible on mobile) */}
+            <div className="sm:hidden">
+              <HeaderSearch />
+            </div>
 
             {/* Mobile bell (always visible on mobile so the badge is reachable) */}
             {isAuthenticated && user && (

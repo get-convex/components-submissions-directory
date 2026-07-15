@@ -13,6 +13,10 @@ interface ComponentCardProps {
   authorUsername?: string;
   authorAvatar?: string;
   weeklyDownloads: number;
+  allTimeDownloads?: number;
+  // Downloads display mode from admin settings (defaults match current behavior)
+  showWeeklyDownloads?: boolean;
+  showAllTimeDownloads?: boolean;
   convexVerified?: boolean;
   communitySubmitted?: boolean;
   featured?: boolean;
@@ -32,6 +36,9 @@ export function ComponentCard({
   authorUsername,
   authorAvatar,
   weeklyDownloads,
+  allTimeDownloads,
+  showWeeklyDownloads = true,
+  showAllTimeDownloads = false,
   convexVerified,
   communitySubmitted,
   featured,
@@ -51,12 +58,24 @@ export function ComponentCard({
   const basePath = window.location.pathname.startsWith("/components") ? "/components" : "";
   const href = slug ? `${basePath}/${slug}` : npmUrl;
 
-  // Format download count
+  // Format download count (B tier keeps huge all-time numbers compact)
   const formatDownloads = (count: number): string => {
+    if (count >= 1000000000) return `${(count / 1000000000).toFixed(1)}B`;
     if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
     if (count >= 1000) return `${(count / 1000).toFixed(1)}k`;
     return count.toString();
   };
+
+  // Build download stat text per admin display mode. All-time only shows when
+  // the package has a stored value; otherwise fall back to weekly or nothing.
+  const downloadParts: Array<string> = [];
+  if (showWeeklyDownloads) {
+    downloadParts.push(`${formatDownloads(weeklyDownloads)}/wk`);
+  }
+  if (showAllTimeDownloads && allTimeDownloads !== undefined) {
+    downloadParts.push(`${formatDownloads(allTimeDownloads)} total`);
+  }
+  const downloadsText = downloadParts.join(" \u00b7 ");
 
   return (
     <a
@@ -109,10 +128,14 @@ export function ComponentCard({
               </div>
             )}
             <div className="mt-1 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1 font-normal">
-                <DownloadIcon className="w-3.5 h-3.5" />
-                <span>{formatDownloads(weeklyDownloads)}/wk</span>
-              </div>
+              {downloadsText ? (
+                <div className="flex items-center gap-1 font-normal">
+                  <DownloadIcon className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{downloadsText}</span>
+                </div>
+              ) : (
+                <div />
+              )}
               <div className="flex items-center gap-1">
                 {communitySubmitted && !convexVerified && (
                   <span
