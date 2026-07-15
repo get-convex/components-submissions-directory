@@ -2,6 +2,14 @@
 
 ## completed
 
+- [x] Header component search (2026-07-15 06:30 UTC)
+  - Phosphor `MagnifyingGlass` icon added left of the Submit link in the header (desktop nav) and as an always-visible mobile control. Clicking opens a dropdown panel (styled like the notifications dropdown) with an auto-focused input, 300ms debounced live results, verified badges, category labels, and a "View all results in directory" footer. Enter or the footer navigates to `/components/?q=<term>`, which pre-fills the existing Directory search (existing search behavior unchanged). New public Convex query `searchDirectoryComponents` runs full text search across `search_name`, `search_componentName`, `search_description`, and a new `search_shortDescription` index, filtered to approved+visible and skipping deletion-marked packages, capped at 10 compact PII-free results. The shortDescription index was added because npm `description` values are often generic while the human blurb lives in `shortDescription`.
+  - PRD: `prds/header-component-search.md`
+  - Files: `src/components/HeaderSearch.tsx` (new), `src/components/Header.tsx`, `src/pages/Directory.tsx`, `convex/packages.ts`, `convex/schema.ts`, `changelog.md`, `files.md`
+  - Verification: `npx tsc --noEmit -p .` and `npx tsc -p convex --noEmit` passed; `npx convex run packages:searchDirectoryComponents` on dev returned only approved visible components for "agent" and matched shortDescription text for "vector search"; browser test confirmed icon placement, dropdown results, result navigation to detail pages, and `?q=` pre-filling the directory search.
+  - Follow-up (2026-07-15 17:40 UTC): keyboard navigation in the search dropdown. ArrowDown/ArrowUp cycle a highlighted row (wraps at the ends, scrolls into view via `scrollIntoView` block nearest), Enter opens the highlighted result or falls back to the directory, mouse hover syncs the highlight, highlight resets when results change. File: `src/components/HeaderSearch.tsx`. Verified with frontend typecheck.
+  - Follow-up (2026-07-15 18:05 UTC): Cmd+K / Ctrl+K global shortcut toggles the header search and focuses the input. Guarded so only the visible instance (desktop or mobile) responds via `offsetParent`; shortcut hint added to the icon tooltip and as a kbd badge inside the input (desktop only, uses `bg-bg-card` token). File: `src/components/HeaderSearch.tsx`. Verified with frontend typecheck.
+
 - [x] Skill version numbers and agent instruction block (2026-07-15 05:05 UTC)
   - Version lines added to every entry in `/components/llms.txt`, `/components/get-convex-llms.txt`, `/components/components.md`, `/components/get-convex.md` (live from `packages.version`); SKILL.md frontmatter gains `version:` plus a pinned `Current npm version: package@x.y.z` line in both the v2 and legacy v1 builders. `_updateNpmDataAndTimestamp` rebuilds `skillMd` when the npm refresh (cron or admin button) picks up a new version. One-line agent instruction added to index headers, each SKILL.md, per-component markdown, and per-component llms.txt. New admin `rebuildAllSkillMd` force rebuild (ran on dev: 7 packages patched).
   - PRD: `prds/skill-version-and-agent-instructions.md`
@@ -329,10 +337,6 @@ Session updates complete on 2026-04-21 UTC.
   - First-publish-date audit (2026-07-15 06:00 UTC): confirmed all-time counts start at each package's npm `time.created` and never earlier. Independently recomputed six packages with 2016 through 2025 first publishes (rate-limiter, agent, workpool, presence, resend, @turf/convex); all stored values matched exactly, zero `refreshError` across all 49 packages.
   - Follow-up fix (2026-07-15 06:15 UTC): Featured cards on Directory were missing all-time downloads because the `getFeaturedComponents` mapper omitted `allTimeDownloads`; added the field and verified in the browser that all rendered cards show the total.
   - Follow-up change (2026-07-15 06:20 UTC): Most downloads sort in `sortPackages` now ranks by `allTimeDownloads` (weekly fallback for unrefreshed new submissions, weekly tie-break) regardless of display toggles; covers Directory and category pages via the shared `listApprovedComponents`. Verified order flip on dev: Expo Push Notifications above WorkOS AuthKit.
-
-- [x] Header search dropdown (2026-07-15 06:20 UTC)
-  - New `HeaderSearch` component (magnifying glass in desktop nav and mobile header row) with debounced full text search via new `searchDirectoryComponents` query across name, componentName, description, and shortDescription indexes; results link to detail pages and Enter jumps to the directory with `?q=` pre-filtering the search box.
-  - Files: `src/components/HeaderSearch.tsx` (new), `src/components/Header.tsx`, `src/pages/Directory.tsx`, `convex/packages.ts`
   - PRD: `prds/downloads-display-and-alltime-accuracy.md`
   - Files: `convex/packages.ts`, `convex/dashboard.ts`, `src/components/ComponentCard.tsx`, `src/pages/Directory.tsx`, `src/pages/CategoryPage.tsx`, `src/pages/ComponentDetail.tsx`, `src/pages/Dashboard.tsx`, `src/pages/Admin.tsx`
 

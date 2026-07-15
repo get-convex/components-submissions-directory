@@ -387,7 +387,7 @@ Shared header component with auth state management. Uses `useAuth()` from `src/l
 
 ### `src/components/HeaderSearch.tsx`
 
-Magnifying glass button in the header that opens a dropdown search. Debounces typing (300ms) before calling the `searchDirectoryComponents` full text search query, shows up to 10 approved+visible components with verified badges and category labels, and links each result to its detail page. Enter or the footer button navigates to the directory with `?q=<term>` so `Directory.tsx` opens pre-filtered.
+Magnifying glass button in the header (Cmd+K / Ctrl+K also toggles it) that opens a dropdown search. Debounces typing (300ms) before calling the `searchDirectoryComponents` full text search query (Convex FTS across name, componentName, description, and shortDescription indexes, filtered to approved+visible), shows up to 10 components with verified badges and category labels, and links each result to its detail page. ArrowDown/ArrowUp move a highlight through the results (wrapping, kept in view) and Enter opens the highlighted result; with no highlight, Enter or the footer button navigates to the directory with `?q=<term>` so `Directory.tsx` opens pre-filtered. Escape and outside click close the panel.
 
 ### `src/components/FAQSection.tsx`
 

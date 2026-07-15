@@ -9,10 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Header search across the site (2026-07-15 06:20 UTC)
-  - New `src/components/HeaderSearch.tsx`: magnifying glass button in the header (desktop nav and mobile row) that opens a dropdown search with 300ms debounced typing, verified badges on results, and Enter or a footer button to jump to the full directory filtered by the term.
-  - New public query `searchDirectoryComponents` in `convex/packages.ts`: full text search across `name`, `componentName`, `description`, and `shortDescription` search indexes (approved and visible packages only, name matches ranked first, deduped, top 10).
-  - `src/pages/Directory.tsx` seeds its search box from a `?q=` URL param so header searches land on a pre-filtered directory.
+- Header component search (2026-07-15 06:30 UTC)
+  - New magnifying glass icon (Phosphor `MagnifyingGlass`) in the global header, left of the Submit link on desktop and always visible on mobile. Opens a dropdown search panel with an auto-focused input, 300ms debounced live results (component name, verified badge, short description, category), and a "View all results in directory" footer. Enter or the footer button lands on `/components/?q=<term>`; `Directory.tsx` now seeds its search box from the `q` param, so the existing directory search behavior is unchanged.
+  - New public Convex query `searchDirectoryComponents` (`convex/packages.ts`) using full text search indexes `search_name`, `search_componentName`, `search_description`, and the new `search_shortDescription` (`convex/schema.ts`), server-filtered to `reviewStatus=approved` + `visibility=visible`, skipping deletion-marked packages, deduped with name matches ranked first, capped at 10 compact PII-free results.
+  - New `src/components/HeaderSearch.tsx`; wired into `src/components/Header.tsx`. Escape and outside click close the panel; queries skip until 2+ characters.
+  - PRD: `prds/header-component-search.md`
+  - Verification: frontend and convex typechecks passed; `npx convex run packages:searchDirectoryComponents` on dev verified approved-only results and shortDescription matching; in-browser test confirmed the full flow including result navigation and directory pre-fill.
+  - Follow-up (2026-07-15 17:40 UTC): arrow key navigation in the results dropdown. ArrowDown/ArrowUp move a highlight through the list (wrapping at the ends) and keep the active row scrolled into view; Enter opens the highlighted result, or the full directory when nothing is highlighted; hover syncs the highlight.
+  - Follow-up (2026-07-15 18:05 UTC): Cmd+K (Ctrl+K on Windows/Linux) toggles the search from anywhere on the page and focuses the input. Only the visible header instance responds (desktop vs mobile checked via `offsetParent`). The icon tooltip mentions the shortcut and a small command-K kbd hint shows inside the search input on desktop.
 
 ### Fixed
 

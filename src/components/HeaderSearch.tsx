@@ -13,8 +13,11 @@ export function HeaderSearch() {
   const [open, setOpen] = useState(false);
   const [term, setTerm] = useState("");
   const [debouncedTerm, setDebouncedTerm] = useState("");
+  // Index of the keyboard-highlighted result; -1 means none selected
+  const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // Debounce typing before hitting the search query (avoids a query per keystroke)
   useEffect(() => {
@@ -52,6 +55,23 @@ export function HeaderSearch() {
     });
   };
 
+  // Cmd+K (Ctrl+K on Windows/Linux) toggles the search. The header mounts
+  // two instances (desktop and mobile); only the visible one responds.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        // offsetParent is null when a CSS-hidden ancestor hides this instance
+        if (!containerRef.current || containerRef.current.offsetParent === null) return;
+        e.preventDefault();
+        toggleOpen();
+      }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+    // toggleOpen only touches stable setters and refs, safe to omit
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const directoryHref = `${BASE_PATH}/?q=${encodeURIComponent(term.trim())}`;
 
   const goToDirectory = () => {
@@ -59,9 +79,38 @@ export function HeaderSearch() {
     window.location.href = directoryHref;
   };
 
+  // Reset keyboard highlight whenever the result set changes
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [results]);
+
+  // Keep the highlighted result visible while arrowing through the list
+  const scrollActiveIntoView = (index: number) => {
+    const el = listRef.current?.children[index] as HTMLElement | undefined;
+    el?.scrollIntoView({ block: "nearest" });
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      goToDirectory();
+    const count = results?.length ?? 0;
+    if (e.key === "ArrowDown" && count > 0) {
+      e.preventDefault();
+      const next = activeIndex < count - 1 ? activeIndex + 1 : 0;
+      setActiveIndex(next);
+      scrollActiveIntoView(next);
+    } else if (e.key === "ArrowUp" && count > 0) {
+      e.preventDefault();
+      const next = activeIndex > 0 ? activeIndex - 1 : count - 1;
+      setActiveIndex(next);
+      scrollActiveIntoView(next);
+    } else if (e.key === "Enter") {
+      // Enter opens the highlighted result, otherwise the full directory
+      if (activeIndex >= 0 && results && results[activeIndex]) {
+        const item = results[activeIndex];
+        setOpen(false);
+        window.location.href = item.slug ? `${BASE_PATH}/${item.slug}` : directoryHref;
+      } else {
+        goToDirectory();
+      }
     } else if (e.key === "Escape") {
       setOpen(false);
       setTerm("");
@@ -78,7 +127,7 @@ export function HeaderSearch() {
         type="button"
         onClick={toggleOpen}
         aria-label="Search components"
-        title="Search components"
+        title="Search components (Cmd+K)"
         className={`p-1.5 rounded-full transition-colors ${
           open
             ? "bg-bg-hover text-text-primary"
@@ -102,12 +151,16 @@ export function HeaderSearch() {
               onChange={(e) => setTerm(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Search components..."
-              className="w-full pl-9 pr-3 py-2.5 text-sm text-text-primary placeholder:text-text-secondary bg-transparent focus:outline-none"
+              className="w-full pl-9 pr-12 py-2.5 text-sm text-text-primary placeholder:text-text-secondary bg-transparent focus:outline-none"
             />
+            {/* Shortcut hint */}
+            <kbd className="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-medium text-text-secondary border border-border rounded bg-bg-card">
+              &#8984;K
+            </kbd>
           </div>
 
           {/* Results */}
-          <div className="max-h-80 overflow-y-auto py-1">
+          <div ref={listRef} className="max-h-80 overflow-y-auto py-1">
             {!showResults && (
               <div className="px-3 py-5 text-center text-sm text-text-secondary">
                 Search by component name or description
@@ -123,12 +176,15 @@ export function HeaderSearch() {
             )}
             {showResults &&
               results &&
-              results.map((item) => (
+              results.map((item, index) => (
                 <a
                   key={item.slug || item.packageName}
                   href={item.slug ? `${BASE_PATH}/${item.slug}` : directoryHref}
                   onClick={() => setOpen(false)}
-                  className="flex items-start gap-2 px-3 py-2 hover:bg-bg-hover transition-colors">
+                  onMouseEnter={() => setActiveIndex(index)}
+                  className={`flex items-start gap-2 px-3 py-2 transition-colors ${
+                    index === activeIndex ? "bg-bg-hover" : "hover:bg-bg-hover"
+                  }`}>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <span className="text-sm font-medium text-text-primary truncate">
