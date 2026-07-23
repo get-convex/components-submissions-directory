@@ -676,6 +676,13 @@ const applicationTables = {
     createdAt: v.number(),
   }).index("by_userKey_and_createdAt", ["userKey", "createdAt"]),
 
+  // Rate limit log for user-triggered README refreshes from the profile page
+  readmeRefreshRequests: defineTable({
+    userKey: v.string(),
+    packageId: v.id("packages"),
+    createdAt: v.number(),
+  }).index("by_userKey_and_createdAt", ["userKey", "createdAt"]),
+
   // Per-user API keys for REST API access
   apiKeys: defineTable({
     tokenIdentifier: v.string(),

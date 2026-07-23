@@ -2,6 +2,12 @@
 
 ## completed
 
+- [x] User README refresh from profile (2026-07-23 21:30 UTC)
+  - "Update README" button added to Profile submission cards (between Edit and Send Request, only when the submission has a repo URL). Backed by new public mutation `packages.refreshMyReadme` with auth, `userOwnsPackage` ownership check, repo URL requirement, and a 3-per-10-minutes per-user rate limit stored in the new `readmeRefreshRequests` table; on success it schedules the existing `internal.seoContent.refreshReadme` GitHub fetch (same as the admin button). Rate limit `ConvexError` messages surface in the toast; a 60s client cooldown prevents double clicks. `getMySubmissions` now returns `hasRepositoryUrl` to gate the button.
+  - PRD: `prds/user-readme-refresh.md`
+  - Files: `convex/schema.ts`, `convex/packages.ts`, `src/pages/Profile.tsx`, `changelog.md`, `files.md`
+  - Verification: `npx tsc --noEmit -p convex/tsconfig.json` passed; lints clean on all three edited files; pre-existing app `tsc` errors in `CodeBlock.tsx` / `CategoryPage.tsx` are untouched files and unrelated.
+
 - [x] Header component search (2026-07-15 06:30 UTC)
   - Phosphor `MagnifyingGlass` icon added left of the Submit link in the header (desktop nav) and as an always-visible mobile control. Clicking opens a dropdown panel (styled like the notifications dropdown) with an auto-focused input, 300ms debounced live results, verified badges, category labels, and a "View all results in directory" footer. Enter or the footer navigates to `/components/?q=<term>`, which pre-fills the existing Directory search (existing search behavior unchanged). New public Convex query `searchDirectoryComponents` runs full text search across `search_name`, `search_componentName`, `search_description`, and a new `search_shortDescription` index, filtered to approved+visible and skipping deletion-marked packages, capped at 10 compact PII-free results. The shortDescription index was added because npm `description` values are often generic while the human blurb lives in `shortDescription`.
   - PRD: `prds/header-component-search.md`

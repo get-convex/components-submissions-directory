@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- User README refresh from profile (2026-07-23 21:30 UTC)
+  - New "Update README" button on Profile submission cards (between Edit and Send Request, shown only when the submission has a GitHub repo URL). Owners can pull their latest README from GitHub without waiting for an admin.
+  - New public mutation `packages.refreshMyReadme`: requires auth, verifies ownership via `userOwnsPackage`, requires a `repositoryUrl`, and enforces a per-user rate limit of 3 refreshes per 10 minutes (backed by the new `readmeRefreshRequests` table with `by_userKey_and_createdAt` index) so GitHub is not spammed. On success it schedules the same `internal.seoContent.refreshReadme` action the Admin "Update README" button uses.
+  - Rate limit errors return a `ConvexError` with the reset time, which the Profile toast surfaces. A 60 second client-side cooldown prevents rapid re-clicks.
+  - PRD: `prds/user-readme-refresh.md`
+  - Files: `convex/schema.ts`, `convex/packages.ts`, `src/pages/Profile.tsx`
+  - Verification: convex typecheck passed; frontend lint clean on edited files (the two pre-existing `tsc` errors in `CodeBlock.tsx` and `CategoryPage.tsx` are unrelated).
+
 - Header component search (2026-07-15 06:30 UTC)
   - New magnifying glass icon (Phosphor `MagnifyingGlass`) in the global header, left of the Submit link on desktop and always visible on mobile. Opens a dropdown search panel with an auto-focused input, 300ms debounced live results (component name, verified badge, short description, category), and a "View all results in directory" footer. Enter or the footer button lands on `/components/?q=<term>`; `Directory.tsx` now seeds its search box from the `q` param, so the existing directory search behavior is unchanged.
   - New public Convex query `searchDirectoryComponents` (`convex/packages.ts`) using full text search indexes `search_name`, `search_componentName`, `search_description`, and the new `search_shortDescription` (`convex/schema.ts`), server-filtered to `reviewStatus=approved` + `visibility=visible`, skipping deletion-marked packages, deduped with name matches ranked first, capped at 10 compact PII-free results.

@@ -4722,6 +4722,7 @@ const userSubmissionValidator = v.object({
   markedForDeletionAt: v.optional(v.number()),
   submittedShortDescription: v.optional(v.string()),
   submittedLongDescription: v.optional(v.string()),
+  hasRepositoryUrl: v.boolean(),
 });
 
 // Public query: Get submissions by the authenticated user's email
@@ -4754,6 +4755,7 @@ function toSubmissionCard(pkg: any, unreadCount: number) {
     markedForDeletionAt: pkg.markedForDeletionAt,
     submittedShortDescription: pkg.submittedShortDescription,
     submittedLongDescription: pkg.submittedLongDescription,
+    hasRepositoryUrl: !!pkg.repositoryUrl,
   };
 }
 
@@ -4836,6 +4838,69 @@ export const requestSubmissionRefresh = mutation({
     // Notify via Slack when a private message is added.
     const text = formatSlackNotification(pkg, "New private message on", `Submitter (${userEmail})`, args.note);
     await ctx.scheduler.runAfter(0, internal.slack.sendMessage, { text });
+
+    return null;
+  },
+});
+
+// ============ USER README REFRESH (rate limited) ============
+// Owners can pull the latest README from GitHub for their own submissions.
+// Limited per user to avoid spamming the GitHub API.
+const README_REFRESH_WINDOW_MS = 10 * 60 * 1000;
+const MAX_README_REFRESHES_PER_WINDOW = 3;
+
+// Mutation: Owner-triggered README refresh from the profile page.
+// Checks auth + ownership, enforces the rate limit transactionally,
+// then schedules the same internal refresh action the admin flow uses.
+export const refreshMyReadme = mutation({
+  args: { packageId: v.id("packages") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userEmail = await getCurrentUserEmail(ctx);
+    if (!userEmail) {
+      throw new ConvexError("Authentication required");
+    }
+
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) {
+      throw new ConvexError("Package not found");
+    }
+    if (!userOwnsPackage(pkg, userEmail)) {
+      throw new ConvexError("You can only refresh your own submissions");
+    }
+    if (!pkg.repositoryUrl) {
+      throw new ConvexError("This submission has no GitHub repository URL");
+    }
+
+    // Rate limit: max refreshes per user within the rolling window
+    const now = Date.now();
+    const windowStart = now - README_REFRESH_WINDOW_MS;
+    const recentRequests = await ctx.db
+      .query("readmeRefreshRequests")
+      .withIndex("by_userKey_and_createdAt", (q) =>
+        q.eq("userKey", userEmail).gt("createdAt", windowStart),
+      )
+      .take(100);
+
+    if (recentRequests.length >= MAX_README_REFRESHES_PER_WINDOW) {
+      const oldest = recentRequests.reduce((a, b) =>
+        a.createdAt < b.createdAt ? a : b,
+      );
+      const resetAt = new Date(oldest.createdAt + README_REFRESH_WINDOW_MS);
+      throw new ConvexError(
+        `README refresh is limited to ${MAX_README_REFRESHES_PER_WINDOW} times per 10 minutes. Try again after ${resetAt.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}.`,
+      );
+    }
+
+    await ctx.db.insert("readmeRefreshRequests", {
+      userKey: userEmail,
+      packageId: args.packageId,
+      createdAt: now,
+    });
+
+    await ctx.scheduler.runAfter(0, internal.seoContent.refreshReadme, {
+      packageId: args.packageId,
+    });
 
     return null;
   },

@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useAction } from "convex/react";
+import { ConvexError } from "convex/values";
 import { useAuth } from "../lib/auth";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
@@ -1479,6 +1480,7 @@ function SubmissionCard({
     unreadAdminReplies: number;
     submittedShortDescription?: string;
     submittedLongDescription?: string;
+    hasRepositoryUrl: boolean;
   };
   onRequestRefresh: (id: Id<"packages">, name: string) => void;
   onViewNotes: (id: Id<"packages">, name: string) => void;
@@ -1487,6 +1489,9 @@ function SubmissionCard({
 }) {
   const [showOriginalText, setShowOriginalText] = useState(false);
   const [hashHighlight, setHashHighlight] = useState(false);
+  const [isRefreshingReadme, setIsRefreshingReadme] = useState(false);
+  const [readmeCooldown, setReadmeCooldown] = useState(false);
+  const refreshMyReadme = useMutation(api.packages.refreshMyReadme);
   const cardRef = useRef<HTMLDivElement>(null);
   const displayName = submission.componentName || submission.name;
   const submittedDate = new Date(submission.submittedAt).toLocaleDateString(
@@ -1513,6 +1518,27 @@ function SubmissionCard({
     const timeout = window.setTimeout(() => setHashHighlight(false), 2000);
     return () => window.clearTimeout(timeout);
   }, [submission._id]);
+
+  // Pull the latest README from GitHub. Server enforces ownership and a
+  // per-user rate limit; the local cooldown just prevents rapid re-clicks.
+  const handleRefreshReadme = async () => {
+    if (isRefreshingReadme || readmeCooldown) return;
+    setIsRefreshingReadme(true);
+    try {
+      await refreshMyReadme({ packageId: submission._id });
+      toast.success("README refresh started. It may take a moment to update.");
+      setReadmeCooldown(true);
+      window.setTimeout(() => setReadmeCooldown(false), 60_000);
+    } catch (err) {
+      toast.error(
+        err instanceof ConvexError
+          ? String(err.data)
+          : "Failed to refresh README",
+      );
+    } finally {
+      setIsRefreshingReadme(false);
+    }
+  };
 
   // Show View button when approved AND visible (consistent with admin dashboard)
   const canViewDetail =
@@ -1590,6 +1616,24 @@ function SubmissionCard({
               <PencilSimple size={14} />
               Edit
             </button>
+            {submission.hasRepositoryUrl && (
+              <button
+                onClick={handleRefreshReadme}
+                disabled={isRefreshingReadme || readmeCooldown}
+                title={
+                  readmeCooldown
+                    ? "README refresh requested. Wait a minute before trying again."
+                    : "Fetch the latest README from GitHub (limited to 3 per 10 minutes)"
+                }
+                className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ArrowsClockwise
+                  size={14}
+                  className={isRefreshingReadme ? "animate-spin" : ""}
+                />
+                {isRefreshingReadme ? "Updating..." : "Update README"}
+              </button>
+            )}
             <button
               onClick={() => onRequestRefresh(submission._id, displayName)}
               className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
