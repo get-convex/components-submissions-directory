@@ -1261,7 +1261,7 @@ function SubmitPackageModal({ onClose }: { onClose: () => void }) {
                 </label>
                 <input
                   type="text"
-                  placeholder="Convex Agent"
+                  placeholder="Component Name"
                   value={componentName}
                   onChange={(e) => setComponentName(e.target.value)}
                   required

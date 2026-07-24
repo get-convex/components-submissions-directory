@@ -533,7 +533,7 @@ export function ComponentDetailsEditor({
             type="text"
             value={componentName}
             onChange={(e) => setComponentName(e.target.value)}
-            placeholder="Convex Agent"
+            placeholder="Component Name"
             className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
           />
         </div>
@@ -1265,7 +1265,7 @@ function GeneratedContentSection({
                   Preview
                 </p>
                 <div className="overflow-x-auto">
-                  <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                  <div className="markdown-body markdown-body-compact">
                     <Markdown>{editUseCases}</Markdown>
                   </div>
                 </div>
@@ -1290,7 +1290,7 @@ function GeneratedContentSection({
                   Preview
                 </p>
                 <div className="overflow-x-auto">
-                  <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                  <div className="markdown-body markdown-body-compact">
                     <Markdown>{editHowItWorks}</Markdown>
                   </div>
                 </div>

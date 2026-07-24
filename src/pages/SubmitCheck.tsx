@@ -3,6 +3,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useAuth } from "../lib/auth";
 import { useConnectAuth } from "../lib/connectAuth";
+import { buildNpmUrl, parseNpmPackageInput } from "../lib/npmPackage";
 import Header from "../components/Header";
 import {
   CheckCircle,
@@ -49,7 +50,7 @@ export default function SubmitCheck() {
   // Admins (@convex.dev) bypass the rate limit and cache on the backend
   const isAdmin = useQuery(api.auth.isAdmin) ?? false;
   const [repoUrl, setRepoUrl] = useState("");
-  const [npmUrl, setNpmUrl] = useState("");
+  const [npmPackageName, setNpmPackageName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<PreflightResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -110,7 +111,7 @@ export default function SubmitCheck() {
           },
           body: JSON.stringify({
             repoUrl: repoUrl.trim(),
-            npmUrl: npmUrl.trim() || undefined,
+            npmUrl: npmPackageName.trim() ? buildNpmUrl(npmPackageName) : undefined,
           }),
         }
       );
@@ -200,10 +201,10 @@ export default function SubmitCheck() {
                 </div>
               </div>
 
-              {/* npm URL (optional) */}
+              {/* npm package name (optional, URL is built from it) */}
               <div>
                 <label className="block text-sm font-medium text-text-primary mb-1">
-                  npm Package URL{" "}
+                  npm package name{" "}
                   <span className="text-text-secondary text-xs font-normal">(optional)</span>
                 </label>
                 <div className="relative">
@@ -212,9 +213,9 @@ export default function SubmitCheck() {
                   </div>
                   <input
                     type="text"
-                    placeholder="https://www.npmjs.com/package/your-package"
-                    value={npmUrl}
-                    onChange={(e) => setNpmUrl(e.target.value)}
+                    placeholder="@your-scope/your-package"
+                    value={npmPackageName}
+                    onChange={(e) => setNpmPackageName(parseNpmPackageInput(e.target.value))}
                     disabled={isLoading}
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20"
                   />

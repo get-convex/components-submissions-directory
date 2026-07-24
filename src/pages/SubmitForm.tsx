@@ -11,6 +11,7 @@ import { Markdown } from "../components/Markdown";
 import ReadmePreviewNotice from "../components/ReadmePreviewNotice";
 import AiLoadingDots from "../components/AiLoadingDots";
 import { FAQSection } from "../components/FAQSection";
+import { isValidNpmPackageName, parseNpmPackageInput, buildNpmUrl } from "../lib/npmPackage";
 import {
   CheckCircle,
   CaretDown,
@@ -29,6 +30,53 @@ function useBasePath() {
 
 const THUMBNAIL_MAX_BYTES = 3 * 1024 * 1024;
 const THUMBNAIL_ALLOWED_TYPES = ["image/webp", "image/png", "image/jpeg"];
+
+// Draft persistence: keeps in-progress form data in sessionStorage so an
+// auth redirect (full-page navigation to WorkOS and back) does not wipe progress.
+const DRAFT_KEY = "submitFormDraft";
+
+type SubmitFormDraft = {
+  readFaq?: boolean;
+  compliesGuidelines?: boolean;
+  hasPermission?: boolean;
+  componentName?: string;
+  repositoryUrl?: string;
+  npmPackageName?: string;
+  demoUrl?: string;
+  submitterName?: string;
+  submitterEmail?: string;
+  submitterDiscord?: string;
+  category?: string;
+  shortDescription?: string;
+  tags?: string;
+  videoUrl?: string;
+  generatedDescription?: string;
+  generatedUseCases?: string;
+  generatedHowItWorks?: string;
+  readmeIncludedMarkdown?: string;
+  readmeIncludeSource?: "markers" | "full" | "";
+  contentGenerated?: boolean;
+};
+
+function readDraft(): SubmitFormDraft {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY);
+    return raw ? (JSON.parse(raw) as SubmitFormDraft) : {};
+  } catch {
+    return {};
+  }
+}
+
+function draftHasContent(draft: SubmitFormDraft): boolean {
+  return Boolean(
+    draft.componentName ||
+      draft.repositoryUrl ||
+      draft.npmPackageName ||
+      draft.demoUrl ||
+      draft.shortDescription ||
+      draft.generatedDescription
+  );
+}
 
 // Success modal after submission
 function SuccessModal({ onClose }: { onClose: () => void }) {
@@ -159,27 +207,30 @@ export default function SubmitForm() {
     }
   }, [authLoading, isAuthenticated, signIn]);
 
+  // Restore any saved draft once (survives the WorkOS sign-in redirect)
+  const [draft] = useState<SubmitFormDraft>(readDraft);
+
   // Checklist state (all three must be checked to enable form)
-  const [readFaq, setReadFaq] = useState(false);
-  const [compliesGuidelines, setCompliesGuidelines] = useState(false);
-  const [hasPermission, setHasPermission] = useState(false);
+  const [readFaq, setReadFaq] = useState(draft.readFaq ?? false);
+  const [compliesGuidelines, setCompliesGuidelines] = useState(draft.compliesGuidelines ?? false);
+  const [hasPermission, setHasPermission] = useState(draft.hasPermission ?? false);
   const allChecklistsComplete = readFaq && compliesGuidelines && hasPermission;
 
   // Form state
-  const [componentName, setComponentName] = useState("");
-  const [repositoryUrl, setRepositoryUrl] = useState("");
-  const [npmUrl, setNpmUrl] = useState("");
-  const [demoUrl, setDemoUrl] = useState("");
-  const [submitterName, setSubmitterName] = useState("");
-  const [submitterEmail, setSubmitterEmail] = useState("");
-  const [submitterDiscord, setSubmitterDiscord] = useState("");
+  const [componentName, setComponentName] = useState(draft.componentName ?? "");
+  const [repositoryUrl, setRepositoryUrl] = useState(draft.repositoryUrl ?? "");
+  const [npmPackageName, setNpmPackageName] = useState(draft.npmPackageName ?? "");
+  const [demoUrl, setDemoUrl] = useState(draft.demoUrl ?? "");
+  const [submitterName, setSubmitterName] = useState(draft.submitterName ?? "");
+  const [submitterEmail, setSubmitterEmail] = useState(draft.submitterEmail ?? "");
+  const [submitterDiscord, setSubmitterDiscord] = useState(draft.submitterDiscord ?? "");
   const dynamicCategories = useDirectoryCategories();
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState(draft.category ?? "");
   const [categoryOpen, setCategoryOpen] = useState(false);
   const categoryRef = useRef<HTMLDivElement>(null);
-  const [shortDescription, setShortDescription] = useState("");
-  const [tags, setTags] = useState("");
-  const [videoUrl, setVideoUrl] = useState("");
+  const [shortDescription, setShortDescription] = useState(draft.shortDescription ?? "");
+  const [tags, setTags] = useState(draft.tags ?? "");
+  const [videoUrl, setVideoUrl] = useState(draft.videoUrl ?? "");
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -190,12 +241,18 @@ export default function SubmitForm() {
 
   // V2 generated content state
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedDescription, setGeneratedDescription] = useState("");
-  const [generatedUseCases, setGeneratedUseCases] = useState("");
-  const [generatedHowItWorks, setGeneratedHowItWorks] = useState("");
-  const [readmeIncludedMarkdown, setReadmeIncludedMarkdown] = useState("");
-  const [readmeIncludeSource, setReadmeIncludeSource] = useState<"markers" | "full" | "">("");
-  const [contentGenerated, setContentGenerated] = useState(false);
+  const [generatedDescription, setGeneratedDescription] = useState(
+    draft.generatedDescription ?? ""
+  );
+  const [generatedUseCases, setGeneratedUseCases] = useState(draft.generatedUseCases ?? "");
+  const [generatedHowItWorks, setGeneratedHowItWorks] = useState(draft.generatedHowItWorks ?? "");
+  const [readmeIncludedMarkdown, setReadmeIncludedMarkdown] = useState(
+    draft.readmeIncludedMarkdown ?? ""
+  );
+  const [readmeIncludeSource, setReadmeIncludeSource] = useState<"markers" | "full" | "">(
+    draft.readmeIncludeSource ?? ""
+  );
+  const [contentGenerated, setContentGenerated] = useState(draft.contentGenerated ?? false);
 
   const submitPackage = useAction(api.packages.submitPackage);
   const previewContent = useAction(api.seoContent.previewDirectoryContent);
@@ -210,6 +267,72 @@ export default function SubmitForm() {
     }
   }, [user?.email, submitterEmail]);
 
+  // Let the user know their in-progress work was restored after a redirect
+  const draftToastShown = useRef(false);
+  useEffect(() => {
+    if (!draftToastShown.current && draftHasContent(draft)) {
+      draftToastShown.current = true;
+      toast.info("Restored your in-progress submission from this session.");
+    }
+  }, [draft]);
+
+  // Save a draft on every change so an auth redirect never loses progress.
+  // Files (logo/thumbnail) cannot be persisted and must be re-picked after a redirect.
+  useEffect(() => {
+    const next: SubmitFormDraft = {
+      readFaq,
+      compliesGuidelines,
+      hasPermission,
+      componentName,
+      repositoryUrl,
+      npmPackageName,
+      demoUrl,
+      submitterName,
+      submitterEmail,
+      submitterDiscord,
+      category,
+      shortDescription,
+      tags,
+      videoUrl,
+      generatedDescription,
+      generatedUseCases,
+      generatedHowItWorks,
+      readmeIncludedMarkdown,
+      readmeIncludeSource,
+      contentGenerated,
+    };
+    try {
+      if (draftHasContent(next)) {
+        sessionStorage.setItem(DRAFT_KEY, JSON.stringify(next));
+      } else {
+        sessionStorage.removeItem(DRAFT_KEY);
+      }
+    } catch {
+      // Storage full or unavailable: skip draft saving silently
+    }
+  }, [
+    readFaq,
+    compliesGuidelines,
+    hasPermission,
+    componentName,
+    repositoryUrl,
+    npmPackageName,
+    demoUrl,
+    submitterName,
+    submitterEmail,
+    submitterDiscord,
+    category,
+    shortDescription,
+    tags,
+    videoUrl,
+    generatedDescription,
+    generatedUseCases,
+    generatedHowItWorks,
+    readmeIncludedMarkdown,
+    readmeIncludeSource,
+    contentGenerated,
+  ]);
+
   // Close category dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -222,11 +345,6 @@ export default function SubmitForm() {
   }, []);
 
   // Validation helpers
-  const validateNpmUrl = (url: string): boolean => {
-    const pattern = /^https?:\/\/(www\.)?npmjs\.com\/package\/.+/;
-    return pattern.test(url);
-  };
-
   const validateEmail = (email: string): boolean => {
     const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return pattern.test(email);
@@ -245,10 +363,10 @@ export default function SubmitForm() {
   const canGenerate =
     componentName.trim() &&
     repositoryUrl.trim() &&
-    npmUrl.trim() &&
+    npmPackageName.trim() &&
     shortDescription.trim() &&
     validateGitHubRepoUrl(repositoryUrl.trim()) &&
-    validateNpmUrl(npmUrl.trim());
+    isValidNpmPackageName(npmPackageName.trim());
 
   const handleGenerateContent = useCallback(async () => {
     if (!canGenerate) return;
@@ -256,7 +374,7 @@ export default function SubmitForm() {
     try {
       const result = await previewContent({
         repositoryUrl: repositoryUrl.trim(),
-        npmUrl: npmUrl.trim(),
+        npmUrl: buildNpmUrl(npmPackageName),
         componentName: componentName.trim(),
         shortDescription: shortDescription.trim(),
         source: "submit",
@@ -281,7 +399,7 @@ export default function SubmitForm() {
       setIsGenerating(false);
       setShowGenerateWarning(false);
     }
-  }, [canGenerate, previewContent, repositoryUrl, npmUrl, componentName, shortDescription]);
+  }, [canGenerate, previewContent, repositoryUrl, npmPackageName, componentName, shortDescription]);
 
   const handleOpenGenerateWarning = useCallback(() => {
     if (!canGenerate || isGenerating || isLoading) return;
@@ -294,7 +412,7 @@ export default function SubmitForm() {
     if (
       !componentName.trim() ||
       !repositoryUrl.trim() ||
-      !npmUrl.trim() ||
+      !npmPackageName.trim() ||
       !demoUrl.trim() ||
       !shortDescription.trim() ||
       !submitterName.trim() ||
@@ -313,9 +431,9 @@ export default function SubmitForm() {
       return;
     }
 
-    if (!validateNpmUrl(npmUrl.trim())) {
+    if (!isValidNpmPackageName(npmPackageName.trim())) {
       setErrorMessage(
-        "Please enter a valid npm URL. Expected format: https://www.npmjs.com/package/package-name"
+        "Please enter a valid npm package name. Examples: my-package or @scope/my-package"
       );
       setShowError(true);
       return;
@@ -339,7 +457,7 @@ export default function SubmitForm() {
     try {
       const payload: Parameters<typeof submitPackage>[0] = {
         repositoryUrl: repositoryUrl.trim(),
-        npmUrl: npmUrl.trim(),
+        npmUrl: buildNpmUrl(npmPackageName),
         submitterName: submitterName.trim(),
         submitterEmail: submitterEmail.trim(),
         submitterDiscord: submitterDiscord.trim() || undefined,
@@ -388,10 +506,12 @@ export default function SubmitForm() {
         }
       }
 
+      // Submission succeeded: drop the saved draft and reset the form
+      sessionStorage.removeItem(DRAFT_KEY);
       setShowSuccess(true);
       setComponentName("");
       setRepositoryUrl("");
-      setNpmUrl("");
+      setNpmPackageName("");
       setDemoUrl("");
       setSubmitterName("");
       setSubmitterEmail(user?.email || "");
@@ -492,7 +612,7 @@ export default function SubmitForm() {
               </label>
               <input
                 type="text"
-                placeholder="Convex Agent"
+                placeholder="Component Name"
                 value={componentName}
                 onChange={(e) => setComponentName(e.target.value)}
                 required
@@ -517,16 +637,16 @@ export default function SubmitForm() {
               />
             </div>
 
-            {/* NPM URL */}
+            {/* npm package name (we build the npm URL from it) */}
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">
-                npm package URL <span className="text-red-500">*</span>
+                npm package name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                placeholder="https://www.npmjs.com/package/your-package"
-                value={npmUrl}
-                onChange={(e) => setNpmUrl(e.target.value)}
+                placeholder="@your-scope/your-package"
+                value={npmPackageName}
+                onChange={(e) => setNpmPackageName(parseNpmPackageInput(e.target.value))}
                 required
                 disabled={isLoading}
                 className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20"
@@ -688,7 +808,7 @@ export default function SubmitForm() {
                     <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
                       Preview
                     </p>
-                    <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                    <div className="markdown-body markdown-body-compact">
                       <Markdown>{generatedUseCases}</Markdown>
                     </div>
                   </div>
@@ -710,7 +830,7 @@ export default function SubmitForm() {
                     <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
                       Preview
                     </p>
-                    <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                    <div className="markdown-body markdown-body-compact">
                       <Markdown>{generatedHowItWorks}</Markdown>
                     </div>
                   </div>
@@ -726,7 +846,7 @@ export default function SubmitForm() {
                     </div>
                     <ReadmePreviewNotice readmeIncludeSource={readmeIncludeSource} />
                     <div className="rounded-lg border border-border bg-bg-primary p-3 max-h-64 overflow-y-auto">
-                      <div className="prose prose-sm max-w-none text-text-primary">
+                      <div className="markdown-body">
                         <Markdown>{readmeIncludedMarkdown}</Markdown>
                       </div>
                     </div>

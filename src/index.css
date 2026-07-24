@@ -217,6 +217,27 @@
     word-wrap: break-word;
   }
 
+  /* Compact variant for small preview panes (submit form, profile editors) */
+  .markdown-body.markdown-body-compact {
+    font-size: 0.75rem;
+    line-height: 1.6;
+  }
+
+  .markdown-body.markdown-body-compact h1 {
+    font-size: 1rem;
+    margin-top: 1rem;
+  }
+
+  .markdown-body.markdown-body-compact h2 {
+    font-size: 0.9375rem;
+    margin-top: 0.875rem;
+  }
+
+  .markdown-body.markdown-body-compact h3 {
+    font-size: 0.875rem;
+    margin-top: 0.75rem;
+  }
+
   .markdown-body > *:first-child {
     margin-top: 0;
   }

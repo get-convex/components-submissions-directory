@@ -647,6 +647,10 @@ Module-level `ConvexHttpClient` plus the `useComponentBySlug(slug)` hook. The ho
 
 Static category definitions and `getCategoryLabel` helper.
 
+### `src/lib/npmPackage.ts`
+
+npm package name helpers for the submit flow: `isValidNpmPackageName` (plain and scoped names), `parseNpmPackageInput` (accepts a name or a pasted npmjs.com URL and returns the name), and `buildNpmUrl` (builds the canonical npm URL sent to the backend).
+
 ### `src/lib/slugs.ts`
 
 Client-side slug generation and parsing utilities for URL-safe component slugs.

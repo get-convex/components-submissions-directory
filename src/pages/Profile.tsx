@@ -787,7 +787,7 @@ function EditModal({
               type="text"
               value={componentName}
               onChange={(e) => setComponentName(e.target.value)}
-              placeholder="e.g., Convex Agent"
+              placeholder="Component Name"
               className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-button focus:ring-2 focus:ring-button/20"
             />
             <p className="text-xs text-text-tertiary mt-1">
@@ -896,7 +896,7 @@ function EditModal({
                       <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
                         Preview
                       </p>
-                      <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                      <div className="markdown-body markdown-body-compact">
                         <Markdown>{generatedUseCases}</Markdown>
                       </div>
                     </div>
@@ -920,7 +920,7 @@ function EditModal({
                       <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
                         Preview
                       </p>
-                      <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                      <div className="markdown-body markdown-body-compact">
                         <Markdown>{generatedHowItWorks}</Markdown>
                       </div>
                     </div>
@@ -939,7 +939,7 @@ function EditModal({
                         : "No include markers found in README. Showing full README content."}
                     </p>
                     <div className="rounded-lg border border-border bg-bg-primary p-3 max-h-48 overflow-y-auto">
-                      <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                      <div className="markdown-body markdown-body-compact">
                         <Markdown>{readmeIncludedMarkdown}</Markdown>
                       </div>
                     </div>

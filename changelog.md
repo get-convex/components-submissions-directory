@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Submit form draft persistence across auth redirects (2026-07-24 06:20 UTC)
+  - The submit form now saves every text field, the checklist state, and generated content to sessionStorage as you type, restores it on page load, and clears it after a successful submission. This survives the full-page WorkOS sign-in redirect, which previously wiped all in-progress work when the session token expired mid-form. A toast confirms when a draft is restored. Uploaded logo/thumbnail files cannot be persisted and must be re-picked after a redirect.
+  - PRD: `prds/submit-flow-feedback-fixes.md`
+  - Files: `src/pages/SubmitForm.tsx`
+
 - User README refresh from profile (2026-07-23 21:30 UTC)
   - New "Update README" button on Profile submission cards (between Edit and Send Request, shown only when the submission has a GitHub repo URL). Owners can pull their latest README from GitHub without waiting for an admin.
   - New public mutation `packages.refreshMyReadme`: requires auth, verifies ownership via `userOwnsPackage`, requires a `repositoryUrl`, and enforces a per-user rate limit of 3 refreshes per 10 minutes (backed by the new `readmeRefreshRequests` table with `by_userKey_and_createdAt` index) so GitHub is not spammed. On success it schedules the same `internal.seoContent.refreshReadme` action the Admin "Update README" button uses.
@@ -28,11 +33,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- README include markers were never detected (2026-07-24 06:20 UTC)
+  - Root cause: `sanitizeReadme` in `convex/seoContent.ts` strips all HTML comments from the fetched README before `extractReadmeIncludeBlock` ran, so the `<!-- START/END: Include on https://convex.dev/components -->` markers were always removed and extraction always fell back to the full README.
+  - Fix: `fetchGitHubReadme` now also returns the raw unsanitized README (`rawFullContent`), and extraction runs on that raw text. The marked block gets a light cleanup (comments, Convex badge, whitespace); READMEs without markers keep the exact same sanitized fallback output as before. Affects content generation, README refresh, and the submit form preview. Existing stored content is untouched until the next generation or refresh.
+  - Files: `convex/seoContent.ts`
+
+- Preview sections now render markdown like the live detail page (2026-07-24 06:20 UTC)
+  - Root cause: previews in the submit form, profile, and admin editor wrapped markdown in Tailwind `prose prose-sm` classes, but the typography plugin is not installed, so lists rendered without bullets or indentation.
+  - Fix: previews use the same `markdown-body` class as the detail page, with a new `markdown-body-compact` variant in `src/index.css` for smaller preview panes.
+  - Files: `src/pages/SubmitForm.tsx`, `src/pages/Profile.tsx`, `src/pages/ProfileEditSubmission.tsx`, `src/components/ComponentDetailsEditor.tsx`, `src/index.css`
+
 - Featured cards on the Directory page were not showing all-time downloads after enabling the admin toggle (2026-07-15 06:15 UTC)
   - Root cause: `getFeaturedComponents` in `convex/packages.ts` mapped its result inline and omitted `allTimeDownloads`, so Featured cards always received `undefined` and hid the figure (the never-show-0 rule). The flat list from `listApprovedComponents` was unaffected.
   - Fix: one line adding `allTimeDownloads: pkg.allTimeDownloads` to the featured mapper. Verified in the browser: all 25 rendered cards (Featured and flat) now show the total, e.g. Stripe `401.2k total`.
 
 ### Changed
+
+- Submit forms ask for the npm package name instead of the full npm URL (2026-07-24 06:20 UTC)
+  - The submit form and preflight checker now take a package name (e.g. `@scope/my-package`) and build `https://www.npmjs.com/package/<name>` themselves. Pasting a full npm URL still works: the name is extracted automatically. Backend payloads are unchanged. New shared helper: `src/lib/npmPackage.ts`.
+  - Files: `src/pages/SubmitForm.tsx`, `src/pages/SubmitCheck.tsx`, `src/lib/npmPackage.ts`
+
+- Component name placeholder no longer suggests "Convex" in the title (2026-07-24 06:20 UTC, updated 06:30 UTC)
+  - Placeholder changed from "Convex Agent" to the neutral "Component Name" everywhere the name field appears, so submitters are not nudged into prefixing their component name with Convex or copying an example name.
+  - Files: `src/pages/SubmitForm.tsx`, `src/pages/Submit.tsx`, `src/pages/Profile.tsx`, `src/pages/ProfileEditSubmission.tsx`, `src/components/ComponentDetailsEditor.tsx`
 
 - Most downloads sort now ranks by all-time downloads (2026-07-15 06:20 UTC)
   - `sortPackages` in `convex/packages.ts` sorts the `downloads` mode by `allTimeDownloads` instead of `weeklyDownloads`, independent of the admin display toggles. Applies to both the Directory dropdown and category pages since both use `listApprovedComponents`.

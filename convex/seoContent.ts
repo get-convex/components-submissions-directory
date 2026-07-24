@@ -97,6 +97,9 @@ type GitHubReadmeResult = {
   content: string;
   rawContent: string;
   fullContent: string;
+  // Unsanitized README text. Include-marker extraction must run on this,
+  // because sanitizeReadme strips HTML comments (including the markers).
+  rawFullContent: string;
   sourceLabel: string;
 };
 
@@ -302,6 +305,7 @@ async function fetchGitHubReadme(
           content: `From the ${path}\n\n${forPrompt}`,
           rawContent: forPrompt,
           fullContent: full,
+          rawFullContent: rawText,
           sourceLabel: path,
         };
       }
@@ -759,26 +763,41 @@ interface ContentGenerationResponse {
   howItWorks: string;
 }
 
+// Takes the RAW (unsanitized) README so the include markers are still present.
+// sanitizeReadme removes all HTML comments, so running it first would delete the markers.
 function extractReadmeIncludeBlock(
-  readmeContent: string
+  rawReadmeContent: string
 ): { markdown: string; source: "markers" | "full" } | null {
-  if (!readmeContent) return null;
+  if (!rawReadmeContent) return null;
 
-  const startIdx = readmeContent.indexOf(README_INCLUDE_START);
-  const endIdx = readmeContent.indexOf(README_INCLUDE_END);
+  const startIdx = rawReadmeContent.indexOf(README_INCLUDE_START);
+  const endIdx = rawReadmeContent.indexOf(README_INCLUDE_END);
 
   if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-    const extracted = readmeContent.slice(startIdx + README_INCLUDE_START.length, endIdx).trim();
+    const extracted = rawReadmeContent
+      .slice(startIdx + README_INCLUDE_START.length, endIdx)
+      .trim();
     if (extracted) {
-      return {
-        markdown: stripConvexBadge(extracted),
-        source: "markers" as const,
-      };
+      // Light cleanup on the marked block: authors chose this content on purpose,
+      // so only strip comments, the Convex badge, and normalize whitespace.
+      const cleaned = stripConvexBadge(
+        extracted
+          .replace(/\r/g, "")
+          .replace(/<!--[\s\S]*?-->/g, "")
+          .replace(/\n{3,}/g, "\n\n")
+      ).trim();
+      if (cleaned) {
+        return {
+          markdown: cleaned,
+          source: "markers" as const,
+        };
+      }
     }
   }
 
+  // No markers: fall back to the fully sanitized README (same output as before)
   return {
-    markdown: stripConvexBadge(readmeContent),
+    markdown: stripConvexBadge(sanitizeReadme(rawReadmeContent)),
     source: "full" as const,
   };
 }
@@ -837,8 +856,7 @@ async function fetchContentContext(ctx: any, pkg: any) {
       fetchConvexDocsContext(),
     ]);
 
-  const fullReadmeContent = githubReadme?.fullContent || "";
-  const readmeBlock = extractReadmeIncludeBlock(fullReadmeContent);
+  const readmeBlock = extractReadmeIncludeBlock(githubReadme?.rawFullContent || "");
 
   const prompt = buildContentPrompt(pkg, {
     customTemplate: customPromptTemplate,
@@ -947,7 +965,7 @@ export const refreshReadme = internalAction({
       const githubToken = process.env.GITHUB_TOKEN;
       const githubReadme = await fetchGitHubReadme(pkg.repositoryUrl, githubToken);
       const fullReadmeContent = githubReadme?.fullContent || "";
-      const readmeBlock = extractReadmeIncludeBlock(fullReadmeContent);
+      const readmeBlock = extractReadmeIncludeBlock(githubReadme?.rawFullContent || "");
 
       await ctx.runMutation(internal.seoContentDb._updateReadmeOnly, {
         packageId: args.packageId,
@@ -991,6 +1009,7 @@ async function fetchPreviewContext(
     content?: string;
     rawContent?: string;
     fullContent?: string;
+    rawFullContent?: string;
     sourceLabel?: string;
   } | null;
   convexDocsContext: string | null;
@@ -1004,7 +1023,7 @@ async function fetchPreviewContext(
       fetchGitHubReadme(repoUrl, githubToken),
       fetchConvexDocsContext(),
     ]);
-  const readmeBlock = extractReadmeIncludeBlock(githubReadme?.fullContent || "");
+  const readmeBlock = extractReadmeIncludeBlock(githubReadme?.rawFullContent || "");
   return { customPromptTemplate, providerSettings, githubReadme, convexDocsContext, readmeBlock };
 }
 

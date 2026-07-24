@@ -439,7 +439,7 @@ export default function ProfileEditSubmission({
                   type="text"
                   value={componentName}
                   onChange={(e) => setComponentName(e.target.value)}
-                  placeholder="e.g., Convex Agent"
+                  placeholder="Component Name"
                   className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-button focus:ring-2 focus:ring-button/20"
                 />
                 <p className="text-xs text-text-tertiary mt-1">
@@ -557,7 +557,7 @@ export default function ProfileEditSubmission({
                           Preview
                         </p>
                         <div className="flex-1 rounded-lg border border-border bg-bg-primary p-3 overflow-y-auto min-h-[100px]">
-                          <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                          <div className="markdown-body markdown-body-compact">
                             <Markdown>
                               {generatedDescription || "*No description yet*"}
                             </Markdown>
@@ -590,7 +590,7 @@ export default function ProfileEditSubmission({
                           Preview
                         </p>
                         <div className="flex-1 rounded-lg border border-border bg-bg-primary p-3 overflow-y-auto min-h-[180px] max-h-[400px]">
-                          <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                          <div className="markdown-body markdown-body-compact">
                             <Markdown>
                               {generatedUseCases || "*No use cases yet*"}
                             </Markdown>
@@ -625,7 +625,7 @@ export default function ProfileEditSubmission({
                           Preview
                         </p>
                         <div className="flex-1 rounded-lg border border-border bg-bg-primary p-3 overflow-y-auto min-h-[180px] max-h-[400px]">
-                          <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                          <div className="markdown-body markdown-body-compact">
                             <Markdown>
                               {generatedHowItWorks || "*No content yet*"}
                             </Markdown>
@@ -645,7 +645,7 @@ export default function ProfileEditSubmission({
                         readmeIncludeSource={readmeIncludeSource}
                       />
                       <div className="rounded-lg border border-border bg-bg-primary p-3 max-h-64 overflow-y-auto">
-                        <div className="prose prose-sm max-w-none text-text-primary text-xs">
+                        <div className="markdown-body markdown-body-compact">
                           <Markdown>{readmeIncludedMarkdown}</Markdown>
                         </div>
                       </div>
