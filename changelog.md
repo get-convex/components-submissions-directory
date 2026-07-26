@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Dashboard npm sync column and filter (2026-07-26 06:05 UTC)
+  - New sortable "Last npm Sync" column in the dashboard Components table, placed right after Last Published, so an admin can tell at a glance whether the nightly refresh cron and the manual "Refresh all" action are actually pulling fresh npm data.
+  - The cell shows the age of `lastRefreshedAt` (for example "3h ago", "5d ago") with the exact timestamp on hover, "Never" for packages that have never synced, amber text once a sync is older than seven days, and a red warning icon carrying the `refreshError` message when the last sync failed. Sorting treats never-synced rows as the oldest.
+  - New "npm Sync" filter in the filters bar: all sync states, synced last 24h, synced last 7 days, stale over 7 days, never synced, and sync errors. The sync value also lands in the CSV and PDF exports and in the PDF filter summary.
+  - Frontend only. `lastRefreshedAt` and `refreshError` were already stored on the packages table and already returned by `api.packages.getAllPackages` through `adminPackageValidator`.
+  - PRD: `prds/dashboard-npm-sync-column.md`
+  - Files: `src/pages/Dashboard.tsx`
+
 - Submit form draft persistence across auth redirects (2026-07-24 06:20 UTC)
   - The submit form now saves every text field, the checklist state, and generated content to sessionStorage as you type, restores it on page load, and clears it after a successful submission. This survives the full-page WorkOS sign-in redirect, which previously wiped all in-progress work when the session token expired mid-form. A toast confirms when a draft is restored. Uploaded logo/thumbnail files cannot be persisted and must be re-picked after a redirect.
   - PRD: `prds/submit-flow-feedback-fixes.md`

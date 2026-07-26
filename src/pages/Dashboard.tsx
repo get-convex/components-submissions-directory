@@ -21,6 +21,7 @@ import {
   Info,
   CaretDown,
   XCircle,
+  WarningCircle,
   Export,
   FilePdf,
 } from "@phosphor-icons/react";
@@ -31,6 +32,10 @@ function useBasePath() {
 
 // Oct 1, 2025 00:00:00 UTC
 const OCT_2025_EPOCH = new Date("2025-10-01T00:00:00Z").getTime();
+
+// npm sync staleness windows
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+const SEVEN_DAYS_MS = 7 * ONE_DAY_MS;
 
 // Same heuristic as backend
 function isConvexTeamPackage(pkg: {
@@ -74,6 +79,20 @@ function formatDate(ts: number): string {
   });
 }
 
+// Relative age for npm sync timestamps, e.g. "3h ago", "5d ago"
+function formatRelativeTime(ts: number, now: number): string {
+  const diff = Math.max(now - ts, 0);
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  return `${months}mo ago`;
+}
+
 function formatNumber(n: number): string {
   if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(1) + "B";
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
@@ -98,14 +117,27 @@ type ExportRow = {
   weeklyDownloads: number;
   allTimeDownloads: number;
   lastPublish: string;
+  lastNpmSync: string;
   status: string;
 };
+
+// Human readable npm sync value shared by the table and the exports
+function describeNpmSync(
+  lastRefreshedAt: number | undefined,
+  refreshError: string | undefined,
+  now: number,
+): string {
+  if (!lastRefreshedAt) return refreshError ? "Error" : "Never";
+  const relative = formatRelativeTime(lastRefreshedAt, now);
+  return refreshError ? `${relative} (error)` : relative;
+}
 
 function buildExportRows(
   packages: Array<any>,
   resolveAuthorFn: (pkg: any) => string,
   isTeamFn: (pkg: any) => boolean,
 ): ExportRow[] {
+  const now = Date.now();
   return packages.map((pkg) => ({
     name: pkg.componentName || pkg.name,
     componentName: pkg.componentName && pkg.componentName !== pkg.name ? pkg.name : "",
@@ -115,12 +147,13 @@ function buildExportRows(
     weeklyDownloads: pkg.weeklyDownloads ?? 0,
     allTimeDownloads: pkg.allTimeDownloads ?? 0,
     lastPublish: new Date(pkg.lastPublish).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }),
+    lastNpmSync: describeNpmSync(pkg.lastRefreshedAt, pkg.refreshError, now),
     status: pkg.reviewStatus || "pending",
   }));
 }
 
 function downloadCsv(rows: ExportRow[]) {
-  const headers = ["Name", "Package", "Author", "Type", "Submitted", "Wk Downloads", "All Time Downloads", "Last Published", "Status"];
+  const headers = ["Name", "Package", "Author", "Type", "Submitted", "Wk Downloads", "All Time Downloads", "Last Published", "Last npm Sync", "Status"];
   const csvLines = [
     headers.join(","),
     ...rows.map((r) =>
@@ -133,6 +166,7 @@ function downloadCsv(rows: ExportRow[]) {
         r.weeklyDownloads.toString(),
         r.allTimeDownloads.toString(),
         r.lastPublish,
+        csvEscape(r.lastNpmSync),
         r.status,
       ].join(","),
     ),
@@ -165,8 +199,8 @@ function downloadPdfReport(rows: ExportRow[], filterSummary: string) {
 <div class="meta">Generated ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}</div>
 <div class="summary">${filterSummary} &middot; ${rows.length} component${rows.length !== 1 ? "s" : ""}</div>
 <table>
-<thead><tr><th>Name</th><th>Author</th><th>Type</th><th>Submitted</th><th class="right">Wk Downloads</th><th class="right">All Time</th><th>Last Published</th><th>Status</th></tr></thead>
-<tbody>${rows.map((r) => `<tr><td>${r.name}</td><td>${r.author}</td><td>${r.type}</td><td>${r.submittedAt}</td><td class="right">${r.weeklyDownloads.toLocaleString()}</td><td class="right">${r.allTimeDownloads.toLocaleString()}</td><td>${r.lastPublish}</td><td>${r.status}</td></tr>`).join("")}</tbody>
+<thead><tr><th>Name</th><th>Author</th><th>Type</th><th>Submitted</th><th class="right">Wk Downloads</th><th class="right">All Time</th><th>Last Published</th><th>Last npm Sync</th><th>Status</th></tr></thead>
+<tbody>${rows.map((r) => `<tr><td>${r.name}</td><td>${r.author}</td><td>${r.type}</td><td>${r.submittedAt}</td><td class="right">${r.weeklyDownloads.toLocaleString()}</td><td class="right">${r.allTimeDownloads.toLocaleString()}</td><td>${r.lastPublish}</td><td>${r.lastNpmSync}</td><td>${r.status}</td></tr>`).join("")}</tbody>
 </table>
 </body></html>`;
   const w = window.open("", "_blank");
@@ -183,9 +217,11 @@ type SortField =
   | "downloads"
   | "allTimeDownloads"
   | "submittedAt"
-  | "lastPublish";
+  | "lastPublish"
+  | "lastNpmSync";
 type SortDir = "asc" | "desc";
 type TypeFilter = "all" | "community" | "convex-team";
+type SyncFilter = "all" | "never" | "24h" | "7d" | "stale" | "error";
 type DateFilter = "all" | "pre-oct-2025" | "oct-2025-plus" | "custom";
 type StatusFilter = "all" | "approved" | "not-approved" | "rejected" | "pending" | "in_review" | "changes_requested";
 
@@ -330,6 +366,56 @@ function SortHeader({
   );
 }
 
+// ─── npm Sync Cell ──────────────────────────────────────────────────
+// Shows how long ago the npm refresh last ran for a package so admins can
+// confirm the nightly cron and manual refresh are actually working.
+function NpmSyncCell({
+  lastRefreshedAt,
+  refreshError,
+}: {
+  lastRefreshedAt?: number;
+  refreshError?: string;
+}) {
+  const now = Date.now();
+
+  if (!lastRefreshedAt) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 text-xs text-text-secondary"
+        title={refreshError || "This package has never been synced with npm"}
+      >
+        {refreshError && <WarningCircle size={12} weight="fill" className="text-red-600" />}
+        Never
+      </span>
+    );
+  }
+
+  const age = now - lastRefreshedAt;
+  const absolute = new Date(lastRefreshedAt).toLocaleString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  const tone = refreshError
+    ? "text-red-600"
+    : age > SEVEN_DAYS_MS
+      ? "text-amber-700"
+      : "text-text-secondary";
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 text-xs ${tone}`}
+      title={refreshError ? `${absolute} — ${refreshError}` : absolute}
+    >
+      {refreshError && <WarningCircle size={12} weight="fill" />}
+      {formatRelativeTime(lastRefreshedAt, now)}
+    </span>
+  );
+}
+
 // ─── Redirect non-admin ─────────────────────────────────────────────
 function RedirectToProfile() {
   const basePath = useBasePath();
@@ -365,6 +451,7 @@ export default function Dashboard() {
   const [customDateFrom, setCustomDateFrom] = useState("");
   const [customDateTo, setCustomDateTo] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [syncFilter, setSyncFilter] = useState<SyncFilter>("all");
   const [excludedAuthors, setExcludedAuthors] = useState<Set<string>>(new Set());
   const [authorDropdownOpen, setAuthorDropdownOpen] = useState(false);
   const [sortField, setSortField] = useState<SortField>("downloads");
@@ -501,6 +588,29 @@ export default function Dashboard() {
       list = list.filter((p) => (p.reviewStatus || "pending") === statusFilter);
     }
 
+    // npm sync state
+    if (syncFilter !== "all") {
+      const now = Date.now();
+      list = list.filter((p) => {
+        const syncedAt = p.lastRefreshedAt;
+        switch (syncFilter) {
+          case "never":
+            return !syncedAt;
+          case "24h":
+            return !!syncedAt && now - syncedAt <= ONE_DAY_MS;
+          case "7d":
+            return !!syncedAt && now - syncedAt <= SEVEN_DAYS_MS;
+          case "stale":
+            // Never synced counts as stale too
+            return !syncedAt || now - syncedAt > SEVEN_DAYS_MS;
+          case "error":
+            return !!p.refreshError;
+          default:
+            return true;
+        }
+      });
+    }
+
     // Sort
     const dir = sortDir === "asc" ? 1 : -1;
     list = [...list].sort((a, b) => {
@@ -517,13 +627,16 @@ export default function Dashboard() {
           return dir * ((a.submittedAt || a._creationTime) - (b.submittedAt || b._creationTime));
         case "lastPublish":
           return dir * (new Date(a.lastPublish).getTime() - new Date(b.lastPublish).getTime());
+        case "lastNpmSync":
+          // Never-synced rows sort as the oldest
+          return dir * ((a.lastRefreshedAt ?? 0) - (b.lastRefreshedAt ?? 0));
         default:
           return 0;
       }
     });
 
     return list;
-  }, [activePackages, search, typeFilter, dateFilter, customFromTs, customToTs, excludedAuthors, statusFilter, sortField, sortDir]);
+  }, [activePackages, search, typeFilter, dateFilter, customFromTs, customToTs, excludedAuthors, statusFilter, syncFilter, sortField, sortDir]);
 
   // Author summary from stats query
   const authorSummary = useMemo(() => {
@@ -736,6 +849,23 @@ export default function Dashboard() {
                   </select>
                 </div>
 
+                {/* npm sync state */}
+                <div>
+                  <label className="block text-xs font-medium text-text-secondary mb-1">npm Sync</label>
+                  <select
+                    value={syncFilter}
+                    onChange={(e) => setSyncFilter(e.target.value as SyncFilter)}
+                    className="px-3 py-1.5 rounded-lg border border-border text-sm bg-white focus:outline-none focus:ring-1 focus:ring-button"
+                  >
+                    <option value="all">All sync states</option>
+                    <option value="24h">Synced last 24h</option>
+                    <option value="7d">Synced last 7 days</option>
+                    <option value="stale">Stale (over 7 days)</option>
+                    <option value="never">Never synced</option>
+                    <option value="error">Sync errors</option>
+                  </select>
+                </div>
+
                 {/* Date Range */}
                 <div>
                   <label className="block text-xs font-medium text-text-secondary mb-1">Date Range</label>
@@ -854,12 +984,13 @@ export default function Dashboard() {
                 </div>
 
                 {/* Clear */}
-                {(search || typeFilter !== "all" || statusFilter !== "all" || dateFilter !== "all" || excludedAuthors.size > 0) && (
+                {(search || typeFilter !== "all" || statusFilter !== "all" || syncFilter !== "all" || dateFilter !== "all" || excludedAuthors.size > 0) && (
                   <button
                     onClick={() => {
                       setSearch("");
                       setTypeFilter("all");
                       setStatusFilter("all");
+                      setSyncFilter("all");
                       setDateFilter("all");
                       setCustomDateFrom("");
                       setCustomDateTo("");
@@ -912,6 +1043,7 @@ export default function Dashboard() {
                       const parts: string[] = [];
                       if (typeFilter !== "all") parts.push(`Type: ${typeFilter}`);
                       if (statusFilter !== "all") parts.push(`Status: ${statusFilter}`);
+                      if (syncFilter !== "all") parts.push(`npm sync: ${syncFilter}`);
                       if (dateFilter !== "all") parts.push(`Date: ${dateFilter === "custom" ? `${customDateFrom || "start"} to ${customDateTo || "now"}` : dateFilter}`);
                       if (search) parts.push(`Search: "${search}"`);
                       if (excludedAuthors.size > 0) parts.push(`${excludedAuthors.size} author(s) excluded`);
@@ -936,13 +1068,14 @@ export default function Dashboard() {
                       <SortHeader label="Wk Downloads" field="downloads" currentSort={sortField} currentDir={sortDir} onSort={handleSort} align="right" />
                       <SortHeader label="All Time" field="allTimeDownloads" currentSort={sortField} currentDir={sortDir} onSort={handleSort} align="right" />
                       <SortHeader label="Last Published" field="lastPublish" currentSort={sortField} currentDir={sortDir} onSort={handleSort} />
+                      <SortHeader label="Last npm Sync" field="lastNpmSync" currentSort={sortField} currentDir={sortDir} onSort={handleSort} />
                       <th className="py-2 px-3 text-xs font-medium text-text-secondary uppercase tracking-wide">Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredPackages.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-8 text-center text-sm text-text-secondary">
+                        <td colSpan={9} className="py-8 text-center text-sm text-text-secondary">
                           No components match the current filters.
                         </td>
                       </tr>
@@ -1014,6 +1147,12 @@ export default function Dashboard() {
                             </td>
                             <td className="py-2 px-3 text-sm text-text-secondary">
                               {new Date(pkg.lastPublish).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                            </td>
+                            <td className="py-2 px-3 text-sm">
+                              <NpmSyncCell
+                                lastRefreshedAt={pkg.lastRefreshedAt}
+                                refreshError={pkg.refreshError}
+                              />
                             </td>
                             <td className="py-2 px-3">
                               {pkg.reviewStatus === "approved" ? (

@@ -2,6 +2,12 @@
 
 ## completed
 
+- [x] Dashboard npm sync column and filter (2026-07-26 06:05 UTC)
+  - Added a sortable "Last npm Sync" column after Last Published in the dashboard Components table plus a matching "npm Sync" filter (synced last 24h, synced last 7 days, stale over 7 days, never synced, sync errors) so admins can verify the npm refresh is working. The cell renders `lastRefreshedAt` as a relative age with the absolute timestamp on hover, "Never" when a package has never synced, amber past seven days, and a red warning icon holding the `refreshError` text. Never-synced rows sort as oldest. The value flows into the CSV and PDF exports and the PDF filter summary; the empty-state `colSpan` moved from 8 to 9. No backend change was needed because `lastRefreshedAt` and `refreshError` already ship through `adminPackageValidator` on `getAllPackages`.
+  - PRD: `prds/dashboard-npm-sync-column.md`
+  - Files: `src/pages/Dashboard.tsx`, `changelog.md`, `files.md`
+  - Verification: `npx tsc --noEmit -p tsconfig.app.json` reports only the two pre-existing unrelated errors in `CodeBlock.tsx` and `CategoryPage.tsx`; lints clean on `Dashboard.tsx`.
+
 - [x] Submit flow feedback fixes (2026-07-24 06:20 UTC)
   - Five fixes from user feedback: (1) Name placeholder changed from "Convex Agent" to "Component Name" in all five files so submitters are not nudged into putting Convex in the title (updated 2026-07-24 06:30 UTC from an initial "Rate Limiter" example per feedback). (2) Submit form and preflight checker now ask for the npm package name and build the npm URL client-side via new `src/lib/npmPackage.ts` (pasted npm URLs auto-convert to the name; backend payload unchanged). (3) Fixed README include-marker extraction: `sanitizeReadme` stripped all HTML comments (including the START/END markers) before extraction ran, so it always fell back to "full"; extraction now runs on the raw README (`rawFullContent`) and the marked block gets a light cleanup. (4) Previews in submit/profile/admin editors now use the detail page's `markdown-body` class (new `markdown-body-compact` variant) instead of no-op `prose` classes, so lists render with bullets. (5) Submit form drafts persist to sessionStorage and restore after the WorkOS auth redirect; cleared on successful submit.
   - PRD: `prds/submit-flow-feedback-fixes.md`
