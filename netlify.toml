@@ -6,19 +6,30 @@
   NODE_VERSION = "20"
 
 # ============ Custom Headers ============
-# NOTE: public/_headers is NOT read by Netlify because it lands at
-# dist/components/_headers while the publish root is dist/. These
-# [[headers]] blocks work regardless of publish directory.
+# NOTE: custom headers only apply to files Netlify serves directly from
+# its own store. They are IGNORED for any URL handled by an edge function
+# (per Netlify docs, headers Limitations). The og-meta edge function below
+# therefore uses excludedPath for /components/assets/* and /components/fonts/*
+# so these cache rules actually fire, and og-meta.ts sets X-Robots-Tag itself
+# for the noindex HTML routes.
 
 # Hashed build assets are content-addressed, safe to cache forever.
-# The og-meta edge function passes non-HTML responses through with
-# headers preserved, so this survives the /components/* edge function.
 [[headers]]
   for = "/components/assets/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
-# Prevent indexing of admin, auth, and internal routes
+# Fonts are NOT content-hashed, so cache one week with a revalidation
+# grace instead of immutable; an in-place font swap propagates within a week.
+[[headers]]
+  for = "/components/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, stale-while-revalidate=86400"
+
+# Noindex for admin, auth, and internal routes. Defense in depth only:
+# these routes are HTML served through the og-meta edge function, so the
+# authoritative X-Robots-Tag is set inside og-meta.ts. These rules would
+# take over if the edge function were ever removed.
 [[headers]]
   for = "/components/submissions/admin"
   [headers.values]
@@ -144,9 +155,13 @@
   path = "/components/badge/*"
   function = "component-badge"
 
-# OG meta tags for social crawlers (must be before SPA fallback)
+# OG meta tags for social crawlers (must be before SPA fallback).
+# excludedPath keeps static files out of the edge function so the
+# [[headers]] cache rules above apply and Vercel's proxy edge can cache
+# them; og-meta was a pure passthrough for these paths anyway.
 [[edge_functions]]
   path = "/components/*"
+  excludedPath = ["/components/assets/*", "/components/fonts/*"]
   function = "og-meta"
 
 [[edge_functions]]

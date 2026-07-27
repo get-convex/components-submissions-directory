@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Asset caching and noindex headers never applied in production (2026-07-27 18:55 UTC)
+  - The `[[headers]]` blocks added in the PageSpeed pass were silently ignored: Netlify custom headers do not apply to URLs handled by an edge function, and the og-meta edge function was mapped to all of `/components/*`, catching every JS, CSS, and font request. Verified live: hashed assets returned `max-age=0,must-revalidate`, `x-vercel-cache: MISS` on every request (www.convex.dev is a Vercel site proxying to Netlify, and Vercel will not edge cache `max-age=0` responses), and `/components/dashboard` had no `x-robots-tag`. Each asset took 150 to 275 ms through the two proxy layers and was revalidated on every page load.
+  - Fix part 1: `excludedPath = ["/components/assets/*", "/components/fonts/*"]` on the og-meta declaration in `netlify.toml`, so static files serve from Netlify's own store where the header rules apply, Vercel's edge can cache them, and browsers keep them for a year. og-meta was a pure passthrough for these paths (dotted names fail `extractSlug`), the live sitemap has no slugs under either path, and og-meta's self-proxied routes (sitemap.xml, llms.txt, components.md, get-convex*) are unaffected, so SEO is untouched.
+  - Fix part 2: new fonts cache rule, `max-age=604800, stale-while-revalidate=86400`, one week instead of immutable because font files are not content-hashed.
+  - Fix part 3: og-meta now sets `X-Robots-Tag: noindex, nofollow` itself for the admin, callback, profile, dashboard, and documentation routes, since HTML always flows through the edge function where `[[headers]]` rules never fire. Exact path matching with trailing slash normalization; 18 case test confirmed `/components/submissions` and `/components/submit` (both indexed) never match. The netlify.toml noindex blocks stay as defense in depth.
+  - PRD: `prds/edge-function-headers-fix.md`
+  - Files: `netlify.toml`, `netlify/edge-functions/og-meta.ts`
+
 - Auto-Refresh Settings panel never rendered in Admin Settings (2026-07-27 00:45 UTC)
   - The panel silently disappeared from the admin Settings tab (local and production) because `useQuery(api.packages.getRefreshStats, { now: Date.now() })` passed a fresh timestamp on every render. Each result arrival re-rendered the component with new args, Convex resubscribed to a new query, `useQuery` returned `undefined` again, and the panel stayed stuck at its `return null` loading gate forever. Introduced 2026-03-26 when a convex-doctor pass moved `Date.now()` out of the query handler into an inline client arg.
   - Fix: capture the timestamp once with `useState(() => Date.now())` so the query args are stable and the subscription can resolve.

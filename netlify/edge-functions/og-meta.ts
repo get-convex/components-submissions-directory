@@ -40,6 +40,23 @@ function extractSlug(pathname: string): string | null {
   return slug;
 }
 
+// Routes that must never be indexed. Netlify [[headers]] rules do not apply
+// to URLs handled by an edge function, so the X-Robots-Tag header has to be
+// set here. Exact matches only: /components/submissions (without /admin) and
+// /components/submit ARE indexed and must never match.
+function isNoindexPath(pathname: string): boolean {
+  const path = pathname.replace(/\/+$/, "");
+  return (
+    path === "/components/submissions/admin" ||
+    path === "/components/callback" ||
+    path === "/components/dashboard" ||
+    path === "/components/profile" ||
+    path.startsWith("/components/profile/") ||
+    path === "/components/documentation" ||
+    path.startsWith("/components/documentation/")
+  );
+}
+
 function escapeAttr(str: string): string {
   return str
     .replace(/&/g, "&amp;")
@@ -423,6 +440,7 @@ export default async (
       html = injectCanonical(html, canonicalUrl);
       const headers = new Headers(response.headers);
       headers.set("content-type", "text/html; charset=utf-8");
+      headers.set("x-robots-tag", "noindex, nofollow");
       return new Response(html, { status: response.status, headers });
     }
     return response;
@@ -441,6 +459,11 @@ export default async (
       html = injectCanonical(html, canonicalUrl);
       const headers = new Headers(response.headers);
       headers.set("content-type", "text/html; charset=utf-8");
+      // Admin, auth, and internal routes get a noindex header here because
+      // netlify.toml [[headers]] rules never fire for edge-function responses
+      if (isNoindexPath(url.pathname)) {
+        headers.set("x-robots-tag", "noindex, nofollow");
+      }
       return new Response(html, { status: response.status, headers });
     }
     return response;
