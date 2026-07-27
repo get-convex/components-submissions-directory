@@ -2,6 +2,11 @@
 
 ## completed
 
+- [x] Compact directory page header to cut whitespace (2026-07-27 05:20 UTC)
+  - The gap between the "Components" title block and the Featured section was ~90px of stacked padding: `pt-8 pb-4` on the title, `py-4` on the content container, and `lg:pt-12` on the sidebar. Built five HTML mockups (current annotated, plus four options) in `mockups/components-header-mockups.html` for review; option A chosen. Title dropped from `text-2xl` to `text-xl` with the subtitle inline on the same baseline (`flex flex-wrap items-baseline`), header padding tightened to `pt-5 pb-1`, and the sidebar `lg:pt-12` removed so the Submit button and category list align with the Featured heading.
+  - Files: `src/pages/Directory.tsx`, `mockups/components-header-mockups.html` (new), `mockups/shot-*.png` (mockup screenshots)
+  - Verification: lints clean on `Directory.tsx`; 4 insertions / 4 deletions in the diff; layout matches the approved option A mockup. Visual check available at the dev server `/components/` route.
+
 - [x] Fix Auto-Refresh Settings panel never rendering in Admin Settings (2026-07-27 00:45 UTC)
   - Root cause: `useQuery(api.packages.getRefreshStats, { now: Date.now() })` in `AutoRefreshSettingsPanel` created new args every render, so each query result triggered a resubscribe and `useQuery` never resolved, leaving the panel stuck at its `return null` gate since the 2026-03-26 convex-doctor pass. Fixed by capturing the timestamp once via `useState(() => Date.now())`. Verified both backing queries succeed on dev and prod via direct `/api/query` calls (prod: `autoRefreshEnabled: false`, 91/134 packages stale, last run 2026-07-15, matching the 11-day-old npm numbers the panel was supposed to explain). Grep confirmed no other `useQuery` call passes an inline `Date.now()`.
   - Files: `src/pages/Admin.tsx`, `changelog.md`

@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Compact directory page header (2026-07-27 05:20 UTC)
+  - Removed ~90px of dead space between the "Components" title and the Featured section on `/components/`. The gap came from stacked spacing: `pt-8 pb-4` around the title, `py-4` on the content container, and a `lg:pt-12` offset on the sidebar.
+  - The title is now `text-xl` (was `text-2xl`) with the "Open-source building blocks for your Convex app" subtitle inline on the same baseline, header padding tightened to `pt-5 pb-1`, and the sidebar top offset removed so the Submit button and categories align with the Featured heading.
+  - Decision made from five HTML mockups (current state annotated plus four layout options) saved in `mockups/components-header-mockups.html`; the compact left-aligned option kept the visible `h1` for SEO and matched the page's left-aligned grid, beating centered and in-nav breadcrumb alternatives.
+  - Files: `src/pages/Directory.tsx`, `mockups/components-header-mockups.html` (new)
+
 - PageSpeed LCP and bundle split (2026-07-27 00:25 UTC)
   - Cut the initial JavaScript bundle from 513,824 to 273,486 bytes brotli compressed (47%) by code splitting routes that were already noindex: Admin, Dashboard, Documentation, Profile, ProfileEditSubmission, and SubmitCheck now load on demand via `React.lazy`. Indexed routes (directory, detail pages, category pages, submit, submissions) stay eagerly imported so crawlers never wait on a lazy chunk and the SEO score of 100 is untouched.
   - New `src/components/CodeBlockLazy.tsx` loads the syntax highlighter (`@pierre/diffs` plus the Shiki engine, a 325 KB chunk) on demand with a plain `<pre>` fallback that matches CodeBlock's own text branch, so code paints immediately and colors appear when the chunk lands. Swapped in `ComponentDetail.tsx`, `Markdown.tsx`, and `AgentInstallSection.tsx`.

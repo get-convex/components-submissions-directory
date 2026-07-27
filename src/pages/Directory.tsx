@@ -181,10 +181,10 @@ export default function Directory() {
       {/* Global header with auth */}
       <Header />
 
-      {/* Page header */}
+      {/* Page header: compact one-line title + inline subtitle to reduce whitespace */}
       <header>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
-          <h1 className="text-2xl font-semibold text-text-primary mb-1">Components</h1>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <h1 className="text-xl font-semibold text-text-primary">Components</h1>
           <p className="text-sm text-text-secondary">
             Open-source building blocks for your Convex app
           </p>
@@ -195,7 +195,7 @@ export default function Directory() {
         {/* Two-column layout: sticky sidebar + scrollable content */}
         <div className="flex gap-8">
           {/* Sidebar: search + categories, sticky on desktop */}
-          <aside className="hidden lg:block w-52 shrink-0 lg:pt-12">
+          <aside className="hidden lg:block w-52 shrink-0">
             <div className="sticky top-20">
               {/* Submit link */}
               <div className="pb-6">

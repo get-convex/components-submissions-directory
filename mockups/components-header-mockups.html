@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Components page header mockups</title>
+<style>
+  :root {
+    --bg: #F7EEDB;
+    --card: #ffffff;
+    --border: #DDD4C4;
+    --text: #1a1a1a;
+    --text-2: #6b6b6b;
+    --yellow: rgb(243, 176, 28);
+    --yellow-text: rgb(42, 40, 37);
+    --dark: #292929;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    background: #2a2825;
+    color: var(--text);
+    padding: 40px 24px 80px;
+  }
+  .intro {
+    max-width: 1160px;
+    margin: 0 auto 40px;
+    color: #f5efe2;
+  }
+  .intro h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .intro p { font-size: 14px; color: #c9c2b2; line-height: 1.6; max-width: 720px; }
+
+  .option { max-width: 1160px; margin: 0 auto 56px; }
+  .option-label {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 10px; color: #f5efe2;
+  }
+  .option-label .tag {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    background: #4a463f; color: #f5efe2; border-radius: 999px; padding: 4px 10px;
+  }
+  .option-label .tag.rec { background: var(--yellow); color: var(--yellow-text); }
+  .option-label h2 { font-size: 16px; font-weight: 600; }
+  .option-note { font-size: 13px; color: #c9c2b2; margin-bottom: 14px; line-height: 1.6; max-width: 860px; }
+
+  .frame {
+    background: var(--bg);
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid #55504a;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+  }
+  .page { padding: 7px 32px 28px; }
+
+  /* ---- shared header pill ---- */
+  .pill {
+    display: flex; align-items: center; height: 55px;
+    background: rgba(255,255,255,0.95); border: 1px solid var(--border);
+    border-radius: 999px; padding: 0 18px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .logo { font-weight: 800; font-size: 20px; letter-spacing: -0.02em; margin-right: 22px; }
+  .nav { display: flex; gap: 20px; font-size: 13.5px; font-weight: 500; }
+  .nav span { cursor: default; }
+  .spacer { flex: 1; }
+  .pill-right { display: flex; align-items: center; gap: 14px; font-size: 13.5px; }
+  .pill-right .icon { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid #9a938a; }
+  .pill-right .divider { width: 1px; height: 16px; background: var(--border); }
+  .login { background: var(--dark); color: #fff; border-radius: 999px; padding: 7px 16px; font-size: 13px; }
+  .crumb { color: var(--text-2); font-weight: 400; }
+  .crumb b { color: var(--text); font-weight: 600; }
+
+  /* ---- page title treatments ---- */
+  .title-block h1 { font-size: 24px; font-weight: 600; margin-bottom: 4px; }
+  .title-block p { font-size: 14px; color: var(--text-2); }
+
+  /* ---- layout ---- */
+  .cols { display: flex; gap: 32px; }
+  .sidebar { width: 208px; flex-shrink: 0; }
+  .submit-btn {
+    display: inline-block; background: var(--yellow); color: var(--yellow-text);
+    font-size: 13.5px; font-weight: 500; border-radius: 999px; padding: 9px 18px;
+    margin-bottom: 20px;
+  }
+  .search {
+    background: #fff; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 13px; color: #9a938a; padding: 8px 12px; margin-bottom: 12px;
+  }
+  .sort {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    font-size: 13px; color: var(--text); padding: 7px 12px; margin-bottom: 20px;
+    display: flex; justify-content: space-between;
+  }
+  .cats { font-size: 13px; color: var(--text-2); line-height: 2.1; }
+  .cats .active { color: var(--text); font-weight: 600; }
+
+  .main { flex: 1; min-width: 0; }
+  .featured h2 { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+  .featured .sub { font-size: 13.5px; color: var(--text-2); margin-bottom: 14px; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .card {
+    border-radius: 12px; border: 1px solid var(--border); overflow: hidden; background: #fff;
+  }
+  .thumb { aspect-ratio: 16/8; }
+  .t1 { background: linear-gradient(135deg, #fdfbf6 40%, #f3e9d2); position: relative; }
+  .t1::after { content: ""; position: absolute; inset: 30% 35%; background: linear-gradient(135deg,#3b82f6,#ef4444 45%,#f59e0b); border-radius: 6px; transform: skewX(-12deg); }
+  .t2 { background: #2563eb; position: relative; }
+  .t2::after { content: "The API to get live web data and AI context."; position: absolute; inset: 22% 12%; color:#fff; font-weight: 700; font-size: 15px; text-align: center; }
+  .t3 { background: linear-gradient(135deg, #f97362, #fbbf24 70%, #ec4899); }
+  .card-body { padding: 12px 14px; }
+  .card-body .name { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+  .card-body .desc { font-size: 12px; color: var(--text-2); }
+
+  /* ---- measurement annotation ---- */
+  .measure {
+    position: relative; border-top: 1.5px dashed #dc4a2d; border-bottom: 1.5px dashed #dc4a2d;
+    background: rgba(220, 74, 45, 0.06);
+  }
+  .measure .m-label {
+    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+    font-size: 11px; font-weight: 600; color: #dc4a2d;
+    background: #fff; border: 1px solid #dc4a2d; border-radius: 999px; padding: 2px 10px;
+  }
+
+  .pros { display: flex; gap: 24px; margin-top: 12px; font-size: 12.5px; line-height: 1.7; flex-wrap: wrap; }
+  .pros div { color: #c9c2b2; max-width: 420px; }
+  .pros b { color: #f5efe2; display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+
+  .eyebrow {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--text-2);
+  }
+  .center-title { text-align: center; }
+  .center-title h1 { font-size: 19px; font-weight: 600; margin-bottom: 2px; }
+  .center-title p { font-size: 13px; color: var(--text-2); }
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>Components page header: whitespace fix mockups</h1>
+  <p>The current page stacks pt-8 + pb-4 on the title, py-4 on the container, and pt-12 on the
+  sidebar, creating roughly 90px of dead space before Featured. Below are the current state and
+  four options. Option A is the recommendation.</p>
+</div>
+
+<!-- ============ CURRENT ============ -->
+<div class="option">
+  <div class="option-label"><span class="tag">Current</span><h2>What ships today (annotated)</h2></div>
+  <p class="option-note">Title block padding + container padding + sidebar offset add up. The title also repeats what the nav already says (Directory).</p>
+  <div class="frame">
+    <div class="page">
+      <div class="pill">
+        <span class="logo">convex</span>
+        <nav class="nav"><span>Directory</span><span>Submissions</span></nav>
+        <div class="spacer"></div>
+        <div class="pill-right"><span class="icon"></span><span>Submit</span><span class="divider"></span><span class="icon"></span><span class="icon"></span><span class="icon"></span><span class="login">Log in</span></div>
+      </div>
+
+      <div class="measure" style="padding: 32px 0 16px;">
+        <span class="m-label">pt-8 / pb-4 = 48px around title</span>
+        <div class="title-block">
+          <h1>Components</h1>
+          <p>Open-source building blocks for your Convex app</p>
+        </div>
+      </div>
+
+      <div class="measure" style="height: 64px;">
+        <span class="m-label">py-4 + sidebar pt-12 = ~64px more before content</span>
+      </div>
+
+      <div class="cols">
+        <aside class="sidebar">
+          <span class="submit-btn">Submit a component</span>
+          <div class="search">Search...</div>
+          <div class="sort"><span>Most downloads</span><span>▾</span></div>
+          <div class="cats"><div class="active">All</div><div>AI Agents</div><div>Auth</div><div>Database</div><div>Workflows</div></div>
+        </aside>
+        <main class="main">
+          <section class="featured">
+            <h2>Featured</h2>
+            <p class="sub">New and popular components from the Convex team and community.</p>
+            <div class="cards">
+              <div class="card"><div class="thumb t1"></div><div class="card-body"><div class="name">Agent</div><div class="desc">Build AI agents with tools and memory</div></div></div>
+              <div class="card"><div class="thumb t2"></div><div class="card-body"><div class="name">Context.dev</div><div class="desc">Live web data and AI context</div></div></div>
+              <div class="card"><div class="thumb t3"></div><div class="card-body"><div class="name">Workflow</div><div class="desc">Durable long-running workflows</div></div></div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ OPTION A ============ -->
+<div class="option">
+  <div class="option-label"><span class="tag rec">Option A · Recommended</span><h2>Keep it left, tighten everything</h2></div>
+  <p class="option-note">Title stays where it is (good for SEO h1 and page identity) but drops to 20px, the subtitle sits inline next to it, vertical padding is halved, and the sidebar top offset is removed so Featured starts right away. Smallest change, biggest space win.</p>
+  <div class="frame">
+    <div class="page">
+      <div class="pill">
+        <span class="logo">convex</span>
+        <nav class="nav"><span>Directory</span><span>Submissions</span></nav>
+        <div class="spacer"></div>
+        <div class="pill-right"><span class="icon"></span><span>Submit</span><span class="divider"></span><span class="icon"></span><span class="icon"></span><span class="icon"></span><span class="login">Log in</span></div>
+      </div>
+
+      <div style="padding: 20px 0 14px; display: flex; align-items: baseline; gap: 12px;">
+        <h1 style="font-size: 20px; font-weight: 600;">Components</h1>
+        <p style="font-size: 13.5px; color: var(--text-2);">Open-source building blocks for your Convex app</p>
+      </div>
+
+      <div class="cols">
+        <aside class="sidebar">
+          <span class="submit-btn">Submit a component</span>
+          <div class="search">Search...</div>
+          <div class="sort"><span>Most downloads</span><span>▾</span></div>
+          <div class="cats"><div class="active">All</div><div>AI Agents</div><div>Auth</div><div>Database</div><div>Workflows</div></div>
+        </aside>
+        <main class="main">
+          <section class="featured">
+            <h2>Featured</h2>
+            <p class="sub">New and popular components from the Convex team and community.</p>
+            <div class="cards">
+              <div class="card"><div class="thumb t1"></div><div class="card-body"><div class="name">Agent</div><div class="desc">Build AI agents with tools and memory</div></div></div>
+              <div class="card"><div class="thumb t2"></div><div class="card-body"><div class="name">Context.dev</div><div class="desc">Live web data and AI context</div></div></div>
+              <div class="card"><div class="thumb t3"></div><div class="card-body"><div class="name">Workflow</div><div class="desc">Durable long-running workflows</div></div></div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+  <div class="pros">
+    <div><b>Pros</b>Keeps the h1 for SEO. One-line header reads fast. Content moves up ~70px. Minimal code change.</div>
+    <div><b>Cons</b>Subtitle wraps below the title on mobile (fine, it already does).</div>
+  </div>
+</div>
+
+<!-- ============ OPTION B ============ -->
+<div class="option">
+  <div class="option-label"><span class="tag">Option B</span><h2>Small title above the sidebar column</h2></div>
+  <p class="option-note">The title becomes a compact block that tops the sidebar column, so it aligns with Featured instead of floating above both columns. Featured moves all the way up to just under the nav.</p>
+  <div class="frame">
+    <div class="page">
+      <div class="pill">
+        <span class="logo">convex</span>
+        <nav class="nav"><span>Directory</span><span>Submissions</span></nav>
+        <div class="spacer"></div>
+        <div class="pill-right"><span class="icon"></span><span>Submit</span><span class="divider"></span><span class="icon"></span><span class="icon"></span><span class="icon"></span><span class="login">Log in</span></div>
+      </div>
+
+      <div class="cols" style="margin-top: 20px;">
+        <aside class="sidebar">
+          <h1 style="font-size: 17px; font-weight: 600; margin-bottom: 2px;">Components</h1>
+          <p style="font-size: 12.5px; color: var(--text-2); line-height: 1.5; margin-bottom: 16px;">Open-source building blocks for your Convex app</p>
+          <span class="submit-btn">Submit a component</span>
+          <div class="search">Search...</div>
+          <div class="sort"><span>Most downloads</span><span>▾</span></div>
+          <div class="cats"><div class="active">All</div><div>AI Agents</div><div>Auth</div><div>Database</div><div>Workflows</div></div>
+        </aside>
+        <main class="main">
+          <section class="featured">
+            <h2>Featured</h2>
+            <p class="sub">New and popular components from the Convex team and community.</p>
+            <div class="cards">
+              <div class="card"><div class="thumb t1"></div><div class="card-body"><div class="name">Agent</div><div class="desc">Build AI agents with tools and memory</div></div></div>
+              <div class="card"><div class="thumb t2"></div><div class="card-body"><div class="name">Context.dev</div><div class="desc">Live web data and AI context</div></div></div>
+              <div class="card"><div class="thumb t3"></div><div class="card-body"><div class="name">Workflow</div><div class="desc">Durable long-running workflows</div></div></div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+  <div class="pros">
+    <div><b>Pros</b>Zero dead band; Featured is the first thing you see. Title still present as h1.</div>
+    <div><b>Cons</b>Title feels demoted inside a narrow 208px column; sidebar gets taller. Needs a separate mobile treatment since the sidebar is hidden on small screens.</div>
+  </div>
+</div>
+
+<!-- ============ OPTION C ============ -->
+<div class="option">
+  <div class="option-label"><span class="tag">Option C</span><h2>Title inside the header nav pill</h2></div>
+  <p class="option-note">"Components" lives in the pill as a breadcrumb next to the logo. The page body starts directly with the two-column layout. The tagline moves to a small eyebrow above Featured or is dropped.</p>
+  <div class="frame">
+    <div class="page">
+      <div class="pill">
+        <span class="logo">convex</span>
+        <span class="crumb" style="margin-right: 22px;">/ <b>Components</b></span>
+        <nav class="nav"><span>Directory</span><span>Submissions</span></nav>
+        <div class="spacer"></div>
+        <div class="pill-right"><span class="icon"></span><span>Submit</span><span class="divider"></span><span class="icon"></span><span class="icon"></span><span class="icon"></span><span class="login">Log in</span></div>
+      </div>
+
+      <div class="cols" style="margin-top: 20px;">
+        <aside class="sidebar">
+          <span class="submit-btn">Submit a component</span>
+          <div class="search">Search...</div>
+          <div class="sort"><span>Most downloads</span><span>▾</span></div>
+          <div class="cats"><div class="active">All</div><div>AI Agents</div><div>Auth</div><div>Database</div><div>Workflows</div></div>
+        </aside>
+        <main class="main">
+          <p class="eyebrow" style="margin-bottom: 10px;">Open-source building blocks for your Convex app</p>
+          <section class="featured">
+            <h2>Featured</h2>
+            <p class="sub">New and popular components from the Convex team and community.</p>
+            <div class="cards">
+              <div class="card"><div class="thumb t1"></div><div class="card-body"><div class="name">Agent</div><div class="desc">Build AI agents with tools and memory</div></div></div>
+              <div class="card"><div class="thumb t2"></div><div class="card-body"><div class="name">Context.dev</div><div class="desc">Live web data and AI context</div></div></div>
+              <div class="card"><div class="thumb t3"></div><div class="card-body"><div class="name">Workflow</div><div class="desc">Durable long-running workflows</div></div></div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+  <div class="pros">
+    <div><b>Pros</b>Most compact option. Breadcrumb sets context on every page, not just this one.</div>
+    <div><b>Cons</b>Loses a visible h1 on the page body (SEO needs a hidden h1 workaround). The pill is already busy on smaller widths. Redundant with the "Directory" nav link.</div>
+  </div>
+</div>
+
+<!-- ============ OPTION D ============ -->
+<div class="option">
+  <div class="option-label"><span class="tag">Option D</span><h2>Centered, smaller</h2></div>
+  <p class="option-note">Title centered over the full width at a reduced size, tight padding below it.</p>
+  <div class="frame">
+    <div class="page">
+      <div class="pill">
+        <span class="logo">convex</span>
+        <nav class="nav"><span>Directory</span><span>Submissions</span></nav>
+        <div class="spacer"></div>
+        <div class="pill-right"><span class="icon"></span><span>Submit</span><span class="divider"></span><span class="icon"></span><span class="icon"></span><span class="icon"></span><span class="login">Log in</span></div>
+      </div>
+
+      <div class="center-title" style="padding: 22px 0 18px;">
+        <h1>Components</h1>
+        <p>Open-source building blocks for your Convex app</p>
+      </div>
+
+      <div class="cols">
+        <aside class="sidebar">
+          <span class="submit-btn">Submit a component</span>
+          <div class="search">Search...</div>
+          <div class="sort"><span>Most downloads</span><span>▾</span></div>
+          <div class="cats"><div class="active">All</div><div>AI Agents</div><div>Auth</div><div>Database</div><div>Workflows</div></div>
+        </aside>
+        <main class="main">
+          <section class="featured">
+            <h2>Featured</h2>
+            <p class="sub">New and popular components from the Convex team and community.</p>
+            <div class="cards">
+              <div class="card"><div class="thumb t1"></div><div class="card-body"><div class="name">Agent</div><div class="desc">Build AI agents with tools and memory</div></div></div>
+              <div class="card"><div class="thumb t2"></div><div class="card-body"><div class="name">Context.dev</div><div class="desc">Live web data and AI context</div></div></div>
+              <div class="card"><div class="thumb t3"></div><div class="card-body"><div class="name">Workflow</div><div class="desc">Durable long-running workflows</div></div></div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </div>
+  <div class="pros">
+    <div><b>Pros</b>Symmetrical, calm. Works if you want the page to feel more like a marketing landing.</div>
+    <div><b>Cons</b>Everything else on the page is left-aligned and dense; a centered title fights the grid and still adds a full-width band before content. Weakest fit for a directory.</div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -769,6 +769,10 @@ Local visual review page for badge and status colors. Shows badge SVG colors usi
 
 Also shows frontend status badge class mappings and site badge colors (Verified and Community). This file is intentionally ignored by git for local review only.
 
+### `mockups/components-header-mockups.html`
+
+Static HTML mockup page comparing five layouts for the directory page header (current state annotated plus four whitespace-reduction options); option A, the compact inline title, was implemented in `Directory.tsx`.
+
 ### `files.md`
 
 This file. Overview of all files in the codebase.
