@@ -4884,7 +4884,11 @@ function AutoRefreshSettingsPanel() {
   const [showLogs, setShowLogs] = useState(false);
 
   const refreshSettings = useQuery(api.packages.getRefreshSettings);
-  const refreshStats = useQuery(api.packages.getRefreshStats, { now: Date.now() });
+  // Capture the timestamp once: an inline Date.now() changes the query args on
+  // every render, forcing a resubscribe loop where useQuery never resolves,
+  // which kept this whole panel stuck at its `return null` loading gate.
+  const [statsNow] = useState(() => Date.now());
+  const refreshStats = useQuery(api.packages.getRefreshStats, { now: statsNow });
   const recentLogs = useQuery(api.packages.getRecentRefreshLogs);
   const updateRefreshSetting = useMutation(api.packages.updateRefreshSetting);
   const triggerRefreshApproved = useAction(

@@ -444,14 +444,24 @@ export default function Directory() {
               </section>
             )}
 
-            {/* Loading state */}
+            {/* Loading state: mirrors the real ComponentCard layout (aspect-video
+                thumbnail + body) so cards do not grow and shift when data lands */}
             {!components && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="rounded-lg bg-white p-4 animate-pulse">
-                    <div className="h-4 bg-bg-secondary rounded w-3/4 mb-2" />
-                    <div className="h-3 bg-bg-secondary rounded w-full mb-1" />
-                    <div className="h-3 bg-bg-secondary rounded w-2/3" />
+                  <div
+                    key={i}
+                    className="flex flex-col overflow-hidden rounded-xl border border-border bg-white shadow-sm animate-pulse">
+                    <div className="aspect-video w-full bg-bg-secondary" />
+                    <div className="p-3">
+                      <div className="h-5 bg-bg-secondary rounded w-3/4 mb-2" />
+                      <div className="h-3 bg-bg-secondary rounded w-full mb-1" />
+                      <div className="h-3 bg-bg-secondary rounded w-2/3 mb-4" />
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-6 w-6 bg-bg-secondary rounded-full" />
+                        <div className="h-3 bg-bg-secondary rounded w-20" />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Auto-Refresh Settings panel never rendered in Admin Settings (2026-07-27 00:45 UTC)
+  - The panel silently disappeared from the admin Settings tab (local and production) because `useQuery(api.packages.getRefreshStats, { now: Date.now() })` passed a fresh timestamp on every render. Each result arrival re-rendered the component with new args, Convex resubscribed to a new query, `useQuery` returned `undefined` again, and the panel stayed stuck at its `return null` loading gate forever. Introduced 2026-03-26 when a convex-doctor pass moved `Date.now()` out of the query handler into an inline client arg.
+  - Fix: capture the timestamp once with `useState(() => Date.now())` so the query args are stable and the subscription can resolve.
+  - Both backing queries were verified healthy on the dev and prod deployments; prod currently reports `autoRefreshEnabled: false` with 91 of 134 packages stale, which is why npm numbers were 11 days old. Once this fix deploys, the panel is visible again and the toggle can be flipped.
+  - Files: `src/pages/Admin.tsx`
+
+### Changed
+
+- PageSpeed LCP and bundle split (2026-07-27 00:25 UTC)
+  - Cut the initial JavaScript bundle from 513,824 to 273,486 bytes brotli compressed (47%) by code splitting routes that were already noindex: Admin, Dashboard, Documentation, Profile, ProfileEditSubmission, and SubmitCheck now load on demand via `React.lazy`. Indexed routes (directory, detail pages, category pages, submit, submissions) stay eagerly imported so crawlers never wait on a lazy chunk and the SEO score of 100 is untouched.
+  - New `src/components/CodeBlockLazy.tsx` loads the syntax highlighter (`@pierre/diffs` plus the Shiki engine, a 325 KB chunk) on demand with a plain `<pre>` fallback that matches CodeBlock's own text branch, so code paints immediately and colors appear when the chunk lands. Swapped in `ComponentDetail.tsx`, `Markdown.tsx`, and `AgentInstallSection.tsx`.
+  - Fixed the inert `public/_headers` file: it landed at `dist/components/_headers` while Netlify publishes `dist`, so its rules never applied in production (verified: `/components/dashboard` returned no `x-robots-tag`, hashed assets returned `max-age=0`). The rules now live in `netlify.toml` `[[headers]]` blocks: `X-Robots-Tag: noindex, nofollow` for admin, callback, profile, and dashboard routes, plus `Cache-Control: public, max-age=31536000, immutable` for hashed `/components/assets/*` files. `public/_headers` removed.
+  - LCP and CLS polish: preloaded the two above-the-fold fonts (GT America Regular, Publico Headline Roman) in `index.html` using link tags only, so the og-meta edge function regexes are untouched; the Directory loading skeleton now mirrors the real card layout (aspect-video thumbnail plus body) instead of an 80 px stub, so cards no longer grow and shift when data lands; the Header logo and ComponentCard images got explicit width/height; removed `verbose: true` from the Convex client, which was logging every websocket message to the production console.
+  - Verified: app typecheck shows only the two pre-existing unrelated errors; production build produces separate chunks for all six lazy routes plus CodeBlock; browser test on the built output confirmed the directory and detail pages render with data, JSON-LD (`SoftwareSourceCode`), title, and canonical still inject on detail pages, and the Documentation and Dashboard chunks load on demand with their auth gates intact.
+  - PRD: `prds/pagespeed-lcp-bundle-split.md`
+  - Files: `netlify.toml`, `public/_headers` (removed), `index.html`, `src/main.tsx`, `src/components/CodeBlockLazy.tsx` (new), `src/pages/ComponentDetail.tsx`, `src/components/Markdown.tsx`, `src/components/AgentInstallSection.tsx`, `src/pages/Directory.tsx`, `src/components/Header.tsx`, `src/components/ComponentCard.tsx`
+
 ### Added
 
 - Per-category thumbnail toggle (2026-07-26 23:55 UTC)

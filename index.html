@@ -3,6 +3,26 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Preload only the two above-the-fold font weights (body + headings).
+         URLs must exactly match the url() paths in the built CSS so the
+         browser reuses the preloaded response. crossorigin is required for
+         font preloads even on the same origin. -->
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      crossorigin
+      href="/components/fonts/GT-America-Standard-Regular.woff2"
+    />
+    <link
+      rel="preload"
+      as="font"
+      type="font/woff2"
+      crossorigin
+      href="/components/fonts/PublicoHeadline-Roman-Web.woff2"
+    />
+
     <link rel="stylesheet" href="/src/index.css" />
 
     <!-- Favicon -->

@@ -226,6 +226,8 @@ export default function Header() {
               <img
                 src="/components/convex-wordmark-black.svg"
                 alt="Convex"
+                width={322}
+                height={146}
                 className="h-[70px] w-auto"
               />
             </a>

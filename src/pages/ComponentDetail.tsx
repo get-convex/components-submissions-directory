@@ -17,7 +17,7 @@ import { InstallCommand } from "../components/InstallCommand";
 import { VerifiedBadge } from "../components/VerifiedBadge";
 import { CommunityBadge } from "../components/CommunityBadge";
 import Header from "../components/Header";
-import CodeBlock from "../components/CodeBlock";
+import CodeBlock from "../components/CodeBlockLazy";
 import { Markdown } from "../components/Markdown";
 import { useDirectoryCategories } from "../lib/categories";
 import { useComponentBySlug } from "../lib/convexHttp";

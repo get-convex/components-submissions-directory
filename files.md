@@ -51,7 +51,7 @@ Git ignore patterns for node_modules, dist, build artifacts, and editor files. I
 
 ### `netlify.toml`
 
-Netlify deployment configuration. Sets build command (`npm run build`), publish directory (`dist`), Node version (20), and redirects:
+Netlify deployment configuration. Sets build command (`npm run build`), publish directory (`dist`), Node version (20), custom headers, and redirects. The `[[headers]]` blocks replace the old `public/_headers` file (which never applied in production because it landed at `dist/components/_headers` while Netlify publishes `dist`): immutable one-year `Cache-Control` for hashed `/components/assets/*` files and `X-Robots-Tag: noindex, nofollow` for admin, callback, profile, and dashboard routes. Redirects:
 - Root `/` redirects to `/components` (301)
 - Main LLMs.txt and Markdown proxies to Convex HTTP endpoints:
   - `/components/llms.txt` -> `/api/llms.txt`
@@ -631,6 +631,10 @@ Shared `react-markdown` component overrides used across submit preview, detail p
 ### `src/components/CodeBlock.tsx`
 
 Shared markdown code block renderer built on `@pierre/diffs/react`. Normalizes README and generated-content fenced code blocks into Pierre `FileContents`, adds syntax highlighting plus line numbers, passes the correct `name` field so markdown rendering does not crash on migrated detail pages, and includes a built-in copy button. Plain text code blocks (no language tag detected) now render as a simple `<pre>` element instead of PierreFile to prevent potential syntax highlighter hangs on non-code content like Unicode box-drawing diagrams.
+
+### `src/components/CodeBlockLazy.tsx`
+
+Lazy-loading wrapper around `CodeBlock` with the same props. Uses `React.lazy` so the `@pierre/diffs` and Shiki highlighter chunk (about 325 KB) stays out of the initial bundle, with a plain `<pre>` Suspense fallback matching CodeBlock's text branch so code paints at the correct size before syntax colors arrive. Imported in place of `CodeBlock` by `ComponentDetail.tsx`, `Markdown.tsx`, and `AgentInstallSection.tsx`.
 
 ### `src/components/ReadmePreviewNotice.tsx`
 

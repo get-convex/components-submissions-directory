@@ -4,7 +4,7 @@ import remarkGfm from "remark-gfm";
 import { remarkAlert } from "remark-github-blockquote-alert";
 import "remark-github-blockquote-alert/alert.css";
 import rehypeRaw from "rehype-raw";
-import CodeBlock from "./CodeBlock";
+import CodeBlock from "./CodeBlockLazy";
 import {
   resolveRepositoryImageSrc,
   resolveRepositoryMarkdownHref,

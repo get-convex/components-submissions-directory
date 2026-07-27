@@ -1,22 +1,27 @@
 import { createRoot } from "react-dom/client";
-import { Component, useEffect, useMemo, useState } from "react";
+import { Component, Suspense, lazy, useEffect, useMemo, useState } from "react";
 import type { ErrorInfo, ReactNode } from "react";
 import { ConvexReactClient } from "convex/react";
 import { useConvexAuth } from "convex/react";
 import { ConvexProviderWithAuthKit } from "@convex-dev/workos";
 import "./index.css";
+// Indexed routes (sitemap: /components, /submit, /submissions, and slugs) stay
+// eagerly imported so crawlers never wait on a lazy chunk. ComponentDetail also
+// injects JSON-LD client side and must render immediately.
 import Directory from "./pages/Directory";
 import CategoryPage from "./pages/CategoryPage";
 import Submit from "./pages/Submit";
 import SubmitForm from "./pages/SubmitForm";
-import SubmitCheck from "./pages/SubmitCheck";
-import Admin from "./pages/Admin";
-import Profile from "./pages/Profile";
-import ProfileEditSubmission from "./pages/ProfileEditSubmission";
 import ComponentDetail from "./pages/ComponentDetail";
-import Documentation from "./pages/Documentation";
-import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+// Admin, auth-gated, and noindex routes load on demand. This keeps the ~17k
+// lines of admin/profile code out of the initial bundle every visitor downloads.
+const SubmitCheck = lazy(() => import("./pages/SubmitCheck"));
+const Admin = lazy(() => import("./pages/Admin"));
+const Profile = lazy(() => import("./pages/Profile"));
+const ProfileEditSubmission = lazy(() => import("./pages/ProfileEditSubmission"));
+const Documentation = lazy(() => import("./pages/Documentation"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
 import Footer from "./components/Footer";
 import PostHogProvider from "./components/PostHogProvider";
 import CookieBanner from "./components/CookieBanner";
@@ -63,9 +68,9 @@ class PageErrorBoundary extends Component<
 
 const DIRECTORY_ROOT_HREF = "/components/";
 
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string, {
-  verbose: true,
-});
+// verbose logging removed: it wrote every websocket message to the production
+// console (flagged by Lighthouse Best Practices and real main-thread cost)
+const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
 // Route mapping for the components directory
 // Production: Netlify at components-directory.netlify.app/components/*
@@ -244,7 +249,11 @@ createRoot(document.getElementById("root")!).render(
         <ConvexProviderWithAuthKit client={convex} useAuth={useConnectAuth}>
           <div className="antialiased min-h-screen flex flex-col">
             <div className="flex-1">
-              <Router />
+              {/* Fallback reserves full viewport height so lazy route chunks
+                  loading in does not shift the footer or cause CLS */}
+              <Suspense fallback={<div className="min-h-screen" />}>
+                <Router />
+              </Suspense>
             </div>
             <div className="pt-[50px]">
               <Footer />

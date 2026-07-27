@@ -12,7 +12,7 @@ import {
   generateSkillInstallPrompt,
 } from "../lib/promptComposer";
 import { buildComponentClientUrls } from "../../shared/componentUrls";
-import CodeBlock from "./CodeBlock";
+import CodeBlock from "./CodeBlockLazy";
 import {
   isMcpReady,
   generateGlobalCursorInstallLink,

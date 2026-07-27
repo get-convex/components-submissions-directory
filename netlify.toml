@@ -5,6 +5,45 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# ============ Custom Headers ============
+# NOTE: public/_headers is NOT read by Netlify because it lands at
+# dist/components/_headers while the publish root is dist/. These
+# [[headers]] blocks work regardless of publish directory.
+
+# Hashed build assets are content-addressed, safe to cache forever.
+# The og-meta edge function passes non-HTML responses through with
+# headers preserved, so this survives the /components/* edge function.
+[[headers]]
+  for = "/components/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Prevent indexing of admin, auth, and internal routes
+[[headers]]
+  for = "/components/submissions/admin"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/components/callback"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/components/profile"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/components/profile/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
+  for = "/components/dashboard"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
 # Redirect root to /components
 [[redirects]]
   from = "/"
