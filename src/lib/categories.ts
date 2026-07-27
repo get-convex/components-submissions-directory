@@ -36,11 +36,15 @@ export function useDirectoryCategories(): CategoryItem[] {
   }
 
   // Once loaded, always use admin-managed categories as the source of truth.
-  return dbCategories.map((c) => ({
-    id: c.category,
-    label: c.label,
-    description: c.description,
-  }));
+  // Derived categories (official components) are computed by rule, so they are
+  // never offered as a choice when assigning a category to a component.
+  return dbCategories
+    .filter((c) => !c.derived)
+    .map((c) => ({
+      id: c.category,
+      label: c.label,
+      description: c.description,
+    }));
 }
 
 // Backwards-compatible alias to avoid breaking existing imports.

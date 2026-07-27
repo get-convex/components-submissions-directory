@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Per-category thumbnail toggle (2026-07-26 23:55 UTC)
+  - New "Hide all thumbnails in this category" checkbox in the category edit form under Settings > Category Management, so an admin can flatten a category's grid in one place instead of editing each component. Categories with it on show a "thumbnails hidden" badge in the admin list.
+  - Motivation: on a page where only two of ten components have an image, the tall image cards sit beside short text cards and the grid rows stop lining up. Official Convex Components was the case that surfaced it.
+  - Applies to the category landing page and to that category's grouped section on the directory homepage. The Featured section is deliberately unaffected, since it already forces thumbnails on and featured placement is where the image earns its space.
+  - Composes with the existing per-component `hideThumbnailInCategory`: either switch hides the image, and turning the category flag back off restores whatever each component had set.
+  - Backed by a new optional `hideThumbnails` field on the `categories` table. Existing rows default to showing thumbnails.
+  - PRD: `prds/category-hide-thumbnails.md`
+  - Files: `convex/schema.ts`, `convex/packages.ts`, `src/pages/Admin.tsx`, `src/pages/CategoryPage.tsx`, `src/pages/Directory.tsx`
+
+- Official Convex Components category (2026-07-26 19:20 UTC)
+  - New admin toggle in Settings > Category Management that turns on a top level "Official Convex Components" category at `/components/categories/get-convex`. Off by default; the row is created on first enable, and later toggles only flip `enabled`, so edits to the label, description, and sort order survive being switched off.
+  - Membership is computed, not assigned. A component counts as official when its repository is in the `github.com/get-convex` org or its npm name uses the `@convex-dev/` scope, which is the same rule the `/components/get-convex-llms.txt` and `/components/get-convex.md` endpoints already used. That rule now lives in one place, `shared/officialComponents.ts`, and `convex/http.ts` calls it instead of keeping its own copy.
+  - Components keep their existing functional category. An `@convex-dev/agent` package stays under Durable Functions and also appears under Official Convex Components, because a package row can only hold one `category` slug and official status cuts across all of them.
+  - Backed by a new `derivedFrom: "official"` field on the `categories` table. `recountCategoryStats`, `getCategoryBySlug`, and `listApprovedComponents` branch on it to resolve membership by rule; everything else (admin listing, enable/disable, counts, sidebar links, the landing page with its search, sort, and pagination) works unchanged because it is a real category row.
+  - Guardrails: the category is filtered out of every category picker (submit form, profile edit, admin component editor), `updateComponentDetails` rejects a manual assignment to it with a clear error, its slug cannot be renamed (the input is disabled in admin and the mutation throws), and it is excluded from the sidebar "All" total so official components are not counted twice. The directory homepage does not render a section for it, which would otherwise duplicate every official component.
+  - New admin mutation `packages.setOfficialCategoryEnabled`. `packages.listCategories` now returns a `derived` boolean.
+  - PRD: `prds/official-convex-components-category.md`
+  - Files: `shared/officialComponents.ts` (new), `convex/schema.ts`, `convex/packages.ts`, `convex/http.ts`, `src/pages/Admin.tsx`, `src/lib/categories.ts`, `src/components/CategorySidebar.tsx`, `src/pages/Profile.tsx`, `src/pages/ProfileEditSubmission.tsx`
+
 - Dashboard npm sync column and filter (2026-07-26 06:05 UTC)
   - New sortable "Last npm Sync" column in the dashboard Components table, placed right after Last Published, so an admin can tell at a glance whether the nightly refresh cron and the manual "Refresh all" action are actually pulling fresh npm data.
   - The cell shows the age of `lastRefreshedAt` (for example "3h ago", "5d ago") with the exact timestamp on hover, "Never" for packages that have never synced, amber text once a sync is older than seven days, and a red warning icon carrying the `refreshError` message when the last sync failed. Sorting treats never-synced rows as the oldest.

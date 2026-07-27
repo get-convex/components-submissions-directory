@@ -959,11 +959,13 @@ function EditModal({
               className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-button focus:ring-2 focus:ring-button/20"
             >
               <option value="">Select a category</option>
-              {categories?.map((cat) => (
-                <option key={cat.category} value={cat.category}>
-                  {cat.label}
-                </option>
-              ))}
+              {categories
+                ?.filter((cat) => !cat.derived)
+                .map((cat) => (
+                  <option key={cat.category} value={cat.category}>
+                    {cat.label}
+                  </option>
+                ))}
             </select>
           </div>
 

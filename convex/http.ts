@@ -3,6 +3,7 @@ import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { buildComponentUrls } from "../shared/componentUrls";
 import { normalizeMarkdown } from "../shared/normalizeMarkdown";
+import { isOfficialComponent } from "../shared/officialComponents";
 import { resolveApiCaller, rateLimitHeaders, type ApiCallerResult } from "./apiKeys";
 
 const http = httpRouter();
@@ -164,13 +165,6 @@ http.route({
 });
 
 // ============ OFFICIAL GET-CONVEX LLMs.txt ENDPOINT ============
-// True when a component is an official Convex team component:
-// repo lives in the get-convex GitHub org, or npm name is @convex-dev/ scoped.
-function isOfficialPackage(pkg: any): boolean {
-  const repo = (pkg.repositoryUrl || "").toLowerCase();
-  if (/github\.com\/get-convex(\/|$)/.test(repo)) return true;
-  return typeof pkg.name === "string" && pkg.name.startsWith("@convex-dev/");
-}
 
 http.route({
   path: "/api/get-convex-llms.txt",
@@ -179,7 +173,7 @@ http.route({
     const packages = await ctx.runQuery(
       internal.packages._listApprovedPackages,
     );
-    const official = packages.filter(isOfficialPackage);
+    const official = packages.filter(isOfficialComponent);
 
     const body = buildLlmsTxtBody(official, {
       title: "Convex Official Components",
@@ -507,7 +501,7 @@ http.route({
     const packages = await ctx.runQuery(
       internal.packages._listApprovedPackages,
     );
-    const official = packages.filter(isOfficialPackage);
+    const official = packages.filter(isOfficialComponent);
 
     const body = buildMarkdownIndexBody(official, {
       title: "Convex Official Components",

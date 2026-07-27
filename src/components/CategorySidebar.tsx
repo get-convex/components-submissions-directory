@@ -8,6 +8,7 @@ interface CategorySidebarProps {
     description: string;
     count: number;
     verifiedCount: number;
+    derived?: boolean;
   }>;
   selectedCategory: string | null;
   onSelectCategory: (category: string | null) => void;
@@ -22,7 +23,11 @@ export function CategorySidebar({
   onSelectCategory,
   linkMode = false,
 }: CategorySidebarProps) {
-  const totalCount = categories.reduce((sum, c) => sum + c.count, 0);
+  // Derived categories overlap the others, so they are left out of the "All" total.
+  const totalCount = categories.reduce(
+    (sum, c) => (c.derived ? sum : sum + c.count),
+    0,
+  );
 
   const handleCategoryClick = (category: string | null) => {
     if (linkMode) {

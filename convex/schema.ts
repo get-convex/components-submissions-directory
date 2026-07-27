@@ -497,6 +497,12 @@ const applicationTables = {
     sortOrder: v.number(),
     // Whether this category is shown in dropdowns and on the directory
     enabled: v.boolean(),
+    // When set, membership is computed by rule instead of the package `category` field.
+    // "official" = repo in the get-convex GitHub org or an @convex-dev npm package.
+    derivedFrom: v.optional(v.literal("official")),
+    // Hide every thumbnail on this category's page and grouped directory section,
+    // for categories where only a few components have images and the grid looks uneven.
+    hideThumbnails: v.optional(v.boolean()),
     // Denormalized counts (updated on approval/visibility changes)
     packageCount: v.optional(v.number()),
     verifiedCount: v.optional(v.number()),

@@ -4398,12 +4398,15 @@ function CategoryEditForm({
   description,
   sortOrder,
   enabled,
+  hideThumbnails,
   saving,
+  slugLocked = false,
   onSlugChange,
   onLabelChange,
   onDescriptionChange,
   onSortOrderChange,
   onEnabledChange,
+  onHideThumbnailsChange,
   onSave,
   onCancel,
 }: {
@@ -4413,12 +4416,15 @@ function CategoryEditForm({
   description: string;
   sortOrder: number;
   enabled: boolean;
+  hideThumbnails: boolean;
   saving: boolean;
+  slugLocked?: boolean;
   onSlugChange: (v: string) => void;
   onLabelChange: (v: string) => void;
   onDescriptionChange: (v: string) => void;
   onSortOrderChange: (v: number) => void;
   onEnabledChange: (v: boolean) => void;
+  onHideThumbnailsChange: (v: boolean) => void;
   onSave: () => void;
   onCancel: () => void;
 }) {
@@ -4438,7 +4444,13 @@ function CategoryEditForm({
             value={slug}
             onChange={(e) => onSlugChange(e.target.value)}
             placeholder="e.g. ai"
-            className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+            disabled={slugLocked}
+            title={
+              slugLocked
+                ? "Automatic categories keep a fixed slug so their landing page URL stays stable"
+                : undefined
+            }
+            className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button disabled:opacity-60 disabled:cursor-not-allowed"
           />
         </div>
         <div>
@@ -4488,6 +4500,23 @@ function CategoryEditForm({
             Enabled (visible to public)
           </label>
         </div>
+        {/* Hides every thumbnail in this category, for grids that look uneven
+            when only a few components have an image */}
+        <div className="sm:col-span-2 flex items-center gap-2">
+          <input
+            type="checkbox"
+            id={`cat-hide-thumbs-${formId}`}
+            checked={hideThumbnails}
+            onChange={(e) => onHideThumbnailsChange(e.target.checked)}
+            className="rounded"
+          />
+          <label
+            htmlFor={`cat-hide-thumbs-${formId}`}
+            className="text-xs text-text-primary"
+          >
+            Hide all thumbnails in this category
+          </label>
+        </div>
       </div>
       <div className="flex items-center gap-2 pt-1">
         <button
@@ -4516,6 +4545,10 @@ function CategoryManagementPanel() {
   const upsertCategory = useMutation(api.packages.upsertCategory);
   const deleteCategory = useMutation(api.packages.deleteCategory);
   const seedCategories = useMutation(api.packages.seedCategories);
+  const setOfficialCategoryEnabled = useMutation(
+    api.packages.setOfficialCategoryEnabled,
+  );
+  const [togglingOfficial, setTogglingOfficial] = useState(false);
 
   // Editing state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -4524,6 +4557,7 @@ function CategoryManagementPanel() {
   const [editDescription, setEditDescription] = useState("");
   const [editSortOrder, setEditSortOrder] = useState(0);
   const [editEnabled, setEditEnabled] = useState(true);
+  const [editHideThumbnails, setEditHideThumbnails] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -4552,6 +4586,7 @@ function CategoryManagementPanel() {
     description: string;
     sortOrder: number;
     enabled: boolean;
+    hideThumbnails?: boolean;
   }) => {
     setEditingId(cat._id);
     setEditSlug(cat.slug);
@@ -4559,6 +4594,7 @@ function CategoryManagementPanel() {
     setEditDescription(cat.description);
     setEditSortOrder(cat.sortOrder);
     setEditEnabled(cat.enabled);
+    setEditHideThumbnails(cat.hideThumbnails ?? false);
     setShowAddForm(false);
   };
 
@@ -4570,6 +4606,7 @@ function CategoryManagementPanel() {
     setEditDescription("");
     setEditSortOrder(allCategories ? allCategories.length : 0);
     setEditEnabled(true);
+    setEditHideThumbnails(false);
     setShowAddForm(true);
   };
 
@@ -4588,6 +4625,7 @@ function CategoryManagementPanel() {
         description: editDescription.trim(),
         sortOrder: editSortOrder,
         enabled: editEnabled,
+        hideThumbnails: editHideThumbnails,
       });
       toast.success(editingId ? "Category updated" : "Category added");
       setEditingId(null);
@@ -4616,6 +4654,29 @@ function CategoryManagementPanel() {
   const cancelEdit = () => {
     setEditingId(null);
     setShowAddForm(false);
+  };
+
+  // Derived official category (get-convex), created on first enable
+  const officialCategory = allCategories?.find(
+    (cat) => cat.derivedFrom === "official",
+  );
+  const officialEnabled = officialCategory?.enabled ?? false;
+
+  const handleToggleOfficial = async () => {
+    if (togglingOfficial) return;
+    setTogglingOfficial(true);
+    try {
+      await setOfficialCategoryEnabled({ enabled: !officialEnabled });
+      toast.success(
+        officialEnabled
+          ? "Official Convex Components category hidden"
+          : "Official Convex Components category enabled",
+      );
+    } catch {
+      toast.error("Failed to update the official category");
+    } finally {
+      setTogglingOfficial(false);
+    }
   };
 
   if (!allCategories) {
@@ -4647,6 +4708,46 @@ function CategoryManagementPanel() {
         public views.
       </p>
 
+      {/* Official Convex Components: derived category populated by rule, not by assignment */}
+      <div className="mb-4 flex items-start justify-between gap-4 rounded-xl border border-border bg-bg-primary p-3">
+        <div className="min-w-0">
+          <div className="mb-1 flex flex-wrap items-center gap-1.5">
+            <span className="text-sm font-medium text-text-primary">
+              Official Convex Components
+            </span>
+            <span className="text-[10px] font-mono text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded">
+              get-convex
+            </span>
+            {officialEnabled && (
+              <span className="text-[10px] font-medium text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded">
+                {officialCategory?.packageCount ?? 0} components
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-text-secondary">
+            A top level category filled automatically from the get-convex GitHub
+            org and the @convex-dev npm scope. Components keep their existing
+            category and also appear here, so it is never offered as a choice in
+            category pickers.
+          </p>
+        </div>
+        <button
+          onClick={handleToggleOfficial}
+          disabled={togglingOfficial}
+          aria-pressed={officialEnabled}
+          aria-label="Toggle the Official Convex Components category"
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+            officialEnabled ? "bg-green-600" : "bg-gray-300"
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              officialEnabled ? "translate-x-6" : "translate-x-1"
+            }`}
+          />
+        </button>
+      </div>
+
       {/* New category form at top (only for adding, not editing) */}
       {showAddForm && !editingId && (
         <div className="mb-4">
@@ -4657,12 +4758,14 @@ function CategoryManagementPanel() {
             description={editDescription}
             sortOrder={editSortOrder}
             enabled={editEnabled}
+            hideThumbnails={editHideThumbnails}
             saving={saving}
             onSlugChange={setEditSlug}
             onLabelChange={setEditLabel}
             onDescriptionChange={setEditDescription}
             onSortOrderChange={setEditSortOrder}
             onEnabledChange={setEditEnabled}
+            onHideThumbnailsChange={setEditHideThumbnails}
             onSave={handleSave}
             onCancel={cancelEdit}
           />
@@ -4687,12 +4790,15 @@ function CategoryManagementPanel() {
                 description={editDescription}
                 sortOrder={editSortOrder}
                 enabled={editEnabled}
+                hideThumbnails={editHideThumbnails}
                 saving={saving}
+                slugLocked={cat.derivedFrom !== undefined}
                 onSlugChange={setEditSlug}
                 onLabelChange={setEditLabel}
                 onDescriptionChange={setEditDescription}
                 onSortOrderChange={setEditSortOrder}
                 onEnabledChange={setEditEnabled}
+                onHideThumbnailsChange={setEditHideThumbnails}
                 onSave={handleSave}
                 onCancel={cancelEdit}
               />
@@ -4723,6 +4829,16 @@ function CategoryManagementPanel() {
                   <span className="text-[10px] font-medium text-green-700 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
                     {verifiedCount} {verifiedCount === 1 ? "verified component" : "verified components"}
                   </span>
+                  {cat.derivedFrom && (
+                    <span className="text-[10px] text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded border border-border">
+                      auto
+                    </span>
+                  )}
+                  {cat.hideThumbnails && (
+                    <span className="text-[10px] text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded border border-border">
+                      thumbnails hidden
+                    </span>
+                  )}
                   {!cat.enabled && (
                     <span className="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">
                       disabled

@@ -14,6 +14,7 @@ import { api, internal } from "./_generated/api";
 import { Id, Doc } from "./_generated/dataModel";
 import { buildSkillMdFromContent } from "../shared/buildSkillMd";
 import { normalizeMarkdown } from "../shared/normalizeMarkdown";
+import { isOfficialComponent, OFFICIAL_CATEGORY_SLUG } from "../shared/officialComponents";
 
 // ============ HELPER: Recount category package/verified counts ============
 // Recalculates denormalized counts on the categories table after approval/visibility changes.
@@ -27,8 +28,15 @@ async function recountCategoryStats(ctx: MutationCtx) {
 
   const countMap: Record<string, number> = {};
   const verifiedMap: Record<string, number> = {};
+  // Derived "official" categories are counted by rule, not by the package category field.
+  let officialCount = 0;
+  let officialVerified = 0;
   for (const pkg of approvedPackages) {
     if (pkg.visibility === "hidden" || pkg.visibility === "archived" || pkg.markedForDeletion) continue;
+    if (isOfficialComponent(pkg)) {
+      officialCount += 1;
+      if (pkg.convexVerified) officialVerified += 1;
+    }
     if (!pkg.category) continue;
     countMap[pkg.category] = (countMap[pkg.category] || 0) + 1;
     if (pkg.convexVerified) {
@@ -37,8 +45,9 @@ async function recountCategoryStats(ctx: MutationCtx) {
   }
 
   for (const cat of allCategories) {
-    const newCount = countMap[cat.slug] || 0;
-    const newVerified = verifiedMap[cat.slug] || 0;
+    const isDerivedOfficial = cat.derivedFrom === "official";
+    const newCount = isDerivedOfficial ? officialCount : countMap[cat.slug] || 0;
+    const newVerified = isDerivedOfficial ? officialVerified : verifiedMap[cat.slug] || 0;
     if (cat.packageCount !== newCount || cat.verifiedCount !== newVerified) {
       await ctx.db.patch(cat._id, {
         packageCount: newCount,
@@ -46,6 +55,24 @@ async function recountCategoryStats(ctx: MutationCtx) {
       });
     }
   }
+}
+
+// ============ HELPER: Approved + visible official components ============
+// Membership source for the derived "official" category (get-convex org / @convex-dev scope).
+async function listApprovedOfficialPackages(
+  ctx: QueryCtx | MutationCtx,
+): Promise<Array<Doc<"packages">>> {
+  const approved = await ctx.db
+    .query("packages")
+    .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+    .take(1000);
+
+  return approved.filter(
+    (pkg) =>
+      (!pkg.visibility || pkg.visibility === "visible") &&
+      !pkg.markedForDeletion &&
+      isOfficialComponent(pkg),
+  );
 }
 
 // ============ HELPER: Get current user's email from identity claims ============
@@ -4542,16 +4569,26 @@ export const listApprovedComponents = query({
   handler: async (ctx, args) => {
     let packages;
     if (args.category) {
-      packages = await ctx.db
-        .query("packages")
-        .withIndex("by_category_and_visibility", (q) => q.eq("category", args.category))
-        .take(1000);
-      packages = packages.filter(
-        (pkg) =>
-          pkg.reviewStatus === "approved" &&
-          (!pkg.visibility || pkg.visibility === "visible") &&
-          !pkg.markedForDeletion,
-      );
+      // Derived categories (official components) resolve membership by rule, not by field.
+      const categoryDoc = await ctx.db
+        .query("categories")
+        .withIndex("by_slug", (q) => q.eq("slug", args.category!))
+        .first();
+
+      if (categoryDoc?.derivedFrom === "official") {
+        packages = await listApprovedOfficialPackages(ctx);
+      } else {
+        packages = await ctx.db
+          .query("packages")
+          .withIndex("by_category_and_visibility", (q) => q.eq("category", args.category))
+          .take(1000);
+        packages = packages.filter(
+          (pkg) =>
+            pkg.reviewStatus === "approved" &&
+            (!pkg.visibility || pkg.visibility === "visible") &&
+            !pkg.markedForDeletion,
+        );
+      }
     } else {
       packages = await ctx.db
         .query("packages")
@@ -5799,6 +5836,11 @@ export const listCategories = query({
       description: v.string(),
       count: v.number(),
       verifiedCount: v.number(),
+      // True when membership is computed by rule (official components) rather than
+      // assigned per package. Derived categories are not offered in category pickers.
+      derived: v.boolean(),
+      // Hide every thumbnail when rendering this category's components.
+      hideThumbnails: v.boolean(),
     }),
   ),
   handler: async (ctx) => {
@@ -5813,6 +5855,8 @@ export const listCategories = query({
       description: cat.description,
       count: cat.packageCount ?? 0,
       verifiedCount: cat.verifiedCount ?? 0,
+      derived: cat.derivedFrom !== undefined,
+      hideThumbnails: cat.hideThumbnails ?? false,
     }));
   },
 });
@@ -5828,6 +5872,7 @@ export const getCategoryBySlug = query({
       description: v.string(),
       count: v.number(),
       verifiedCount: v.number(),
+      hideThumbnails: v.boolean(),
     }),
   ),
   handler: async (ctx, args) => {
@@ -5840,18 +5885,21 @@ export const getCategoryBySlug = query({
       return null;
     }
 
-    // Count packages in this category
-    const packages = await ctx.db
-      .query("packages")
-      .withIndex("by_category_and_visibility", (q) => q.eq("category", args.slug))
-      .take(1000);
-
-    const visible = packages.filter(
-      (pkg) =>
-        pkg.reviewStatus === "approved" &&
-        (!pkg.visibility || pkg.visibility === "visible") &&
-        !pkg.markedForDeletion,
-    );
+    // Count packages in this category. Derived categories resolve membership by rule.
+    const visible =
+      category.derivedFrom === "official"
+        ? await listApprovedOfficialPackages(ctx)
+        : (
+            await ctx.db
+              .query("packages")
+              .withIndex("by_category_and_visibility", (q) => q.eq("category", args.slug))
+              .take(1000)
+          ).filter(
+            (pkg) =>
+              pkg.reviewStatus === "approved" &&
+              (!pkg.visibility || pkg.visibility === "visible") &&
+              !pkg.markedForDeletion,
+          );
 
     const verifiedCount = visible.filter((pkg) => pkg.convexVerified).length;
 
@@ -5861,6 +5909,7 @@ export const getCategoryBySlug = query({
       description: category.description,
       count: visible.length,
       verifiedCount,
+      hideThumbnails: category.hideThumbnails ?? false,
     };
   },
 });
@@ -6104,6 +6153,11 @@ async function validateAndApplyCategory(
       .withIndex("by_slug", (q: any) => q.eq("slug", normalized))
       .first();
     if (!existing) throw new ConvexError(`Category "${normalized}" does not exist.`);
+    if (existing.derivedFrom) {
+      throw new ConvexError(
+        `Category "${normalized}" is populated automatically and cannot be assigned to a component.`,
+      );
+    }
     patch.category = normalized;
   }
 }
@@ -6620,6 +6674,8 @@ export const listEnabledDirectoryCategories = query({
       description: v.string(),
       sortOrder: v.number(),
       enabled: v.boolean(),
+      derivedFrom: v.optional(v.literal("official")),
+      hideThumbnails: v.optional(v.boolean()),
     }),
   ),
   handler: async (ctx) => {
@@ -6644,6 +6700,8 @@ export const listDirectoryCategories = query({
       description: v.string(),
       sortOrder: v.number(),
       enabled: v.boolean(),
+      derivedFrom: v.optional(v.literal("official")),
+      hideThumbnails: v.optional(v.boolean()),
     }),
   ),
   handler: async (ctx) => {
@@ -6668,6 +6726,8 @@ export const listAllDirectoryCategories = query({
       description: v.string(),
       sortOrder: v.number(),
       enabled: v.boolean(),
+      derivedFrom: v.optional(v.literal("official")),
+      hideThumbnails: v.optional(v.boolean()),
       packageCount: v.optional(v.number()),
       verifiedCount: v.optional(v.number()),
     }),
@@ -6687,10 +6747,21 @@ async function updateExistingCategory(
   ctx: MutationCtx,
   id: Id<"categories">,
   normalizedSlug: string,
-  data: { label: string; description: string; sortOrder: number; enabled: boolean },
+  data: {
+    label: string;
+    description: string;
+    sortOrder: number;
+    enabled: boolean;
+    hideThumbnails: boolean;
+  },
 ): Promise<Id<"categories">> {
   const existing = await ctx.db.get(id);
   if (!existing) throw new ConvexError("Category not found.");
+  // Derived categories own their slug: renaming would break the landing page URL
+  // without moving any packages, since membership is computed by rule.
+  if (existing.derivedFrom && existing.slug !== normalizedSlug) {
+    throw new ConvexError("The slug of an automatic category cannot be changed.");
+  }
   await ctx.db.patch(id, { slug: normalizedSlug, ...data });
   if (existing.slug !== normalizedSlug) {
     const related = await ctx.db
@@ -6712,6 +6783,7 @@ export const upsertCategory = mutation({
     description: v.string(),
     sortOrder: v.number(),
     enabled: v.boolean(),
+    hideThumbnails: v.optional(v.boolean()),
   },
   returns: v.id("categories"),
   handler: async (ctx, args) => {
@@ -6724,7 +6796,13 @@ export const upsertCategory = mutation({
     if (conflict && conflict._id !== args.id) {
       throw new ConvexError(`Category slug "${normalizedSlug}" is already in use.`);
     }
-    const data = { label: args.label, description: args.description, sortOrder: args.sortOrder, enabled: args.enabled };
+    const data = {
+      label: args.label,
+      description: args.description,
+      sortOrder: args.sortOrder,
+      enabled: args.enabled,
+      hideThumbnails: args.hideThumbnails ?? false,
+    };
     if (args.id) {
       return await updateExistingCategory(ctx, args.id, normalizedSlug, data);
     }
@@ -6761,6 +6839,51 @@ export const deleteCategory = mutation({
     // Packages were unassigned; refresh denormalized counts on remaining categories.
     await recountCategoryStats(ctx);
     return null;
+  },
+});
+
+// Defaults used the first time an admin turns the official category on.
+// sortOrder -1 keeps it above every seeded category in the sidebar.
+const OFFICIAL_CATEGORY_DEFAULTS = {
+  slug: OFFICIAL_CATEGORY_SLUG,
+  label: "Official Convex Components",
+  description:
+    "Open-source components built and maintained by the Convex team in the get-convex GitHub org.",
+  sortOrder: -1,
+};
+
+// Admin: Turn the derived official (get-convex) category on or off.
+// Creates the row on first enable, then only flips `enabled` so admin edits to the
+// label, description, and sort order survive a disable.
+export const setOfficialCategoryEnabled = mutation({
+  args: { enabled: v.boolean() },
+  returns: v.id("categories"),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
+    const existing = await ctx.db
+      .query("categories")
+      .withIndex("by_slug", (q) => q.eq("slug", OFFICIAL_CATEGORY_SLUG))
+      .first();
+
+    if (existing) {
+      if (existing.enabled !== args.enabled || existing.derivedFrom !== "official") {
+        await ctx.db.patch(existing._id, {
+          enabled: args.enabled,
+          derivedFrom: "official" as const,
+        });
+        await recountCategoryStats(ctx);
+      }
+      return existing._id;
+    }
+
+    const id = await ctx.db.insert("categories", {
+      ...OFFICIAL_CATEGORY_DEFAULTS,
+      enabled: args.enabled,
+      derivedFrom: "official" as const,
+    });
+    await recountCategoryStats(ctx);
+    return id;
   },
 });
 

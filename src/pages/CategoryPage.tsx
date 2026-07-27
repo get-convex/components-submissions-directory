@@ -431,7 +431,9 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
                       description={comp.description}
                       category={comp.category}
                       thumbnailUrl={comp.thumbnailUrl}
-                      showThumbnail={!comp.hideThumbnailInCategory}
+                      showThumbnail={
+                        !categoryData?.hideThumbnails && !comp.hideThumbnailInCategory
+                      }
                       authorUsername={comp.authorUsername}
                       authorAvatar={comp.authorAvatar}
                       weeklyDownloads={comp.weeklyDownloads}

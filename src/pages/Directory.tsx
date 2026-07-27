@@ -502,7 +502,9 @@ export default function Directory() {
                             description={comp.description}
                             category={comp.category}
                             thumbnailUrl={comp.thumbnailUrl}
-                            showThumbnail={!comp.hideThumbnailInCategory}
+                            showThumbnail={
+                              !cat.hideThumbnails && !comp.hideThumbnailInCategory
+                            }
                             authorUsername={comp.authorUsername}
                             authorAvatar={comp.authorAvatar}
                             weeklyDownloads={comp.weeklyDownloads}
