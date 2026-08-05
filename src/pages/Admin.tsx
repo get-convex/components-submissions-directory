@@ -3015,6 +3015,107 @@ function VisibilityBadge({
   );
 }
 
+// Pending npm package rename panel with accept and revert admin actions.
+// Shown when the submitter pointed the npm URL at a different package name.
+function NpmMismatchPanel({
+  packageId,
+  currentName,
+  pendingNpmName,
+}: {
+  packageId: Id<"packages">;
+  currentName: string;
+  pendingNpmName: string;
+}) {
+  const resolveNpmNameChange = useMutation(api.packages.resolveNpmNameChange);
+  const [confirmAction, setConfirmAction] = useState<
+    "accept" | "revert" | null
+  >(null);
+  const [isResolving, setIsResolving] = useState(false);
+
+  const handleResolve = async (resolution: "accept" | "revert") => {
+    if (isResolving) return;
+    setIsResolving(true);
+    try {
+      await resolveNpmNameChange({ packageId, resolution });
+      toast.success(
+        resolution === "accept"
+          ? `Rename accepted. Registry data for ${pendingNpmName} is being fetched.`
+          : "npm URL reverted to the tracked package.",
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof ConvexError
+          ? String(error.data)
+          : "Failed to resolve npm change",
+      );
+      console.error(error);
+    } finally {
+      setIsResolving(false);
+    }
+  };
+
+  return (
+    <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+      <div className="flex items-start gap-2">
+        <Warning
+          size={16}
+          weight="bold"
+          className="shrink-0 text-amber-600 mt-0.5"
+        />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-amber-800">
+            npm package change pending review
+          </p>
+          <p className="mt-1 text-xs text-amber-700">
+            The submitter pointed the npm URL at{" "}
+            <span className="font-medium">{pendingNpmName}</span>, but this
+            listing still tracks{" "}
+            <span className="font-medium">{currentName}</span>. Accept to
+            re-derive the name, install command, and registry stats from the
+            new package (slug and public URL stay the same), or revert the npm
+            URL.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              onClick={() => setConfirmAction("accept")}
+              disabled={isResolving}
+              className="px-3 py-1.5 rounded-full text-xs font-medium bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50"
+            >
+              {isResolving ? "Working..." : "Accept rename"}
+            </button>
+            <button
+              onClick={() => setConfirmAction("revert")}
+              disabled={isResolving}
+              className="px-3 py-1.5 rounded-full text-xs font-medium border border-border bg-white text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
+            >
+              Revert URL
+            </button>
+          </div>
+        </div>
+      </div>
+      <ConfirmModal
+        isOpen={confirmAction === "accept"}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => void handleResolve("accept")}
+        title="Accept npm rename"
+        message={`Re-derive this listing from ${pendingNpmName}? The package name, install command, version, and download stats update from the new package. The slug and public URL stay the same.`}
+        confirmText="Accept rename"
+        cancelText="Cancel"
+      />
+      <ConfirmModal
+        isOpen={confirmAction === "revert"}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => void handleResolve("revert")}
+        title="Revert npm URL"
+        message={`Restore the npm URL to https://www.npmjs.com/package/${currentName} and clear the pending change?`}
+        confirmText="Revert URL"
+        cancelText="Cancel"
+        type="danger"
+      />
+    </div>
+  );
+}
+
 // Payment/Reward badge component
 type RewardStatus = "not_sent" | "sent" | "delivered" | "failed";
 function PaymentBadge({
@@ -9499,6 +9600,18 @@ function AdminDashboard({
                         </span>
                         <StatusBadge status={pkg.reviewStatus} />
                         <VisibilityBadge visibility={pkg.visibility} markedForDeletion={pkg.markedForDeletion} />
+                        {pkg.pendingNpmName && (
+                          <Tooltip
+                            content={`npm URL points to ${pkg.pendingNpmName}`}
+                          >
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium leading-none border bg-amber-500/10 text-amber-600 border-amber-500/20">
+                              <Warning size={14} weight="bold" />
+                              <span className="hidden sm:inline">
+                                npm mismatch
+                              </span>
+                            </span>
+                          </Tooltip>
+                        )}
                         <span className="hidden sm:inline-flex">
                           <PaymentBadge rewardStatus={pkg.rewardStatus} rewardTotalAmount={pkg.rewardTotalAmount} />
                         </span>
@@ -9526,6 +9639,15 @@ function AdminDashboard({
                           <p className="text-sm text-text-secondary mb-3 line-clamp-2">
                             {pkg.description}
                           </p>
+
+                          {/* Pending npm rename review */}
+                          {pkg.pendingNpmName && (
+                            <NpmMismatchPanel
+                              packageId={pkg._id}
+                              currentName={pkg.name}
+                              pendingNpmName={pkg.pendingNpmName}
+                            />
+                          )}
 
                           {/* Submitter Info (name, discord, email all editable) */}
                           <AuthorToggleSection

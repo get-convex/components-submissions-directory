@@ -27,6 +27,9 @@ const applicationTables = {
     // Denormalized field for full-text search on maintainer names
     maintainerNames: v.optional(v.string()),
     npmUrl: v.string(),
+    // Set when the owner points npmUrl at a different package name than the
+    // record tracks; cleared when an admin accepts the rename or reverts.
+    pendingNpmName: v.optional(v.string()),
     submittedAt: v.number(),
     // Submitter info (shown only in admin)
     submitterName: v.optional(v.string()),

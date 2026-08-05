@@ -1,4 +1,5 @@
 import { useAction, useMutation, useQuery } from "convex/react";
+import { ConvexError } from "convex/values";
 import { useCallback, useEffect, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { Markdown } from "../components/Markdown";
@@ -22,6 +23,13 @@ function useBasePath() {
 
 const THUMBNAIL_MAX_BYTES = 3 * 1024 * 1024;
 const THUMBNAIL_ALLOWED_TYPES = ["image/webp", "image/png", "image/jpeg"];
+
+// Mirrors parsePackageNameFromNpmUrl in convex/packages.ts, but returns null
+// instead of throwing so we can warn while the user is still typing.
+function parseNpmNameFromUrl(npmUrl: string): string | null {
+  const match = npmUrl.match(/npmjs\.com\/package\/((?:@[^/]+\/)?[^/?#]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
 
 interface ProfileEditSubmissionProps {
   packageId: string;
@@ -92,6 +100,81 @@ function GenerateWarningModal({
   );
 }
 
+function NpmChangeConfirmModal({
+  currentName,
+  newName,
+  onClose,
+  onConfirm,
+  isLoading,
+}: {
+  currentName: string;
+  newName: string;
+  onClose: () => void;
+  onConfirm: () => void;
+  isLoading: boolean;
+}) {
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center p-4"
+      style={{ zIndex: 2147483647 }}
+    >
+      <div
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative w-full max-w-md p-6 rounded-lg bg-white border border-border shadow-lg">
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 p-1 rounded-full text-text-secondary hover:bg-bg-hover"
+        >
+          <X size={16} />
+        </button>
+        <div className="flex items-start gap-3">
+          <div className="shrink-0 text-amber-600">
+            <Lightning size={22} weight="fill" />
+          </div>
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-lg font-medium text-text-primary">
+                Different npm package
+              </h3>
+              <p className="mt-1 text-sm text-text-secondary">
+                The new npm URL points to{" "}
+                <span className="font-medium text-text-primary">{newName}</span>
+                , but this listing tracks{" "}
+                <span className="font-medium text-text-primary">
+                  {currentName}
+                </span>
+                . Your public page, package name, install command, and download
+                stats keep tracking {currentName} until the Convex team reviews
+                the change. Saving notifies the team.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onConfirm}
+                disabled={isLoading}
+                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? "Saving..." : "Save and request review"}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isLoading}
+                className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ProfileEditSubmission({
   packageId,
 }: ProfileEditSubmissionProps) {
@@ -116,6 +199,8 @@ export default function ProfileEditSubmission({
   const [longDescription, setLongDescription] = useState("");
   const [category, setCategory] = useState("");
   const [tags, setTags] = useState("");
+  const [repositoryUrl, setRepositoryUrl] = useState("");
+  const [npmUrl, setNpmUrl] = useState("");
   const [demoUrl, setDemoUrl] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -136,6 +221,20 @@ export default function ProfileEditSubmission({
   const [showContentSection, setShowContentSection] = useState(false);
   const [showGenerateWarning, setShowGenerateWarning] = useState(false);
   const [showOriginalText, setShowOriginalText] = useState(false);
+  const [showNpmChangeConfirm, setShowNpmChangeConfirm] = useState(false);
+
+  // Derived: the typed npm URL points at a different package name than the
+  // one this listing tracks. Mirrors the server-side check in updateMySubmission.
+  const typedNpmName = npmUrl.trim()
+    ? parseNpmNameFromUrl(npmUrl.trim())
+    : null;
+  const npmNameMismatch = Boolean(
+    submission &&
+      npmUrl.trim() &&
+      npmUrl.trim() !== submission.npmUrl &&
+      typedNpmName &&
+      typedNpmName !== submission.name,
+  );
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -151,6 +250,8 @@ export default function ProfileEditSubmission({
       setLongDescription(submission.longDescription || "");
       setCategory(submission.category || "");
       setTags(submission.tags?.join(", ") || "");
+      setRepositoryUrl(submission.repositoryUrl || "");
+      setNpmUrl(submission.npmUrl || "");
       setDemoUrl(submission.demoUrl || "");
       setVideoUrl(submission.videoUrl || "");
       setCurrentLogoUrl(submission.logoUrl || "");
@@ -231,6 +332,15 @@ export default function ProfileEditSubmission({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // A different npm package needs an explicit confirm before saving
+    if (npmNameMismatch && !showNpmChangeConfirm) {
+      setShowNpmChangeConfirm(true);
+      return;
+    }
+    await performSave();
+  };
+
+  const performSave = async () => {
     setIsSubmitting(true);
     try {
       await updateSubmission({
@@ -245,6 +355,8 @@ export default function ProfileEditSubmission({
               .map((t) => t.trim())
               .filter(Boolean)
           : undefined,
+        repositoryUrl: repositoryUrl.trim() || undefined,
+        npmUrl: npmUrl.trim() || undefined,
         demoUrl: demoUrl || undefined,
         videoUrl: videoUrl || undefined,
         generatedDescription: generatedDescription || undefined,
@@ -292,9 +404,18 @@ export default function ProfileEditSubmission({
         await saveLogo({ packageId: typedPackageId, storageId });
       }
 
-      toast.success("Submission updated");
+      setShowNpmChangeConfirm(false);
+      toast.success(
+        npmNameMismatch
+          ? "Links saved. The Convex team was notified to review the npm package change."
+          : "Submission updated",
+      );
     } catch (error) {
-      toast.error("Failed to update submission");
+      toast.error(
+        error instanceof ConvexError
+          ? String(error.data)
+          : "Failed to update submission",
+      );
       console.error(error);
     } finally {
       setIsSubmitting(false);
@@ -391,15 +512,6 @@ export default function ProfileEditSubmission({
           </div>
           <div className="rounded-lg border border-border bg-white px-4 py-3 text-sm text-text-secondary overflow-hidden">
             <p className="truncate">
-              <span className="font-medium text-text-primary">Package:</span>{" "}
-              <a
-                href={`${basePath}/${submission.name}`}
-                className="text-button hover:underline"
-              >
-                {submission.name}
-              </a>
-            </p>
-            <p className="mt-1 truncate">
               <span className="font-medium text-text-primary">Repo:</span>{" "}
               {submission.repositoryUrl ? (
                 <a
@@ -425,11 +537,96 @@ export default function ProfileEditSubmission({
                 {submission.npmUrl}
               </a>
             </p>
+            {submission.pendingNpmName && (
+              <p className="mt-2">
+                <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800">
+                  npm change pending review
+                </span>
+              </p>
+            )}
           </div>
         </div>
 
         <div className="rounded-lg border border-border bg-white p-4 sm:p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Links: repo, npm, demo, and video grouped together */}
+            <div className="rounded-lg border border-border bg-bg-primary p-4">
+              <label className="block text-sm font-medium text-text-primary mb-1">
+                Links
+              </label>
+              <p className="text-xs text-text-secondary mb-3">
+                Changing the GitHub repository or npm URL triggers an automatic
+                security re-scan and notifies the Convex team.
+              </p>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-1">
+                    GitHub Repository URL
+                  </label>
+                  <input
+                    type="url"
+                    value={repositoryUrl}
+                    onChange={(e) => setRepositoryUrl(e.target.value)}
+                    placeholder="https://github.com/owner/repo"
+                    className="w-full px-4 py-2.5 rounded-lg border border-border bg-white text-text-primary text-sm outline-none focus:border-button focus:ring-2 focus:ring-button/20"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-1">
+                    npm URL
+                  </label>
+                  <input
+                    type="url"
+                    value={npmUrl}
+                    onChange={(e) => setNpmUrl(e.target.value)}
+                    placeholder="https://www.npmjs.com/package/package-name"
+                    className="w-full px-4 py-2.5 rounded-lg border border-border bg-white text-text-primary text-sm outline-none focus:border-button focus:ring-2 focus:ring-button/20"
+                  />
+                  {npmNameMismatch && (
+                    <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+                      <p className="font-medium">
+                        This URL points to a different npm package (
+                        {typedNpmName}).
+                      </p>
+                      <p className="mt-1">
+                        Your public page, package name, install command, and
+                        download stats keep tracking {submission.name} until
+                        the Convex team reviews the change. Saving notifies the
+                        team.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-1">
+                    Live Demo or Example App URL
+                  </label>
+                  <input
+                    type="url"
+                    value={demoUrl}
+                    onChange={(e) => setDemoUrl(e.target.value)}
+                    placeholder="https://demo.example.com"
+                    className="w-full px-4 py-2.5 rounded-lg border border-border bg-white text-text-primary text-sm outline-none focus:border-button focus:ring-2 focus:ring-button/20"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-text-primary mb-1">
+                    Video URL
+                  </label>
+                  <input
+                    type="url"
+                    value={videoUrl}
+                    onChange={(e) => setVideoUrl(e.target.value)}
+                    placeholder="https://youtube.com/watch?v=..."
+                    className="w-full px-4 py-2.5 rounded-lg border border-border bg-white text-text-primary text-sm outline-none focus:border-button focus:ring-2 focus:ring-button/20"
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-text-primary mb-1">
@@ -657,43 +854,15 @@ export default function ProfileEditSubmission({
               )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">
-                  Tags
-                </label>
-                <input
-                  type="text"
-                  value={tags}
-                  onChange={(e) => setTags(e.target.value)}
-                  placeholder="ai, realtime, database"
-                  className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-button focus:ring-2 focus:ring-button/20"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-text-primary mb-1">
-                  Demo URL
-                </label>
-                <input
-                  type="url"
-                  value={demoUrl}
-                  onChange={(e) => setDemoUrl(e.target.value)}
-                  placeholder="https://demo.example.com"
-                  className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-button focus:ring-2 focus:ring-button/20"
-                />
-              </div>
-            </div>
-
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">
-                Video URL
+                Tags
               </label>
               <input
-                type="url"
-                value={videoUrl}
-                onChange={(e) => setVideoUrl(e.target.value)}
-                placeholder="https://youtube.com/watch?v=..."
+                type="text"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                placeholder="ai, realtime, database"
                 className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-button focus:ring-2 focus:ring-button/20"
               />
             </div>
@@ -925,6 +1094,16 @@ export default function ProfileEditSubmission({
           onClose={() => setShowGenerateWarning(false)}
           onConfirm={handleGenerateContent}
           isLoading={isGenerating}
+        />
+      )}
+
+      {showNpmChangeConfirm && typedNpmName && (
+        <NpmChangeConfirmModal
+          currentName={submission.name}
+          newName={typedNpmName}
+          onClose={() => setShowNpmChangeConfirm(false)}
+          onConfirm={() => void performSave()}
+          isLoading={isSubmitting}
         />
       )}
     </div>

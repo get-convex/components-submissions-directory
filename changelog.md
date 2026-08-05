@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- npm URL mismatch check and review flow (2026-08-05 07:30 UTC)
+  - When a submitter changes their npm URL to point at a different package than the listing tracks, the edit page now shows an amber warning under the npm field and a confirm modal ("Save and request review") before saving. The save goes through, but the record is flagged with a new `pendingNpmName` field and the Slack notification gains the old and new package names plus a note that name, slug, install command, and download stats keep tracking the old package until the team acts.
+  - Same-name URL edits (reformatting, encoded scoped names) save quietly and clear any stale flag; a submitter reverting the URL back to the original package also clears the flag automatically.
+  - The admin dashboard shows an amber "npm mismatch" badge on flagged package rows and a review panel in the expanded view with two actions behind confirm modals: Accept rename (validates the new package on the registry, then re-derives name, install command, npm URL, version, license, downloads, collaborators, and SKILL.md while keeping the slug and public URL unchanged) and Revert URL (restores the npm URL from the tracked package name). Both clear the flag; a failed registry fetch leaves the flag set.
+  - The edit page info card shows an "npm change pending review" chip while a change is awaiting review.
+  - PRD: `prds/npm-url-mismatch-review.md`
+  - Files: `convex/schema.ts`, `convex/packages.ts`, `src/pages/ProfileEditSubmission.tsx`, `src/pages/Admin.tsx`
+
+- Editable repo and npm links on the profile edit page with auto security re-scan (2026-08-05 01:50 UTC)
+  - Submitters can now update their GitHub repository URL and npm URL from `/components/profile/edit/:id`. A new Links section at the top of the form groups the repo, npm, Live Demo or Example App, and Video URL inputs (the Demo and Video fields moved up from lower in the form).
+  - Changing the repo or npm URL runs the same pipeline as a new submission: the package is queued for an automatic security scan (respects the `autoSecurityScan` admin setting, skips when a scan is already running) and the Convex team gets a Slack notification showing the old and new values and whether a scan was queued. Saves with unchanged links behave exactly as before, with no Slack message and no scan.
+  - URL formats are validated server-side with the same rules used at submission (`https://github.com/owner/repo`, `https://www.npmjs.com/package/name`), and validation errors now surface in the save toast instead of a generic failure message.
+  - The `Package:` name line was removed from the info card on the edit page since users submit the repo and npm URLs directly; the Repo and npm reference links remain.
+  - PRD: `prds/profile-edit-links-rescan.md`
+  - Files: `convex/packages.ts`, `src/pages/ProfileEditSubmission.tsx`
+
 ### Fixed
 
 - Asset caching and noindex headers never applied in production (2026-07-27 18:55 UTC)

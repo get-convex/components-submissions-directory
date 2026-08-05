@@ -330,6 +330,7 @@ const adminPackageValidator = v.object({
   ),
   maintainerNames: v.optional(v.string()),
   npmUrl: v.string(),
+  pendingNpmName: v.optional(v.string()),
   submittedAt: v.number(),
   approvedAt: v.optional(v.number()),
   // Submitter info (admin only)
@@ -649,6 +650,7 @@ function toAdminPackage(pkg: any) {
     collaborators: pkg.collaborators || [],
     maintainerNames: pkg.maintainerNames,
     npmUrl: pkg.npmUrl || `https://www.npmjs.com/package/${pkg.name || ""}`,
+    pendingNpmName: pkg.pendingNpmName,
     submittedAt: pkg.submittedAt ?? pkg._creationTime ?? 0,
     approvedAt: pkg.approvedAt,
     // Submitter info (admin only)
@@ -5495,8 +5497,9 @@ function buildSubmissionUpdates(args: any, pkg: any) {
   const updates: Record<string, string | string[] | number | undefined> = {};
   const fields = [
     "componentName", "shortDescription", "longDescription", "category", "tags",
-    "demoUrl", "videoUrl", "generatedDescription", "generatedUseCases",
-    "generatedHowItWorks", "readmeIncludedMarkdown", "readmeIncludeSource",
+    "demoUrl", "videoUrl", "repositoryUrl", "npmUrl", "generatedDescription",
+    "generatedUseCases", "generatedHowItWorks", "readmeIncludedMarkdown",
+    "readmeIncludeSource",
   ] as const;
   for (const f of fields) {
     if (args[f] !== undefined) updates[f] = args[f];
@@ -5527,8 +5530,8 @@ function buildSubmissionUpdates(args: any, pkg: any) {
         componentName: (args.componentName ?? pkg.componentName) || undefined,
         shortDescription: (args.shortDescription ?? pkg.shortDescription) || undefined,
         description: pkg.description,
-        repositoryUrl: pkg.repositoryUrl || undefined,
-        npmUrl: pkg.npmUrl,
+        repositoryUrl: (args.repositoryUrl ?? pkg.repositoryUrl) || undefined,
+        npmUrl: args.npmUrl ?? pkg.npmUrl,
         demoUrl: (args.demoUrl ?? pkg.demoUrl) || undefined,
         installCommand: pkg.installCommand,
         slug: pkg.slug || undefined,
@@ -5550,6 +5553,8 @@ export const updateMySubmission = mutation({
     tags: v.optional(v.array(v.string())),
     demoUrl: v.optional(v.string()),
     videoUrl: v.optional(v.string()),
+    repositoryUrl: v.optional(v.string()),
+    npmUrl: v.optional(v.string()),
     generatedDescription: v.optional(v.string()),
     generatedUseCases: v.optional(v.string()),
     generatedHowItWorks: v.optional(v.string()),
@@ -5569,10 +5574,243 @@ export const updateMySubmission = mutation({
       throw new ConvexError("You can only edit your own submissions");
     }
 
-    const updates = buildSubmissionUpdates(args, pkg);
+    // Detect real repo and npm link changes; empty input means no change.
+    const nextRepoUrl = args.repositoryUrl?.trim();
+    const nextNpmUrl = args.npmUrl?.trim();
+    const repoChanged =
+      !!nextRepoUrl && nextRepoUrl !== (pkg.repositoryUrl ?? "");
+    const npmChanged = !!nextNpmUrl && nextNpmUrl !== pkg.npmUrl;
+
+    if (repoChanged && !parseGitHubRepo(nextRepoUrl!)) {
+      throw new ConvexError(
+        "Invalid GitHub repository URL. Expected format: https://github.com/owner/repo",
+      );
+    }
+    let parsedNpmName: string | undefined;
+    if (npmChanged) {
+      // Throws a ConvexError when the npm URL format is invalid
+      parsedNpmName = parsePackageNameFromNpmUrl(nextNpmUrl!);
+    }
+
+    const updates = buildSubmissionUpdates(
+      {
+        ...args,
+        repositoryUrl: repoChanged ? nextRepoUrl : undefined,
+        npmUrl: npmChanged ? nextNpmUrl : undefined,
+      },
+      pkg,
+    );
+
+    // The refresh pipeline fetches registry data by pkg.name, so a URL that
+    // parses to a different package name is a rename that needs team review.
+    // Same-name edits are just URL reformatting and clear any stale flag.
+    const npmNameMismatch = npmChanged && parsedNpmName !== pkg.name;
+    if (npmChanged) {
+      if (npmNameMismatch) {
+        updates.pendingNpmName = parsedNpmName;
+      } else if (pkg.pendingNpmName) {
+        updates.pendingNpmName = undefined;
+      }
+    }
+
+    // Queue an automatic security scan on link changes, mirroring the
+    // new-submission flow (respects the autoSecurityScan admin setting).
+    let scanQueued = false;
+    if (repoChanged || npmChanged) {
+      const autoSecurityScan = await ctx.db
+        .query("adminSettings")
+        .withIndex("by_key", (q) => q.eq("key", "autoSecurityScan"))
+        .first();
+      const repoForScan = repoChanged ? nextRepoUrl : pkg.repositoryUrl;
+      if (
+        autoSecurityScan?.value === true &&
+        repoForScan &&
+        pkg.securityScanStatus !== "scanning"
+      ) {
+        updates.securityScanStatus = "scanning";
+        scanQueued = true;
+      }
+    }
+
     if (Object.keys(updates).length > 0) {
       await ctx.db.patch(args.packageId, updates);
     }
+
+    if (scanQueued) {
+      await ctx.scheduler.runAfter(0, internal.securityScan._runSecurityScan, {
+        packageId: args.packageId,
+      });
+    }
+
+    // Notify the Convex team via Slack when repo or npm links change.
+    if (repoChanged || npmChanged) {
+      const slugForUrl = pkg.slug ?? pkg.name;
+      const displayName = pkg.componentName ?? pkg.name;
+      const lines = [
+        "Submission links updated",
+        `${displayName} (${pkg.name})`,
+        `https://www.convex.dev/components/${slugForUrl}`,
+        `By: ${userEmail}`,
+      ];
+      if (repoChanged) {
+        lines.push(`New repo: ${nextRepoUrl}`);
+        lines.push(`Previous repo: ${pkg.repositoryUrl || "none"}`);
+      }
+      if (npmChanged) {
+        lines.push(`New npm: ${nextNpmUrl}`);
+        lines.push(`Previous npm: ${pkg.npmUrl}`);
+      }
+      if (npmNameMismatch) {
+        lines.push(
+          `npm package name changed from ${pkg.name} to ${parsedNpmName}`,
+        );
+        lines.push(
+          "Name, slug, install command, and download stats still track the old package until an admin accepts the rename or reverts the URL in the dashboard.",
+        );
+      }
+      lines.push(
+        scanQueued
+          ? "Security scan queued automatically"
+          : "Security scan not queued (disabled, already running, or no repo URL)",
+      );
+      await ctx.scheduler.runAfter(0, internal.slack.sendMessage, {
+        text: lines.join("\n"),
+      });
+    }
+    return null;
+  },
+});
+
+// Admin: resolve a pending npm package name change.
+// "accept" re-derives the record from the new package (name, install command,
+// registry data) while keeping the slug stable so public URLs never break.
+// "revert" restores the npm URL from the tracked package name.
+export const resolveNpmNameChange = mutation({
+  args: {
+    packageId: v.id("packages"),
+    resolution: v.union(v.literal("accept"), v.literal("revert")),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) throw new ConvexError("Package not found");
+    if (!pkg.pendingNpmName) return null; // already resolved
+
+    if (args.resolution === "revert") {
+      await ctx.db.patch(args.packageId, {
+        npmUrl: `https://www.npmjs.com/package/${encodeURIComponent(pkg.name)}`,
+        pendingNpmName: undefined,
+      });
+      return null;
+    }
+
+    await ctx.scheduler.runAfter(0, internal.packages._applyNpmRename, {
+      packageId: args.packageId,
+      newName: pkg.pendingNpmName,
+    });
+    return null;
+  },
+});
+
+// Internal action: validate the new package exists on the registry, then
+// rename the record and refresh its npm data through the standard pipeline.
+export const _applyNpmRename = internalAction({
+  args: { packageId: v.id("packages"), newName: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const pkg: any = await ctx.runQuery(internal.packages._getPackage, {
+      packageId: args.packageId,
+    });
+    // Stale request: flag cleared or changed since the admin clicked accept
+    if (!pkg || pkg.pendingNpmName !== args.newName) return null;
+
+    // Throws when the package does not exist on the registry; nothing is
+    // renamed in that case and the pending flag stays set for the admin.
+    const packageData: any = await fetchNpmPackageHandler(ctx, {
+      packageName: args.newName,
+    });
+
+    await ctx.runMutation(internal.packages._finishNpmRename, {
+      packageId: args.packageId,
+      name: packageData.name,
+      installCommand: packageData.installCommand,
+      npmUrl: packageData.npmUrl,
+    });
+
+    // Reuse the standard refresh mutation so downloads, version, license,
+    // collaborators, maintainer search text, and skillMd stay consistent.
+    const failedFields: string[] = [];
+    if (packageData.weeklyDownloads === undefined) failedFields.push("weekly");
+    if (packageData.allTimeDownloads === undefined)
+      failedFields.push("all-time");
+    await ctx.runMutation(internal.packages._updateNpmDataAndTimestamp, {
+      packageId: args.packageId,
+      description: packageData.description,
+      version: packageData.version,
+      license: packageData.license,
+      repositoryUrl: pkg.repositoryUrl || packageData.repositoryUrl,
+      homepageUrl: pkg.homepageUrl || packageData.homepageUrl,
+      unpackedSize: packageData.unpackedSize,
+      totalFiles: packageData.totalFiles,
+      lastPublish: packageData.lastPublish,
+      weeklyDownloads: packageData.weeklyDownloads,
+      allTimeDownloads: packageData.allTimeDownloads,
+      collaborators: packageData.collaborators,
+      refreshError:
+        failedFields.length > 0
+          ? `npm downloads API failed for ${failedFields.join(" and ")} counts; kept previous values`
+          : undefined,
+    });
+    return null;
+  },
+});
+
+// Internal mutation: apply the rename fields and clear the pending flag.
+// Slug is intentionally untouched so the public URL stays stable.
+export const _finishNpmRename = internalMutation({
+  args: {
+    packageId: v.id("packages"),
+    name: v.string(),
+    installCommand: v.string(),
+    npmUrl: v.string(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) return null;
+
+    const patch: Record<string, any> = {
+      name: args.name,
+      installCommand: args.installCommand,
+      npmUrl: args.npmUrl,
+      pendingNpmName: undefined,
+    };
+
+    // Rebuild SKILL.md since the package name and install command changed
+    if (
+      pkg.skillMd &&
+      pkg.generatedDescription &&
+      pkg.generatedUseCases &&
+      pkg.generatedHowItWorks
+    ) {
+      patch.skillMd = buildSkillMdFromContent(
+        {
+          ...pkg,
+          name: args.name,
+          npmUrl: args.npmUrl,
+          installCommand: args.installCommand,
+        },
+        {
+          description: pkg.generatedDescription,
+          useCases: pkg.generatedUseCases,
+          howItWorks: pkg.generatedHowItWorks,
+        },
+      );
+    }
+
+    await ctx.db.patch(args.packageId, patch);
     return null;
   },
 });
@@ -5596,6 +5834,7 @@ export const getMySubmissionForEdit = query({
       thumbnailUploadedByUser: v.optional(v.boolean()),
       repositoryUrl: v.optional(v.string()),
       npmUrl: v.string(),
+      pendingNpmName: v.optional(v.string()),
       generatedDescription: v.optional(v.string()),
       generatedUseCases: v.optional(v.string()),
       generatedHowItWorks: v.optional(v.string()),
@@ -5635,6 +5874,7 @@ export const getMySubmissionForEdit = query({
       thumbnailUploadedByUser: pkg.thumbnailUploadedByUser,
       repositoryUrl: pkg.repositoryUrl,
       npmUrl: pkg.npmUrl,
+      pendingNpmName: pkg.pendingNpmName,
       generatedDescription: pkg.generatedDescription,
       generatedUseCases: pkg.generatedUseCases,
       generatedHowItWorks: pkg.generatedHowItWorks,
