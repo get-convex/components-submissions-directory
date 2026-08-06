@@ -14,7 +14,10 @@ import { api, internal } from "./_generated/api";
 import { Id, Doc } from "./_generated/dataModel";
 import { buildSkillMdFromContent } from "../shared/buildSkillMd";
 import { normalizeMarkdown } from "../shared/normalizeMarkdown";
-import { isOfficialComponent, OFFICIAL_CATEGORY_SLUG } from "../shared/officialComponents";
+import {
+  isOfficialComponent,
+  OFFICIAL_CATEGORY_SLUG,
+} from "../shared/officialComponents";
 
 // ============ HELPER: Recount category package/verified counts ============
 // Recalculates denormalized counts on the categories table after approval/visibility changes.
@@ -23,16 +26,26 @@ async function recountCategoryStats(ctx: MutationCtx) {
   const allCategories = await ctx.db.query("categories").take(1000);
   const approvedPackages = await ctx.db
     .query("packages")
-    .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+    .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) =>
+      q.eq("reviewStatus", "approved"),
+    )
     .take(5000);
 
   const countMap: Record<string, number> = {};
   const verifiedMap: Record<string, number> = {};
+  // Approved + visible packages by id, reused for curated membership counting.
+  const publicPackageById: Record<string, Doc<"packages">> = {};
   // Derived "official" categories are counted by rule, not by the package category field.
   let officialCount = 0;
   let officialVerified = 0;
   for (const pkg of approvedPackages) {
-    if (pkg.visibility === "hidden" || pkg.visibility === "archived" || pkg.markedForDeletion) continue;
+    if (
+      pkg.visibility === "hidden" ||
+      pkg.visibility === "archived" ||
+      pkg.markedForDeletion
+    )
+      continue;
+    publicPackageById[pkg._id] = pkg;
     if (isOfficialComponent(pkg)) {
       officialCount += 1;
       if (pkg.convexVerified) officialVerified += 1;
@@ -46,8 +59,29 @@ async function recountCategoryStats(ctx: MutationCtx) {
 
   for (const cat of allCategories) {
     const isDerivedOfficial = cat.derivedFrom === "official";
-    const newCount = isDerivedOfficial ? officialCount : countMap[cat.slug] || 0;
-    const newVerified = isDerivedOfficial ? officialVerified : verifiedMap[cat.slug] || 0;
+    let newCount: number;
+    let newVerified: number;
+    if (isDerivedOfficial) {
+      newCount = officialCount;
+      newVerified = officialVerified;
+    } else if (cat.kind === "curated") {
+      // Curated categories count hand-picked members that are publicly visible.
+      const memberships = await ctx.db
+        .query("categoryMemberships")
+        .withIndex("by_category", (q) => q.eq("categoryId", cat._id))
+        .take(1000);
+      newCount = 0;
+      newVerified = 0;
+      for (const membership of memberships) {
+        const pkg = publicPackageById[membership.packageId];
+        if (!pkg) continue;
+        newCount += 1;
+        if (pkg.convexVerified) newVerified += 1;
+      }
+    } else {
+      newCount = countMap[cat.slug] || 0;
+      newVerified = verifiedMap[cat.slug] || 0;
+    }
     if (cat.packageCount !== newCount || cat.verifiedCount !== newVerified) {
       await ctx.db.patch(cat._id, {
         packageCount: newCount,
@@ -57,14 +91,87 @@ async function recountCategoryStats(ctx: MutationCtx) {
   }
 }
 
+// ============ HELPER: Curated category membership ============
+// Approved + visible members of a curated category, resolved through the
+// categoryMemberships join table.
+async function listApprovedCuratedPackages(
+  ctx: QueryCtx | MutationCtx,
+  categoryId: Id<"categories">,
+): Promise<Array<Doc<"packages">>> {
+  const memberships = await ctx.db
+    .query("categoryMemberships")
+    .withIndex("by_category", (q) => q.eq("categoryId", categoryId))
+    .take(1000);
+
+  const packages = await Promise.all(
+    memberships.map((m) => ctx.db.get(m.packageId)),
+  );
+  return packages.filter(
+    (pkg): pkg is Doc<"packages"> =>
+      pkg !== null &&
+      pkg.reviewStatus === "approved" &&
+      (!pkg.visibility || pkg.visibility === "visible") &&
+      !pkg.markedForDeletion,
+  );
+}
+
+// Rebuild the denormalized curatedBadges array on one package from its
+// current curated category memberships. Sorted by category sortOrder so the
+// badge order on cards is stable.
+async function rebuildCuratedBadgesForPackage(
+  ctx: MutationCtx,
+  packageId: Id<"packages">,
+) {
+  const memberships = await ctx.db
+    .query("categoryMemberships")
+    .withIndex("by_package", (q) => q.eq("packageId", packageId))
+    .take(100);
+
+  const categories = await Promise.all(
+    memberships.map((m) => ctx.db.get(m.categoryId)),
+  );
+  const badges = categories
+    .filter(
+      (cat): cat is Doc<"categories"> => cat !== null && cat.kind === "curated",
+    )
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((cat) => ({
+      categorySlug: cat.slug,
+      label: cat.label,
+      badgeUrl: cat.badgeUrl,
+    }));
+
+  await ctx.db.patch(packageId, {
+    curatedBadges: badges.length > 0 ? badges : undefined,
+  });
+}
+
+// Rebuild curatedBadges on every member of a curated category. Used after the
+// category's label, slug, or badge image changes so member cards stay in sync.
+async function rebuildCuratedBadgesForCategoryMembers(
+  ctx: MutationCtx,
+  categoryId: Id<"categories">,
+) {
+  const memberships = await ctx.db
+    .query("categoryMemberships")
+    .withIndex("by_category", (q) => q.eq("categoryId", categoryId))
+    .take(1000);
+  for (const membership of memberships) {
+    await rebuildCuratedBadgesForPackage(ctx, membership.packageId);
+  }
+}
+
 // ============ HELPER: Approved + visible official components ============
 // Membership source for the derived "official" category (get-convex org / @convex-dev scope).
-async function listApprovedOfficialPackages(
+// Exported for the scheduled official README auto-update (convex/readmeAutoUpdate.ts).
+export async function listApprovedOfficialPackages(
   ctx: QueryCtx | MutationCtx,
 ): Promise<Array<Doc<"packages">>> {
   const approved = await ctx.db
     .query("packages")
-    .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+    .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) =>
+      q.eq("reviewStatus", "approved"),
+    )
     .take(1000);
 
   return approved.filter(
@@ -76,7 +183,9 @@ async function listApprovedOfficialPackages(
 }
 
 // ============ HELPER: Get current user's email from identity claims ============
-async function getCurrentUserEmail(ctx: QueryCtx | MutationCtx): Promise<string | null> {
+async function getCurrentUserEmail(
+  ctx: QueryCtx | MutationCtx,
+): Promise<string | null> {
   const identity = await ctx.auth.getUserIdentity();
   return identity?.email ?? null;
 }
@@ -97,7 +206,8 @@ function formatSlackNotification(
 ): string {
   const slugForUrl = pkg.slug ?? pkg.name;
   const displayName = `${pkg.componentName ?? pkg.name} (${pkg.name})`;
-  const preview = content.length > 200 ? `${content.slice(0, 200)}...` : content;
+  const preview =
+    content.length > 200 ? `${content.slice(0, 200)}...` : content;
   return (
     `${headline} ${displayName}\n` +
     `From: ${fromLabel}\n` +
@@ -112,14 +222,29 @@ function compactSlackSummary(summary?: string) {
 }
 
 function isFinishedAiReviewStatus(status: Doc<"packages">["aiReviewStatus"]) {
-  return status === "passed" || status === "failed" || status === "partial" || status === "error";
+  return (
+    status === "passed" ||
+    status === "failed" ||
+    status === "partial" ||
+    status === "error"
+  );
 }
 
-function isFinishedSecurityScanStatus(status: Doc<"packages">["securityScanStatus"]) {
-  return status === "safe" || status === "unsafe" || status === "warning" || status === "error";
+function isFinishedSecurityScanStatus(
+  status: Doc<"packages">["securityScanStatus"],
+) {
+  return (
+    status === "safe" ||
+    status === "unsafe" ||
+    status === "warning" ||
+    status === "error"
+  );
 }
 
-async function sendReviewCompletionSlackIfReady(ctx: MutationCtx, packageId: Id<"packages">) {
+async function sendReviewCompletionSlackIfReady(
+  ctx: MutationCtx,
+  packageId: Id<"packages">,
+) {
   const pkg = await ctx.db.get(packageId);
   if (!pkg || !isFinishedSecurityScanStatus(pkg.securityScanStatus)) {
     return;
@@ -187,6 +312,14 @@ async function requirePackageOwnerOrAdmin(
 // Sensitive fields like submitterEmail, submitterName, submitterDiscord,
 // and AI review details are excluded from public queries
 
+// Badge entry denormalized from curated category memberships.
+// badgeUrl is optional: categories without a badge image contribute no visual.
+const curatedBadgeValidator = v.object({
+  categorySlug: v.string(),
+  label: v.string(),
+  badgeUrl: v.optional(v.string()),
+});
+
 const publicPackageValidator = v.object({
   _id: v.id("packages"),
   _creationTime: v.number(),
@@ -249,6 +382,7 @@ const publicPackageValidator = v.object({
   thumbnailUrl: v.optional(v.string()),
   convexVerified: v.optional(v.boolean()),
   communitySubmitted: v.optional(v.boolean()),
+  curatedBadges: v.optional(v.array(curatedBadgeValidator)),
   authorUsername: v.optional(v.string()),
   authorAvatar: v.optional(v.string()),
   componentName: v.optional(v.string()),
@@ -395,9 +529,9 @@ const adminPackageValidator = v.object({
   logoStorageId: v.optional(v.id("_storage")),
   logoUrl: v.optional(v.string()),
   selectedTemplateId: v.optional(v.id("thumbnailTemplates")),
-    thumbnailGeneratedAt: v.optional(v.number()),
-    thumbnailUploadedByUser: v.optional(v.boolean()),
-    convexVerified: v.optional(v.boolean()),
+  thumbnailGeneratedAt: v.optional(v.number()),
+  thumbnailUploadedByUser: v.optional(v.boolean()),
+  convexVerified: v.optional(v.boolean()),
   communitySubmitted: v.optional(v.boolean()),
   authorUsername: v.optional(v.string()),
   authorAvatar: v.optional(v.string()),
@@ -478,18 +612,18 @@ const aiReviewRunValidator = v.object({
   criteria: v.array(aiReviewCriterionValidator),
   error: v.optional(v.string()),
   provider: v.optional(
-    v.union(
-      v.literal("anthropic"),
-      v.literal("openai"),
-      v.literal("gemini"),
-    ),
+    v.union(v.literal("anthropic"), v.literal("openai"), v.literal("gemini")),
   ),
   model: v.optional(v.string()),
   source: v.optional(v.string()),
   rawOutput: v.optional(v.string()),
 });
 
-const submitPageSizeValidator = v.union(v.literal(20), v.literal(40), v.literal(60));
+const submitPageSizeValidator = v.union(
+  v.literal(20),
+  v.literal(40),
+  v.literal(60),
+);
 
 const paginatedPublicPackagesValidator = v.object({
   items: v.array(publicPackageValidator),
@@ -598,6 +732,7 @@ function toPublicPackage(pkg: any) {
     thumbnailUrl: pkg.thumbnailUrl,
     convexVerified: pkg.convexVerified,
     communitySubmitted: pkg.communitySubmitted,
+    curatedBadges: pkg.curatedBadges,
     authorUsername: pkg.authorUsername,
     authorAvatar: pkg.authorAvatar,
     componentName: pkg.componentName,
@@ -746,7 +881,7 @@ function generateSlugFromName(npmPackageName: string): string {
 async function isSlugTaken(
   ctx: QueryCtx | MutationCtx,
   slug: string,
-  excludePackageId?: Id<"packages">
+  excludePackageId?: Id<"packages">,
 ): Promise<boolean> {
   const existing = await ctx.db
     .query("packages")
@@ -762,15 +897,15 @@ async function isSlugTaken(
 async function generateUniqueSlug(
   ctx: QueryCtx | MutationCtx,
   baseSlug: string,
-  excludePackageId?: Id<"packages">
+  excludePackageId?: Id<"packages">,
 ): Promise<string> {
   if (!baseSlug) return "";
-  
+
   // Check base slug first
   if (!(await isSlugTaken(ctx, baseSlug, excludePackageId))) {
     return baseSlug;
   }
-  
+
   // Append numeric suffix until unique
   let suffix = 2;
   const maxAttempts = 100;
@@ -781,7 +916,7 @@ async function generateUniqueSlug(
     }
     suffix++;
   }
-  
+
   // Fallback: append timestamp if all numeric suffixes exhausted
   return `${baseSlug}-${Date.now()}`;
 }
@@ -902,86 +1037,89 @@ async function fetchAllTimeDownloads(
   return total;
 }
 
-export async function fetchNpmPackageHandler(_ctx: any, args: { packageName: string }) {
-    const name = decodeURIComponent(args.packageName.trim());
+export async function fetchNpmPackageHandler(
+  _ctx: any,
+  args: { packageName: string },
+) {
+  const name = decodeURIComponent(args.packageName.trim());
 
-    // For scoped packages (@scope/name), encode the slash between scope and name
-    // npm registry requires: @scope%2Fname format
-    const encodedName = name.startsWith("@") ? name.replace("/", "%2F") : name;
-    const registryUrl = `https://registry.npmjs.org/${encodedName}`;
+  // For scoped packages (@scope/name), encode the slash between scope and name
+  // npm registry requires: @scope%2Fname format
+  const encodedName = name.startsWith("@") ? name.replace("/", "%2F") : name;
+  const registryUrl = `https://registry.npmjs.org/${encodedName}`;
 
-    // Metadata first: the all-time computation needs time.created
-    const metadataResponse = await fetch(registryUrl, {
-      method: "GET",
-      headers: { "User-Agent": NPM_USER_AGENT },
-    });
+  // Metadata first: the all-time computation needs time.created
+  const metadataResponse = await fetch(registryUrl, {
+    method: "GET",
+    headers: { "User-Agent": NPM_USER_AGENT },
+  });
 
-    if (!metadataResponse.ok) {
-      throw new ConvexError(
-        `Failed to fetch registry metadata for "${name}": ${metadataResponse.status} ${metadataResponse.statusText}`,
-      );
-    }
-
-    const metadata = await metadataResponse.json();
-
-    // undefined (not 0) on failure so stored values are never zeroed out
-    const [weeklyDownloads, allTimeDownloads] = await Promise.all([
-      fetchLastWeekDownloads(name),
-      fetchAllTimeDownloads(name, metadata.time?.created),
-    ]);
-
-    // Get latest version info
-    const latestVersion = metadata["dist-tags"]?.latest;
-    if (!latestVersion) {
-      throw new ConvexError("No latest version found for package");
-    }
-
-    const versionData = metadata.versions?.[latestVersion];
-    if (!versionData) {
-      throw new ConvexError("Version data not found");
-    }
-
-    // Extract repository URL
-    let repositoryUrl: string | undefined;
-    if (versionData.repository) {
-      if (typeof versionData.repository === "string") {
-        repositoryUrl = versionData.repository;
-      } else if (versionData.repository.url) {
-        repositoryUrl = versionData.repository.url
-          .replace(/^git\+/, "")
-          .replace(/\.git$/, "");
-      }
-    }
-
-    // Extract collaborators from maintainers
-    const maintainers = versionData.maintainers ?? metadata.maintainers ?? [];
-    const collaborators = maintainers.map(
-      (maintainer: { name: string; email?: string }) => ({
-        name: maintainer.name,
-        avatar: `https://www.gravatar.com/avatar/${maintainer.name}?d=identicon`,
-      }),
+  if (!metadataResponse.ok) {
+    throw new ConvexError(
+      `Failed to fetch registry metadata for "${name}": ${metadataResponse.status} ${metadataResponse.statusText}`,
     );
+  }
 
-    // Get last publish time
-    const lastPublish =
-      metadata.time?.[latestVersion] || new Date().toISOString();
+  const metadata = await metadataResponse.json();
 
-    return {
-      name,
-      description: versionData.description || "No description available",
-      installCommand: `npm install ${name}`,
-      repositoryUrl,
-      homepageUrl: versionData.homepage,
-      version: latestVersion,
-      license: versionData.license || "Unknown",
-      unpackedSize: versionData.dist?.unpackedSize || 0,
-      totalFiles: versionData.dist?.fileCount || 0,
-      lastPublish,
-      weeklyDownloads,
-      allTimeDownloads,
-      collaborators,
-      npmUrl: `https://www.npmjs.com/package/${encodeURIComponent(name)}`,
-    };
+  // undefined (not 0) on failure so stored values are never zeroed out
+  const [weeklyDownloads, allTimeDownloads] = await Promise.all([
+    fetchLastWeekDownloads(name),
+    fetchAllTimeDownloads(name, metadata.time?.created),
+  ]);
+
+  // Get latest version info
+  const latestVersion = metadata["dist-tags"]?.latest;
+  if (!latestVersion) {
+    throw new ConvexError("No latest version found for package");
+  }
+
+  const versionData = metadata.versions?.[latestVersion];
+  if (!versionData) {
+    throw new ConvexError("Version data not found");
+  }
+
+  // Extract repository URL
+  let repositoryUrl: string | undefined;
+  if (versionData.repository) {
+    if (typeof versionData.repository === "string") {
+      repositoryUrl = versionData.repository;
+    } else if (versionData.repository.url) {
+      repositoryUrl = versionData.repository.url
+        .replace(/^git\+/, "")
+        .replace(/\.git$/, "");
+    }
+  }
+
+  // Extract collaborators from maintainers
+  const maintainers = versionData.maintainers ?? metadata.maintainers ?? [];
+  const collaborators = maintainers.map(
+    (maintainer: { name: string; email?: string }) => ({
+      name: maintainer.name,
+      avatar: `https://www.gravatar.com/avatar/${maintainer.name}?d=identicon`,
+    }),
+  );
+
+  // Get last publish time
+  const lastPublish =
+    metadata.time?.[latestVersion] || new Date().toISOString();
+
+  return {
+    name,
+    description: versionData.description || "No description available",
+    installCommand: `npm install ${name}`,
+    repositoryUrl,
+    homepageUrl: versionData.homepage,
+    version: latestVersion,
+    license: versionData.license || "Unknown",
+    unpackedSize: versionData.dist?.unpackedSize || 0,
+    totalFiles: versionData.dist?.fileCount || 0,
+    lastPublish,
+    weeklyDownloads,
+    allTimeDownloads,
+    collaborators,
+    npmUrl: `https://www.npmjs.com/package/${encodeURIComponent(name)}`,
+  };
 }
 
 export const fetchNpmPackage = action({
@@ -1099,7 +1237,9 @@ export const submitPackage = action({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new ConvexError("Authentication required to submit a package. Please sign in first.");
+      throw new ConvexError(
+        "Authentication required to submit a package. Please sign in first.",
+      );
     }
 
     const submitterEmail = identity.email?.trim();
@@ -1110,21 +1250,33 @@ export const submitPackage = action({
     const validated = validateSubmitInputs(args);
     const packageName = parsePackageNameFromNpmUrl(validated.npmUrl);
 
-    const prereqs: any = await ctx.runQuery(internal.packages._checkSubmitPrereqs, {
-      name: packageName,
-    });
+    const prereqs: any = await ctx.runQuery(
+      internal.packages._checkSubmitPrereqs,
+      {
+        name: packageName,
+      },
+    );
     if (prereqs.existing) {
       throw new ConvexError(
         `A component with the npm package "${packageName}" has already been submitted. ` +
-        `If this is yours, check your profile for its current status. ` +
-        `If you believe this is an error, please reach out to us.`,
+          `If this is yours, check your profile for its current status. ` +
+          `If you believe this is an error, please reach out to us.`,
       );
     }
 
     const packageData: any = await fetchNpmPackageHandler(ctx, { packageName });
-    const insertData = buildPackageInsertData(args, validated, packageName, packageData, submitterEmail);
+    const insertData = buildPackageInsertData(
+      args,
+      validated,
+      packageName,
+      packageData,
+      submitterEmail,
+    );
 
-    const packageId: Id<"packages"> = await ctx.runMutation(internal.packages._addPackage, insertData);
+    const packageId: Id<"packages"> = await ctx.runMutation(
+      internal.packages._addPackage,
+      insertData,
+    );
 
     await scheduleSubmissionFollowups(ctx, {
       packageId,
@@ -1152,7 +1304,9 @@ async function scheduleSubmissionFollowups(
 ) {
   const { packageId, packageName, args, validated, prereqs } = params;
 
-  const inserted = await ctx.runQuery(internal.packages._getPackage, { packageId });
+  const inserted = await ctx.runQuery(internal.packages._getPackage, {
+    packageId,
+  });
   const slugForUrl = inserted?.slug ?? packageName;
   const slackText =
     `New component submission\n` +
@@ -1160,16 +1314,23 @@ async function scheduleSubmissionFollowups(
     `https://www.convex.dev/components/${slugForUrl}\n` +
     `Repo: ${validated.repositoryUrl}\n` +
     `npm: ${validated.npmUrl}`;
-  await ctx.scheduler.runAfter(0, internal.slack.sendMessage, { text: slackText });
+  await ctx.scheduler.runAfter(0, internal.slack.sendMessage, {
+    text: slackText,
+  });
 
   if (prereqs.settings.autoAiReview && args.repositoryUrl) {
-    const _: null = await ctx.runMutation(internal.packages._updateReviewStatus, {
+    const _: null = await ctx.runMutation(
+      internal.packages._updateReviewStatus,
+      {
+        packageId,
+        reviewStatus: "in_review",
+        reviewedBy: "AI",
+        reviewNotes: "Auto AI review queued on submission",
+      },
+    );
+    await ctx.scheduler.runAfter(0, internal.aiReview._runAiReview, {
       packageId,
-      reviewStatus: "in_review",
-      reviewedBy: "AI",
-      reviewNotes: "Auto AI review queued on submission",
     });
-    await ctx.scheduler.runAfter(0, internal.aiReview._runAiReview, { packageId });
   }
 
   if (prereqs.settings.autoSecurityScan && args.repositoryUrl) {
@@ -1198,7 +1359,15 @@ function validateSubmitInputs(args: any) {
     );
   }
 
-  return { repositoryUrl, npmUrl, componentName, shortDescription, longDescription, demoUrl, parsedRepo };
+  return {
+    repositoryUrl,
+    npmUrl,
+    componentName,
+    shortDescription,
+    longDescription,
+    demoUrl,
+    parsedRepo,
+  };
 }
 
 function parsePackageNameFromNpmUrl(npmUrl: string): string {
@@ -1211,10 +1380,19 @@ function parsePackageNameFromNpmUrl(npmUrl: string): string {
   return decodeURIComponent(urlMatch[1]);
 }
 
-function buildPackageInsertData(args: any, validated: any, packageName: string, packageData: any, submitterEmail: string) {
+function buildPackageInsertData(
+  args: any,
+  validated: any,
+  packageName: string,
+  packageData: any,
+  submitterEmail: string,
+) {
   const slug = generateSlugFromName(packageName);
   const parsedTags = args.tags
-    ? args.tags.split(",").map((t: string) => t.trim()).filter(Boolean)
+    ? args.tags
+        .split(",")
+        .map((t: string) => t.trim())
+        .filter(Boolean)
     : undefined;
 
   const authorUsername = validated.parsedRepo?.owner;
@@ -1351,7 +1529,12 @@ async function addPackageHelper(ctx: any, args: any): Promise<Id<"packages">> {
   return await insertNewPackage(ctx, args, maintainerNames);
 }
 
-async function updateExistingPackage(ctx: any, existing: any, args: any, maintainerNames: string): Promise<Id<"packages">> {
+async function updateExistingPackage(
+  ctx: any,
+  existing: any,
+  args: any,
+  maintainerNames: string,
+): Promise<Id<"packages">> {
   await ctx.db.patch("packages", existing._id, {
     description: args.description,
     installCommand: args.installCommand,
@@ -1374,7 +1557,11 @@ async function updateExistingPackage(ctx: any, existing: any, args: any, maintai
   return existing._id;
 }
 
-async function insertNewPackage(ctx: any, args: any, maintainerNames: string): Promise<Id<"packages">> {
+async function insertNewPackage(
+  ctx: any,
+  args: any,
+  maintainerNames: string,
+): Promise<Id<"packages">> {
   let finalSlug = args.slug;
   if (finalSlug) {
     finalSlug = await generateUniqueSlug(ctx, finalSlug);
@@ -1453,7 +1640,9 @@ async function updateNpmDataHelper(ctx: any, args: any) {
   }
 
   // Collaborators need a shallow JSON compare since they're arrays of objects
-  if (JSON.stringify(pkg.collaborators) !== JSON.stringify(args.collaborators)) {
+  if (
+    JSON.stringify(pkg.collaborators) !== JSON.stringify(args.collaborators)
+  ) {
     patch.collaborators = args.collaborators;
   }
 
@@ -1629,17 +1818,27 @@ function isVisiblePackage(pkg: any) {
 }
 
 async function searchAcrossIndexes(ctx: any, searchTerm: string) {
-  const [nameResults, descriptionResults, maintainerResults] = await Promise.all([
-    ctx.db.query("packages")
-      .withSearchIndex("search_name", (q: any) => q.search("name", searchTerm))
-      .take(50),
-    ctx.db.query("packages")
-      .withSearchIndex("search_description", (q: any) => q.search("description", searchTerm))
-      .take(50),
-    ctx.db.query("packages")
-      .withSearchIndex("search_maintainers", (q: any) => q.search("maintainerNames", searchTerm))
-      .take(50),
-  ]);
+  const [nameResults, descriptionResults, maintainerResults] =
+    await Promise.all([
+      ctx.db
+        .query("packages")
+        .withSearchIndex("search_name", (q: any) =>
+          q.search("name", searchTerm),
+        )
+        .take(50),
+      ctx.db
+        .query("packages")
+        .withSearchIndex("search_description", (q: any) =>
+          q.search("description", searchTerm),
+        )
+        .take(50),
+      ctx.db
+        .query("packages")
+        .withSearchIndex("search_maintainers", (q: any) =>
+          q.search("maintainerNames", searchTerm),
+        )
+        .take(50),
+    ]);
   return [...nameResults, ...descriptionResults, ...maintainerResults];
 }
 
@@ -1816,25 +2015,49 @@ export const adminSearchPackages = query({
 });
 
 async function adminSearchAcrossIndexes(ctx: any, searchTerm: string) {
-  const [nameResults, descriptionResults, maintainerResults, componentNameResults, repoResults] =
-    await Promise.all([
-      ctx.db.query("packages")
-        .withSearchIndex("search_name", (q: any) => q.search("name", searchTerm))
-        .take(100),
-      ctx.db.query("packages")
-        .withSearchIndex("search_description", (q: any) => q.search("description", searchTerm))
-        .take(100),
-      ctx.db.query("packages")
-        .withSearchIndex("search_maintainers", (q: any) => q.search("maintainerNames", searchTerm))
-        .take(100),
-      ctx.db.query("packages")
-        .withSearchIndex("search_componentName", (q: any) => q.search("componentName", searchTerm))
-        .take(100),
-      ctx.db.query("packages")
-        .withSearchIndex("search_repositoryUrl", (q: any) => q.search("repositoryUrl", searchTerm))
-        .take(100),
-    ]);
-  return [...nameResults, ...descriptionResults, ...maintainerResults, ...componentNameResults, ...repoResults];
+  const [
+    nameResults,
+    descriptionResults,
+    maintainerResults,
+    componentNameResults,
+    repoResults,
+  ] = await Promise.all([
+    ctx.db
+      .query("packages")
+      .withSearchIndex("search_name", (q: any) => q.search("name", searchTerm))
+      .take(100),
+    ctx.db
+      .query("packages")
+      .withSearchIndex("search_description", (q: any) =>
+        q.search("description", searchTerm),
+      )
+      .take(100),
+    ctx.db
+      .query("packages")
+      .withSearchIndex("search_maintainers", (q: any) =>
+        q.search("maintainerNames", searchTerm),
+      )
+      .take(100),
+    ctx.db
+      .query("packages")
+      .withSearchIndex("search_componentName", (q: any) =>
+        q.search("componentName", searchTerm),
+      )
+      .take(100),
+    ctx.db
+      .query("packages")
+      .withSearchIndex("search_repositoryUrl", (q: any) =>
+        q.search("repositoryUrl", searchTerm),
+      )
+      .take(100),
+  ]);
+  return [
+    ...nameResults,
+    ...descriptionResults,
+    ...maintainerResults,
+    ...componentNameResults,
+    ...repoResults,
+  ];
 }
 
 function dedupeResults(results: any[]) {
@@ -1929,7 +2152,12 @@ export const getPackageByName = query({
 // Internal mutation: Update review status
 type ReviewStatusArgs = {
   packageId: Id<"packages">;
-  reviewStatus: "pending" | "in_review" | "approved" | "changes_requested" | "rejected";
+  reviewStatus:
+    | "pending"
+    | "in_review"
+    | "approved"
+    | "changes_requested"
+    | "rejected";
   reviewNotes?: string;
   reviewedBy: string;
 };
@@ -1988,7 +2216,13 @@ async function updateReviewStatusHelper(ctx: any, args: ReviewStatusArgs) {
   // Notify the submitter about the status change (in-app bell).
   // Fires for every path that changes status: admin manual review, auto AI
   // review setting in_review on submit, and AI auto approve/reject.
-  await createStatusNotification(ctx, existingPkg, previousStatus, args.reviewStatus, reviewedAt);
+  await createStatusNotification(
+    ctx,
+    existingPkg,
+    previousStatus,
+    args.reviewStatus,
+    reviewedAt,
+  );
 
   let shouldAutoGenerateSeo =
     args.reviewStatus === "approved" ||
@@ -2008,11 +2242,9 @@ async function updateReviewStatusHelper(ctx: any, args: ReviewStatusArgs) {
   if (shouldAutoGenerateSeo) {
     const pkg = await ctx.db.get(args.packageId);
     if (pkg && !pkg.seoGeneratedAt) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.seoContent.generateSeoContent,
-        { packageId: args.packageId },
-      );
+      await ctx.scheduler.runAfter(0, internal.seoContent.generateSeoContent, {
+        packageId: args.packageId,
+      });
     }
   }
 
@@ -2033,15 +2265,11 @@ async function updateReviewStatusHelper(ctx: any, args: ReviewStatusArgs) {
             .first();
           const amount = defaultAmountSetting?.value ?? 25;
 
-          await ctx.scheduler.runAfter(
-            0,
-            internal.payments.sendReward,
-            {
-              packageId: args.packageId,
-              amount,
-              sentBy: "auto",
-            },
-          );
+          await ctx.scheduler.runAfter(0, internal.payments.sendReward, {
+            packageId: args.packageId,
+            amount,
+            sentBy: "auto",
+          });
         }
       }
     }
@@ -2365,7 +2593,9 @@ export const getPackageNoteCount = query({
   handler: async (ctx, args) => {
     const notes = await ctx.db
       .query("packageNotes")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .take(1000);
     return notes.length;
   },
@@ -2378,7 +2608,9 @@ export const getUnrepliedUserRequestCount = query({
   handler: async (ctx, args) => {
     const notes = await ctx.db
       .query("packageNotes")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .take(1000);
 
     // Find user requests (notes starting with [User Request])
@@ -2429,10 +2661,7 @@ export const addPackageNote = mutation({
     let isAdminReply = false;
     if (args.parentNoteId) {
       const parentNote = await ctx.db.get(args.parentNoteId);
-      if (
-        parentNote &&
-        parentNote.content.startsWith("[User Request]")
-      ) {
+      if (parentNote && parentNote.content.startsWith("[User Request]")) {
         isAdminReply = true;
       }
     }
@@ -2455,7 +2684,12 @@ export const addPackageNote = mutation({
       const headline = isAdminReply
         ? "Admin reply (legacy request) on"
         : "Internal admin note on";
-      const text = formatSlackNotification(pkg, headline, `Admin (${adminEmail})`, args.content);
+      const text = formatSlackNotification(
+        pkg,
+        headline,
+        `Admin (${adminEmail})`,
+        args.content,
+      );
       await ctx.scheduler.runAfter(0, internal.slack.sendMessage, { text });
     }
 
@@ -2494,14 +2728,17 @@ export const markNotesAsReadForAdmin = mutation({
 
     const notes = await ctx.db
       .query("packageNotes")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .take(1000);
 
     // Mark user requests (not from @convex.dev emails) as admin-read
     const updates = notes
       .filter(
         (note) =>
-          !note.authorEmail.endsWith("@convex.dev") && note.adminHasRead !== true
+          !note.authorEmail.endsWith("@convex.dev") &&
+          note.adminHasRead !== true,
       )
       .map((note) => ctx.db.patch(note._id, { adminHasRead: true }));
 
@@ -2517,13 +2754,15 @@ export const getUnreadUserNotesCount = query({
   handler: async (ctx, args) => {
     const notes = await ctx.db
       .query("packageNotes")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .take(1000);
 
     // Count notes from non-admin users that haven't been read by admin
     return notes.filter(
       (note) =>
-        !note.authorEmail.endsWith("@convex.dev") && note.adminHasRead !== true
+        !note.authorEmail.endsWith("@convex.dev") && note.adminHasRead !== true,
     ).length;
   },
 });
@@ -2537,7 +2776,9 @@ export const markCommentsAsReadForAdmin = mutation({
 
     const comments = await ctx.db
       .query("packageComments")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .take(1000);
 
     // Mark unread user messages as read for admin
@@ -2577,7 +2818,9 @@ export const getUnreadCommentsCount = query({
   handler: async (ctx, args) => {
     const comments = await ctx.db
       .query("packageComments")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .take(1000);
 
     return comments.filter(
@@ -2673,7 +2916,10 @@ export const backfillPackageReliabilityFields = mutation({
 // ============ AI REVIEW FUNCTIONS ============
 
 // Update AI review status only (for "reviewing" state)
-async function updateAiReviewStatusHelper(ctx: any, args: { packageId: Id<"packages">; status: string }) {
+async function updateAiReviewStatusHelper(
+  ctx: any,
+  args: { packageId: Id<"packages">; status: string },
+) {
   await ctx.db.patch("packages", args.packageId, {
     aiReviewStatus: args.status,
   });
@@ -2794,7 +3040,9 @@ export const getAiReviewRunsForPackage = query({
 
     return await ctx.db
       .query("aiReviewRuns")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .order("desc")
       .take(1000);
   },
@@ -2814,11 +3062,7 @@ export const _createAiReviewRun = internalMutation({
     criteria: v.array(aiReviewCriterionValidator),
     error: v.optional(v.string()),
     provider: v.optional(
-      v.union(
-        v.literal("anthropic"),
-        v.literal("openai"),
-        v.literal("gemini"),
-      ),
+      v.union(v.literal("anthropic"), v.literal("openai"), v.literal("gemini")),
     ),
     model: v.optional(v.string()),
     source: v.optional(v.string()),
@@ -2856,11 +3100,7 @@ export const _saveAiReviewResultAndRun = internalMutation({
     error: v.optional(v.string()),
     createdAt: v.number(),
     provider: v.optional(
-      v.union(
-        v.literal("anthropic"),
-        v.literal("openai"),
-        v.literal("gemini"),
-      ),
+      v.union(v.literal("anthropic"), v.literal("openai"), v.literal("gemini")),
     ),
     model: v.optional(v.string()),
     source: v.optional(v.string()),
@@ -2907,7 +3147,9 @@ export const deleteAiReviewRun = mutation({
 
     const latestRun = await ctx.db
       .query("aiReviewRuns")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", run.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", run.packageId),
+      )
       .order("desc")
       .first();
 
@@ -3226,11 +3468,9 @@ export const runSecurityScanBacklog = mutation({
     const batch = eligible.slice(0, limit);
     for (const pkg of batch) {
       await ctx.db.patch(pkg._id, { securityScanStatus: "scanning" as const });
-      await ctx.scheduler.runAfter(
-        0,
-        internal.securityScan._runSecurityScan,
-        { packageId: pkg._id },
-      );
+      await ctx.scheduler.runAfter(0, internal.securityScan._runSecurityScan, {
+        packageId: pkg._id,
+      });
     }
     return { queued: batch.length };
   },
@@ -3246,8 +3486,7 @@ export const scheduledSecurityScanCheck = internalMutation({
     if (scheduleDays <= 0) return null;
 
     const anyProviderEnabled =
-      settings.enableSocketScan ||
-      settings.enableSnykScan;
+      settings.enableSocketScan || settings.enableSnykScan;
     if (!anyProviderEnabled) return null;
 
     const cutoff = Date.now() - scheduleDays * 24 * 60 * 60 * 1000;
@@ -3264,11 +3503,9 @@ export const scheduledSecurityScanCheck = internalMutation({
     // Queue up to 20 scans per run to avoid overwhelming providers
     const batch = eligible.slice(0, 20);
     for (const pkg of batch) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.securityScan._runSecurityScan,
-        { packageId: pkg._id },
-      );
+      await ctx.scheduler.runAfter(0, internal.securityScan._runSecurityScan, {
+        packageId: pkg._id,
+      });
     }
     return null;
   },
@@ -3296,33 +3533,23 @@ async function getAdminSettingsHelper(ctx: QueryCtx) {
     .first();
   const autoGenerateThumb = await ctx.db
     .query("adminSettings")
-    .withIndex("by_key", (q) =>
-      q.eq("key", "autoGenerateThumbnailOnSubmit"),
-    )
+    .withIndex("by_key", (q) => q.eq("key", "autoGenerateThumbnailOnSubmit"))
     .first();
   const rotateTemplates = await ctx.db
     .query("adminSettings")
-    .withIndex("by_key", (q) =>
-      q.eq("key", "rotateThumbnailTemplatesOnSubmit"),
-    )
+    .withIndex("by_key", (q) => q.eq("key", "rotateThumbnailTemplatesOnSubmit"))
     .first();
   const showRelated = await ctx.db
     .query("adminSettings")
-    .withIndex("by_key", (q) =>
-      q.eq("key", "showRelatedOnDetailPage"),
-    )
+    .withIndex("by_key", (q) => q.eq("key", "showRelatedOnDetailPage"))
     .first();
   const autoSendReward = await ctx.db
     .query("adminSettings")
-    .withIndex("by_key", (q) =>
-      q.eq("key", "autoSendRewardOnApprove"),
-    )
+    .withIndex("by_key", (q) => q.eq("key", "autoSendRewardOnApprove"))
     .first();
   const defaultRewardAmount = await ctx.db
     .query("adminSettingsNumeric")
-    .withIndex("by_key", (q) =>
-      q.eq("key", "defaultRewardAmount"),
-    )
+    .withIndex("by_key", (q) => q.eq("key", "defaultRewardAmount"))
     .first();
   const apiAccessEnabled = await ctx.db
     .query("adminSettings")
@@ -3560,7 +3787,11 @@ export const getPackageComments = query({
       adminHasRead: v.optional(v.boolean()),
       userHasRead: v.optional(v.boolean()),
       status: v.optional(
-        v.union(v.literal("active"), v.literal("hidden"), v.literal("archived")),
+        v.union(
+          v.literal("active"),
+          v.literal("hidden"),
+          v.literal("archived"),
+        ),
       ),
       statusUpdatedAt: v.optional(v.number()),
     }),
@@ -3594,7 +3825,9 @@ export const getPackageComments = query({
       return comments;
     }
 
-    return comments.filter((comment) => comment.status !== "hidden" && comment.status !== "archived");
+    return comments.filter(
+      (comment) => comment.status !== "hidden" && comment.status !== "archived",
+    );
   },
 });
 
@@ -3621,7 +3854,9 @@ export const getPackageCommentCount = query({
 
     const comments = await ctx.db
       .query("packageComments")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .take(1000);
     return comments.filter(
       (comment) => comment.status === undefined || comment.status === "active",
@@ -3667,8 +3902,15 @@ export const addPackageComment = mutation({
     });
 
     // Notify via Slack when a private message is added.
-    const fromLabel = isAdmin ? `Admin (${userEmail})` : `Submitter (${userEmail})`;
-    const text = formatSlackNotification(pkg, "New private message on", fromLabel, args.content);
+    const fromLabel = isAdmin
+      ? `Admin (${userEmail})`
+      : `Submitter (${userEmail})`;
+    const text = formatSlackNotification(
+      pkg,
+      "New private message on",
+      fromLabel,
+      args.content,
+    );
     await ctx.scheduler.runAfter(0, internal.slack.sendMessage, { text });
 
     return commentId;
@@ -3700,7 +3942,9 @@ export const deletePackageComment = mutation({
     const adminIdentity = await getAdminIdentity(ctx);
     const isAdmin = adminIdentity?.email.endsWith("@convex.dev") ?? false;
     if (!isAdmin && !userOwnsPackage(pkg, userEmail)) {
-      throw new ConvexError("You can only manage messages on your own submissions");
+      throw new ConvexError(
+        "You can only manage messages on your own submissions",
+      );
     }
 
     if (comment.authorEmail !== userEmail) {
@@ -3716,7 +3960,11 @@ export const deletePackageComment = mutation({
 export const updatePackageCommentStatus = mutation({
   args: {
     commentId: v.id("packageComments"),
-    status: v.union(v.literal("active"), v.literal("hidden"), v.literal("archived")),
+    status: v.union(
+      v.literal("active"),
+      v.literal("hidden"),
+      v.literal("archived"),
+    ),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -3738,7 +3986,9 @@ export const updatePackageCommentStatus = mutation({
     const adminIdentity = await getAdminIdentity(ctx);
     const isAdmin = adminIdentity?.email.endsWith("@convex.dev") ?? false;
     if (!isAdmin && !userOwnsPackage(pkg, userEmail)) {
-      throw new ConvexError("You can only manage messages on your own submissions");
+      throw new ConvexError(
+        "You can only manage messages on your own submissions",
+      );
     }
 
     if (comment.authorEmail !== userEmail) {
@@ -3755,7 +4005,7 @@ export const updatePackageCommentStatus = mutation({
 
 // ============ AUTO-REFRESH SYSTEM ============
 
-// Get auto-refresh settings
+// Get auto-refresh settings (admin only; non-admins get defaults)
 export const getRefreshSettings = query({
   args: {},
   returns: v.object({
@@ -3763,6 +4013,11 @@ export const getRefreshSettings = query({
     refreshIntervalDays: v.number(),
   }),
   handler: async (ctx) => {
+    const adminIdentity = await getAdminIdentity(ctx);
+    if (!adminIdentity) {
+      return { autoRefreshEnabled: false, refreshIntervalDays: 3 };
+    }
+
     const enabledSetting = await ctx.db
       .query("adminSettings")
       .withIndex("by_key", (q) => q.eq("key", "autoRefreshEnabled"))
@@ -3780,7 +4035,7 @@ export const getRefreshSettings = query({
   },
 });
 
-// Update auto-refresh settings
+// Update auto-refresh settings (admin only)
 export const updateRefreshSetting = mutation({
   args: {
     key: v.union(
@@ -3791,6 +4046,8 @@ export const updateRefreshSetting = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
     if (args.key === "autoRefreshEnabled") {
       // Boolean setting
       const existing = await ctx.db
@@ -3799,7 +4056,9 @@ export const updateRefreshSetting = mutation({
         .first();
 
       if (existing) {
-        await ctx.db.patch("adminSettings", existing._id, { value: args.value as boolean });
+        await ctx.db.patch("adminSettings", existing._id, {
+          value: args.value as boolean,
+        });
       } else {
         await ctx.db.insert("adminSettings", {
           key: args.key,
@@ -3814,7 +4073,9 @@ export const updateRefreshSetting = mutation({
         .first();
 
       if (existing) {
-        await ctx.db.patch("adminSettingsNumeric", existing._id, { value: args.value as number });
+        await ctx.db.patch("adminSettingsNumeric", existing._id, {
+          value: args.value as number,
+        });
       } else {
         await ctx.db.insert("adminSettingsNumeric", {
           key: args.key,
@@ -3848,6 +4109,15 @@ export const getRefreshStats = query({
     ),
   }),
   handler: async (ctx, args) => {
+    const adminIdentity = await getAdminIdentity(ctx);
+    if (!adminIdentity) {
+      return {
+        packagesNeedingRefresh: 0,
+        totalPackages: 0,
+        lastRefreshRun: null,
+      };
+    }
+
     // Get refresh settings for interval
     const intervalSetting = await ctx.db
       .query("adminSettingsNumeric")
@@ -3859,11 +4129,15 @@ export const getRefreshStats = query({
     // Get all approved/visible packages
     const allPackages = await ctx.db
       .query("packages")
-      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) =>
+        q.eq("reviewStatus", "approved"),
+      )
       .take(1000);
 
     // Exclude archived, then count packages needing refresh
-    const nonArchived = allPackages.filter((pkg) => pkg.visibility !== "archived");
+    const nonArchived = allPackages.filter(
+      (pkg) => pkg.visibility !== "archived",
+    );
     const needingRefresh = nonArchived.filter(
       (pkg) => !pkg.lastRefreshedAt || pkg.lastRefreshedAt < staleThreshold,
     ).length;
@@ -3918,6 +4192,11 @@ export const getRecentRefreshLogs = query({
     }),
   ),
   handler: async (ctx) => {
+    const adminIdentity = await getAdminIdentity(ctx);
+    if (!adminIdentity) {
+      return [];
+    }
+
     const logs = await ctx.db
       .query("refreshLogs")
       .withIndex("by_run_at")
@@ -3929,20 +4208,23 @@ export const getRecentRefreshLogs = query({
 });
 
 // Internal query: Get packages needing refresh (for cron)
+// Returns only { _id, name } so entries pass _refreshPackageBatch arg
+// validation (extra fields make scheduled batches fail silently).
 export const _getStalePackages = internalQuery({
   args: { staleThreshold: v.number(), limit: v.number() },
   returns: v.array(
     v.object({
       _id: v.id("packages"),
       name: v.string(),
-      lastRefreshedAt: v.optional(v.number()),
     }),
   ),
   handler: async (ctx, args) => {
     // Get approved packages that need refresh
     const packages = await ctx.db
       .query("packages")
-      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) =>
+        q.eq("reviewStatus", "approved"),
+      )
       .take(5000);
 
     // Filter non-archived and sort by staleness (never refreshed first, then oldest)
@@ -3962,7 +4244,6 @@ export const _getStalePackages = internalQuery({
       .map((pkg) => ({
         _id: pkg._id,
         name: pkg.name,
-        lastRefreshedAt: pkg.lastRefreshedAt,
       }));
 
     return stalePackages;
@@ -3981,7 +4262,9 @@ export const _getAllApprovedPackages = internalQuery({
   handler: async (ctx, args) => {
     const packages = await ctx.db
       .query("packages")
-      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) =>
+        q.eq("reviewStatus", "approved"),
+      )
       .take(args.limit);
 
     return packages
@@ -4231,7 +4514,11 @@ export const _refreshPackageBatch = internalAction({
       { packageIds: args.packages.map((p) => p._id) },
     );
 
-    const results = await processRefreshBatch(ctx, args.packages, existingPkgsMap);
+    const results = await processRefreshBatch(
+      ctx,
+      args.packages,
+      existingPkgsMap,
+    );
     await finalizeRefreshBatch(ctx, args.logId, results, args.isLastBatch);
     return null;
   },
@@ -4240,7 +4527,11 @@ export const _refreshPackageBatch = internalAction({
 type RefreshBatchResult = {
   succeeded: number;
   failed: number;
-  errors: Array<{ packageId: Id<"packages">; packageName: string; error: string }>;
+  errors: Array<{
+    packageId: Id<"packages">;
+    packageName: string;
+    error: string;
+  }>;
 };
 
 async function processRefreshBatch(
@@ -4255,15 +4546,23 @@ async function processRefreshBatch(
   for (const pkg of packages) {
     try {
       const existingPkg = existingPkgsMap[pkg._id];
-      await fetchAndUpdateNpmData(ctx, pkg._id, { ...existingPkg, name: pkg.name });
+      await fetchAndUpdateNpmData(ctx, pkg._id, {
+        ...existingPkg,
+        name: pkg.name,
+      });
       succeeded++;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
       await ctx.runMutation(internal.packages._setPackageRefreshError, {
         packageId: pkg._id,
         error: errorMessage,
       });
-      errors.push({ packageId: pkg._id, packageName: pkg.name, error: errorMessage });
+      errors.push({
+        packageId: pkg._id,
+        packageName: pkg.name,
+        error: errorMessage,
+      });
       failed++;
     }
   }
@@ -4304,7 +4603,8 @@ export const scheduledRefreshCheck = internalAction({
       return null;
     }
 
-    const staleThreshold = Date.now() - config.intervalDays * 24 * 60 * 60 * 1000;
+    const staleThreshold =
+      Date.now() - config.intervalDays * 24 * 60 * 60 * 1000;
     const stalePackages = await ctx.runQuery(
       internal.packages._getStalePackages,
       { staleThreshold, limit: 100 },
@@ -4334,7 +4634,11 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
   return chunks;
 }
 
-async function scheduleRefreshBatches(ctx: any, packages: any[], logId: Id<"refreshLogs">) {
+async function scheduleRefreshBatches(
+  ctx: any,
+  packages: any[],
+  logId: Id<"refreshLogs">,
+) {
   const batches = chunkArray(packages, 10);
   for (let i = 0; i < batches.length; i++) {
     await ctx.scheduler.runAfter(
@@ -4464,6 +4768,7 @@ const directoryCardValidator = v.object({
   hideThumbnailInCategory: v.optional(v.boolean()),
   convexVerified: v.optional(v.boolean()),
   communitySubmitted: v.optional(v.boolean()),
+  curatedBadges: v.optional(v.array(curatedBadgeValidator)),
   authorUsername: v.optional(v.string()),
   authorAvatar: v.optional(v.string()),
   weeklyDownloads: v.number(),
@@ -4541,6 +4846,7 @@ function toDirectoryCard(pkg: any) {
     hideThumbnailInCategory: pkg.hideThumbnailInCategory,
     convexVerified: pkg.convexVerified,
     communitySubmitted: pkg.communitySubmitted,
+    curatedBadges: pkg.curatedBadges,
     authorUsername: pkg.authorUsername,
     authorAvatar: pkg.authorAvatar,
     weeklyDownloads: pkg.weeklyDownloads ?? 0,
@@ -4579,10 +4885,15 @@ export const listApprovedComponents = query({
 
       if (categoryDoc?.derivedFrom === "official") {
         packages = await listApprovedOfficialPackages(ctx);
+      } else if (categoryDoc?.kind === "curated") {
+        // Curated categories resolve membership through the join table.
+        packages = await listApprovedCuratedPackages(ctx, categoryDoc._id);
       } else {
         packages = await ctx.db
           .query("packages")
-          .withIndex("by_category_and_visibility", (q) => q.eq("category", args.category))
+          .withIndex("by_category_and_visibility", (q) =>
+            q.eq("category", args.category),
+          )
           .take(1000);
         packages = packages.filter(
           (pkg) =>
@@ -4594,7 +4905,10 @@ export const listApprovedComponents = query({
     } else {
       packages = await ctx.db
         .query("packages")
-        .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+        .withIndex(
+          "by_reviewStatus_and_visibility_and_markedForDeletion",
+          (q) => q.eq("reviewStatus", "approved"),
+        )
         .take(1000);
       packages = packages.filter(
         (pkg) =>
@@ -4718,7 +5032,9 @@ export const getRelatedComponents = query({
 
     const approved = await ctx.db
       .query("packages")
-      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) =>
+        q.eq("reviewStatus", "approved"),
+      )
       .take(1000);
 
     const candidates = approved.filter(
@@ -4818,13 +5134,18 @@ export const getMySubmissions = query({
         pkg.submitterEmail !== userEmail,
     );
 
-    const packages = mergeAndDedupePackages(packagesBySubmitter, packagesByAdditionalEmail);
+    const packages = mergeAndDedupePackages(
+      packagesBySubmitter,
+      packagesByAdditionalEmail,
+    );
 
     return await Promise.all(
       packages.map(async (pkg) => {
         const comments = await ctx.db
           .query("packageComments")
-          .withIndex("by_package_and_created", (q) => q.eq("packageId", pkg._id))
+          .withIndex("by_package_and_created", (q) =>
+            q.eq("packageId", pkg._id),
+          )
           .take(1000);
         const unreadCount = comments.filter(
           (c) =>
@@ -4859,7 +5180,9 @@ export const requestSubmissionRefresh = mutation({
       throw new ConvexError("Package not found");
     }
     if (!userOwnsPackage(pkg, userEmail)) {
-      throw new ConvexError("You can only request refresh for your own submissions");
+      throw new ConvexError(
+        "You can only request refresh for your own submissions",
+      );
     }
 
     // Create a private user<->admin message
@@ -4875,7 +5198,12 @@ export const requestSubmissionRefresh = mutation({
     });
 
     // Notify via Slack when a private message is added.
-    const text = formatSlackNotification(pkg, "New private message on", `Submitter (${userEmail})`, args.note);
+    const text = formatSlackNotification(
+      pkg,
+      "New private message on",
+      `Submitter (${userEmail})`,
+      args.note,
+    );
     await ctx.scheduler.runAfter(0, internal.slack.sendMessage, { text });
 
     return null;
@@ -4939,6 +5267,7 @@ export const refreshMyReadme = mutation({
 
     await ctx.scheduler.runAfter(0, internal.seoContent.refreshReadme, {
       packageId: args.packageId,
+      source: "profile",
     });
 
     return null;
@@ -4961,7 +5290,11 @@ export const getMyPackageNotes = query({
       isOwnMessage: v.boolean(),
       userHasRead: v.optional(v.boolean()),
       status: v.optional(
-        v.union(v.literal("active"), v.literal("hidden"), v.literal("archived")),
+        v.union(
+          v.literal("active"),
+          v.literal("hidden"),
+          v.literal("archived"),
+        ),
       ),
     }),
   ),
@@ -4987,12 +5320,18 @@ export const getMyPackageNotes = query({
 
     const visibleComments = args.includeInactive
       ? comments
-      : comments.filter((comment) => comment.status !== "hidden" && comment.status !== "archived");
+      : comments.filter(
+          (comment) =>
+            comment.status !== "hidden" && comment.status !== "archived",
+        );
 
     return visibleComments.map((comment) => ({
       _id: comment._id,
       content: comment.content,
-      authorName: comment.authorEmail === userEmail ? "You" : (comment.authorName ?? "Convex Team"),
+      authorName:
+        comment.authorEmail === userEmail
+          ? "You"
+          : (comment.authorName ?? "Convex Team"),
       isFromAdmin: comment.authorEmail.endsWith("@convex.dev"),
       createdAt: comment.createdAt,
       isOwnMessage: comment.authorEmail === userEmail,
@@ -5020,7 +5359,9 @@ export const getUnreadAdminReplyCount = query({
 
     const comments = await ctx.db
       .query("packageComments")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .take(1000);
 
     return comments.filter(
@@ -5045,12 +5386,16 @@ export const markPackageNotesAsRead = mutation({
     // Verify package belongs to user
     const pkg = await ctx.db.get(args.packageId);
     if (!pkg || !userOwnsPackage(pkg, userEmail)) {
-      throw new ConvexError("You can only access notes for your own submissions");
+      throw new ConvexError(
+        "You can only access notes for your own submissions",
+      );
     }
 
     const comments = await ctx.db
       .query("packageComments")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .take(1000);
 
     // Mark unread admin messages as read
@@ -5085,7 +5430,9 @@ export const markPackageCommentReadForUser = mutation({
 
     const pkg = await ctx.db.get(comment.packageId);
     if (!pkg || !userOwnsPackage(pkg, userEmail)) {
-      throw new ConvexError("You can only mark messages on your own submissions");
+      throw new ConvexError(
+        "You can only mark messages on your own submissions",
+      );
     }
 
     await ctx.db.patch(args.commentId, { userHasRead: true });
@@ -5200,28 +5547,36 @@ export const _permanentlyDeletePackage = internalMutation({
     // Delete associated notes
     const notes = await ctx.db
       .query("packageNotes")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .take(10000);
     await Promise.all(notes.map((note) => ctx.db.delete(note._id)));
 
     // Delete associated comments
     const comments = await ctx.db
       .query("packageComments")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .take(10000);
     await Promise.all(comments.map((comment) => ctx.db.delete(comment._id)));
 
     // Delete associated ratings
     const ratings = await ctx.db
       .query("componentRatings")
-      .withIndex("by_package_and_session", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_session", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .take(10000);
     await Promise.all(ratings.map((rating) => ctx.db.delete(rating._id)));
 
     // Delete thumbnail jobs
     const jobs = await ctx.db
       .query("thumbnailJobs")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .take(10000);
     await Promise.all(jobs.map((job) => ctx.db.delete(job._id)));
 
@@ -5256,28 +5611,36 @@ export const adminPermanentlyDeletePackage = mutation({
     // Delete associated notes
     const notes = await ctx.db
       .query("packageNotes")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .take(10000);
     await Promise.all(notes.map((note) => ctx.db.delete(note._id)));
 
     // Delete associated comments
     const comments = await ctx.db
       .query("packageComments")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .take(10000);
     await Promise.all(comments.map((comment) => ctx.db.delete(comment._id)));
 
     // Delete associated ratings
     const ratings = await ctx.db
       .query("componentRatings")
-      .withIndex("by_package_and_session", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_session", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .take(10000);
     await Promise.all(ratings.map((rating) => ctx.db.delete(rating._id)));
 
     // Delete thumbnail jobs
     const jobs = await ctx.db
       .query("thumbnailJobs")
-      .withIndex("by_package_and_created", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_created", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .take(10000);
     await Promise.all(jobs.map((job) => ctx.db.delete(job._id)));
 
@@ -5306,7 +5669,7 @@ export const getPackagesMarkedForDeletion = query({
       submitterEmail: v.optional(v.string()),
       markedForDeletionAt: v.optional(v.number()),
       markedForDeletionBy: v.optional(v.string()),
-    })
+    }),
   ),
   handler: async (ctx) => {
     const admin = await getAdminIdentity(ctx);
@@ -5316,7 +5679,9 @@ export const getPackagesMarkedForDeletion = query({
 
     const packages = await ctx.db
       .query("packages")
-      .withIndex("by_marked_for_deletion", (q) => q.eq("markedForDeletion", true))
+      .withIndex("by_marked_for_deletion", (q) =>
+        q.eq("markedForDeletion", true),
+      )
       .take(1000);
 
     return packages.map((pkg) => ({
@@ -5358,14 +5723,20 @@ export const getDeletionCleanupSettings = query({
 // Mutation: Update deletion cleanup settings
 export const updateDeletionCleanupSetting = mutation({
   args: {
-    key: v.union(v.literal("autoDeleteMarkedPackages"), v.literal("deleteIntervalDays")),
+    key: v.union(
+      v.literal("autoDeleteMarkedPackages"),
+      v.literal("deleteIntervalDays"),
+    ),
     value: v.union(v.boolean(), v.number()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
     await requireAdminIdentity(ctx);
 
-    if (args.key === "autoDeleteMarkedPackages" && typeof args.value === "boolean") {
+    if (
+      args.key === "autoDeleteMarkedPackages" &&
+      typeof args.value === "boolean"
+    ) {
       const existing = await ctx.db
         .query("adminSettings")
         .withIndex("by_key", (q) => q.eq("key", args.key))
@@ -5374,9 +5745,15 @@ export const updateDeletionCleanupSetting = mutation({
       if (existing) {
         await ctx.db.patch(existing._id, { value: args.value });
       } else {
-        await ctx.db.insert("adminSettings", { key: args.key, value: args.value });
+        await ctx.db.insert("adminSettings", {
+          key: args.key,
+          value: args.value,
+        });
       }
-    } else if (args.key === "deleteIntervalDays" && typeof args.value === "number") {
+    } else if (
+      args.key === "deleteIntervalDays" &&
+      typeof args.value === "number"
+    ) {
       const existing = await ctx.db
         .query("adminSettingsNumeric")
         .withIndex("by_key", (q) => q.eq("key", args.key))
@@ -5385,7 +5762,10 @@ export const updateDeletionCleanupSetting = mutation({
       if (existing) {
         await ctx.db.patch(existing._id, { value: args.value });
       } else {
-        await ctx.db.insert("adminSettingsNumeric", { key: args.key, value: args.value });
+        await ctx.db.insert("adminSettingsNumeric", {
+          key: args.key,
+          value: args.value,
+        });
       }
     }
 
@@ -5394,12 +5774,31 @@ export const updateDeletionCleanupSetting = mutation({
 });
 
 // Internal action: Scheduled cleanup of packages marked for deletion
-async function deletePackageAndRelatedData(ctx: any, packageId: Id<"packages">) {
+async function deletePackageAndRelatedData(
+  ctx: any,
+  packageId: Id<"packages">,
+) {
   const tables: Array<{ table: string; index: string; field: string }> = [
-    { table: "packageNotes", index: "by_package_and_created", field: "packageId" },
-    { table: "packageComments", index: "by_package_and_created", field: "packageId" },
-    { table: "componentRatings", index: "by_package_and_session", field: "packageId" },
-    { table: "thumbnailJobs", index: "by_package_and_created", field: "packageId" },
+    {
+      table: "packageNotes",
+      index: "by_package_and_created",
+      field: "packageId",
+    },
+    {
+      table: "packageComments",
+      index: "by_package_and_created",
+      field: "packageId",
+    },
+    {
+      table: "componentRatings",
+      index: "by_package_and_session",
+      field: "packageId",
+    },
+    {
+      table: "thumbnailJobs",
+      index: "by_package_and_created",
+      field: "packageId",
+    },
     { table: "badgeFetches", index: "by_package", field: "packageId" },
   ];
   for (const { table, index } of tables) {
@@ -5431,7 +5830,9 @@ export const scheduledDeletionCleanup = internalMutation({
 
     const packagesToDelete = await ctx.db
       .query("packages")
-      .withIndex("by_marked_for_deletion", (q) => q.eq("markedForDeletion", true))
+      .withIndex("by_marked_for_deletion", (q) =>
+        q.eq("markedForDeletion", true),
+      )
       .take(10000);
     const eligible = packagesToDelete.filter(
       (pkg) => pkg.markedForDeletionAt && pkg.markedForDeletionAt < cutoffTime,
@@ -5461,10 +5862,12 @@ export const deleteMyAccount = mutation({
       .take(10000);
 
     // Check if user has any active submissions (not marked for deletion)
-    const activeSubmissions = userPackages.filter((pkg) => !pkg.markedForDeletion);
+    const activeSubmissions = userPackages.filter(
+      (pkg) => !pkg.markedForDeletion,
+    );
     if (activeSubmissions.length > 0) {
       throw new ConvexError(
-        `You must delete all your components before deleting your account. You have ${activeSubmissions.length} active submission(s).`
+        `You must delete all your components before deleting your account. You have ${activeSubmissions.length} active submission(s).`,
       );
     }
 
@@ -5473,13 +5876,13 @@ export const deleteMyAccount = mutation({
     const additionalEmailPackages = allPackages.filter(
       (pkg) =>
         pkg.additionalEmails?.includes(userEmail) &&
-        pkg.submitterEmail !== userEmail
+        pkg.submitterEmail !== userEmail,
     );
 
     for (const pkg of additionalEmailPackages) {
       if (pkg.additionalEmails) {
         const updatedEmails = pkg.additionalEmails.filter(
-          (e) => e !== userEmail
+          (e) => e !== userEmail,
         );
         await ctx.db.patch(pkg._id, {
           additionalEmails:
@@ -5496,9 +5899,19 @@ export const deleteMyAccount = mutation({
 function buildSubmissionUpdates(args: any, pkg: any) {
   const updates: Record<string, string | string[] | number | undefined> = {};
   const fields = [
-    "componentName", "shortDescription", "longDescription", "category", "tags",
-    "demoUrl", "videoUrl", "repositoryUrl", "npmUrl", "generatedDescription",
-    "generatedUseCases", "generatedHowItWorks", "readmeIncludedMarkdown",
+    "componentName",
+    "shortDescription",
+    "longDescription",
+    "category",
+    "tags",
+    "demoUrl",
+    "videoUrl",
+    "repositoryUrl",
+    "npmUrl",
+    "generatedDescription",
+    "generatedUseCases",
+    "generatedHowItWorks",
+    "readmeIncludedMarkdown",
     "readmeIncludeSource",
   ] as const;
   for (const f of fields) {
@@ -5508,11 +5921,15 @@ function buildSubmissionUpdates(args: any, pkg: any) {
     updates.generatedUseCases = normalizeMarkdown(updates.generatedUseCases);
   }
   if (typeof updates.generatedHowItWorks === "string") {
-    updates.generatedHowItWorks = normalizeMarkdown(updates.generatedHowItWorks);
+    updates.generatedHowItWorks = normalizeMarkdown(
+      updates.generatedHowItWorks,
+    );
   }
 
   if (
-    (args.generatedDescription || args.generatedUseCases || args.generatedHowItWorks) &&
+    (args.generatedDescription ||
+      args.generatedUseCases ||
+      args.generatedHowItWorks) &&
     !pkg.contentModelVersion
   ) {
     updates.contentModelVersion = 2;
@@ -5522,13 +5939,15 @@ function buildSubmissionUpdates(args: any, pkg: any) {
 
   const desc = (args.generatedDescription ?? pkg.generatedDescription) || "";
   const useCases = (args.generatedUseCases ?? pkg.generatedUseCases) || "";
-  const howItWorks = (args.generatedHowItWorks ?? pkg.generatedHowItWorks) || "";
+  const howItWorks =
+    (args.generatedHowItWorks ?? pkg.generatedHowItWorks) || "";
   if (desc && useCases && howItWorks) {
     updates.skillMd = buildSkillMdFromContent(
       {
         name: pkg.name,
         componentName: (args.componentName ?? pkg.componentName) || undefined,
-        shortDescription: (args.shortDescription ?? pkg.shortDescription) || undefined,
+        shortDescription:
+          (args.shortDescription ?? pkg.shortDescription) || undefined,
         description: pkg.description,
         repositoryUrl: (args.repositoryUrl ?? pkg.repositoryUrl) || undefined,
         npmUrl: args.npmUrl ?? pkg.npmUrl,
@@ -5900,9 +6319,7 @@ export const getTotalUnreadAdminReplies = query({
     // Get all packages submitted by user
     const packages = await ctx.db
       .query("packages")
-      .withIndex("by_submitter_email", (q) =>
-        q.eq("submitterEmail", userEmail),
-      )
+      .withIndex("by_submitter_email", (q) => q.eq("submitterEmail", userEmail))
       .take(1000);
 
     if (packages.length === 0) return 0;
@@ -6021,11 +6438,20 @@ export const getAdminUnreadMessagesByPackage = query({
     // Scan recent comments directly. Ordered by createdAt desc via the default
     // _creationTime index. Unread admin flags are rare relative to total
     // comments, so we read a bounded window and filter in memory.
-    const recent = await ctx.db.query("packageComments").order("desc").take(2000);
+    const recent = await ctx.db
+      .query("packageComments")
+      .order("desc")
+      .take(2000);
 
     const grouped = new Map<
       Id<"packages">,
-      { packageId: Id<"packages">; packageName: string; slug: string | undefined; unreadCount: number; lastMessageAt: number }
+      {
+        packageId: Id<"packages">;
+        packageName: string;
+        slug: string | undefined;
+        unreadCount: number;
+        lastMessageAt: number;
+      }
     >();
 
     // A comment is a submitter message when adminHasRead !== true. The write
@@ -6079,6 +6505,9 @@ export const listCategories = query({
       // True when membership is computed by rule (official components) rather than
       // assigned per package. Derived categories are not offered in category pickers.
       derived: v.boolean(),
+      // True when membership is hand-picked by admins (curated categories).
+      // Curated categories are also excluded from category pickers.
+      curated: v.boolean(),
       // Hide every thumbnail when rendering this category's components.
       hideThumbnails: v.boolean(),
     }),
@@ -6096,6 +6525,7 @@ export const listCategories = query({
       count: cat.packageCount ?? 0,
       verifiedCount: cat.verifiedCount ?? 0,
       derived: cat.derivedFrom !== undefined,
+      curated: cat.kind === "curated",
       hideThumbnails: cat.hideThumbnails ?? false,
     }));
   },
@@ -6125,21 +6555,26 @@ export const getCategoryBySlug = query({
       return null;
     }
 
-    // Count packages in this category. Derived categories resolve membership by rule.
+    // Count packages in this category. Derived categories resolve membership by
+    // rule; curated categories resolve it through the memberships join table.
     const visible =
       category.derivedFrom === "official"
         ? await listApprovedOfficialPackages(ctx)
-        : (
-            await ctx.db
-              .query("packages")
-              .withIndex("by_category_and_visibility", (q) => q.eq("category", args.slug))
-              .take(1000)
-          ).filter(
-            (pkg) =>
-              pkg.reviewStatus === "approved" &&
-              (!pkg.visibility || pkg.visibility === "visible") &&
-              !pkg.markedForDeletion,
-          );
+        : category.kind === "curated"
+          ? await listApprovedCuratedPackages(ctx, category._id)
+          : (
+              await ctx.db
+                .query("packages")
+                .withIndex("by_category_and_visibility", (q) =>
+                  q.eq("category", args.slug),
+                )
+                .take(1000)
+            ).filter(
+              (pkg) =>
+                pkg.reviewStatus === "approved" &&
+                (!pkg.visibility || pkg.visibility === "visible") &&
+                !pkg.markedForDeletion,
+            );
 
     const verifiedCount = visible.filter((pkg) => pkg.convexVerified).length;
 
@@ -6162,7 +6597,9 @@ export const getFeaturedComponents = query({
     // Get all approved packages and filter to featured+visible
     const packages = await ctx.db
       .query("packages")
-      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) =>
+        q.eq("reviewStatus", "approved"),
+      )
       .take(1000);
 
     const featured = packages.filter(
@@ -6193,6 +6630,7 @@ export const getFeaturedComponents = query({
       hideThumbnailInCategory: pkg.hideThumbnailInCategory,
       convexVerified: pkg.convexVerified,
       communitySubmitted: pkg.communitySubmitted,
+      curatedBadges: pkg.curatedBadges,
       authorUsername: pkg.authorUsername,
       authorAvatar: pkg.authorAvatar,
       weeklyDownloads: pkg.weeklyDownloads ?? 0,
@@ -6266,9 +6704,7 @@ export const saveLogo = mutation({
     // Check if auto thumbnail generation is enabled
     const setting = await ctx.db
       .query("adminSettings")
-      .withIndex("by_key", (q) =>
-        q.eq("key", "autoGenerateThumbnailOnSubmit"),
-      )
+      .withIndex("by_key", (q) => q.eq("key", "autoGenerateThumbnailOnSubmit"))
       .first();
     if (setting?.value) {
       const pkg = await ctx.db.get(args.packageId);
@@ -6344,7 +6780,10 @@ export const autoFillAuthorFromRepo = mutation({
     const authorAvatar = `https://github.com/${owner}.png`;
 
     // Always overwrite when admin clicks auto-fill
-    await ctx.db.patch("packages", args.packageId, { authorUsername, authorAvatar });
+    await ctx.db.patch("packages", args.packageId, {
+      authorUsername,
+      authorAvatar,
+    });
 
     return { authorUsername, authorAvatar };
   },
@@ -6372,7 +6811,9 @@ async function validateAndApplySlug(
     patch.slug = undefined;
   } else {
     if (await isSlugTaken(ctx, slug, packageId)) {
-      throw new ConvexError(`Slug "${slug}" is already in use by another component.`);
+      throw new ConvexError(
+        `Slug "${slug}" is already in use by another component.`,
+      );
     }
     patch.slug = slug;
   }
@@ -6392,10 +6833,16 @@ async function validateAndApplyCategory(
       .query("categories")
       .withIndex("by_slug", (q: any) => q.eq("slug", normalized))
       .first();
-    if (!existing) throw new ConvexError(`Category "${normalized}" does not exist.`);
+    if (!existing)
+      throw new ConvexError(`Category "${normalized}" does not exist.`);
     if (existing.derivedFrom) {
       throw new ConvexError(
         `Category "${normalized}" is populated automatically and cannot be assigned to a component.`,
+      );
+    }
+    if (existing.kind === "curated") {
+      throw new ConvexError(
+        `Category "${normalized}" is curated. Manage its members from Category Management instead of assigning it as a primary category.`,
       );
     }
     patch.category = normalized;
@@ -6427,7 +6874,14 @@ export const updateComponentDetails = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await requireAdminIdentity(ctx);
-    const { packageId, clearThumbnail, clearCategory, slug, category, ...updates } = args;
+    const {
+      packageId,
+      clearThumbnail,
+      clearCategory,
+      slug,
+      category,
+      ...updates
+    } = args;
     const patch = buildComponentDetailsPatch(updates);
     await validateAndApplySlug(ctx, patch, slug, packageId);
     await validateAndApplyCategory(ctx, patch, category);
@@ -6577,7 +7031,9 @@ export const _listApprovedPackages = internalQuery({
   handler: async (ctx) => {
     const packages = await ctx.db
       .query("packages")
-      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) =>
+        q.eq("reviewStatus", "approved"),
+      )
       .take(5000);
     return packages.filter(
       (pkg) => !pkg.visibility || pkg.visibility === "visible",
@@ -6591,19 +7047,28 @@ async function searchPackagesByTerm(ctx: QueryCtx, searchTerm: string) {
     ctx.db
       .query("packages")
       .withSearchIndex("search_name", (q) =>
-        q.search("name", searchTerm).eq("reviewStatus", "approved").eq("visibility", "visible"),
+        q
+          .search("name", searchTerm)
+          .eq("reviewStatus", "approved")
+          .eq("visibility", "visible"),
       )
       .take(100),
     ctx.db
       .query("packages")
       .withSearchIndex("search_description", (q) =>
-        q.search("description", searchTerm).eq("reviewStatus", "approved").eq("visibility", "visible"),
+        q
+          .search("description", searchTerm)
+          .eq("reviewStatus", "approved")
+          .eq("visibility", "visible"),
       )
       .take(100),
     ctx.db
       .query("packages")
       .withSearchIndex("search_componentName", (q) =>
-        q.search("componentName", searchTerm).eq("reviewStatus", "approved").eq("visibility", "visible"),
+        q
+          .search("componentName", searchTerm)
+          .eq("reviewStatus", "approved")
+          .eq("visibility", "visible"),
       )
       .take(100),
   ]);
@@ -6648,40 +7113,56 @@ export const searchDirectoryComponents = query({
     const term = args.searchTerm.trim();
     if (!term) return [];
 
-    const [nameHits, compNameHits, descHits, shortDescHits] = await Promise.all([
-      ctx.db
-        .query("packages")
-        .withSearchIndex("search_name", (q) =>
-          q.search("name", term).eq("reviewStatus", "approved").eq("visibility", "visible"),
-        )
-        .take(10),
-      ctx.db
-        .query("packages")
-        .withSearchIndex("search_componentName", (q) =>
-          q.search("componentName", term).eq("reviewStatus", "approved").eq("visibility", "visible"),
-        )
-        .take(10),
-      ctx.db
-        .query("packages")
-        .withSearchIndex("search_description", (q) =>
-          q.search("description", term).eq("reviewStatus", "approved").eq("visibility", "visible"),
-        )
-        .take(10),
-      ctx.db
-        .query("packages")
-        .withSearchIndex("search_shortDescription", (q) =>
-          q
-            .search("shortDescription", term)
-            .eq("reviewStatus", "approved")
-            .eq("visibility", "visible"),
-        )
-        .take(10),
-    ]);
+    const [nameHits, compNameHits, descHits, shortDescHits] = await Promise.all(
+      [
+        ctx.db
+          .query("packages")
+          .withSearchIndex("search_name", (q) =>
+            q
+              .search("name", term)
+              .eq("reviewStatus", "approved")
+              .eq("visibility", "visible"),
+          )
+          .take(10),
+        ctx.db
+          .query("packages")
+          .withSearchIndex("search_componentName", (q) =>
+            q
+              .search("componentName", term)
+              .eq("reviewStatus", "approved")
+              .eq("visibility", "visible"),
+          )
+          .take(10),
+        ctx.db
+          .query("packages")
+          .withSearchIndex("search_description", (q) =>
+            q
+              .search("description", term)
+              .eq("reviewStatus", "approved")
+              .eq("visibility", "visible"),
+          )
+          .take(10),
+        ctx.db
+          .query("packages")
+          .withSearchIndex("search_shortDescription", (q) =>
+            q
+              .search("shortDescription", term)
+              .eq("reviewStatus", "approved")
+              .eq("visibility", "visible"),
+          )
+          .take(10),
+      ],
+    );
 
     // Name matches rank first, then description matches; dedupe by id
     const seen = new Set<string>();
     const packages: any[] = [];
-    for (const pkg of [...nameHits, ...compNameHits, ...shortDescHits, ...descHits]) {
+    for (const pkg of [
+      ...nameHits,
+      ...compNameHits,
+      ...shortDescHits,
+      ...descHits,
+    ]) {
       if (seen.has(pkg._id) || pkg.markedForDeletion) continue;
       seen.add(pkg._id);
       packages.push(pkg);
@@ -6691,7 +7172,8 @@ export const searchDirectoryComponents = query({
       slug: pkg.slug || "",
       displayName: pkg.componentName || pkg.name,
       packageName: pkg.name,
-      shortDescription: pkg.shortDescription || pkg.description?.slice(0, 120) || undefined,
+      shortDescription:
+        pkg.shortDescription || pkg.description?.slice(0, 120) || undefined,
       category: pkg.category || undefined,
       convexVerified: pkg.convexVerified || false,
     }));
@@ -6718,7 +7200,10 @@ export const _searchApprovedPackages = internalQuery({
     } else {
       packages = await ctx.db
         .query("packages")
-        .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) => q.eq("reviewStatus", "approved"))
+        .withIndex(
+          "by_reviewStatus_and_visibility_and_markedForDeletion",
+          (q) => q.eq("reviewStatus", "approved"),
+        )
         .take(1000);
       packages = packages.filter(
         (pkg) =>
@@ -6731,7 +7216,9 @@ export const _searchApprovedPackages = internalQuery({
       packages = packages.filter((pkg: any) => pkg.category === args.category);
     }
 
-    packages.sort((a: any, b: any) => (b.weeklyDownloads || 0) - (a.weeklyDownloads || 0));
+    packages.sort(
+      (a: any, b: any) => (b.weeklyDownloads || 0) - (a.weeklyDownloads || 0),
+    );
     const total = packages.length;
     const paginated = packages.slice(args.offset, args.offset + args.limit);
 
@@ -6834,7 +7321,9 @@ export const getComponentRating = query({
   handler: async (ctx, args) => {
     const ratings = await ctx.db
       .query("componentRatings")
-      .withIndex("by_package_and_session", (q) => q.eq("packageId", args.packageId))
+      .withIndex("by_package_and_session", (q) =>
+        q.eq("packageId", args.packageId),
+      )
       .take(1000);
 
     if (ratings.length === 0) {
@@ -6867,14 +7356,16 @@ export const rateComponent = mutation({
     const existing = await ctx.db
       .query("componentRatings")
       .withIndex("by_package_and_session", (q) =>
-        q.eq("packageId", args.packageId).eq("sessionId", args.sessionId)
+        q.eq("packageId", args.packageId).eq("sessionId", args.sessionId),
       )
       .first();
 
     if (existing) {
       // Update existing rating
       if (existing.rating === args.rating) return null;
-      await ctx.db.patch("componentRatings", existing._id, { rating: args.rating });
+      await ctx.db.patch("componentRatings", existing._id, {
+        rating: args.rating,
+      });
     } else {
       // Insert new rating
       await ctx.db.insert("componentRatings", {
@@ -6893,13 +7384,49 @@ export const rateComponent = mutation({
 
 // Default categories to seed if the table is empty
 const DEFAULT_CATEGORIES = [
-  { slug: "ai", label: "AI", description: "Components for building AI-powered applications.", sortOrder: 0 },
-  { slug: "auth", label: "Authentication", description: "Components for authentication and authorization.", sortOrder: 1 },
-  { slug: "backend", label: "Backend", description: "Backend capabilities powering features throughout the stack.", sortOrder: 2 },
-  { slug: "database", label: "Database", description: "Components for real-time data management and synchronization.", sortOrder: 3 },
-  { slug: "durable-functions", label: "Durable Functions", description: "Workflows, crons, and background jobs.", sortOrder: 4 },
-  { slug: "integrations", label: "Integrations", description: "Third-party service integrations.", sortOrder: 5 },
-  { slug: "payments", label: "Payments", description: "Payment processing and billing.", sortOrder: 6 },
+  {
+    slug: "ai",
+    label: "AI",
+    description: "Components for building AI-powered applications.",
+    sortOrder: 0,
+  },
+  {
+    slug: "auth",
+    label: "Authentication",
+    description: "Components for authentication and authorization.",
+    sortOrder: 1,
+  },
+  {
+    slug: "backend",
+    label: "Backend",
+    description: "Backend capabilities powering features throughout the stack.",
+    sortOrder: 2,
+  },
+  {
+    slug: "database",
+    label: "Database",
+    description:
+      "Components for real-time data management and synchronization.",
+    sortOrder: 3,
+  },
+  {
+    slug: "durable-functions",
+    label: "Durable Functions",
+    description: "Workflows, crons, and background jobs.",
+    sortOrder: 4,
+  },
+  {
+    slug: "integrations",
+    label: "Integrations",
+    description: "Third-party service integrations.",
+    sortOrder: 5,
+  },
+  {
+    slug: "payments",
+    label: "Payments",
+    description: "Payment processing and billing.",
+    sortOrder: 6,
+  },
 ];
 
 // Public: List all enabled categories (sorted by sortOrder)
@@ -6915,6 +7442,9 @@ export const listEnabledDirectoryCategories = query({
       sortOrder: v.number(),
       enabled: v.boolean(),
       derivedFrom: v.optional(v.literal("official")),
+      kind: v.optional(v.literal("curated")),
+      badgeStorageId: v.optional(v.id("_storage")),
+      badgeUrl: v.optional(v.string()),
       hideThumbnails: v.optional(v.boolean()),
     }),
   ),
@@ -6941,6 +7471,9 @@ export const listDirectoryCategories = query({
       sortOrder: v.number(),
       enabled: v.boolean(),
       derivedFrom: v.optional(v.literal("official")),
+      kind: v.optional(v.literal("curated")),
+      badgeStorageId: v.optional(v.id("_storage")),
+      badgeUrl: v.optional(v.string()),
       hideThumbnails: v.optional(v.boolean()),
     }),
   ),
@@ -6967,6 +7500,9 @@ export const listAllDirectoryCategories = query({
       sortOrder: v.number(),
       enabled: v.boolean(),
       derivedFrom: v.optional(v.literal("official")),
+      kind: v.optional(v.literal("curated")),
+      badgeStorageId: v.optional(v.id("_storage")),
+      badgeUrl: v.optional(v.string()),
       hideThumbnails: v.optional(v.boolean()),
       packageCount: v.optional(v.number()),
       verifiedCount: v.optional(v.number()),
@@ -7000,17 +7536,31 @@ async function updateExistingCategory(
   // Derived categories own their slug: renaming would break the landing page URL
   // without moving any packages, since membership is computed by rule.
   if (existing.derivedFrom && existing.slug !== normalizedSlug) {
-    throw new ConvexError("The slug of an automatic category cannot be changed.");
+    throw new ConvexError(
+      "The slug of an automatic category cannot be changed.",
+    );
   }
   await ctx.db.patch(id, { slug: normalizedSlug, ...data });
   if (existing.slug !== normalizedSlug) {
     const related = await ctx.db
       .query("packages")
-      .withIndex("by_category_and_visibility", (q) => q.eq("category", existing.slug))
+      .withIndex("by_category_and_visibility", (q) =>
+        q.eq("category", existing.slug),
+      )
       .take(10000);
-    await Promise.all(related.map((pkg) => ctx.db.patch(pkg._id, { category: normalizedSlug })));
+    await Promise.all(
+      related.map((pkg) => ctx.db.patch(pkg._id, { category: normalizedSlug })),
+    );
     // Slug rename moves packages between category keys; refresh denormalized counts.
     await recountCategoryStats(ctx);
+  }
+  // Curated categories denormalize slug + label onto member packages as badges;
+  // resync them after a rename so member cards stay correct.
+  if (
+    existing.kind === "curated" &&
+    (existing.slug !== normalizedSlug || existing.label !== data.label)
+  ) {
+    await rebuildCuratedBadgesForCategoryMembers(ctx, id);
   }
   return id;
 }
@@ -7024,6 +7574,9 @@ export const upsertCategory = mutation({
     sortOrder: v.number(),
     enabled: v.boolean(),
     hideThumbnails: v.optional(v.boolean()),
+    // Only honored on create: a category's kind is fixed after creation so
+    // existing primary-category assignments can never be orphaned by a switch.
+    kind: v.optional(v.literal("curated")),
   },
   returns: v.id("categories"),
   handler: async (ctx, args) => {
@@ -7034,7 +7587,9 @@ export const upsertCategory = mutation({
       .withIndex("by_slug", (q) => q.eq("slug", normalizedSlug))
       .first();
     if (conflict && conflict._id !== args.id) {
-      throw new ConvexError(`Category slug "${normalizedSlug}" is already in use.`);
+      throw new ConvexError(
+        `Category slug "${normalizedSlug}" is already in use.`,
+      );
     }
     const data = {
       label: args.label,
@@ -7046,7 +7601,11 @@ export const upsertCategory = mutation({
     if (args.id) {
       return await updateExistingCategory(ctx, args.id, normalizedSlug, data);
     }
-    return await ctx.db.insert("categories", { slug: normalizedSlug, ...data });
+    return await ctx.db.insert("categories", {
+      slug: normalizedSlug,
+      ...data,
+      ...(args.kind ? { kind: args.kind } : {}),
+    });
   },
 });
 
@@ -7064,7 +7623,9 @@ export const deleteCategory = mutation({
 
     const relatedPackages = await ctx.db
       .query("packages")
-      .withIndex("by_category_and_visibility", (q) => q.eq("category", existingCategory.slug))
+      .withIndex("by_category_and_visibility", (q) =>
+        q.eq("category", existingCategory.slug),
+      )
       .take(10000);
 
     await Promise.all(
@@ -7075,9 +7636,199 @@ export const deleteCategory = mutation({
       ),
     );
 
+    // Curated categories also keep memberships and denormalized badges: delete
+    // the join rows first, then rebuild each former member's badge list.
+    const memberships = await ctx.db
+      .query("categoryMemberships")
+      .withIndex("by_category", (q) => q.eq("categoryId", args.id))
+      .take(1000);
+    for (const membership of memberships) {
+      await ctx.db.delete(membership._id);
+    }
+
     await ctx.db.delete(args.id);
+
+    for (const membership of memberships) {
+      await rebuildCuratedBadgesForPackage(ctx, membership.packageId);
+    }
     // Packages were unassigned; refresh denormalized counts on remaining categories.
     await recountCategoryStats(ctx);
+    return null;
+  },
+});
+
+// ============ CURATED CATEGORY MEMBERSHIP ============
+
+// Admin: List the members of a curated category with enough detail for the
+// member management UI (includes non-approved members so admins see everything).
+export const listCuratedCategoryMembers = query({
+  args: { categoryId: v.id("categories") },
+  returns: v.array(
+    v.object({
+      membershipId: v.id("categoryMemberships"),
+      packageId: v.id("packages"),
+      name: v.string(),
+      componentName: v.optional(v.string()),
+      slug: v.optional(v.string()),
+      reviewStatus: v.optional(
+        v.union(
+          v.literal("pending"),
+          v.literal("in_review"),
+          v.literal("approved"),
+          v.literal("changes_requested"),
+          v.literal("rejected"),
+        ),
+      ),
+      visibility: v.optional(
+        v.union(
+          v.literal("visible"),
+          v.literal("hidden"),
+          v.literal("archived"),
+        ),
+      ),
+      addedAt: v.number(),
+    }),
+  ),
+  handler: async (ctx, args) => {
+    const adminIdentity = await getAdminIdentity(ctx);
+    if (!adminIdentity) {
+      return [];
+    }
+
+    const memberships = await ctx.db
+      .query("categoryMemberships")
+      .withIndex("by_category", (q) => q.eq("categoryId", args.categoryId))
+      .take(1000);
+
+    const members = await Promise.all(
+      memberships.map(async (membership) => {
+        const pkg = await ctx.db.get(membership.packageId);
+        if (!pkg) return null;
+        return {
+          membershipId: membership._id,
+          packageId: pkg._id,
+          name: pkg.name || "",
+          componentName: pkg.componentName,
+          slug: pkg.slug,
+          reviewStatus: pkg.reviewStatus,
+          visibility: pkg.visibility,
+          addedAt: membership.addedAt,
+        };
+      }),
+    );
+    return members
+      .filter((m): m is NonNullable<typeof m> => m !== null)
+      .sort((a, b) => a.addedAt - b.addedAt);
+  },
+});
+
+// Admin: Add a component to a curated category (idempotent).
+export const addComponentToCuratedCategory = mutation({
+  args: {
+    categoryId: v.id("categories"),
+    packageId: v.id("packages"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const adminIdentity = await requireAdminIdentity(ctx);
+
+    const category = await ctx.db.get(args.categoryId);
+    if (!category) throw new ConvexError("Category not found.");
+    if (category.kind !== "curated") {
+      throw new ConvexError(
+        "Only curated categories accept hand-picked members.",
+      );
+    }
+
+    // Idempotent: adding the same component twice is a no-op.
+    const existing = await ctx.db
+      .query("categoryMemberships")
+      .withIndex("by_category_and_package", (q) =>
+        q.eq("categoryId", args.categoryId).eq("packageId", args.packageId),
+      )
+      .first();
+    if (existing) return null;
+
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) throw new ConvexError("Component not found.");
+
+    await ctx.db.insert("categoryMemberships", {
+      categoryId: args.categoryId,
+      packageId: args.packageId,
+      addedAt: Date.now(),
+      addedBy: adminIdentity.email ?? undefined,
+    });
+    await rebuildCuratedBadgesForPackage(ctx, args.packageId);
+    await recountCategoryStats(ctx);
+    return null;
+  },
+});
+
+// Admin: Remove a component from a curated category (idempotent).
+export const removeComponentFromCuratedCategory = mutation({
+  args: {
+    categoryId: v.id("categories"),
+    packageId: v.id("packages"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
+    const existing = await ctx.db
+      .query("categoryMemberships")
+      .withIndex("by_category_and_package", (q) =>
+        q.eq("categoryId", args.categoryId).eq("packageId", args.packageId),
+      )
+      .first();
+    if (!existing) return null;
+
+    await ctx.db.delete(existing._id);
+    await rebuildCuratedBadgesForPackage(ctx, args.packageId);
+    await recountCategoryStats(ctx);
+    return null;
+  },
+});
+
+// Admin: Save an uploaded badge image on a curated category.
+// The badge is optional: curated categories work without one, and it can be
+// added, replaced, or cleared at any time. Member badges are resynced.
+export const saveCategoryBadge = mutation({
+  args: {
+    categoryId: v.id("categories"),
+    storageId: v.id("_storage"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
+    const category = await ctx.db.get(args.categoryId);
+    if (!category) throw new ConvexError("Category not found.");
+    if (category.kind !== "curated") {
+      throw new ConvexError("Badges are only supported on curated categories.");
+    }
+
+    const url = await ctx.storage.getUrl(args.storageId);
+    await ctx.db.patch(args.categoryId, {
+      badgeStorageId: args.storageId,
+      badgeUrl: url ?? undefined,
+    });
+    await rebuildCuratedBadgesForCategoryMembers(ctx, args.categoryId);
+    return null;
+  },
+});
+
+// Admin: Clear the badge image from a curated category and member cards.
+export const clearCategoryBadge = mutation({
+  args: { categoryId: v.id("categories") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
+    await ctx.db.patch(args.categoryId, {
+      badgeStorageId: undefined,
+      badgeUrl: undefined,
+    });
+    await rebuildCuratedBadgesForCategoryMembers(ctx, args.categoryId);
     return null;
   },
 });
@@ -7107,7 +7858,10 @@ export const setOfficialCategoryEnabled = mutation({
       .first();
 
     if (existing) {
-      if (existing.enabled !== args.enabled || existing.derivedFrom !== "official") {
+      if (
+        existing.enabled !== args.enabled ||
+        existing.derivedFrom !== "official"
+      ) {
         await ctx.db.patch(existing._id, {
           enabled: args.enabled,
           derivedFrom: "official" as const,
@@ -7159,7 +7913,9 @@ const githubIssueValidator = v.object({
 });
 
 // Parse owner/repo from a GitHub repository URL
-function parseGitHubRepo(repoUrl: string): { owner: string; repo: string } | null {
+function parseGitHubRepo(
+  repoUrl: string,
+): { owner: string; repo: string } | null {
   const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
   if (!match) return null;
   return { owner: match[1], repo: match[2].replace(/\.git$/, "") };
@@ -7201,7 +7957,9 @@ export const fetchGitHubIssues = action({
     const response = await fetch(url, { headers });
 
     if (!response.ok) {
-      console.error(`GitHub API error: ${response.status} ${response.statusText}`);
+      console.error(
+        `GitHub API error: ${response.status} ${response.statusText}`,
+      );
       return { issues: [], hasMore: false };
     }
 
@@ -7223,7 +7981,9 @@ export const fetchGitHubIssues = action({
 
     // Check if there could be more pages
     const linkHeader = response.headers.get("Link");
-    const hasMore = linkHeader ? linkHeader.includes('rel="next"') : data.length === perPage;
+    const hasMore = linkHeader
+      ? linkHeader.includes('rel="next"')
+      : data.length === perPage;
 
     return { issues, hasMore };
   },
@@ -7243,12 +8003,20 @@ async function fetchGitHubIssueCounts(
   if (token) headers["Authorization"] = `Bearer ${token}`;
 
   const [openRes, closedRes] = await Promise.all([
-    fetch(`https://api.github.com/search/issues?q=repo:${owner}/${repo}+type:issue+state:open`, { headers }),
-    fetch(`https://api.github.com/search/issues?q=repo:${owner}/${repo}+type:issue+state:closed`, { headers }),
+    fetch(
+      `https://api.github.com/search/issues?q=repo:${owner}/${repo}+type:issue+state:open`,
+      { headers },
+    ),
+    fetch(
+      `https://api.github.com/search/issues?q=repo:${owner}/${repo}+type:issue+state:closed`,
+      { headers },
+    ),
   ]);
 
   const openCount = openRes.ok ? ((await openRes.json()).total_count ?? 0) : 0;
-  const closedCount = closedRes.ok ? ((await closedRes.json()).total_count ?? 0) : 0;
+  const closedCount = closedRes.ok
+    ? ((await closedRes.json()).total_count ?? 0)
+    : 0;
   return { openCount, closedCount };
 }
 
@@ -7256,7 +8024,9 @@ export const refreshGitHubIssueCounts = action({
   args: { packageId: v.id("packages") },
   returns: v.object({ openCount: v.number(), closedCount: v.number() }),
   handler: async (ctx, args) => {
-    const pkg = await ctx.runQuery(internal.packages._getPackage, { packageId: args.packageId });
+    const pkg = await ctx.runQuery(internal.packages._getPackage, {
+      packageId: args.packageId,
+    });
     if (!pkg || !pkg.repositoryUrl) return { openCount: 0, closedCount: 0 };
 
     const parsed = parseGitHubRepo(pkg.repositoryUrl);
@@ -7399,7 +8169,8 @@ export const migrateAvatarUrls = mutation({
     let skipped = 0;
 
     for (const pkg of packages) {
-      const cdnPattern = /^https:\/\/avatars\.githubusercontent\.com\/([^/?#]+)(?:[?#].*)?$/;
+      const cdnPattern =
+        /^https:\/\/avatars\.githubusercontent\.com\/([^/?#]+)(?:[?#].*)?$/;
 
       if (pkg.authorAvatar && cdnPattern.test(pkg.authorAvatar)) {
         const match = pkg.authorAvatar.match(cdnPattern);

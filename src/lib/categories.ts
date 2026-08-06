@@ -4,13 +4,42 @@ import { api } from "../../convex/_generated/api";
 
 // Static fallback categories (used when DB is empty or loading)
 export const CATEGORIES = [
-  { id: "ai", label: "AI", description: "Components for building AI-powered applications." },
-  { id: "auth", label: "Authentication", description: "Components for authentication and authorization." },
-  { id: "backend", label: "Backend", description: "Backend capabilities powering features throughout the stack." },
-  { id: "database", label: "Database", description: "Components for real-time data management and synchronization." },
-  { id: "durable-functions", label: "Durable Functions", description: "Workflows, crons, and background jobs." },
-  { id: "integrations", label: "Integrations", description: "Third-party service integrations." },
-  { id: "payments", label: "Payments", description: "Payment processing and billing." },
+  {
+    id: "ai",
+    label: "AI",
+    description: "Components for building AI-powered applications.",
+  },
+  {
+    id: "auth",
+    label: "Authentication",
+    description: "Components for authentication and authorization.",
+  },
+  {
+    id: "backend",
+    label: "Backend",
+    description: "Backend capabilities powering features throughout the stack.",
+  },
+  {
+    id: "database",
+    label: "Database",
+    description:
+      "Components for real-time data management and synchronization.",
+  },
+  {
+    id: "durable-functions",
+    label: "Durable Functions",
+    description: "Workflows, crons, and background jobs.",
+  },
+  {
+    id: "integrations",
+    label: "Integrations",
+    description: "Third-party service integrations.",
+  },
+  {
+    id: "payments",
+    label: "Payments",
+    description: "Payment processing and billing.",
+  },
 ] as const;
 
 export type CategoryId = (typeof CATEGORIES)[number]["id"];
@@ -36,10 +65,11 @@ export function useDirectoryCategories(): CategoryItem[] {
   }
 
   // Once loaded, always use admin-managed categories as the source of truth.
-  // Derived categories (official components) are computed by rule, so they are
-  // never offered as a choice when assigning a category to a component.
+  // Derived categories (official components) are computed by rule, and curated
+  // categories are hand-picked by admins, so neither is ever offered as a
+  // choice when assigning a primary category to a component.
   return dbCategories
-    .filter((c) => !c.derived)
+    .filter((c) => !c.derived && !c.curated)
     .map((c) => ({
       id: c.category,
       label: c.label,

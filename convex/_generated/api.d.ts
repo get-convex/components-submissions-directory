@@ -22,6 +22,7 @@ import type * as packages from "../packages.js";
 import type * as payments from "../payments.js";
 import type * as paymentsDb from "../paymentsDb.js";
 import type * as preflight from "../preflight.js";
+import type * as readmeAutoUpdate from "../readmeAutoUpdate.js";
 import type * as router from "../router.js";
 import type * as securityScan from "../securityScan.js";
 import type * as seed from "../seed.js";
@@ -52,6 +53,7 @@ declare const fullApi: ApiFromModules<{
   payments: typeof payments;
   paymentsDb: typeof paymentsDb;
   preflight: typeof preflight;
+  readmeAutoUpdate: typeof readmeAutoUpdate;
   router: typeof router;
   securityScan: typeof securityScan;
   seed: typeof seed;

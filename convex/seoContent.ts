@@ -952,14 +952,24 @@ export const regenerateDirectoryContent = action({
   },
 });
 
-// Internal action: Fetch and update only the README without regenerating AI content
+// Internal action: Fetch and update only the README without regenerating AI content.
+// Every attempt is recorded in readmeUpdateLogs with its trigger source
+// (cron auto-update, admin button, profile button) for the admin Logs tab.
 export const refreshReadme = internalAction({
-  args: { packageId: v.id("packages") },
+  args: {
+    packageId: v.id("packages"),
+    source: v.optional(
+      v.union(v.literal("cron"), v.literal("admin"), v.literal("profile")),
+    ),
+  },
   returns: v.null(),
   handler: async (ctx, args) => {
+    const source = args.source ?? "admin";
+    let packageName = "unknown";
     try {
       const pkg = await ctx.runQuery(internal.packages._getPackage, { packageId: args.packageId });
       if (!pkg) throw new ConvexError("Package not found");
+      packageName = pkg.name;
       if (!pkg.repositoryUrl) throw new ConvexError("No repository URL");
 
       const githubToken = process.env.GITHUB_TOKEN;
@@ -967,10 +977,21 @@ export const refreshReadme = internalAction({
       const fullReadmeContent = githubReadme?.fullContent || "";
       const readmeBlock = extractReadmeIncludeBlock(githubReadme?.rawFullContent || "");
 
-      await ctx.runMutation(internal.seoContentDb._updateReadmeOnly, {
+      const changed: boolean = await ctx.runMutation(internal.seoContentDb._updateReadmeOnly, {
         packageId: args.packageId,
         readmeIncludedMarkdown: readmeBlock?.markdown || undefined,
         readmeIncludeSource: readmeBlock?.source,
+      });
+
+      await ctx.runMutation(internal.readmeAutoUpdate._insertReadmeUpdateLog, {
+        packageId: args.packageId,
+        packageName,
+        status: "success",
+        source,
+        changed,
+        message: githubReadme?.sourceLabel
+          ? undefined
+          : "No README found in repository",
       });
 
       console.log(
@@ -979,8 +1000,20 @@ export const refreshReadme = internalAction({
           : "README refresh: no README found"
       );
     } catch (error) {
-      const msg = error instanceof Error ? error.message : "Unknown error";
+      const msg =
+        error instanceof ConvexError
+          ? String(error.data)
+          : error instanceof Error
+            ? error.message
+            : "Unknown error";
       console.error("README refresh failed:", msg);
+      await ctx.runMutation(internal.readmeAutoUpdate._insertReadmeUpdateLog, {
+        packageId: args.packageId,
+        packageName,
+        status: "failed",
+        source,
+        message: msg,
+      });
     }
     return null;
   },
@@ -993,6 +1026,7 @@ export const refreshReadmeContent = action({
   handler: async (ctx, args): Promise<null> => {
     await ctx.scheduler.runAfter(0, internal.seoContent.refreshReadme, {
       packageId: args.packageId,
+      source: "admin",
     });
     return null;
   },

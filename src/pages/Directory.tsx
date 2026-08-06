@@ -35,7 +35,9 @@ export default function Directory() {
   const [sortBy, setSortBy] = useState<SortBy>("downloads");
   const [sortOpen, setSortOpen] = useState(false);
   const [gridColumns, setGridColumns] = useState<number>(getGridColumnCount);
-  const [visibleBySection, setVisibleBySection] = useState<Record<string, number>>({});
+  const [visibleBySection, setVisibleBySection] = useState<
+    Record<string, number>
+  >({});
   const desktopSortRef = useRef<HTMLDivElement>(null);
   const mobileSortRef = useRef<HTMLDivElement>(null);
   const groupedCardsPerLoad = 12;
@@ -135,7 +137,7 @@ export default function Directory() {
   useEffect(() => {
     setPageTitle();
     setPageDescription(
-      "Browse open-source Convex components: AI agents, auth, database tools, workflows, and more. Install with npm and start building."
+      "Browse open-source Convex components: AI agents, auth, database tools, workflows, and more. Install with npm and start building.",
     );
   }, []);
 
@@ -149,9 +151,11 @@ export default function Directory() {
       (c) =>
         c.name.toLowerCase().includes(term) ||
         c.description.toLowerCase().includes(term) ||
-        (c.shortDescription && c.shortDescription.toLowerCase().includes(term)) ||
-        (c.tags && c.tags.some((t: string) => t.toLowerCase().includes(term))) ||
-        (c.authorUsername && c.authorUsername.toLowerCase().includes(term))
+        (c.shortDescription &&
+          c.shortDescription.toLowerCase().includes(term)) ||
+        (c.tags &&
+          c.tags.some((t: string) => t.toLowerCase().includes(term))) ||
+        (c.authorUsername && c.authorUsername.toLowerCase().includes(term)),
     );
   }, [components, searchTerm]);
 
@@ -171,7 +175,8 @@ export default function Directory() {
   };
 
   const showFeatured = !searchTerm.trim() && featured && featured.length > 0;
-  const directoryCardHoverClass = "hover:bg-[rgb(246_238_219/var(--tw-bg-opacity,1))]";
+  const directoryCardHoverClass =
+    "hover:bg-[rgb(246_238_219/var(--tw-bg-opacity,1))]";
   const clearFilters = () => {
     setSearchTerm("");
   };
@@ -184,7 +189,9 @@ export default function Directory() {
       {/* Page header: compact one-line title + inline subtitle to reduce whitespace */}
       <header>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h1 className="text-xl font-semibold text-text-primary">Components</h1>
+          <h1 className="text-xl font-semibold text-text-primary">
+            Components
+          </h1>
           <p className="text-sm text-text-secondary">
             Open-source building blocks for your Convex app
           </p>
@@ -209,7 +216,8 @@ export default function Directory() {
                   style={{
                     backgroundColor: "rgb(243, 176, 28)",
                     color: "rgb(42, 40, 37)",
-                  }}>
+                  }}
+                >
                   Submit a component
                 </a>
               </div>
@@ -227,7 +235,8 @@ export default function Directory() {
                 <div className="relative">
                   <button
                     onClick={() => setSortOpen(!sortOpen)}
-                    className="w-full flex items-center justify-between gap-2 text-sm bg-bg-primary rounded-md px-3 py-1.5 text-text-primary focus:outline-none focus:ring-1 focus:ring-button cursor-pointer border border-border transition-colors">
+                    className="w-full flex items-center justify-between gap-2 text-sm bg-bg-primary rounded-md px-3 py-1.5 text-text-primary focus:outline-none focus:ring-1 focus:ring-button cursor-pointer border border-border transition-colors"
+                  >
                     <span className="inline-flex items-center gap-2">
                       <CaretSortIcon className="w-4 h-4 text-text-secondary" />
                       <span>
@@ -249,10 +258,16 @@ export default function Directory() {
                   {sortOpen && (
                     <div className="absolute left-0 top-full mt-1 w-full rounded-lg border border-border bg-white shadow-lg py-1 z-30">
                       {[
-                        { value: "downloads" as const, label: "Most downloads" },
+                        {
+                          value: "downloads" as const,
+                          label: "Most downloads",
+                        },
                         { value: "newest" as const, label: "Newest" },
                         { value: "verified" as const, label: "Verified" },
-                        { value: "updated" as const, label: "Recently updated" },
+                        {
+                          value: "updated" as const,
+                          label: "Recently updated",
+                        },
                         { value: "rating" as const, label: "Highest rated" },
                       ].map((opt) => (
                         <button
@@ -265,7 +280,8 @@ export default function Directory() {
                             sortBy === opt.value
                               ? "text-text-primary font-medium"
                               : "text-text-secondary"
-                          }`}>
+                          }`}
+                        >
                           {opt.label}
                         </button>
                       ))}
@@ -303,7 +319,8 @@ export default function Directory() {
               <div ref={mobileSortRef} className="relative">
                 <button
                   onClick={() => setSortOpen(!sortOpen)}
-                  className="flex items-center gap-2 text-sm bg-bg-primary rounded-md px-3 py-1.5 text-text-primary focus:outline-none focus:ring-1 focus:ring-button cursor-pointer border border-transparent hover:border-border transition-colors">
+                  className="flex items-center gap-2 text-sm bg-bg-primary rounded-md px-3 py-1.5 text-text-primary focus:outline-none focus:ring-1 focus:ring-button cursor-pointer border border-transparent hover:border-border transition-colors"
+                >
                   <CaretSortIcon className="w-4 h-4 text-text-secondary" />
                   <span>
                     {sortBy === "downloads"
@@ -339,7 +356,8 @@ export default function Directory() {
                           sortBy === opt.value
                             ? "text-text-primary font-medium"
                             : "text-text-secondary"
-                        }`}>
+                        }`}
+                      >
                         {opt.label}
                       </button>
                     ))}
@@ -352,14 +370,16 @@ export default function Directory() {
             <div className="lg:hidden flex gap-2 overflow-x-auto pb-4 mb-4 -mx-1 px-1">
               <a
                 href={DIRECTORY_ROOT_HREF}
-                className="shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors bg-text-primary text-white">
+                className="shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors bg-text-primary text-white"
+              >
                 All
               </a>
               {categories?.map((cat) => (
                 <a
                   key={cat.category}
                   href={`/components/categories/${cat.category}`}
-                  className="shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors bg-bg-secondary text-text-secondary hover:bg-bg-hover">
+                  className="shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors bg-bg-secondary text-text-secondary hover:bg-bg-hover"
+                >
                   {cat.label} ({cat.count})
                 </a>
               ))}
@@ -368,9 +388,12 @@ export default function Directory() {
             {/* Featured section (3 columns) */}
             {showFeatured && (
               <section className="mb-10">
-                <h2 className="text-lg font-semibold text-text-primary mb-1">Featured</h2>
+                <h2 className="text-lg font-semibold text-text-primary mb-1">
+                  Featured
+                </h2>
                 <p className="text-sm text-text-secondary mb-4">
-                  New and popular components from the Convex team and community.{" "}
+                  New and popular components from the Convex team and
+                  community.{" "}
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                   {featured!.slice(0, featuredFirstRowCount).map((comp) => (
@@ -389,9 +412,12 @@ export default function Directory() {
                       weeklyDownloads={comp.weeklyDownloads}
                       allTimeDownloads={comp.allTimeDownloads}
                       showWeeklyDownloads={downloadsDisplay.showWeeklyDownloads}
-                      showAllTimeDownloads={downloadsDisplay.showAllTimeDownloads}
+                      showAllTimeDownloads={
+                        downloadsDisplay.showAllTimeDownloads
+                      }
                       convexVerified={comp.convexVerified}
                       communitySubmitted={comp.communitySubmitted}
+                      curatedBadges={comp.curatedBadges}
                       featured={comp.featured}
                       npmUrl={comp.npmUrl}
                       repositoryUrl={comp.repositoryUrl}
@@ -403,7 +429,10 @@ export default function Directory() {
                   <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {featured!
                       .slice(featuredFirstRowCount)
-                      .slice(0, visibleBySection["featured"] ?? featuredExtraPerLoad)
+                      .slice(
+                        0,
+                        visibleBySection["featured"] ?? featuredExtraPerLoad,
+                      )
                       .map((comp) => (
                         <ComponentCard
                           key={comp._id}
@@ -419,10 +448,15 @@ export default function Directory() {
                           authorAvatar={comp.authorAvatar}
                           weeklyDownloads={comp.weeklyDownloads}
                           allTimeDownloads={comp.allTimeDownloads}
-                          showWeeklyDownloads={downloadsDisplay.showWeeklyDownloads}
-                          showAllTimeDownloads={downloadsDisplay.showAllTimeDownloads}
+                          showWeeklyDownloads={
+                            downloadsDisplay.showWeeklyDownloads
+                          }
+                          showAllTimeDownloads={
+                            downloadsDisplay.showAllTimeDownloads
+                          }
                           convexVerified={comp.convexVerified}
                           communitySubmitted={comp.communitySubmitted}
+                          curatedBadges={comp.curatedBadges}
                           featured={comp.featured}
                           npmUrl={comp.npmUrl}
                           repositoryUrl={comp.repositoryUrl}
@@ -435,8 +469,11 @@ export default function Directory() {
                   (visibleBySection["featured"] ?? featuredExtraPerLoad) && (
                   <div className="mt-5 flex justify-center">
                     <button
-                      onClick={() => loadMoreSection("featured", featuredExtraPerLoad)}
-                      className="inline-flex items-center rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-secondary">
+                      onClick={() =>
+                        loadMoreSection("featured", featuredExtraPerLoad)
+                      }
+                      className="inline-flex items-center rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-secondary"
+                    >
                       Load more
                     </button>
                   </div>
@@ -451,7 +488,8 @@ export default function Directory() {
                 {Array.from({ length: 8 }).map((_, i) => (
                   <div
                     key={i}
-                    className="flex flex-col overflow-hidden rounded-xl border border-border bg-white shadow-sm animate-pulse">
+                    className="flex flex-col overflow-hidden rounded-xl border border-border bg-white shadow-sm animate-pulse"
+                  >
                     <div className="aspect-video w-full bg-bg-secondary" />
                     <div className="p-3">
                       <div className="h-5 bg-bg-secondary rounded w-3/4 mb-2" />
@@ -472,13 +510,16 @@ export default function Directory() {
               <div className="text-center py-16 text-text-secondary">
                 <p className="text-lg mb-1">No components found</p>
                 <p className="text-sm">
-                  {searchTerm ? "Try a different search term" : "No approved components found yet"}
+                  {searchTerm
+                    ? "Try a different search term"
+                    : "No approved components found yet"}
                 </p>
                 {searchTerm.trim() && (
                   <button
                     type="button"
                     onClick={clearFilters}
-                    className="mt-4 inline-flex items-center justify-center rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800">
+                    className="mt-4 inline-flex items-center justify-center rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
+                  >
                     Clear filter
                   </button>
                 )}
@@ -486,21 +527,31 @@ export default function Directory() {
             )}
 
             {/* Grouped by category when no search/filter, otherwise flat grid */}
-            {components && displayComponents.length > 0 && !searchTerm.trim() ? (
+            {components &&
+            displayComponents.length > 0 &&
+            !searchTerm.trim() ? (
               <>
                 {categoryItems.map((cat) => {
                   const catComponents = displayComponents.filter(
-                    (c) => c.category === cat.category
+                    (c) => c.category === cat.category,
                   );
                   if (catComponents.length === 0) return null;
                   const sectionKey = `category:${cat.category}`;
-                  const visibleCount = visibleBySection[sectionKey] ?? groupedCardsPerLoad;
-                  const visibleComponents = catComponents.slice(0, visibleCount);
+                  const visibleCount =
+                    visibleBySection[sectionKey] ?? groupedCardsPerLoad;
+                  const visibleComponents = catComponents.slice(
+                    0,
+                    visibleCount,
+                  );
                   const hasMore = catComponents.length > visibleCount;
                   return (
                     <section key={cat.category} className="mb-10">
-                      <h2 className="text-lg font-semibold text-text-primary mb-1">{cat.label}</h2>
-                      <p className="text-sm text-text-secondary mb-4">{cat.description}</p>
+                      <h2 className="text-lg font-semibold text-text-primary mb-1">
+                        {cat.label}
+                      </h2>
+                      <p className="text-sm text-text-secondary mb-4">
+                        {cat.description}
+                      </p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                         {visibleComponents.map((comp) => (
                           <ComponentCard
@@ -513,16 +564,22 @@ export default function Directory() {
                             category={comp.category}
                             thumbnailUrl={comp.thumbnailUrl}
                             showThumbnail={
-                              !cat.hideThumbnails && !comp.hideThumbnailInCategory
+                              !cat.hideThumbnails &&
+                              !comp.hideThumbnailInCategory
                             }
                             authorUsername={comp.authorUsername}
                             authorAvatar={comp.authorAvatar}
                             weeklyDownloads={comp.weeklyDownloads}
                             allTimeDownloads={comp.allTimeDownloads}
-                            showWeeklyDownloads={downloadsDisplay.showWeeklyDownloads}
-                            showAllTimeDownloads={downloadsDisplay.showAllTimeDownloads}
+                            showWeeklyDownloads={
+                              downloadsDisplay.showWeeklyDownloads
+                            }
+                            showAllTimeDownloads={
+                              downloadsDisplay.showAllTimeDownloads
+                            }
                             convexVerified={comp.convexVerified}
                             communitySubmitted={comp.communitySubmitted}
+                            curatedBadges={comp.curatedBadges}
                             featured={comp.featured}
                             npmUrl={comp.npmUrl}
                             repositoryUrl={comp.repositoryUrl}
@@ -534,7 +591,8 @@ export default function Directory() {
                         <div className="mt-5 flex justify-center">
                           <a
                             href={`/components/categories/${cat.category}`}
-                            className="inline-flex items-center rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-secondary">
+                            className="inline-flex items-center rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-secondary"
+                          >
                             View all {cat.label}
                           </a>
                         </div>
@@ -544,10 +602,14 @@ export default function Directory() {
                 })}
                 {/* Uncategorized components */}
                 {displayComponents.filter(
-                  (c) => !c.category || !categoryItems.find((cat) => cat.category === c.category)
+                  (c) =>
+                    !c.category ||
+                    !categoryItems.find((cat) => cat.category === c.category),
                 ).length > 0 && (
                   <section className="mb-10">
-                    <h2 className="text-lg font-semibold text-text-primary mb-1">Other</h2>
+                    <h2 className="text-lg font-semibold text-text-primary mb-1">
+                      Other
+                    </h2>
                     <p className="text-sm text-text-secondary mb-4">
                       Additional community components.
                     </p>
@@ -555,9 +617,16 @@ export default function Directory() {
                       {displayComponents
                         .filter(
                           (c) =>
-                            !c.category || !categoryItems.find((cat) => cat.category === c.category)
+                            !c.category ||
+                            !categoryItems.find(
+                              (cat) => cat.category === c.category,
+                            ),
                         )
-                        .slice(0, visibleBySection["category:__other__"] ?? groupedCardsPerLoad)
+                        .slice(
+                          0,
+                          visibleBySection["category:__other__"] ??
+                            groupedCardsPerLoad,
+                        )
                         .map((comp) => (
                           <ComponentCard
                             key={comp._id}
@@ -573,10 +642,15 @@ export default function Directory() {
                             authorAvatar={comp.authorAvatar}
                             weeklyDownloads={comp.weeklyDownloads}
                             allTimeDownloads={comp.allTimeDownloads}
-                            showWeeklyDownloads={downloadsDisplay.showWeeklyDownloads}
-                            showAllTimeDownloads={downloadsDisplay.showAllTimeDownloads}
+                            showWeeklyDownloads={
+                              downloadsDisplay.showWeeklyDownloads
+                            }
+                            showAllTimeDownloads={
+                              downloadsDisplay.showAllTimeDownloads
+                            }
                             convexVerified={comp.convexVerified}
                             communitySubmitted={comp.communitySubmitted}
+                            curatedBadges={comp.curatedBadges}
                             featured={comp.featured}
                             npmUrl={comp.npmUrl}
                             repositoryUrl={comp.repositoryUrl}
@@ -586,12 +660,23 @@ export default function Directory() {
                     </div>
                     {displayComponents.filter(
                       (c) =>
-                        !c.category || !categoryItems.find((cat) => cat.category === c.category)
-                    ).length > (visibleBySection["category:__other__"] ?? groupedCardsPerLoad) && (
+                        !c.category ||
+                        !categoryItems.find(
+                          (cat) => cat.category === c.category,
+                        ),
+                    ).length >
+                      (visibleBySection["category:__other__"] ??
+                        groupedCardsPerLoad) && (
                       <div className="mt-5 flex justify-center">
                         <button
-                          onClick={() => loadMoreSection("category:__other__", groupedCardsPerLoad)}
-                          className="inline-flex items-center rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-secondary">
+                          onClick={() =>
+                            loadMoreSection(
+                              "category:__other__",
+                              groupedCardsPerLoad,
+                            )
+                          }
+                          className="inline-flex items-center rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-secondary"
+                        >
                           Load more
                         </button>
                       </div>
@@ -618,9 +703,12 @@ export default function Directory() {
                       weeklyDownloads={comp.weeklyDownloads}
                       allTimeDownloads={comp.allTimeDownloads}
                       showWeeklyDownloads={downloadsDisplay.showWeeklyDownloads}
-                      showAllTimeDownloads={downloadsDisplay.showAllTimeDownloads}
+                      showAllTimeDownloads={
+                        downloadsDisplay.showAllTimeDownloads
+                      }
                       convexVerified={comp.convexVerified}
                       communitySubmitted={comp.communitySubmitted}
+                      curatedBadges={comp.curatedBadges}
                       featured={comp.featured}
                       npmUrl={comp.npmUrl}
                       repositoryUrl={comp.repositoryUrl}
@@ -632,7 +720,8 @@ export default function Directory() {
                   <div className="mt-5 flex justify-center">
                     <button
                       onClick={() => loadMoreSection("flat", flatCardsPerLoad)}
-                      className="inline-flex items-center rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-secondary">
+                      className="inline-flex items-center rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-secondary"
+                    >
                       Load more
                     </button>
                   </div>
@@ -648,18 +737,22 @@ export default function Directory() {
 
             {/* For Agents Section */}
             <section className="mt-12 pt-8 border-t border-border">
-              <h2 className="text-lg font-semibold text-text-primary mb-2">For Agents</h2>
+              <h2 className="text-lg font-semibold text-text-primary mb-2">
+                For Agents
+              </h2>
               <p className="text-sm text-text-secondary mb-4">
-                AI agents and coding assistants can consume the Convex Components Directory through
-                machine-readable content endpoints. These files auto-update as new components are
-                approved and listed.
+                AI agents and coding assistants can consume the Convex
+                Components Directory through machine-readable content endpoints.
+                These files auto-update as new components are approved and
+                listed.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
                   href="/components/llms.txt"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-border text-text-primary hover:bg-bg-hover transition-colors">
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-border text-text-primary hover:bg-bg-hover transition-colors"
+                >
                   <Robot size={16} />
                   llms.txt
                   <ArrowSquareOut size={14} className="text-text-tertiary" />
@@ -668,22 +761,25 @@ export default function Directory() {
                   href="/components/components.md"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-border text-text-primary hover:bg-bg-hover transition-colors">
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-border text-text-primary hover:bg-bg-hover transition-colors"
+                >
                   <FileText size={16} />
                   components.md
                   <ArrowSquareOut size={14} className="text-text-tertiary" />
                 </a>
               </div>
               <p className="text-sm text-text-secondary mt-5 mb-4">
-                Only want official components built by the Convex team? These lists include
-                components from the get-convex GitHub org and the @convex-dev npm scope.
+                Only want official components built by the Convex team? These
+                lists include components from the get-convex GitHub org and the
+                @convex-dev npm scope.
               </p>
               <div className="flex flex-wrap gap-3">
                 <a
                   href="/components/get-convex-llms.txt"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-border text-text-primary hover:bg-bg-hover transition-colors">
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-border text-text-primary hover:bg-bg-hover transition-colors"
+                >
                   <Robot size={16} />
                   get-convex-llms.txt
                   <ArrowSquareOut size={14} className="text-text-tertiary" />
@@ -692,7 +788,8 @@ export default function Directory() {
                   href="/components/get-convex.md"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-border text-text-primary hover:bg-bg-hover transition-colors">
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-border text-text-primary hover:bg-bg-hover transition-colors"
+                >
                   <FileText size={16} />
                   get-convex.md
                   <ArrowSquareOut size={14} className="text-text-tertiary" />

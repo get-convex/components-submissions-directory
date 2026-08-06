@@ -1,5 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useMutation, useQuery, useAction } from "convex/react";
+import {
+  useMutation,
+  useQuery,
+  useAction,
+  usePaginatedQuery,
+} from "convex/react";
 import { ConvexError } from "convex/values";
 import { api } from "../../convex/_generated/api";
 import { useAuth } from "../lib/auth";
@@ -69,9 +74,7 @@ import {
   ToggleRight,
   FileText,
 } from "@phosphor-icons/react";
-import {
-  ExternalLinkIcon as RadixExternalLinkIcon,
-} from "@radix-ui/react-icons";
+import { ExternalLinkIcon as RadixExternalLinkIcon } from "@radix-ui/react-icons";
 import AiLoadingDots from "../components/AiLoadingDots";
 import { AI_REVIEW_PROMPT_STATUS_LABEL } from "../../shared/aiReviewPromptMeta";
 
@@ -232,7 +235,9 @@ function AdminSettingsJumpNav({
                       : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                   }`}
                 >
-                  <span className={isActive ? "text-white" : "text-text-secondary"}>
+                  <span
+                    className={isActive ? "text-white" : "text-text-secondary"}
+                  >
                     {section.icon}
                   </span>
                   <span>{section.label}</span>
@@ -272,7 +277,9 @@ function AdminSettingsJumpNav({
                     : "border-border bg-white text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                 }`}
               >
-                <span className={isActive ? "text-white" : "text-text-secondary"}>
+                <span
+                  className={isActive ? "text-white" : "text-text-secondary"}
+                >
                   {section.icon}
                 </span>
                 <span>{section.shortLabel}</span>
@@ -288,11 +295,11 @@ function AdminSettingsJumpNav({
 // Redirect non-admin users to their profile
 function RedirectToProfile() {
   const basePath = useBasePath();
-  
+
   useEffect(() => {
     window.location.replace(`${basePath}/profile`);
   }, [basePath]);
-  
+
   return (
     <div className="flex justify-center items-center py-12">
       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-button"></div>
@@ -414,7 +421,9 @@ function PackageComponentDetailsEditor({
           </p>
         </div>
         <span className="shrink-0 whitespace-nowrap px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors">
-          {isOpen ? "Hide" : (
+          {isOpen ? (
+            "Hide"
+          ) : (
             <>
               <span className="sm:hidden">Edit</span>
               <span className="hidden sm:inline">Edit details</span>
@@ -491,13 +500,17 @@ function SubmitterEmailEditor({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [email, setEmail] = useState(submitterEmail || "");
-  const [addEmails, setAddEmails] = useState(additionalEmails?.join(", ") || "");
+  const [addEmails, setAddEmails] = useState(
+    additionalEmails?.join(", ") || "",
+  );
   const [nameVal, setNameVal] = useState(submitterName || "");
   const [discordVal, setDiscordVal] = useState(submitterDiscord || "");
   const [isSaving, setIsSaving] = useState(false);
 
   const updateSubmitterEmail = useMutation(api.packages.updateSubmitterEmail);
-  const updateAdditionalEmails = useMutation(api.packages.updateAdditionalEmails);
+  const updateAdditionalEmails = useMutation(
+    api.packages.updateAdditionalEmails,
+  );
   const updateSubmitterInfo = useMutation(api.packages.updateSubmitterInfo);
 
   // Reset form when props change
@@ -522,7 +535,10 @@ function SubmitterEmailEditor({
         .filter((e) => e && e.includes("@"));
       await updateAdditionalEmails({ packageId, additionalEmails: emailList });
       // Update name and discord if changed
-      if (nameVal !== (submitterName || "") || discordVal !== (submitterDiscord || "")) {
+      if (
+        nameVal !== (submitterName || "") ||
+        discordVal !== (submitterDiscord || "")
+      ) {
         await updateSubmitterInfo({
           packageId,
           submitterName: nameVal,
@@ -557,7 +573,8 @@ function SubmitterEmailEditor({
                     toast.success("Name copied to clipboard");
                   }}
                   className="ml-0.5 p-0.5 rounded hover:bg-bg-hover hover:text-text-primary transition-colors"
-                  title="Copy name">
+                  title="Copy name"
+                >
                   <Copy size={12} />
                 </button>
               </span>
@@ -574,7 +591,8 @@ function SubmitterEmailEditor({
                     toast.success("Discord username copied to clipboard");
                   }}
                   className="ml-0.5 p-0.5 rounded hover:bg-bg-hover hover:text-text-primary transition-colors"
-                  title="Copy Discord username">
+                  title="Copy Discord username"
+                >
                   <Copy size={12} />
                 </button>
               </span>
@@ -591,7 +609,8 @@ function SubmitterEmailEditor({
                 <a
                   href={`mailto:${submitterEmail}`}
                   className="break-all hover:text-text-primary"
-                  onClick={(e) => e.stopPropagation()}>
+                  onClick={(e) => e.stopPropagation()}
+                >
                   {submitterEmail}
                 </a>
                 <button
@@ -602,7 +621,8 @@ function SubmitterEmailEditor({
                     toast.success("Email copied to clipboard");
                   }}
                   className="p-0.5 rounded hover:bg-bg-hover hover:text-text-primary transition-colors"
-                  title="Copy email">
+                  title="Copy email"
+                >
                   <Copy size={12} />
                 </button>
               </span>
@@ -622,7 +642,8 @@ function SubmitterEmailEditor({
               e.stopPropagation();
               setIsEditing(true);
             }}
-            className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded text-xs border border-border hover:bg-bg-hover transition-colors">
+            className="ml-auto flex items-center gap-1 px-2 py-0.5 rounded text-xs border border-border hover:bg-bg-hover transition-colors"
+          >
             <PencilSimple size={12} />
             Edit
           </button>
@@ -634,8 +655,11 @@ function SubmitterEmailEditor({
   return (
     <div
       className="min-w-0 overflow-hidden p-3 rounded-lg bg-bg-hover/50 space-y-3"
-      onClick={(e) => e.stopPropagation()}>
-      <div className="text-xs font-medium text-text-primary">Edit Submitter Info</div>
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="text-xs font-medium text-text-primary">
+        Edit Submitter Info
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs text-text-secondary mb-1">Name</label>
@@ -648,7 +672,9 @@ function SubmitterEmailEditor({
           />
         </div>
         <div>
-          <label className="block text-xs text-text-secondary mb-1">Discord</label>
+          <label className="block text-xs text-text-secondary mb-1">
+            Discord
+          </label>
           <input
             type="text"
             value={discordVal}
@@ -682,20 +708,23 @@ function SubmitterEmailEditor({
           className="w-full px-2 py-1.5 text-xs rounded border border-border bg-bg-primary text-text-primary outline-none focus:border-button"
         />
         <p className="text-[10px] text-text-tertiary mt-1">
-          Users can access this submission from their profile using any of these emails.
+          Users can access this submission from their profile using any of these
+          emails.
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => setIsEditing(false)}
           disabled={isSaving}
-          className="px-3 py-1 text-xs rounded border border-border text-text-secondary hover:bg-bg-hover transition-colors disabled:opacity-50">
+          className="px-3 py-1 text-xs rounded border border-border text-text-secondary hover:bg-bg-hover transition-colors disabled:opacity-50"
+        >
           Cancel
         </button>
         <button
           onClick={handleSave}
           disabled={isSaving || !email}
-          className="px-3 py-1 text-xs rounded bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50">
+          className="px-3 py-1 text-xs rounded bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50"
+        >
           {isSaving ? "Saving..." : "Save"}
         </button>
       </div>
@@ -741,7 +770,9 @@ function AuthorToggleSection({
           </p>
         </div>
         <span className="shrink-0 whitespace-nowrap px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors">
-          {isOpen ? "Hide" : (
+          {isOpen ? (
+            "Hide"
+          ) : (
             <>
               <span className="sm:hidden">Show</span>
               <span className="hidden sm:inline">Show author</span>
@@ -799,15 +830,21 @@ function PackageMetadataEditor({
   const [name, setName] = useState(initialName ?? "");
   const [description, setDescription] = useState(initialDescription ?? "");
   const [npmUrl, setNpmUrl] = useState(initialNpmUrl ?? "");
-  const [repositoryUrl, setRepositoryUrl] = useState(initialRepositoryUrl ?? "");
+  const [repositoryUrl, setRepositoryUrl] = useState(
+    initialRepositoryUrl ?? "",
+  );
   const [homepageUrl, setHomepageUrl] = useState(initialHomepageUrl ?? "");
-  const [installCommand, setInstallCommand] = useState(initialInstallCommand ?? "");
+  const [installCommand, setInstallCommand] = useState(
+    initialInstallCommand ?? "",
+  );
   const [version, setVersion] = useState(initialVersion ?? "");
   const [license, setLicense] = useState(initialLicense ?? "");
   const [weeklyDownloads, setWeeklyDownloads] = useState(
     initialWeeklyDownloads?.toString() ?? "",
   );
-  const [totalFiles, setTotalFiles] = useState(initialTotalFiles?.toString() ?? "");
+  const [totalFiles, setTotalFiles] = useState(
+    initialTotalFiles?.toString() ?? "",
+  );
   const [lastPublish, setLastPublish] = useState(initialLastPublish ?? "");
   const [collaboratorsText, setCollaboratorsText] = useState(() =>
     (initialCollaborators ?? [])
@@ -863,7 +900,9 @@ function PackageMetadataEditor({
           </p>
         </div>
         <span className="shrink-0 whitespace-nowrap px-2 py-1 sm:px-3 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors">
-          {isOpen ? "Hide" : (
+          {isOpen ? (
+            "Hide"
+          ) : (
             <>
               <span className="sm:hidden">Edit</span>
               <span className="hidden sm:inline">Edit metadata</span>
@@ -1031,7 +1070,8 @@ function PackageMetadataEditor({
                       return;
                     }
 
-                    const parsedCollaborators = parseCollaborators(collaboratorsText);
+                    const parsedCollaborators =
+                      parseCollaborators(collaboratorsText);
                     if (parsedCollaborators === null) {
                       toast.error(
                         "Each collaborator line must be in the format: Name | Avatar URL",
@@ -1234,7 +1274,9 @@ function NotesPanel({
   const addNote = useMutation(api.packages.addPackageNote);
   const deleteNote = useMutation(api.packages.deletePackageNote);
   const markNotesRead = useMutation(api.packages.markNotesAsReadForAdmin);
-  const unreadNotesCount = useQuery(api.packages.getUnreadUserNotesCount, { packageId });
+  const unreadNotesCount = useQuery(api.packages.getUnreadUserNotesCount, {
+    packageId,
+  });
 
   // Handle ESC key to close panel
   useEffect(() => {
@@ -1384,7 +1426,9 @@ function NotesPanel({
                       <span className="font-medium whitespace-nowrap">
                         {note.authorName || note.authorEmail.split("@")[0]}
                       </span>
-                      <span className="whitespace-nowrap">{formatNoteDate(note.createdAt)}</span>
+                      <span className="whitespace-nowrap">
+                        {formatNoteDate(note.createdAt)}
+                      </span>
                     </div>
                     {note.authorEmail === userEmail && (
                       <button
@@ -1431,7 +1475,9 @@ function NotesPanel({
                               {reply.authorName ||
                                 reply.authorEmail.split("@")[0]}
                             </span>
-                            <span className="whitespace-nowrap">{formatNoteDate(reply.createdAt)}</span>
+                            <span className="whitespace-nowrap">
+                              {formatNoteDate(reply.createdAt)}
+                            </span>
                           </div>
                           {reply.authorEmail === userEmail && (
                             <button
@@ -1587,10 +1633,16 @@ function CommentsPanel({
   });
   const addComment = useMutation(api.packages.addPackageComment);
   const deleteComment = useMutation(api.packages.deletePackageComment);
-  const updateCommentStatus = useMutation(api.packages.updatePackageCommentStatus);
+  const updateCommentStatus = useMutation(
+    api.packages.updatePackageCommentStatus,
+  );
   const markAsRead = useMutation(api.packages.markCommentsAsReadForAdmin);
-  const markOneCommentRead = useMutation(api.packages.markPackageCommentReadForAdmin);
-  const unreadCount = useQuery(api.packages.getUnreadCommentsCount, { packageId });
+  const markOneCommentRead = useMutation(
+    api.packages.markPackageCommentReadForAdmin,
+  );
+  const unreadCount = useQuery(api.packages.getUnreadCommentsCount, {
+    packageId,
+  });
 
   // Handle ESC key to close panel
   useEffect(() => {
@@ -1641,7 +1693,9 @@ function CommentsPanel({
       if (status === "active") {
         toast.success("Message restored");
       } else {
-        toast.success(status === "hidden" ? "Message hidden" : "Message archived");
+        toast.success(
+          status === "hidden" ? "Message hidden" : "Message archived",
+        );
       }
     } catch (error) {
       toast.error("Failed to update message");
@@ -1709,12 +1763,16 @@ function CommentsPanel({
               {showInactive ? (
                 <>
                   <span className="sm:hidden">Hide archived</span>
-                  <span className="hidden sm:inline">Hide hidden or archived</span>
+                  <span className="hidden sm:inline">
+                    Hide hidden or archived
+                  </span>
                 </>
               ) : (
                 <>
                   <span className="sm:hidden">Show archived</span>
-                  <span className="hidden sm:inline">Show hidden or archived</span>
+                  <span className="hidden sm:inline">
+                    Show hidden or archived
+                  </span>
                 </>
               )}
             </button>
@@ -1744,7 +1802,9 @@ function CommentsPanel({
             </div>
           ) : comments.length === 0 ? (
             <p className="text-sm text-text-secondary text-center py-8">
-              {showInactive ? "No messages yet." : "No active messages yet. Add the first message below."}
+              {showInactive
+                ? "No messages yet."
+                : "No active messages yet. Add the first message below."}
             </p>
           ) : (
             comments.map((comment) => (
@@ -1758,7 +1818,9 @@ function CommentsPanel({
                     <span className="font-medium whitespace-nowrap">
                       {comment.authorName || comment.authorEmail.split("@")[0]}
                     </span>
-                    <span className="whitespace-nowrap">{formatCommentDate(comment.createdAt)}</span>
+                    <span className="whitespace-nowrap">
+                      {formatCommentDate(comment.createdAt)}
+                    </span>
                     {comment.adminHasRead !== true && (
                       <span className="px-1.5 py-0.5 rounded-full bg-green-500 text-white text-[10px] font-medium whitespace-nowrap shrink-0">
                         New
@@ -1768,17 +1830,21 @@ function CommentsPanel({
                   <div className="flex flex-wrap items-center gap-1 shrink-0">
                     {comment.authorEmail === userEmail && (
                       <>
-                        {(!comment.status || comment.status === "active") ? (
+                        {!comment.status || comment.status === "active" ? (
                           <>
                             <button
-                              onClick={() => handleSetCommentStatus(comment._id, "hidden")}
+                              onClick={() =>
+                                handleSetCommentStatus(comment._id, "hidden")
+                              }
                               className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors whitespace-nowrap shrink-0"
                             >
                               <EyeSlash size={10} />
                               Hide
                             </button>
                             <button
-                              onClick={() => handleSetCommentStatus(comment._id, "archived")}
+                              onClick={() =>
+                                handleSetCommentStatus(comment._id, "archived")
+                              }
                               className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors whitespace-nowrap shrink-0"
                             >
                               <Archive size={10} />
@@ -1787,7 +1853,9 @@ function CommentsPanel({
                           </>
                         ) : (
                           <button
-                            onClick={() => handleSetCommentStatus(comment._id, "active")}
+                            onClick={() =>
+                              handleSetCommentStatus(comment._id, "active")
+                            }
                             className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors whitespace-nowrap shrink-0"
                           >
                             <Eye size={10} />
@@ -1810,7 +1878,8 @@ function CommentsPanel({
                 </p>
                 {comment.status && comment.status !== "active" && (
                   <p className="mt-2 text-xs text-text-secondary">
-                    Status: {comment.status === "hidden" ? "Hidden" : "Archived"}
+                    Status:{" "}
+                    {comment.status === "hidden" ? "Hidden" : "Archived"}
                   </p>
                 )}
                 {comment.adminHasRead !== true && (
@@ -1904,7 +1973,9 @@ function CommentsButton({
           <ChatCircleText size={14} weight="bold" />
           <span>Messages</span>
           {badgeCount !== undefined && badgeCount > 0 && (
-            <span className={`absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full ${badgeColor} text-white`}>
+            <span
+              className={`absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 text-[10px] font-bold rounded-full ${badgeColor} text-white`}
+            >
               {badgeCount > 9 ? "9+" : badgeCount}
             </span>
           )}
@@ -1996,9 +2067,7 @@ function AiReviewButton({
           weight="bold"
           className={isReviewing ? "animate-pulse" : ""}
         />
-        <span>
-          {isReviewing ? "Reviewing..." : "AI Review"}
-        </span>
+        <span>{isReviewing ? "Reviewing..." : "AI Review"}</span>
       </button>
     </Tooltip>
   );
@@ -2271,11 +2340,19 @@ function AiReviewHistoryPanel({
   onClose: () => void;
   reviewedBy?: string;
 }) {
-  const reviewRuns = useQuery(api.packages.getAiReviewRunsForPackage, { packageId });
-  const securityRuns = useQuery(api.packages.getSecurityScanRunsForPackage, { packageId });
+  const reviewRuns = useQuery(api.packages.getAiReviewRunsForPackage, {
+    packageId,
+  });
+  const securityRuns = useQuery(api.packages.getSecurityScanRunsForPackage, {
+    packageId,
+  });
   const deleteAiReviewRun = useMutation(api.packages.deleteAiReviewRun);
-  const [selectedRunId, setSelectedRunId] = useState<Id<"aiReviewRuns"> | null>(null);
-  const [runToDelete, setRunToDelete] = useState<Id<"aiReviewRuns"> | null>(null);
+  const [selectedRunId, setSelectedRunId] = useState<Id<"aiReviewRuns"> | null>(
+    null,
+  );
+  const [runToDelete, setRunToDelete] = useState<Id<"aiReviewRuns"> | null>(
+    null,
+  );
   const [isDeletingRun, setIsDeletingRun] = useState(false);
   const [activeTab, setActiveTab] = useState<ReviewHistoryTab>("ai");
 
@@ -2356,7 +2433,9 @@ function AiReviewHistoryPanel({
       toast.success("AI review history entry deleted");
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Failed to delete AI review history entry",
+        error instanceof Error
+          ? error.message
+          : "Failed to delete AI review history entry",
       );
     } finally {
       setIsDeletingRun(false);
@@ -2366,13 +2445,18 @@ function AiReviewHistoryPanel({
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+        onClick={onClose}
+      />
       <div className="absolute inset-y-0 right-0 w-full max-w-5xl bg-white border-l border-border shadow-xl">
         <div className="flex h-full flex-col">
           <div className="border-b border-border px-6 py-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-lg font-normal text-text-primary">Review History</h3>
+                <h3 className="text-lg font-normal text-text-primary">
+                  Review History
+                </h3>
                 <p className="mt-1 text-sm text-text-secondary">
                   {packageName}
                 </p>
@@ -2424,8 +2508,14 @@ function AiReviewHistoryPanel({
                 </div>
               ) : securityRuns.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-border bg-bg-primary px-4 py-6 text-center">
-                  <ShieldCheck size={24} weight="bold" className="mx-auto text-text-secondary mb-2" />
-                  <p className="text-sm text-text-primary">No security scans yet</p>
+                  <ShieldCheck
+                    size={24}
+                    weight="bold"
+                    className="mx-auto text-text-secondary mb-2"
+                  />
+                  <p className="text-sm text-text-primary">
+                    No security scans yet
+                  </p>
                   <p className="mt-1 text-xs text-text-secondary">
                     Run a security scan from the Review row to get started.
                   </p>
@@ -2436,7 +2526,8 @@ function AiReviewHistoryPanel({
                     const statusColors: Record<string, string> = {
                       safe: "bg-green-500/10 text-green-600 border-green-500/20",
                       unsafe: "bg-red-500/10 text-red-600 border-red-500/20",
-                      warning: "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
+                      warning:
+                        "bg-yellow-500/10 text-yellow-700 border-yellow-500/20",
                       error: "bg-red-500/10 text-red-600 border-red-500/20",
                     };
                     return (
@@ -2449,13 +2540,33 @@ function AiReviewHistoryPanel({
                             <span
                               className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border ${statusColors[run.status] || statusColors.error}`}
                             >
-                              {run.status === "safe" && <ShieldCheck size={12} weight="bold" className="mr-1" />}
-                              {run.status === "unsafe" && <ShieldWarning size={12} weight="bold" className="mr-1" />}
-                              {run.status === "warning" && <ShieldWarning size={12} weight="bold" className="mr-1" />}
-                              {run.status.charAt(0).toUpperCase() + run.status.slice(1)}
+                              {run.status === "safe" && (
+                                <ShieldCheck
+                                  size={12}
+                                  weight="bold"
+                                  className="mr-1"
+                                />
+                              )}
+                              {run.status === "unsafe" && (
+                                <ShieldWarning
+                                  size={12}
+                                  weight="bold"
+                                  className="mr-1"
+                                />
+                              )}
+                              {run.status === "warning" && (
+                                <ShieldWarning
+                                  size={12}
+                                  weight="bold"
+                                  className="mr-1"
+                                />
+                              )}
+                              {run.status.charAt(0).toUpperCase() +
+                                run.status.slice(1)}
                             </span>
                             <span className="text-xs text-text-secondary">
-                              {run.findings.length} finding{run.findings.length !== 1 ? "s" : ""}
+                              {run.findings.length} finding
+                              {run.findings.length !== 1 ? "s" : ""}
                             </span>
                           </div>
                           <time className="text-xs text-text-secondary">
@@ -2463,20 +2574,24 @@ function AiReviewHistoryPanel({
                           </time>
                         </div>
 
-                        <p className="text-sm text-text-primary">{run.summary}</p>
+                        <p className="text-sm text-text-primary">
+                          {run.summary}
+                        </p>
 
                         {/* Provider breakdown */}
                         <div className="flex gap-2 flex-wrap">
                           {run.providerResults.socket && (
                             <span className="text-[11px] px-2 py-0.5 rounded-full border border-border text-text-secondary">
                               Socket: {run.providerResults.socket.status}
-                              {run.providerResults.socket.rawSummary && ` (${run.providerResults.socket.rawSummary})`}
+                              {run.providerResults.socket.rawSummary &&
+                                ` (${run.providerResults.socket.rawSummary})`}
                             </span>
                           )}
                           {run.providerResults.snyk && (
                             <span className="text-[11px] px-2 py-0.5 rounded-full border border-border text-text-secondary">
                               Snyk: {run.providerResults.snyk.status}
-                              {run.providerResults.snyk.rawSummary && ` (${run.providerResults.snyk.rawSummary})`}
+                              {run.providerResults.snyk.rawSummary &&
+                                ` (${run.providerResults.snyk.rawSummary})`}
                             </span>
                           )}
                         </div>
@@ -2484,7 +2599,9 @@ function AiReviewHistoryPanel({
                         {/* Findings list */}
                         {run.findings.length > 0 && (
                           <div className="space-y-1.5">
-                            <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">Findings</p>
+                            <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+                              Findings
+                            </p>
                             {run.findings.map((finding, idx) => {
                               const severityColors: Record<string, string> = {
                                 critical: "text-red-700 bg-red-50",
@@ -2494,8 +2611,13 @@ function AiReviewHistoryPanel({
                                 info: "text-gray-600 bg-gray-50",
                               };
                               return (
-                                <div key={idx} className="flex items-start gap-2 text-xs">
-                                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium uppercase ${severityColors[finding.severity] || severityColors.info}`}>
+                                <div
+                                  key={idx}
+                                  className="flex items-start gap-2 text-xs"
+                                >
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded text-[10px] font-medium uppercase ${severityColors[finding.severity] || severityColors.info}`}
+                                  >
                                     {finding.severity}
                                   </span>
                                   <div>
@@ -2505,7 +2627,9 @@ function AiReviewHistoryPanel({
                                     <span className="text-text-secondary ml-1">
                                       ({finding.provider})
                                     </span>
-                                    <p className="text-text-secondary mt-0.5">{finding.description}</p>
+                                    <p className="text-text-secondary mt-0.5">
+                                      {finding.description}
+                                    </p>
                                   </div>
                                 </div>
                               );
@@ -2516,10 +2640,17 @@ function AiReviewHistoryPanel({
                         {/* Recommendations */}
                         {run.recommendations.length > 0 && (
                           <div className="space-y-1">
-                            <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">Recommendations</p>
+                            <p className="text-xs font-medium text-text-secondary uppercase tracking-wider">
+                              Recommendations
+                            </p>
                             <ul className="list-disc list-inside space-y-0.5">
                               {run.recommendations.map((rec, idx) => (
-                                <li key={idx} className="text-xs text-text-secondary">{rec}</li>
+                                <li
+                                  key={idx}
+                                  className="text-xs text-text-secondary"
+                                >
+                                  {rec}
+                                </li>
                               ))}
                             </ul>
                           </div>
@@ -2538,230 +2669,244 @@ function AiReviewHistoryPanel({
 
           {/* AI Reviews Tab */}
           {activeTab === "ai" && (
-          <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)]">
-            <div className="border-b border-border lg:border-b-0 lg:border-r">
-              <div className="max-h-[36vh] overflow-y-auto lg:max-h-full">
-                {reviewRuns === undefined ? (
-                  <div className="px-6 py-8 text-sm text-text-secondary">
-                    Loading review history...
-                  </div>
-                ) : runs.length === 0 ? (
-                  <div className="px-6 py-8">
-                    <div className="rounded-lg border border-dashed border-border bg-bg-primary px-4 py-6 text-center">
-                      <p className="text-sm text-text-primary">No review history yet</p>
-                      <p className="mt-1 text-xs text-text-secondary">
-                        Run AI Review to start collecting past review output.
-                      </p>
+            <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)]">
+              <div className="border-b border-border lg:border-b-0 lg:border-r">
+                <div className="max-h-[36vh] overflow-y-auto lg:max-h-full">
+                  {reviewRuns === undefined ? (
+                    <div className="px-6 py-8 text-sm text-text-secondary">
+                      Loading review history...
                     </div>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-border">
-                    {runs.map((run, index) => (
-                      <div
-                        key={run._id}
-                        className={`px-4 py-4 transition-colors ${
-                          selectedRun?._id === run._id
-                            ? "bg-[#FDFBF7]"
-                            : "hover:bg-bg-hover"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <button
-                            onClick={() => setSelectedRunId(run._id)}
-                            className="min-w-0 flex-1 text-left"
-                          >
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span
-                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${getStatusClassName(run.status)}`}
-                              >
-                                {formatStatusLabel(run.status)}
-                              </span>
-                              {index === 0 && (
-                                <span className="text-[11px] text-text-secondary">
-                                  Latest
-                                </span>
-                              )}
-                            </div>
-                            <p className="mt-2 text-xs font-medium text-text-primary">
-                              {scoreLabel(run.criteria)}
-                            </p>
-                            <p className="mt-1 line-clamp-2 text-xs text-text-secondary">
-                              {run.summary}
-                            </p>
-                          </button>
-                          <div className="flex shrink-0 items-start gap-1">
-                            {run._id !== latestRunId && (
-                              <Tooltip content="Delete this saved review run">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setRunToDelete(run._id);
-                                  }}
-                                  className="rounded p-1 text-text-secondary hover:bg-red-50 hover:text-red-600 transition-colors"
-                                >
-                                  <TrashSimple size={14} />
-                                </button>
-                              </Tooltip>
-                            )}
+                  ) : runs.length === 0 ? (
+                    <div className="px-6 py-8">
+                      <div className="rounded-lg border border-dashed border-border bg-bg-primary px-4 py-6 text-center">
+                        <p className="text-sm text-text-primary">
+                          No review history yet
+                        </p>
+                        <p className="mt-1 text-xs text-text-secondary">
+                          Run AI Review to start collecting past review output.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-border">
+                      {runs.map((run, index) => (
+                        <div
+                          key={run._id}
+                          className={`px-4 py-4 transition-colors ${
+                            selectedRun?._id === run._id
+                              ? "bg-[#FDFBF7]"
+                              : "hover:bg-bg-hover"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
                             <button
                               onClick={() => setSelectedRunId(run._id)}
-                              className="rounded p-0.5 text-text-secondary"
+                              className="min-w-0 flex-1 text-left"
                             >
-                              <CaretRight
-                                size={14}
-                                className={`shrink-0 transition-transform ${
-                                  selectedRun?._id === run._id ? "rotate-90" : ""
-                                }`}
-                              />
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span
+                                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${getStatusClassName(run.status)}`}
+                                >
+                                  {formatStatusLabel(run.status)}
+                                </span>
+                                {index === 0 && (
+                                  <span className="text-[11px] text-text-secondary">
+                                    Latest
+                                  </span>
+                                )}
+                              </div>
+                              <p className="mt-2 text-xs font-medium text-text-primary">
+                                {scoreLabel(run.criteria)}
+                              </p>
+                              <p className="mt-1 line-clamp-2 text-xs text-text-secondary">
+                                {run.summary}
+                              </p>
                             </button>
+                            <div className="flex shrink-0 items-start gap-1">
+                              {run._id !== latestRunId && (
+                                <Tooltip content="Delete this saved review run">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setRunToDelete(run._id);
+                                    }}
+                                    className="rounded p-1 text-text-secondary hover:bg-red-50 hover:text-red-600 transition-colors"
+                                  >
+                                    <TrashSimple size={14} />
+                                  </button>
+                                </Tooltip>
+                              )}
+                              <button
+                                onClick={() => setSelectedRunId(run._id)}
+                                className="rounded p-0.5 text-text-secondary"
+                              >
+                                <CaretRight
+                                  size={14}
+                                  className={`shrink-0 transition-transform ${
+                                    selectedRun?._id === run._id
+                                      ? "rotate-90"
+                                      : ""
+                                  }`}
+                                />
+                              </button>
+                            </div>
+                          </div>
+                          <div className="mt-3 text-[11px] text-text-secondary">
+                            {new Date(run.createdAt).toLocaleString()}
                           </div>
                         </div>
-                        <div className="mt-3 text-[11px] text-text-secondary">
-                          {new Date(run.createdAt).toLocaleString()}
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="min-h-0 overflow-y-auto">
+                {!selectedRun ? (
+                  <div className="px-6 py-10 text-sm text-text-secondary">
+                    Select a review run to inspect the full output.
+                  </div>
+                ) : (
+                  <div className="px-6 py-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${getStatusClassName(selectedRun.status)}`}
+                        >
+                          {formatStatusLabel(selectedRun.status)}
+                        </span>
+                        <span className="text-xs text-text-secondary">
+                          {new Date(selectedRun.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                      {selectedRun._id !== latestRunId && (
+                        <button
+                          onClick={() => setRunToDelete(selectedRun._id)}
+                          className="inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
+                        >
+                          <TrashSimple size={14} />
+                          Delete run
+                        </button>
+                      )}
+                    </div>
+
+                    {reviewedBy && (
+                      <p className="mt-3 text-xs text-text-secondary">
+                        Reviewed by {reviewedBy}
+                      </p>
+                    )}
+
+                    <div className="mt-4 grid gap-2 text-xs text-text-secondary sm:grid-cols-2 xl:grid-cols-4">
+                      <div className="rounded-lg border border-border bg-bg-primary px-3 py-2">
+                        <div className="text-[11px] uppercase tracking-wide">
+                          Score
+                        </div>
+                        <div className="mt-1 text-sm text-text-primary">
+                          {scoreLabel(selectedRun.criteria)}
                         </div>
                       </div>
-                    ))}
+                      <div className="rounded-lg border border-border bg-bg-primary px-3 py-2">
+                        <div className="text-[11px] uppercase tracking-wide">
+                          Provider
+                        </div>
+                        <div className="mt-1 text-sm text-text-primary">
+                          {selectedRun.provider || "Unknown"}
+                        </div>
+                      </div>
+                      <div className="rounded-lg border border-border bg-bg-primary px-3 py-2">
+                        <div className="text-[11px] uppercase tracking-wide">
+                          Model
+                        </div>
+                        <div className="mt-1 text-sm text-text-primary break-all">
+                          {selectedRun.model || "Unknown"}
+                        </div>
+                      </div>
+                      <div className="rounded-lg border border-border bg-bg-primary px-3 py-2">
+                        <div className="text-[11px] uppercase tracking-wide">
+                          Source
+                        </div>
+                        <div className="mt-1 text-sm text-text-primary">
+                          {selectedRun.source || "Unknown"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 rounded-lg border border-border bg-bg-primary p-4">
+                      <div className="text-xs font-medium text-text-secondary">
+                        Summary
+                      </div>
+                      <div className="mt-2 whitespace-pre-wrap text-sm text-text-primary">
+                        {selectedRun.summary}
+                      </div>
+                    </div>
+
+                    {selectedRun.error && (
+                      <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
+                        <div className="text-xs font-medium text-red-700">
+                          Error
+                        </div>
+                        <div className="mt-2 whitespace-pre-wrap text-sm text-red-700">
+                          {selectedRun.error}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="mt-5">
+                      <div className="text-xs font-medium text-text-secondary">
+                        Criteria checklist
+                      </div>
+                      <div className="mt-3 space-y-2">
+                        {selectedRun.criteria.length === 0 ? (
+                          <div className="rounded-lg border border-dashed border-border bg-bg-primary px-4 py-6 text-center text-sm text-text-secondary">
+                            No criteria were recorded for this run.
+                          </div>
+                        ) : (
+                          selectedRun.criteria.map((criterion) => (
+                            <div
+                              key={`${selectedRun._id}-${criterion.name}`}
+                              className="flex items-start gap-3 rounded-lg border border-border bg-bg-primary p-3"
+                            >
+                              {criterion.passed ? (
+                                <CheckCircle
+                                  size={16}
+                                  weight="bold"
+                                  className="mt-0.5 shrink-0 text-green-600"
+                                />
+                              ) : (
+                                <XCircle
+                                  size={16}
+                                  weight="bold"
+                                  className="mt-0.5 shrink-0 text-red-600"
+                                />
+                              )}
+                              <div className="min-w-0">
+                                <div className="text-sm font-medium text-text-primary">
+                                  {criterion.name}
+                                </div>
+                                <div className="mt-1 text-xs text-text-secondary">
+                                  {criterion.notes}
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {selectedRun.rawOutput && (
+                      <div className="mt-5 rounded-lg border border-border bg-bg-primary p-4">
+                        <div className="text-xs font-medium text-text-secondary">
+                          Raw model output
+                        </div>
+                        <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words text-xs text-text-primary">
+                          {selectedRun.rawOutput}
+                        </pre>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             </div>
-
-            <div className="min-h-0 overflow-y-auto">
-              {!selectedRun ? (
-                <div className="px-6 py-10 text-sm text-text-secondary">
-                  Select a review run to inspect the full output.
-                </div>
-              ) : (
-                <div className="px-6 py-5">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${getStatusClassName(selectedRun.status)}`}
-                      >
-                        {formatStatusLabel(selectedRun.status)}
-                      </span>
-                      <span className="text-xs text-text-secondary">
-                        {new Date(selectedRun.createdAt).toLocaleString()}
-                      </span>
-                    </div>
-                    {selectedRun._id !== latestRunId && (
-                      <button
-                        onClick={() => setRunToDelete(selectedRun._id)}
-                        className="inline-flex items-center gap-1 rounded-full border border-red-200 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors"
-                      >
-                        <TrashSimple size={14} />
-                        Delete run
-                      </button>
-                    )}
-                  </div>
-
-                  {reviewedBy && (
-                    <p className="mt-3 text-xs text-text-secondary">
-                      Reviewed by {reviewedBy}
-                    </p>
-                  )}
-
-                  <div className="mt-4 grid gap-2 text-xs text-text-secondary sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-lg border border-border bg-bg-primary px-3 py-2">
-                      <div className="text-[11px] uppercase tracking-wide">Score</div>
-                      <div className="mt-1 text-sm text-text-primary">
-                        {scoreLabel(selectedRun.criteria)}
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-border bg-bg-primary px-3 py-2">
-                      <div className="text-[11px] uppercase tracking-wide">Provider</div>
-                      <div className="mt-1 text-sm text-text-primary">
-                        {selectedRun.provider || "Unknown"}
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-border bg-bg-primary px-3 py-2">
-                      <div className="text-[11px] uppercase tracking-wide">Model</div>
-                      <div className="mt-1 text-sm text-text-primary break-all">
-                        {selectedRun.model || "Unknown"}
-                      </div>
-                    </div>
-                    <div className="rounded-lg border border-border bg-bg-primary px-3 py-2">
-                      <div className="text-[11px] uppercase tracking-wide">Source</div>
-                      <div className="mt-1 text-sm text-text-primary">
-                        {selectedRun.source || "Unknown"}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 rounded-lg border border-border bg-bg-primary p-4">
-                    <div className="text-xs font-medium text-text-secondary">
-                      Summary
-                    </div>
-                    <div className="mt-2 whitespace-pre-wrap text-sm text-text-primary">
-                      {selectedRun.summary}
-                    </div>
-                  </div>
-
-                  {selectedRun.error && (
-                    <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
-                      <div className="text-xs font-medium text-red-700">Error</div>
-                      <div className="mt-2 whitespace-pre-wrap text-sm text-red-700">
-                        {selectedRun.error}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-5">
-                    <div className="text-xs font-medium text-text-secondary">
-                      Criteria checklist
-                    </div>
-                    <div className="mt-3 space-y-2">
-                      {selectedRun.criteria.length === 0 ? (
-                        <div className="rounded-lg border border-dashed border-border bg-bg-primary px-4 py-6 text-center text-sm text-text-secondary">
-                          No criteria were recorded for this run.
-                        </div>
-                      ) : (
-                        selectedRun.criteria.map((criterion) => (
-                          <div
-                            key={`${selectedRun._id}-${criterion.name}`}
-                            className="flex items-start gap-3 rounded-lg border border-border bg-bg-primary p-3"
-                          >
-                            {criterion.passed ? (
-                              <CheckCircle
-                                size={16}
-                                weight="bold"
-                                className="mt-0.5 shrink-0 text-green-600"
-                              />
-                            ) : (
-                              <XCircle
-                                size={16}
-                                weight="bold"
-                                className="mt-0.5 shrink-0 text-red-600"
-                              />
-                            )}
-                            <div className="min-w-0">
-                              <div className="text-sm font-medium text-text-primary">
-                                {criterion.name}
-                              </div>
-                              <div className="mt-1 text-xs text-text-secondary">
-                                {criterion.notes}
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-
-                  {selectedRun.rawOutput && (
-                    <div className="mt-5 rounded-lg border border-border bg-bg-primary p-4">
-                      <div className="text-xs font-medium text-text-secondary">
-                        Raw model output
-                      </div>
-                      <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words text-xs text-text-primary">
-                        {selectedRun.rawOutput}
-                      </pre>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
           )}
         </div>
       </div>
@@ -2820,7 +2965,9 @@ export default function Admin() {
   const [searchTerm, setSearchTerm] = useState("");
 
   // Loading state
-  const isLoading = authLoading || (isAuthenticated && (loggedInUser === undefined || isAdmin === undefined));
+  const isLoading =
+    authLoading ||
+    (isAuthenticated && (loggedInUser === undefined || isAdmin === undefined));
 
   // Use search query when there's a search term, otherwise use all packages
   const searchResults = useQuery(api.packages.adminSearchPackages, {
@@ -2840,7 +2987,9 @@ export default function Admin() {
       {loggedInUser && isAdmin && (
         <div className="sticky top-14 z-10 backdrop-blur-sm px-4 sm:px-6 py-2 bg-bg-primary border-b border-border">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-            <span className="text-text-primary font-medium text-sm">Admin Dashboard</span>
+            <span className="text-text-primary font-medium text-sm">
+              Admin Dashboard
+            </span>
             <div className="hidden sm:block flex-1 max-w-md mx-4">
               <div className="relative">
                 <MagnifyingGlass
@@ -2857,7 +3006,8 @@ export default function Admin() {
                 {searchTerm && (
                   <button
                     onClick={() => setSearchTerm("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary">
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary"
+                  >
                     <X size={14} />
                   </button>
                 )}
@@ -2885,10 +3035,14 @@ export default function Admin() {
               <button
                 onClick={() => {
                   // Save current path to return after sign-in
-                  localStorage.setItem("authReturnPath", window.location.pathname);
+                  localStorage.setItem(
+                    "authReturnPath",
+                    window.location.pathname,
+                  );
                   signIn();
                 }}
-                className="w-full px-6 py-3 rounded-full font-normal bg-button text-white hover:bg-button-hover transition-colors text-sm">
+                className="w-full px-6 py-3 rounded-full font-normal bg-button text-white hover:bg-button-hover transition-colors text-sm"
+              >
                 Sign In
               </button>
             </div>
@@ -3071,9 +3225,8 @@ function NpmMismatchPanel({
             <span className="font-medium">{pendingNpmName}</span>, but this
             listing still tracks{" "}
             <span className="font-medium">{currentName}</span>. Accept to
-            re-derive the name, install command, and registry stats from the
-            new package (slug and public URL stay the same), or revert the npm
-            URL.
+            re-derive the name, install command, and registry stats from the new
+            package (slug and public URL stay the same), or revert the npm URL.
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             <button
@@ -3135,13 +3288,17 @@ function PaymentBadge({
       icon: <CurrencyCircleDollar size={14} weight="fill" />,
       label: rewardTotalAmount ? `$${rewardTotalAmount}` : "Paid",
       className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-      tooltip: rewardTotalAmount ? `Reward sent: $${rewardTotalAmount}` : "Reward sent",
+      tooltip: rewardTotalAmount
+        ? `Reward sent: $${rewardTotalAmount}`
+        : "Reward sent",
     },
     delivered: {
       icon: <CurrencyCircleDollar size={14} weight="fill" />,
       label: rewardTotalAmount ? `$${rewardTotalAmount}` : "Delivered",
       className: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20",
-      tooltip: rewardTotalAmount ? `Reward delivered: $${rewardTotalAmount}` : "Reward delivered",
+      tooltip: rewardTotalAmount
+        ? `Reward delivered: $${rewardTotalAmount}`
+        : "Reward delivered",
     },
     failed: {
       icon: <CurrencyCircleDollar size={14} weight="bold" />,
@@ -3225,12 +3382,12 @@ function InlineActions({
   const [showRewardHistory, setShowRewardHistory] = useState(false);
   const [showAiReviewHistory, setShowAiReviewHistory] = useState(false);
   const [rewardAmount, setRewardAmount] = useState<string>(
-    (defaultRewardAmount ?? 25).toString()
+    (defaultRewardAmount ?? 25).toString(),
   );
   const [rewardNote, setRewardNote] = useState("");
   const [isSendingReward, setIsSendingReward] = useState(false);
   const [sortOrderInput, setSortOrderInput] = useState<string>(
-    currentFeaturedSortOrder?.toString() ?? ""
+    currentFeaturedSortOrder?.toString() ?? "",
   );
   const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [isRegeneratingSeo, setIsRegeneratingSeo] = useState(false);
@@ -3244,8 +3401,12 @@ function InlineActions({
   const deletePackage = useMutation(api.packages.deletePackage);
   const toggleFeatured = useMutation(api.packages.toggleFeatured);
   const setFeaturedSortOrder = useMutation(api.packages.setFeaturedSortOrder);
-  const toggleHideFromSubmissions = useMutation(api.packages.toggleHideFromSubmissions);
-  const updateComponentDetails = useMutation(api.packages.updateComponentDetails);
+  const toggleHideFromSubmissions = useMutation(
+    api.packages.toggleHideFromSubmissions,
+  );
+  const updateComponentDetails = useMutation(
+    api.packages.updateComponentDetails,
+  );
   const sendReward = useAction(api.payments.sendRewardManual);
   const rewardPayments = useQuery(api.paymentsDb.getPaymentsForPackage, {
     packageId,
@@ -3253,9 +3414,12 @@ function InlineActions({
   const aiReviewRuns = useQuery(api.packages.getAiReviewRunsForPackage, {
     packageId,
   });
-  const securityScanRuns = useQuery(api.packages.getSecurityScanRunsForPackage, {
-    packageId,
-  });
+  const securityScanRuns = useQuery(
+    api.packages.getSecurityScanRunsForPackage,
+    {
+      packageId,
+    },
+  );
   const runSecurityScan = useAction(api.securityScan.runSecurityScan);
   const [isScanning, setIsScanning] = useState(false);
   const autoFillAuthor = useMutation(api.packages.autoFillAuthorFromRepo);
@@ -3272,7 +3436,8 @@ function InlineActions({
   const rewardHistoryCount = rewardPayments?.length ?? 0;
   const aiReviewHistoryCount = aiReviewRuns?.length ?? 0;
   const securityScanHistoryCount = securityScanRuns?.length ?? 0;
-  const combinedReviewHistoryCount = aiReviewHistoryCount + securityScanHistoryCount;
+  const combinedReviewHistoryCount =
+    aiReviewHistoryCount + securityScanHistoryCount;
   const rewardTotalSent =
     rewardPayments?.reduce((total, payment) => {
       if (payment.status === "sent" || payment.status === "delivered") {
@@ -3390,7 +3555,11 @@ function InlineActions({
     setIsLoading(true);
     try {
       await setFeaturedSortOrder({ packageId, sortOrder });
-      toast.success(sortOrder === null ? "Sort order cleared" : `Sort order set to ${sortOrder}`);
+      toast.success(
+        sortOrder === null
+          ? "Sort order cleared"
+          : `Sort order set to ${sortOrder}`,
+      );
     } catch (error) {
       toast.error("Failed to update sort order");
     } finally {
@@ -3403,7 +3572,11 @@ function InlineActions({
     setIsLoading(true);
     try {
       await toggleHideFromSubmissions({ packageId });
-      toast.success(hideFromSubmissions ? "Visible on Submissions page" : "Hidden from Submissions page");
+      toast.success(
+        hideFromSubmissions
+          ? "Visible on Submissions page"
+          : "Hidden from Submissions page",
+      );
     } catch (error) {
       toast.error("Failed to toggle hide from submissions");
     } finally {
@@ -3420,7 +3593,11 @@ function InlineActions({
         packageId,
         convexVerified: !convexVerified,
       });
-      toast.success(convexVerified ? "Convex Verified removed" : "Marked as Convex Verified");
+      toast.success(
+        convexVerified
+          ? "Convex Verified removed"
+          : "Marked as Convex Verified",
+      );
     } catch (error) {
       toast.error("Failed to update verified status");
     } finally {
@@ -3437,7 +3614,9 @@ function InlineActions({
         packageId,
         communitySubmitted: !communitySubmitted,
       });
-      toast.success(communitySubmitted ? "Community badge removed" : "Marked as Community");
+      toast.success(
+        communitySubmitted ? "Community badge removed" : "Marked as Community",
+      );
     } catch (error) {
       toast.error("Failed to update community status");
     } finally {
@@ -3454,7 +3633,11 @@ function InlineActions({
         packageId,
         hideThumbnailInCategory: !hideThumbnailInCategory,
       });
-      toast.success(hideThumbnailInCategory ? "Thumbnail shown in category listings" : "Thumbnail hidden in category listings (shows in Featured only)");
+      toast.success(
+        hideThumbnailInCategory
+          ? "Thumbnail shown in category listings"
+          : "Thumbnail hidden in category listings (shows in Featured only)",
+      );
     } catch (error) {
       toast.error("Failed to update thumbnail visibility");
     } finally {
@@ -3578,38 +3761,42 @@ function InlineActions({
     if (isAutoFilling) return;
     setIsAutoFilling(true);
     const results: string[] = [];
-    
+
     try {
       // Run both operations in parallel if available
       const promises: Promise<void>[] = [];
-      
+
       if (repositoryUrl) {
         promises.push(
-          autoFillAuthor({ packageId }).then((result) => {
-            if (result) {
-              results.push("author info");
-            }
-          }).catch(() => {
-            // Silently skip author fill if it fails
-          })
+          autoFillAuthor({ packageId })
+            .then((result) => {
+              if (result) {
+                results.push("author info");
+              }
+            })
+            .catch(() => {
+              // Silently skip author fill if it fails
+            }),
         );
       }
-      
+
       if (npmDescription) {
         promises.push(
           updateComponentDetails({
             packageId,
             longDescription: npmDescription,
-          }).then(() => {
-            results.push("description");
-          }).catch(() => {
-            // Silently skip description fill if it fails
           })
+            .then(() => {
+              results.push("description");
+            })
+            .catch(() => {
+              // Silently skip description fill if it fails
+            }),
         );
       }
-      
+
       await Promise.all(promises);
-      
+
       if (results.length > 0) {
         toast.success(`Auto-filled: ${results.join(" and ")}`);
       } else {
@@ -3630,16 +3817,18 @@ function InlineActions({
     if (isSendingReward || !submitterEmail) return;
 
     if (!canSendReward) {
-      toast.error(`Rewards can only be sent for packages in review or approved status. Current: ${status}`);
+      toast.error(
+        `Rewards can only be sent for packages in review or approved status. Current: ${status}`,
+      );
       return;
     }
-    
+
     const amount = parseFloat(rewardAmount);
     if (isNaN(amount) || amount <= 0) {
       toast.error("Please enter a valid amount");
       return;
     }
-    
+
     setIsSendingReward(true);
     try {
       const result = await sendReward({
@@ -3648,7 +3837,7 @@ function InlineActions({
         sentBy: userEmail,
         note: rewardNote || undefined,
       });
-      
+
       if (result.success) {
         toast.success(`Reward of $${amount} sent to ${submitterEmail}`);
         setShowRewardConfirm(false);
@@ -3741,7 +3930,8 @@ function InlineActions({
 
   // Check if auto-fill is available
   const canAutoFill = !!repositoryUrl || !!npmDescription;
-  const isSeoGenerating = seoGenerationStatus === "generating" || isRegeneratingSeo;
+  const isSeoGenerating =
+    seoGenerationStatus === "generating" || isRegeneratingSeo;
 
   return (
     <>
@@ -3754,7 +3944,13 @@ function InlineActions({
           </span>
           <div className="flex gap-1 flex-wrap items-center">
             {/* Convex Verified Toggle */}
-            <Tooltip content={convexVerified ? "Remove Convex Verified badge" : "Mark as Convex Verified"}>
+            <Tooltip
+              content={
+                convexVerified
+                  ? "Remove Convex Verified badge"
+                  : "Mark as Convex Verified"
+              }
+            >
               <button
                 onClick={handleToggleVerified}
                 disabled={isLoading}
@@ -3764,13 +3960,22 @@ function InlineActions({
                     : "border-teal-200 text-teal-600 hover:bg-teal-50"
                 }`}
               >
-                <CheckCircle size={14} weight={convexVerified ? "fill" : "bold"} />
+                <CheckCircle
+                  size={14}
+                  weight={convexVerified ? "fill" : "bold"}
+                />
                 <span>Convex Verified</span>
               </button>
             </Tooltip>
 
             {/* Community Toggle */}
-            <Tooltip content={communitySubmitted ? "Remove Community badge" : "Mark as Community"}>
+            <Tooltip
+              content={
+                communitySubmitted
+                  ? "Remove Community badge"
+                  : "Mark as Community"
+              }
+            >
               <button
                 onClick={handleToggleCommunity}
                 disabled={isLoading}
@@ -3779,15 +3984,28 @@ function InlineActions({
                     ? "text-white border-[#C4B48A]"
                     : "border-[#E9DDC2] text-[#574A30] hover:bg-[#F5F0E3]"
                 }`}
-                style={communitySubmitted ? { backgroundColor: "#C4B48A", borderColor: "#C4B48A" } : {}}
+                style={
+                  communitySubmitted
+                    ? { backgroundColor: "#C4B48A", borderColor: "#C4B48A" }
+                    : {}
+                }
               >
-                <Users size={14} weight={communitySubmitted ? "fill" : "bold"} />
+                <Users
+                  size={14}
+                  weight={communitySubmitted ? "fill" : "bold"}
+                />
                 <span>Community</span>
               </button>
             </Tooltip>
 
             {/* Generate Component Directory Content Button */}
-            <Tooltip content={isSeoGenerating ? "AI is working..." : "Generate component directory content and SKILL.md"}>
+            <Tooltip
+              content={
+                isSeoGenerating
+                  ? "AI is working..."
+                  : "Generate component directory content and SKILL.md"
+              }
+            >
               <button
                 onClick={handleRegenerateSeo}
                 disabled={isLoading || isSeoGenerating}
@@ -3809,7 +4027,13 @@ function InlineActions({
             </Tooltip>
 
             {/* Refresh README Only */}
-            <Tooltip content={isRefreshingReadme ? "Fetching README..." : "Fetch latest README from GitHub without regenerating AI content"}>
+            <Tooltip
+              content={
+                isRefreshingReadme
+                  ? "Fetching README..."
+                  : "Fetch latest README from GitHub without regenerating AI content"
+              }
+            >
               <button
                 onClick={handleRefreshReadme}
                 disabled={isLoading || isRefreshingReadme}
@@ -3832,7 +4056,8 @@ function InlineActions({
                 isRebuildingSkill
                   ? "Rebuilding skill..."
                   : "Rebuild SKILL.md from current directory content (no AI call)"
-              }>
+              }
+            >
               <button
                 onClick={handleRebuildSkill}
                 disabled={isLoading || isRebuildingSkill}
@@ -3843,7 +4068,9 @@ function InlineActions({
                 ) : (
                   <>
                     <Robot size={14} weight="bold" />
-                    <span>{hasSkillMd ? "Update Skill" : "Generate Skill"}</span>
+                    <span>
+                      {hasSkillMd ? "Update Skill" : "Generate Skill"}
+                    </span>
                   </>
                 )}
               </button>
@@ -3854,7 +4081,8 @@ function InlineActions({
                 hideSeoAndSkillContentOnDetailPage
                   ? "Show generated SEO and SKILL content on the detail page"
                   : "Hide generated SEO and SKILL content from the detail page"
-              }>
+              }
+            >
               <button
                 onClick={handleToggleHideSeoAndSkillContent}
                 disabled={isLoading}
@@ -3862,23 +4090,26 @@ function InlineActions({
                   hideSeoAndSkillContentOnDetailPage
                     ? "bg-gray-700 text-white border-gray-700"
                     : "border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-                }`}>
+                }`}
+              >
                 {hideSeoAndSkillContentOnDetailPage ? (
                   <EyeSlash size={14} weight="bold" />
                 ) : (
                   <Eye size={14} weight="bold" />
                 )}
                 <span>
-                  {hideSeoAndSkillContentOnDetailPage ? "SEO Hidden" : "Hide SEO"}
+                  {hideSeoAndSkillContentOnDetailPage
+                    ? "SEO Hidden"
+                    : "Hide SEO"}
                 </span>
               </button>
             </Tooltip>
 
             {/* Combined Auto-fill Button */}
-            <Tooltip 
+            <Tooltip
               content={
-                !canAutoFill 
-                  ? "No data available to auto-fill" 
+                !canAutoFill
+                  ? "No data available to auto-fill"
                   : `Auto-fill${repositoryUrl ? " author from GitHub" : ""}${repositoryUrl && npmDescription ? " and" : ""}${npmDescription ? " description from package" : ""}`
               }
             >
@@ -3891,16 +4122,24 @@ function InlineActions({
                     : "border-border text-text-secondary cursor-not-allowed"
                 }`}
               >
-                <Lightning size={14} weight={isAutoFilling ? "fill" : "bold"} className={isAutoFilling ? "animate-pulse" : ""} />
-                <span>
-                  {isAutoFilling ? "Filling..." : "Auto-fill"}
-                </span>
+                <Lightning
+                  size={14}
+                  weight={isAutoFilling ? "fill" : "bold"}
+                  className={isAutoFilling ? "animate-pulse" : ""}
+                />
+                <span>{isAutoFilling ? "Filling..." : "Auto-fill"}</span>
               </button>
             </Tooltip>
 
             {/* Hide Thumbnail in Category Toggle - only show if thumbnail exists */}
             {thumbnailUrl && (
-              <Tooltip content={hideThumbnailInCategory ? "Show thumbnail in category listings" : "Hide thumbnail in category listings (show only in Featured)"}>
+              <Tooltip
+                content={
+                  hideThumbnailInCategory
+                    ? "Show thumbnail in category listings"
+                    : "Hide thumbnail in category listings (show only in Featured)"
+                }
+              >
                 <button
                   onClick={handleToggleHideThumbnail}
                   disabled={isLoading}
@@ -3910,7 +4149,10 @@ function InlineActions({
                       : "border-orange-200 text-orange-600 hover:bg-orange-50"
                   }`}
                 >
-                  <Image size={14} weight={hideThumbnailInCategory ? "fill" : "bold"} />
+                  <Image
+                    size={14}
+                    weight={hideThumbnailInCategory ? "fill" : "bold"}
+                  />
                   <span>
                     {hideThumbnailInCategory ? "Thumb Hidden" : "Hide Thumb"}
                   </span>
@@ -3945,9 +4187,7 @@ function InlineActions({
                     size={14}
                     className={isRefreshing ? "animate-spin" : ""}
                   />
-                  <span>
-                    {isRefreshing ? "Refreshing..." : "Refresh"}
-                  </span>
+                  <span>{isRefreshing ? "Refreshing..." : "Refresh"}</span>
                 </button>
               </Tooltip>
             </div>
@@ -3963,19 +4203,20 @@ function InlineActions({
                   disabled={isGeneratingSlug}
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700 hover:bg-orange-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <LinkSimple size={14} className={isGeneratingSlug ? "animate-pulse" : ""} />
-                  <span>
-                    {isGeneratingSlug ? "..." : "Slug"}
-                  </span>
+                  <LinkSimple
+                    size={14}
+                    className={isGeneratingSlug ? "animate-pulse" : ""}
+                  />
+                  <span>{isGeneratingSlug ? "..." : "Slug"}</span>
                 </button>
               </Tooltip>
             )}
 
             {/* Send Reward Button */}
-            <Tooltip 
+            <Tooltip
               content={
-                !submitterEmail 
-                  ? "No submitter email on this package" 
+                !submitterEmail
+                  ? "No submitter email on this package"
                   : !canSendReward
                     ? `Rewards require in review or approved status (current: ${status})`
                     : rewardStatus === "sent" || rewardStatus === "delivered"
@@ -3987,7 +4228,12 @@ function InlineActions({
             >
               <button
                 onClick={() => setShowRewardConfirm(true)}
-                disabled={isLoading || !submitterEmail || isSendingReward || !canSendReward}
+                disabled={
+                  isLoading ||
+                  !submitterEmail ||
+                  isSendingReward ||
+                  !canSendReward
+                }
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all disabled:opacity-50 ${
                   rewardStatus === "sent" || rewardStatus === "delivered"
                     ? "bg-green-600 text-white border-green-600"
@@ -3996,12 +4242,19 @@ function InlineActions({
                       : "border-emerald-200 text-emerald-600 hover:bg-emerald-50"
                 }`}
               >
-                <CurrencyCircleDollar size={14} weight={rewardStatus === "sent" || rewardStatus === "delivered" ? "fill" : "bold"} />
+                <CurrencyCircleDollar
+                  size={14}
+                  weight={
+                    rewardStatus === "sent" || rewardStatus === "delivered"
+                      ? "fill"
+                      : "bold"
+                  }
+                />
                 <span>
-                  {rewardStatus === "sent" || rewardStatus === "delivered" 
-                    ? "Paid" 
-                    : rewardStatus === "failed" 
-                      ? "Retry" 
+                  {rewardStatus === "sent" || rewardStatus === "delivered"
+                    ? "Paid"
+                    : rewardStatus === "failed"
+                      ? "Retry"
                       : "Reward"}
                 </span>
               </button>
@@ -4100,9 +4353,7 @@ function InlineActions({
                 }`}
               >
                 <ShieldCheck size={14} weight="bold" />
-                <span>
-                  {isScanning ? "Scanning..." : "Security Scan"}
-                </span>
+                <span>{isScanning ? "Scanning..." : "Security Scan"}</span>
               </button>
             </Tooltip>
             {/* Combined Review History (AI + Security) */}
@@ -4117,7 +4368,9 @@ function InlineActions({
             >
               <button
                 onClick={() => setShowAiReviewHistory(true)}
-                disabled={aiReviewRuns === undefined && securityScanRuns === undefined}
+                disabled={
+                  aiReviewRuns === undefined && securityScanRuns === undefined
+                }
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-all disabled:opacity-50"
               >
                 <ClockCounterClockwise size={14} weight="bold" />
@@ -4189,9 +4442,7 @@ function InlineActions({
                 }`}
               >
                 <Star size={14} weight={featured ? "fill" : "bold"} />
-                <span>
-                  {featured ? "Featured" : "Feature"}
-                </span>
+                <span>{featured ? "Featured" : "Feature"}</span>
               </button>
             </Tooltip>
             {featured && (
@@ -4202,7 +4453,9 @@ function InlineActions({
                     value={sortOrderInput}
                     onChange={(e) => setSortOrderInput(e.target.value)}
                     onBlur={handleSaveSortOrder}
-                    onKeyDown={(e) => e.key === "Enter" && handleSaveSortOrder()}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && handleSaveSortOrder()
+                    }
                     placeholder="#"
                     className="w-10 px-1.5 py-1 text-xs text-center rounded border border-amber-200 bg-amber-50 text-amber-700 focus:outline-none focus:border-amber-400"
                   />
@@ -4226,10 +4479,11 @@ function InlineActions({
                     : "border-slate-200 text-slate-600 hover:bg-slate-50"
                 }`}
               >
-                <EyeSlash size={14} weight={hideFromSubmissions ? "fill" : "bold"} />
-                <span>
-                  {hideFromSubmissions ? "Sub Hidden" : "Sub Hide"}
-                </span>
+                <EyeSlash
+                  size={14}
+                  weight={hideFromSubmissions ? "fill" : "bold"}
+                />
+                <span>{hideFromSubmissions ? "Sub Hidden" : "Sub Hide"}</span>
               </button>
             </Tooltip>
             {/* Notes Button */}
@@ -4287,9 +4541,13 @@ function InlineActions({
                 <CurrencyCircleDollar size={24} weight="bold" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-normal text-text-primary">Send Reward</h3>
+                <h3 className="text-lg font-normal text-text-primary">
+                  Send Reward
+                </h3>
                 <p className="mt-1 text-sm text-text-secondary">
-                  Send a reward to <span className="font-medium">{submitterEmail}</span> for "{packageName}"
+                  Send a reward to{" "}
+                  <span className="font-medium">{submitterEmail}</span> for "
+                  {packageName}"
                 </p>
               </div>
             </div>
@@ -4300,7 +4558,9 @@ function InlineActions({
                   Amount (USD)
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">
+                    $
+                  </span>
                   <input
                     type="number"
                     min="1"
@@ -4340,7 +4600,11 @@ function InlineActions({
               </button>
               <button
                 onClick={handleSendReward}
-                disabled={isSendingReward || !rewardAmount || parseFloat(rewardAmount) <= 0}
+                disabled={
+                  isSendingReward ||
+                  !rewardAmount ||
+                  parseFloat(rewardAmount) <= 0
+                }
                 className="px-4 py-2 rounded-full text-sm font-normal bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {isSendingReward ? (
@@ -4401,7 +4665,8 @@ function InlineActions({
                 <div className="space-y-3">
                   {rewardPayments.map((payment) => {
                     const statusClassName =
-                      payment.status === "sent" || payment.status === "delivered"
+                      payment.status === "sent" ||
+                      payment.status === "delivered"
                         ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                         : payment.status === "failed"
                           ? "bg-red-500/10 text-red-600 border-red-500/20"
@@ -4416,7 +4681,8 @@ function InlineActions({
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-center gap-2">
                               <span className="text-sm font-medium text-text-primary">
-                                ${payment.amount.toFixed(2)} {payment.currencyCode}
+                                ${payment.amount.toFixed(2)}{" "}
+                                {payment.currencyCode}
                               </span>
                               <span
                                 className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${statusClassName}`}
@@ -4429,7 +4695,8 @@ function InlineActions({
                               Sent to {payment.recipientEmail}
                             </p>
                             <p className="mt-1 text-xs text-text-secondary">
-                              {new Date(payment.sentAt).toLocaleString()} by {payment.sentBy}
+                              {new Date(payment.sentAt).toLocaleString()} by{" "}
+                              {payment.sentBy}
                             </p>
                             {payment.note && (
                               <p className="mt-2 text-xs text-text-secondary">
@@ -4500,6 +4767,7 @@ function CategoryEditForm({
   sortOrder,
   enabled,
   hideThumbnails,
+  curated,
   saving,
   slugLocked = false,
   onSlugChange,
@@ -4508,6 +4776,7 @@ function CategoryEditForm({
   onSortOrderChange,
   onEnabledChange,
   onHideThumbnailsChange,
+  onCuratedChange,
   onSave,
   onCancel,
 }: {
@@ -4518,6 +4787,7 @@ function CategoryEditForm({
   sortOrder: number;
   enabled: boolean;
   hideThumbnails: boolean;
+  curated: boolean;
   saving: boolean;
   slugLocked?: boolean;
   onSlugChange: (v: string) => void;
@@ -4526,6 +4796,7 @@ function CategoryEditForm({
   onSortOrderChange: (v: number) => void;
   onEnabledChange: (v: boolean) => void;
   onHideThumbnailsChange: (v: boolean) => void;
+  onCuratedChange: (v: boolean) => void;
   onSave: () => void;
   onCancel: () => void;
 }) {
@@ -4597,7 +4868,10 @@ function CategoryEditForm({
             onChange={(e) => onEnabledChange(e.target.checked)}
             className="rounded"
           />
-          <label htmlFor={`cat-enabled-${formId}`} className="text-xs text-text-primary">
+          <label
+            htmlFor={`cat-enabled-${formId}`}
+            className="text-xs text-text-primary"
+          >
             Enabled (visible to public)
           </label>
         </div>
@@ -4618,6 +4892,30 @@ function CategoryEditForm({
             Hide all thumbnails in this category
           </label>
         </div>
+        {/* Curated type is chosen at creation and fixed afterwards, so the
+            checkbox only appears on the new-category form */}
+        {!editingId && (
+          <div className="sm:col-span-2 flex items-start gap-2">
+            <input
+              type="checkbox"
+              id={`cat-curated-${formId}`}
+              checked={curated}
+              onChange={(e) => onCuratedChange(e.target.checked)}
+              className="rounded mt-0.5"
+            />
+            <label
+              htmlFor={`cat-curated-${formId}`}
+              className="text-xs text-text-primary"
+            >
+              Curated (hand-picked members)
+              <span className="block text-[10px] text-text-secondary">
+                You choose which components belong to this category. Members
+                keep their primary category and can show an optional badge image
+                on their cards.
+              </span>
+            </label>
+          </div>
+        )}
       </div>
       <div className="flex items-center gap-2 pt-1">
         <button
@@ -4639,6 +4937,15 @@ function CategoryEditForm({
 }
 
 // Category Management Panel for admin settings
+// Schedule choices for the official README auto-update, in hours.
+const README_AUTO_UPDATE_INTERVALS: Array<{ hours: number; label: string }> = [
+  { hours: 1, label: "Every hour" },
+  { hours: 24, label: "Every day" },
+  { hours: 72, label: "Every 3 days" },
+  { hours: 168, label: "Every week" },
+  { hours: 720, label: "Every month" },
+];
+
 function CategoryManagementPanel() {
   const allCategories = useQuery(api.packages.listAllDirectoryCategories);
   // Fetch counts (same query the directory sidebar uses)
@@ -4650,6 +4957,14 @@ function CategoryManagementPanel() {
     api.packages.setOfficialCategoryEnabled,
   );
   const [togglingOfficial, setTogglingOfficial] = useState(false);
+  // Scheduled README auto-update for official components (hourly cron gated by these settings)
+  const readmeAutoUpdate = useQuery(
+    api.readmeAutoUpdate.getOfficialReadmeAutoUpdateSettings,
+  );
+  const updateReadmeAutoUpdate = useMutation(
+    api.readmeAutoUpdate.updateOfficialReadmeAutoUpdateSettings,
+  );
+  const [savingReadmeAutoUpdate, setSavingReadmeAutoUpdate] = useState(false);
 
   // Editing state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -4659,8 +4974,13 @@ function CategoryManagementPanel() {
   const [editSortOrder, setEditSortOrder] = useState(0);
   const [editEnabled, setEditEnabled] = useState(true);
   const [editHideThumbnails, setEditHideThumbnails] = useState(false);
+  const [editCurated, setEditCurated] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Curated category whose badge/member controls are expanded
+  const [managingCuratedId, setManagingCuratedId] = useState<string | null>(
+    null,
+  );
 
   // Build count maps from the listCategories query (matches Directory sidebar)
   const countMap: Record<string, number> = {};
@@ -4688,6 +5008,7 @@ function CategoryManagementPanel() {
     sortOrder: number;
     enabled: boolean;
     hideThumbnails?: boolean;
+    kind?: "curated";
   }) => {
     setEditingId(cat._id);
     setEditSlug(cat.slug);
@@ -4696,6 +5017,7 @@ function CategoryManagementPanel() {
     setEditSortOrder(cat.sortOrder);
     setEditEnabled(cat.enabled);
     setEditHideThumbnails(cat.hideThumbnails ?? false);
+    setEditCurated(cat.kind === "curated");
     setShowAddForm(false);
   };
 
@@ -4708,6 +5030,7 @@ function CategoryManagementPanel() {
     setEditSortOrder(allCategories ? allCategories.length : 0);
     setEditEnabled(true);
     setEditHideThumbnails(false);
+    setEditCurated(false);
     setShowAddForm(true);
   };
 
@@ -4727,6 +5050,8 @@ function CategoryManagementPanel() {
         sortOrder: editSortOrder,
         enabled: editEnabled,
         hideThumbnails: editHideThumbnails,
+        // kind is create-only; the backend ignores it on update
+        kind: !editingId && editCurated ? ("curated" as const) : undefined,
       });
       toast.success(editingId ? "Category updated" : "Category added");
       setEditingId(null);
@@ -4780,6 +5105,44 @@ function CategoryManagementPanel() {
     }
   };
 
+  const readmeAutoUpdateEnabled = readmeAutoUpdate?.enabled ?? false;
+  const readmeAutoUpdateInterval = readmeAutoUpdate?.intervalHours ?? 1;
+
+  const handleToggleReadmeAutoUpdate = async () => {
+    if (savingReadmeAutoUpdate) return;
+    setSavingReadmeAutoUpdate(true);
+    try {
+      await updateReadmeAutoUpdate({ enabled: !readmeAutoUpdateEnabled });
+      toast.success(
+        readmeAutoUpdateEnabled
+          ? "README auto-update disabled"
+          : "README auto-update enabled",
+      );
+    } catch {
+      toast.error("Failed to update README auto-update");
+    } finally {
+      setSavingReadmeAutoUpdate(false);
+    }
+  };
+
+  const handleReadmeIntervalChange = async (hours: number) => {
+    if (savingReadmeAutoUpdate) return;
+    setSavingReadmeAutoUpdate(true);
+    try {
+      await updateReadmeAutoUpdate({ intervalHours: hours });
+      const option = README_AUTO_UPDATE_INTERVALS.find(
+        (o) => o.hours === hours,
+      );
+      toast.success(
+        `README auto-update schedule set to ${option?.label.toLowerCase() ?? "every hour"}`,
+      );
+    } catch {
+      toast.error("Failed to update the schedule");
+    } finally {
+      setSavingReadmeAutoUpdate(false);
+    }
+  };
+
   if (!allCategories) {
     return (
       <div className="rounded-lg border border-border bg-bg-card p-4 mb-6">
@@ -4810,43 +5173,113 @@ function CategoryManagementPanel() {
       </p>
 
       {/* Official Convex Components: derived category populated by rule, not by assignment */}
-      <div className="mb-4 flex items-start justify-between gap-4 rounded-xl border border-border bg-bg-primary p-3">
-        <div className="min-w-0">
-          <div className="mb-1 flex flex-wrap items-center gap-1.5">
-            <span className="text-sm font-medium text-text-primary">
-              Official Convex Components
-            </span>
-            <span className="text-[10px] font-mono text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded">
-              get-convex
-            </span>
-            {officialEnabled && (
-              <span className="text-[10px] font-medium text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded">
-                {officialCategory?.packageCount ?? 0} components
+      <div className="mb-4 rounded-xl border border-border bg-bg-primary p-3">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="mb-1 flex flex-wrap items-center gap-1.5">
+              <span className="text-sm font-medium text-text-primary">
+                Official Convex Components
+              </span>
+              <span className="text-[10px] font-mono text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded">
+                get-convex
+              </span>
+              {officialEnabled && (
+                <span className="text-[10px] font-medium text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded">
+                  {officialCategory?.packageCount ?? 0} components
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-text-secondary">
+              A top level category filled automatically from the get-convex GitHub
+              org and the @convex-dev npm scope. Components keep their existing
+              category and also appear here, so it is never offered as a choice in
+              category pickers.
+            </p>
+          </div>
+          <button
+            onClick={handleToggleOfficial}
+            disabled={togglingOfficial}
+            aria-pressed={officialEnabled}
+            aria-label="Toggle the Official Convex Components category"
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+              officialEnabled ? "bg-green-600" : "bg-gray-300"
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                officialEnabled ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
+
+        {/* Scheduled README auto-update for official components */}
+        <div className="mt-3 border-t border-border pt-3">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <span className="text-sm font-medium text-text-primary">
+                Auto-update READMEs
+              </span>
+              <p className="mt-1 text-xs text-text-secondary">
+                Refreshes the README from GitHub for every approved official
+                component on the schedule below, the same as clicking Update
+                README. Fetches are staggered to stay under GitHub rate limits
+                and every run is recorded in the Logs tab.
+              </p>
+            </div>
+            <button
+              onClick={handleToggleReadmeAutoUpdate}
+              disabled={savingReadmeAutoUpdate || readmeAutoUpdate === undefined}
+              aria-pressed={readmeAutoUpdateEnabled}
+              aria-label="Toggle scheduled README updates for official components"
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+                readmeAutoUpdateEnabled ? "bg-green-600" : "bg-gray-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  readmeAutoUpdateEnabled ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+            <label className="flex items-center gap-2 text-xs text-text-secondary">
+              Schedule
+              <select
+                value={readmeAutoUpdateInterval}
+                onChange={(e) =>
+                  handleReadmeIntervalChange(Number(e.target.value))
+                }
+                disabled={
+                  savingReadmeAutoUpdate || readmeAutoUpdate === undefined
+                }
+                className="rounded-lg border border-border bg-bg-card px-2 py-1 text-xs text-text-primary disabled:opacity-50"
+              >
+                {README_AUTO_UPDATE_INTERVALS.map((option) => (
+                  <option key={option.hours} value={option.hours}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {readmeAutoUpdate?.lastRunAt ? (
+              <span className="text-xs text-text-secondary">
+                Last run{" "}
+                {new Date(readmeAutoUpdate.lastRunAt).toLocaleString("en-US", {
+                  month: "short",
+                  day: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>
+            ) : (
+              <span className="text-xs text-text-secondary">
+                Has not run yet
               </span>
             )}
           </div>
-          <p className="text-xs text-text-secondary">
-            A top level category filled automatically from the get-convex GitHub
-            org and the @convex-dev npm scope. Components keep their existing
-            category and also appear here, so it is never offered as a choice in
-            category pickers.
-          </p>
         </div>
-        <button
-          onClick={handleToggleOfficial}
-          disabled={togglingOfficial}
-          aria-pressed={officialEnabled}
-          aria-label="Toggle the Official Convex Components category"
-          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
-            officialEnabled ? "bg-green-600" : "bg-gray-300"
-          }`}
-        >
-          <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-              officialEnabled ? "translate-x-6" : "translate-x-1"
-            }`}
-          />
-        </button>
       </div>
 
       {/* New category form at top (only for adding, not editing) */}
@@ -4860,6 +5293,7 @@ function CategoryManagementPanel() {
             sortOrder={editSortOrder}
             enabled={editEnabled}
             hideThumbnails={editHideThumbnails}
+            curated={editCurated}
             saving={saving}
             onSlugChange={setEditSlug}
             onLabelChange={setEditLabel}
@@ -4867,6 +5301,7 @@ function CategoryManagementPanel() {
             onSortOrderChange={setEditSortOrder}
             onEnabledChange={setEditEnabled}
             onHideThumbnailsChange={setEditHideThumbnails}
+            onCuratedChange={setEditCurated}
             onSave={handleSave}
             onCancel={cancelEdit}
           />
@@ -4892,6 +5327,7 @@ function CategoryManagementPanel() {
                 sortOrder={editSortOrder}
                 enabled={editEnabled}
                 hideThumbnails={editHideThumbnails}
+                curated={editCurated}
                 saving={saving}
                 slugLocked={cat.derivedFrom !== undefined}
                 onSlugChange={setEditSlug}
@@ -4900,6 +5336,7 @@ function CategoryManagementPanel() {
                 onSortOrderChange={setEditSortOrder}
                 onEnabledChange={setEditEnabled}
                 onHideThumbnailsChange={setEditHideThumbnails}
+                onCuratedChange={setEditCurated}
                 onSave={handleSave}
                 onCancel={cancelEdit}
               />
@@ -4907,68 +5344,370 @@ function CategoryManagementPanel() {
           }
 
           // Normal category row
+          const isCurated = cat.kind === "curated";
+          const isManaging = managingCuratedId === cat._id;
           return (
             <div
               key={cat._id}
-              className={`flex flex-col gap-3 rounded-xl border p-3 transition-colors sm:flex-row sm:items-start sm:justify-between ${
+              className={`flex flex-col gap-3 rounded-xl border p-3 transition-colors ${
                 !cat.enabled
                   ? "border-border/50 bg-bg-primary/50 opacity-60"
                   : "border-border bg-bg-primary"
               }`}
             >
-              <div className="flex-1 min-w-0">
-                <div className="mb-1 flex flex-wrap items-center gap-1.5">
-                  <span className="text-sm font-medium text-text-primary">
-                    {cat.label}
-                  </span>
-                  <span className="text-[10px] font-mono text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded">
-                    {cat.slug}
-                  </span>
-                  <span className="text-[10px] font-medium text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded">
-                    {componentCount} {componentCount === 1 ? "component" : "components"}
-                  </span>
-                  <span className="text-[10px] font-medium text-green-700 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
-                    {verifiedCount} {verifiedCount === 1 ? "verified component" : "verified components"}
-                  </span>
-                  {cat.derivedFrom && (
-                    <span className="text-[10px] text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded border border-border">
-                      auto
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                    <span className="text-sm font-medium text-text-primary">
+                      {cat.label}
                     </span>
-                  )}
-                  {cat.hideThumbnails && (
-                    <span className="text-[10px] text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded border border-border">
-                      thumbnails hidden
+                    {isCurated && cat.badgeUrl && (
+                      <img
+                        src={cat.badgeUrl}
+                        alt={`${cat.label} badge`}
+                        title={`${cat.label} badge`}
+                        className="h-4 w-auto max-w-[64px] rounded object-contain"
+                      />
+                    )}
+                    <span className="text-[10px] font-mono text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded">
+                      {cat.slug}
                     </span>
-                  )}
-                  {!cat.enabled && (
-                    <span className="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">
-                      disabled
+                    <span className="text-[10px] font-medium text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded">
+                      {componentCount}{" "}
+                      {componentCount === 1 ? "component" : "components"}
                     </span>
-                  )}
+                    <span className="text-[10px] font-medium text-green-700 bg-green-50 px-1.5 py-0.5 rounded border border-green-100">
+                      {verifiedCount}{" "}
+                      {verifiedCount === 1
+                        ? "verified component"
+                        : "verified components"}
+                    </span>
+                    {cat.derivedFrom && (
+                      <span className="text-[10px] text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded border border-border">
+                        auto
+                      </span>
+                    )}
+                    {isCurated && (
+                      <span className="text-[10px] text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded border border-border">
+                        curated
+                      </span>
+                    )}
+                    {cat.hideThumbnails && (
+                      <span className="text-[10px] text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded border border-border">
+                        thumbnails hidden
+                      </span>
+                    )}
+                    {!cat.enabled && (
+                      <span className="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">
+                        disabled
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-text-secondary break-words">
+                    {cat.description}
+                  </p>
                 </div>
-                <p className="text-xs text-text-secondary break-words">
-                  {cat.description}
-                </p>
+                <div className="flex w-full items-center justify-end gap-1 shrink-0 sm:w-auto sm:justify-start">
+                  {isCurated && (
+                    <button
+                      onClick={() =>
+                        setManagingCuratedId(isManaging ? null : cat._id)
+                      }
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                        isManaging
+                          ? "border-button bg-button text-white"
+                          : "border-border text-text-secondary hover:text-text-primary"
+                      }`}
+                    >
+                      {isManaging ? "Close" : "Manage members"}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => startEdit(cat)}
+                    className="p-1.5 rounded text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
+                    title="Edit"
+                  >
+                    <PencilSimple size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(cat._id)}
+                    className="p-1.5 rounded text-text-secondary hover:text-red-600 hover:bg-red-50 transition-colors"
+                    title="Delete"
+                  >
+                    <TrashSimple size={14} />
+                  </button>
+                </div>
               </div>
-              <div className="flex w-full items-center justify-end gap-1 shrink-0 sm:w-auto sm:justify-start">
-                <button
-                  onClick={() => startEdit(cat)}
-                  className="p-1.5 rounded text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
-                  title="Edit"
-                >
-                  <PencilSimple size={14} />
-                </button>
-                <button
-                  onClick={() => handleDelete(cat._id)}
-                  className="p-1.5 rounded text-text-secondary hover:text-red-600 hover:bg-red-50 transition-colors"
-                  title="Delete"
-                >
-                  <TrashSimple size={14} />
-                </button>
-              </div>
+              {isCurated && isManaging && (
+                <CuratedCategoryControls
+                  categoryId={cat._id}
+                  badgeUrl={cat.badgeUrl}
+                />
+              )}
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+// Badge upload and member picker for a curated category.
+// The badge image is optional: the category works without one, and the badge
+// can be added, replaced, or removed at any time.
+function CuratedCategoryControls({
+  categoryId,
+  badgeUrl,
+}: {
+  categoryId: Id<"categories">;
+  badgeUrl?: string;
+}) {
+  const members = useQuery(api.packages.listCuratedCategoryMembers, {
+    categoryId,
+  });
+  const [searchTerm, setSearchTerm] = useState("");
+  const searchResults = useQuery(
+    api.packages.adminSearchPackages,
+    searchTerm.trim() ? { searchTerm: searchTerm.trim() } : "skip",
+  );
+  const generateUploadUrl = useMutation(api.packages.generateUploadUrl);
+  const saveCategoryBadge = useMutation(api.packages.saveCategoryBadge);
+  const clearCategoryBadge = useMutation(api.packages.clearCategoryBadge);
+  const addMember = useMutation(api.packages.addComponentToCuratedCategory);
+  const removeMember = useMutation(
+    api.packages.removeComponentFromCuratedCategory,
+  );
+  const badgeInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingBadge, setUploadingBadge] = useState(false);
+  const [pendingPackageId, setPendingPackageId] = useState<string | null>(null);
+
+  const memberPackageIds = new Set(
+    (members ?? []).map((m) => m.packageId as string),
+  );
+
+  // Upload flow mirrors the existing logo/thumbnail pattern:
+  // generateUploadUrl -> POST file -> save storageId on the category
+  const handleBadgeUpload = async (file: File | undefined) => {
+    if (!file || uploadingBadge) return;
+    setUploadingBadge(true);
+    try {
+      const uploadUrl = await generateUploadUrl();
+      const uploadResult = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!uploadResult.ok) throw new Error("Upload failed");
+      const { storageId } = await uploadResult.json();
+      await saveCategoryBadge({ categoryId, storageId });
+      toast.success("Badge saved. Member cards now show it.");
+    } catch {
+      toast.error("Failed to upload badge");
+    } finally {
+      setUploadingBadge(false);
+      if (badgeInputRef.current) badgeInputRef.current.value = "";
+    }
+  };
+
+  const handleClearBadge = async () => {
+    try {
+      await clearCategoryBadge({ categoryId });
+      toast.success("Badge removed from category and member cards");
+    } catch {
+      toast.error("Failed to remove badge");
+    }
+  };
+
+  const handleAdd = async (packageId: string) => {
+    if (pendingPackageId) return;
+    setPendingPackageId(packageId);
+    try {
+      await addMember({
+        categoryId,
+        packageId: packageId as Id<"packages">,
+      });
+      toast.success("Component added to category");
+    } catch {
+      toast.error("Failed to add component");
+    } finally {
+      setPendingPackageId(null);
+    }
+  };
+
+  const handleRemove = async (packageId: string) => {
+    if (pendingPackageId) return;
+    setPendingPackageId(packageId);
+    try {
+      await removeMember({
+        categoryId,
+        packageId: packageId as Id<"packages">,
+      });
+      toast.success("Component removed from category");
+    } catch {
+      toast.error("Failed to remove component");
+    } finally {
+      setPendingPackageId(null);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-border bg-bg-card p-3 space-y-4">
+      {/* Badge image (optional) */}
+      <div>
+        <h5 className="text-[10px] uppercase tracking-wider text-text-secondary mb-1.5">
+          Badge image (optional)
+        </h5>
+        <div className="flex flex-wrap items-center gap-2">
+          {badgeUrl ? (
+            <img
+              src={badgeUrl}
+              alt="Category badge"
+              className="h-6 w-auto max-w-[96px] rounded object-contain border border-border bg-bg-primary p-0.5"
+            />
+          ) : (
+            <span className="text-xs text-text-secondary">
+              No badge yet. Member cards work fine without one.
+            </span>
+          )}
+          <input
+            ref={badgeInputRef}
+            type="file"
+            accept="image/png,image/webp,image/svg+xml,image/jpeg"
+            className="hidden"
+            onChange={(e) => handleBadgeUpload(e.target.files?.[0])}
+          />
+          <button
+            onClick={() => badgeInputRef.current?.click()}
+            disabled={uploadingBadge}
+            className="text-xs px-3 py-1 rounded-full border border-border text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
+          >
+            {uploadingBadge
+              ? "Uploading..."
+              : badgeUrl
+                ? "Replace badge"
+                : "Upload badge"}
+          </button>
+          {badgeUrl && (
+            <button
+              onClick={handleClearBadge}
+              className="text-xs px-3 py-1 rounded-full border border-border text-text-secondary hover:text-red-600 transition-colors"
+            >
+              Remove badge
+            </button>
+          )}
+        </div>
+        <p className="mt-1 text-[10px] text-text-secondary">
+          Shown as a small image above the Community/Verified labels on member
+          cards and on the component detail page.
+        </p>
+      </div>
+
+      {/* Current members */}
+      <div>
+        <h5 className="text-[10px] uppercase tracking-wider text-text-secondary mb-1.5">
+          Members ({members?.length ?? 0})
+        </h5>
+        {members === undefined ? (
+          <div className="animate-pulse h-5 bg-bg-secondary rounded w-32" />
+        ) : members.length === 0 ? (
+          <p className="text-xs text-text-secondary">
+            No components yet. Search below to add some.
+          </p>
+        ) : (
+          <div className="space-y-1">
+            {members.map((member) => (
+              <div
+                key={member.membershipId}
+                className="flex items-center justify-between gap-2 rounded border border-border bg-bg-primary px-2 py-1.5"
+              >
+                <div className="min-w-0 flex items-center gap-1.5">
+                  <span className="truncate text-xs text-text-primary">
+                    {member.componentName || member.name}
+                  </span>
+                  {member.reviewStatus !== "approved" && (
+                    <span className="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded shrink-0">
+                      {member.reviewStatus ?? "pending"}
+                    </span>
+                  )}
+                  {(member.visibility === "hidden" ||
+                    member.visibility === "archived") && (
+                    <span className="text-[10px] text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded shrink-0">
+                      {member.visibility}
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => handleRemove(member.packageId as string)}
+                  disabled={pendingPackageId !== null}
+                  className="text-[10px] px-2 py-0.5 rounded-full border border-border text-text-secondary hover:text-red-600 transition-colors shrink-0 disabled:opacity-50"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Add members */}
+      <div>
+        <h5 className="text-[10px] uppercase tracking-wider text-text-secondary mb-1.5">
+          Add components
+        </h5>
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Search components by name..."
+          className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+        />
+        {searchTerm.trim() && (
+          <div className="mt-1.5 space-y-1 max-h-56 overflow-y-auto">
+            {searchResults === undefined ? (
+              <div className="animate-pulse h-5 bg-bg-secondary rounded w-32" />
+            ) : searchResults.length === 0 ? (
+              <p className="text-xs text-text-secondary">No components found</p>
+            ) : (
+              searchResults.slice(0, 20).map((pkg) => {
+                const alreadyMember = memberPackageIds.has(pkg._id as string);
+                return (
+                  <div
+                    key={pkg._id}
+                    className="flex items-center justify-between gap-2 rounded border border-border bg-bg-primary px-2 py-1.5"
+                  >
+                    <div className="min-w-0 flex items-center gap-1.5">
+                      <span className="truncate text-xs text-text-primary">
+                        {pkg.componentName || pkg.name}
+                      </span>
+                      {pkg.reviewStatus !== "approved" && (
+                        <span className="text-[10px] text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded shrink-0">
+                          {pkg.reviewStatus ?? "pending"}
+                        </span>
+                      )}
+                    </div>
+                    {alreadyMember ? (
+                      <span className="text-[10px] text-text-secondary shrink-0">
+                        Added
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleAdd(pkg._id as string)}
+                        disabled={pendingPackageId !== null}
+                        className="text-[10px] px-2 py-0.5 rounded-full bg-button text-white hover:bg-button-hover transition-colors shrink-0 disabled:opacity-50"
+                      >
+                        Add
+                      </button>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+        <p className="mt-1 text-[10px] text-text-secondary">
+          Only approved and visible components appear publicly. Others stay in
+          the list but are hidden until approved.
+        </p>
       </div>
     </div>
   );
@@ -4989,7 +5728,9 @@ function AutoRefreshSettingsPanel() {
   // every render, forcing a resubscribe loop where useQuery never resolves,
   // which kept this whole panel stuck at its `return null` loading gate.
   const [statsNow] = useState(() => Date.now());
-  const refreshStats = useQuery(api.packages.getRefreshStats, { now: statsNow });
+  const refreshStats = useQuery(api.packages.getRefreshStats, {
+    now: statsNow,
+  });
   const recentLogs = useQuery(api.packages.getRecentRefreshLogs);
   const updateRefreshSetting = useMutation(api.packages.updateRefreshSetting);
   const triggerRefreshApproved = useAction(
@@ -5390,7 +6131,11 @@ function DownloadsDisplaySettingsPanel() {
         className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors"
       >
         <div className="flex items-center gap-2">
-          <DownloadSimple size={16} weight="bold" className="text-text-secondary" />
+          <DownloadSimple
+            size={16}
+            weight="bold"
+            className="text-text-secondary"
+          />
           <span className="text-sm font-medium text-text-primary">
             Downloads Display
           </span>
@@ -5409,8 +6154,8 @@ function DownloadsDisplaySettingsPanel() {
         <div className="p-4 border-t border-border space-y-4">
           <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary space-y-2">
             <p>
-              Controls which download numbers appear on the public Directory
-              and component detail pages.
+              Controls which download numbers appear on the public Directory and
+              component detail pages.
             </p>
             <p>
               Turn both on to show weekly and all-time side by side. The
@@ -5501,8 +6246,12 @@ function DownloadsDisplaySettingsPanel() {
 // Submit listing defaults panel for public submissions page pagination
 function SubmitListingSettingsPanel() {
   const [isExpanded, setIsExpanded] = useState(false);
-  const submitListingSettings = useQuery(api.packages.getSubmitPageSizeAdminSetting);
-  const updateSubmitListingSettings = useMutation(api.packages.updateSubmitPageSizeSetting);
+  const submitListingSettings = useQuery(
+    api.packages.getSubmitPageSizeAdminSetting,
+  );
+  const updateSubmitListingSettings = useMutation(
+    api.packages.updateSubmitPageSizeSetting,
+  );
 
   const handlePageSizeChange = async (value: 20 | 40 | 60) => {
     try {
@@ -5519,7 +6268,8 @@ function SubmitListingSettingsPanel() {
     <div className="mb-4 rounded-lg border border-border bg-bg-card overflow-hidden">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors">
+        className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors"
+      >
         <div className="flex items-center gap-2">
           <List size={16} weight="bold" className="text-text-secondary" />
           <span className="text-sm font-medium text-text-primary">
@@ -5540,7 +6290,10 @@ function SubmitListingSettingsPanel() {
         <div className="p-4 border-t border-border space-y-4">
           <p className="text-xs text-text-secondary">
             Controls the default number of submissions shown per page on{" "}
-            <code className="bg-bg-primary px-1 rounded">/components/submissions</code>.
+            <code className="bg-bg-primary px-1 rounded">
+              /components/submissions
+            </code>
+            .
           </p>
           <div className="flex flex-wrap gap-2">
             {([20, 40, 60] as const).map((option) => (
@@ -5551,7 +6304,8 @@ function SubmitListingSettingsPanel() {
                   submitListingSettings.defaultPageSize === option
                     ? "bg-button text-white border-button"
                     : "border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-                }`}>
+                }`}
+              >
                 {option} per page
               </button>
             ))}
@@ -5567,7 +6321,9 @@ function SecurityScanSettingsPanel() {
   const [isExpanded, setIsExpanded] = useState(false);
   const settings = useQuery(api.packages.getAdminSettings);
   const updateSetting = useMutation(api.packages.updateAdminSetting);
-  const updateNumericSetting = useMutation(api.packages.updateAdminSettingNumeric);
+  const updateNumericSetting = useMutation(
+    api.packages.updateAdminSettingNumeric,
+  );
   const backlogStats = useQuery(api.packages.getSecurityScanBacklogStats);
   const runBacklog = useMutation(api.packages.runSecurityScanBacklog);
   const [isQueueing, setIsQueueing] = useState(false);
@@ -5589,7 +6345,10 @@ function SecurityScanSettingsPanel() {
 
   const handleScheduleChange = async (days: number) => {
     try {
-      await updateNumericSetting({ key: "securityScanScheduleDays", value: days });
+      await updateNumericSetting({
+        key: "securityScanScheduleDays",
+        value: days,
+      });
       toast.success("Schedule updated");
     } catch (error) {
       toast.error("Failed to update schedule");
@@ -5621,27 +6380,34 @@ function SecurityScanSettingsPanel() {
         <div className="px-4 pb-4 space-y-4 border-t border-border pt-4">
           <p className="text-xs text-text-secondary">
             Configure which security scan providers to use and when to run them.
-            Each provider requires API credentials set in Convex environment variables.
+            Each provider requires API credentials set in Convex environment
+            variables.
           </p>
 
           {/* Provider toggles */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-text-primary">Socket.dev</p>
+                <p className="text-sm font-medium text-text-primary">
+                  Socket.dev
+                </p>
                 <p className="text-xs text-text-secondary">
                   Supply chain scanning. Requires SOCKET_API_KEY.
                 </p>
               </div>
               <button
-                onClick={() => handleToggle("enableSocketScan", settings.enableSocketScan)}
+                onClick={() =>
+                  handleToggle("enableSocketScan", settings.enableSocketScan)
+                }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   settings.enableSocketScan ? "bg-blue-600" : "bg-gray-300"
                 }`}
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    settings.enableSocketScan ? "translate-x-6" : "translate-x-1"
+                    settings.enableSocketScan
+                      ? "translate-x-6"
+                      : "translate-x-1"
                   }`}
                 />
               </button>
@@ -5655,7 +6421,9 @@ function SecurityScanSettingsPanel() {
                 </p>
               </div>
               <button
-                onClick={() => handleToggle("enableSnykScan", settings.enableSnykScan)}
+                onClick={() =>
+                  handleToggle("enableSnykScan", settings.enableSnykScan)
+                }
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   settings.enableSnykScan ? "bg-blue-600" : "bg-gray-300"
                 }`}
@@ -5667,7 +6435,6 @@ function SecurityScanSettingsPanel() {
                 />
               </button>
             </div>
-
           </div>
 
           {/* Automation settings */}
@@ -5678,11 +6445,14 @@ function SecurityScanSettingsPanel() {
                   Auto scan on submission
                 </p>
                 <p className="text-xs text-text-secondary">
-                  Automatically run security scan when a new package is submitted.
+                  Automatically run security scan when a new package is
+                  submitted.
                 </p>
               </div>
               <button
-                onClick={() => handleToggle("autoSecurityScan", settings.autoSecurityScan)}
+                onClick={() =>
+                  handleToggle("autoSecurityScan", settings.autoSecurityScan)
+                }
                 disabled={!anyProviderEnabled}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 ${
                   settings.autoSecurityScan ? "bg-blue-600" : "bg-gray-300"
@@ -5690,7 +6460,9 @@ function SecurityScanSettingsPanel() {
               >
                 <span
                   className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    settings.autoSecurityScan ? "translate-x-6" : "translate-x-1"
+                    settings.autoSecurityScan
+                      ? "translate-x-6"
+                      : "translate-x-1"
                   }`}
                 />
               </button>
@@ -5756,7 +6528,9 @@ function SecurityScanSettingsPanel() {
                   <div className="flex items-center gap-3 flex-wrap">
                     <select
                       value={backlogBatchSize}
-                      onChange={(e) => setBacklogBatchSize(Number(e.target.value))}
+                      onChange={(e) =>
+                        setBacklogBatchSize(Number(e.target.value))
+                      }
                       className="text-xs border border-border rounded px-2 py-1.5 bg-white text-text-primary"
                     >
                       <option value={5}>5</option>
@@ -5769,8 +6543,12 @@ function SecurityScanSettingsPanel() {
                       onClick={async () => {
                         setIsQueueing(true);
                         try {
-                          const result = await runBacklog({ batchSize: backlogBatchSize });
-                          toast.success(`Queued ${result.queued} packages for security scanning`);
+                          const result = await runBacklog({
+                            batchSize: backlogBatchSize,
+                          });
+                          toast.success(
+                            `Queued ${result.queued} packages for security scanning`,
+                          );
                         } catch {
                           toast.error("Failed to queue security scans");
                         } finally {
@@ -5780,7 +6558,9 @@ function SecurityScanSettingsPanel() {
                       disabled={isQueueing}
                       className="px-3 py-1.5 text-xs font-medium rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors disabled:opacity-50"
                     >
-                      {isQueueing ? "Queueing..." : `Scan next ${Math.min(backlogBatchSize, backlogStats.unscanned + backlogStats.errorCount)}`}
+                      {isQueueing
+                        ? "Queueing..."
+                        : `Scan next ${Math.min(backlogBatchSize, backlogStats.unscanned + backlogStats.errorCount)}`}
                     </button>
                   </div>
                 ) : (
@@ -5863,7 +6643,8 @@ function AdminSettingsPanel() {
                 How AI Review Works
               </p>
               <p className="mt-1">
-                The AI analyzes the package&apos;s GitHub repository against official{" "}
+                The AI analyzes the package&apos;s GitHub repository against
+                official{" "}
                 <a
                   href="https://docs.convex.dev/components/authoring"
                   target="_blank"
@@ -5877,8 +6658,8 @@ function AdminSettingsPanel() {
                   {AI_REVIEW_PROMPT_STATUS_LABEL}
                 </code>
                 . It uses 8 critical pass criteria and 5 advisory notes. It
-                first looks across the repo for the
-                component source directory that uses{" "}
+                first looks across the repo for the component source directory
+                that uses{" "}
                 <code className="bg-bg-primary px-1 rounded">
                   defineComponent()
                 </code>{" "}
@@ -5913,7 +6694,9 @@ function AdminSettingsPanel() {
                 </li>
                 <li>
                   Consumer app configs that use{" "}
-                  <code className="bg-bg-primary px-1 rounded">defineApp()</code>{" "}
+                  <code className="bg-bg-primary px-1 rounded">
+                    defineApp()
+                  </code>{" "}
                   are treated as examples, not the component source
                 </li>
               </ul>
@@ -5970,9 +6753,7 @@ function AdminSettingsPanel() {
             </div>
 
             <div>
-              <p className="font-medium text-text-primary">
-                Advisory notes
-              </p>
+              <p className="font-medium text-text-primary">Advisory notes</p>
               <ul className="list-disc list-inside space-y-1 ml-1 mt-1">
                 <li>
                   Uses{" "}
@@ -6318,7 +7099,9 @@ function RewardSettingsPanel() {
   const settings = useQuery(api.packages.getAdminSettings);
   const paymentStats = useQuery(api.paymentsDb.getPaymentStats);
   const updateBoolSetting = useMutation(api.packages.updateAdminSetting);
-  const updateNumericSetting = useMutation(api.packages.updateAdminSettingNumeric);
+  const updateNumericSetting = useMutation(
+    api.packages.updateAdminSettingNumeric,
+  );
   const sendTestReward = useAction(api.payments.sendTestReward);
 
   useEffect(() => {
@@ -6410,7 +7193,11 @@ function RewardSettingsPanel() {
         className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors"
       >
         <div className="flex items-center gap-2">
-          <CurrencyCircleDollar size={16} weight="bold" className="text-text-secondary" />
+          <CurrencyCircleDollar
+            size={16}
+            weight="bold"
+            className="text-text-secondary"
+          />
           <span className="text-sm font-medium text-text-primary">
             Reward Settings (Tremendous)
           </span>
@@ -6428,14 +7215,21 @@ function RewardSettingsPanel() {
           <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary space-y-2">
             <p className="font-medium text-text-primary">How Rewards Work</p>
             <p>
-              When enabled, rewards are automatically sent to submitters via Tremendous when
-              their package is approved and visible. Submitters receive a gift card link via email.
+              When enabled, rewards are automatically sent to submitters via
+              Tremendous when their package is approved and visible. Submitters
+              receive a gift card link via email.
             </p>
             <p className="text-yellow-600">
-              Environment variables required: TREMENDOUS_API_KEY, TREMENDOUS_CAMPAIGN_ID, TREMENDOUS_FUNDING_SOURCE_ID
+              Environment variables required: TREMENDOUS_API_KEY,
+              TREMENDOUS_CAMPAIGN_ID, TREMENDOUS_FUNDING_SOURCE_ID
             </p>
             <p>
-              Test rewards send to the fixed env email set in <code className="bg-bg-primary px-1 rounded">TREMENDOUS_TEST_RECIPIENT_EMAIL</code> and are recorded as test payments without updating any component reward state.
+              Test rewards send to the fixed env email set in{" "}
+              <code className="bg-bg-primary px-1 rounded">
+                TREMENDOUS_TEST_RECIPIENT_EMAIL
+              </code>{" "}
+              and are recorded as test payments without updating any component
+              reward state.
             </p>
           </div>
 
@@ -6446,18 +7240,23 @@ function RewardSettingsPanel() {
                 Auto-send reward on approve
               </label>
               <p className="text-xs text-text-secondary mt-0.5">
-                Automatically send reward when a package becomes approved and visible
+                Automatically send reward when a package becomes approved and
+                visible
               </p>
             </div>
             <button
               onClick={handleToggleAutoSend}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                settings.autoSendRewardOnApprove ? "bg-green-600" : "bg-gray-300"
+                settings.autoSendRewardOnApprove
+                  ? "bg-green-600"
+                  : "bg-gray-300"
               }`}
             >
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                  settings.autoSendRewardOnApprove ? "translate-x-6" : "translate-x-1"
+                  settings.autoSendRewardOnApprove
+                    ? "translate-x-6"
+                    : "translate-x-1"
                 }`}
               />
             </button>
@@ -6500,7 +7299,8 @@ function RewardSettingsPanel() {
                 Send test reward
               </label>
               <p className="text-xs text-text-secondary mt-0.5">
-                Sends to the fixed Tremendous test recipient email from env and records a test payment only
+                Sends to the fixed Tremendous test recipient email from env and
+                records a test payment only
               </p>
             </div>
             <button
@@ -6517,23 +7317,33 @@ function RewardSettingsPanel() {
           {/* Payment stats */}
           {paymentStats && (
             <div className="pt-3 border-t border-border">
-              <p className="text-xs font-medium text-text-primary mb-2">Payment Statistics</p>
+              <p className="text-xs font-medium text-text-primary mb-2">
+                Payment Statistics
+              </p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <div className="rounded-lg border border-border p-2 bg-bg-primary">
                   <p className="text-xs text-text-secondary">Total Sent</p>
-                  <p className="text-lg font-light text-emerald-600">${paymentStats.totalAmountSent}</p>
+                  <p className="text-lg font-light text-emerald-600">
+                    ${paymentStats.totalAmountSent}
+                  </p>
                 </div>
                 <div className="rounded-lg border border-border p-2 bg-bg-primary">
                   <p className="text-xs text-text-secondary">Successful</p>
-                  <p className="text-lg font-light text-emerald-600">{paymentStats.sentCount + paymentStats.deliveredCount}</p>
+                  <p className="text-lg font-light text-emerald-600">
+                    {paymentStats.sentCount + paymentStats.deliveredCount}
+                  </p>
                 </div>
                 <div className="rounded-lg border border-border p-2 bg-bg-primary">
                   <p className="text-xs text-text-secondary">Pending</p>
-                  <p className="text-lg font-light text-yellow-600">{paymentStats.pendingCount}</p>
+                  <p className="text-lg font-light text-yellow-600">
+                    {paymentStats.pendingCount}
+                  </p>
                 </div>
                 <div className="rounded-lg border border-border p-2 bg-bg-primary">
                   <p className="text-xs text-text-secondary">Failed</p>
-                  <p className="text-lg font-light text-red-600">{paymentStats.failedCount}</p>
+                  <p className="text-lg font-light text-red-600">
+                    {paymentStats.failedCount}
+                  </p>
                 </div>
               </div>
             </div>
@@ -6545,7 +7355,9 @@ function RewardSettingsPanel() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => !isSendingTestReward && setShowTestRewardConfirm(false)}
+            onClick={() =>
+              !isSendingTestReward && setShowTestRewardConfirm(false)
+            }
           />
           <div className="relative w-full max-w-md p-6 rounded-container bg-white border border-border shadow-lg">
             <div className="flex items-start gap-3 mb-4">
@@ -6553,9 +7365,12 @@ function RewardSettingsPanel() {
                 <CurrencyCircleDollar size={24} weight="bold" />
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-normal text-text-primary">Send Test Reward</h3>
+                <h3 className="text-lg font-normal text-text-primary">
+                  Send Test Reward
+                </h3>
                 <p className="mt-1 text-sm text-text-secondary">
-                  This sends to the fixed env test recipient configured in Convex and records the payment as a test only.
+                  This sends to the fixed env test recipient configured in
+                  Convex and records the payment as a test only.
                 </p>
               </div>
             </div>
@@ -6566,7 +7381,9 @@ function RewardSettingsPanel() {
                   Amount (USD)
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">
+                    $
+                  </span>
                   <input
                     type="number"
                     min="1"
@@ -6774,10 +7591,13 @@ function AiProviderSettingsPanel() {
     <div className="mb-4 rounded-lg border border-border bg-bg-card overflow-hidden">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors">
+        className="w-full flex items-center justify-between p-3 hover:bg-bg-hover transition-colors"
+      >
         <div className="flex items-center gap-2">
           <Gear size={16} weight="bold" className="text-text-secondary" />
-          <span className="text-sm font-medium text-text-primary">AI Provider Settings</span>
+          <span className="text-sm font-medium text-text-primary">
+            AI Provider Settings
+          </span>
           {providerSettings.activeProvider && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
               {providerSettings.activeProvider}
@@ -6795,9 +7615,9 @@ function AiProviderSettingsPanel() {
         <div className="p-4 border-t border-border space-y-4">
           <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary">
             <p>
-              Configure AI providers for component reviews. By default, environment variables
-              (ANTHROPIC_API_KEY, CONVEX_OPENAI_API_KEY) are used. Settings here override
-              environment variables.
+              Configure AI providers for component reviews. By default,
+              environment variables (ANTHROPIC_API_KEY, CONVEX_OPENAI_API_KEY)
+              are used. Settings here override environment variables.
             </p>
           </div>
 
@@ -6812,7 +7632,8 @@ function AiProviderSettingsPanel() {
                   activeProvider === p
                     ? "bg-button text-white border-button"
                     : "border-border text-text-secondary hover:bg-bg-hover"
-                }`}>
+                }`}
+              >
                 {p === "env" ? "Env Vars (Default)" : p}
               </button>
             ))}
@@ -6821,12 +7642,15 @@ function AiProviderSettingsPanel() {
           {/* Anthropic */}
           <div className="p-3 rounded-lg border border-border space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-text-primary">Anthropic (Claude)</span>
+              <span className="text-sm font-medium text-text-primary">
+                Anthropic (Claude)
+              </span>
               <a
                 href="https://platform.claude.com/docs/en/about-claude/models/overview"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-button hover:underline">
+                className="text-xs text-button hover:underline"
+              >
                 Model docs
               </a>
             </div>
@@ -6850,12 +7674,14 @@ function AiProviderSettingsPanel() {
               <button
                 onClick={() => handleSaveProvider("anthropic")}
                 disabled={isSaving}
-                className="px-3 py-1 text-xs rounded bg-button text-white hover:bg-button-hover disabled:opacity-50">
+                className="px-3 py-1 text-xs rounded bg-button text-white hover:bg-button-hover disabled:opacity-50"
+              >
                 Save
               </button>
               <button
                 onClick={() => setClearConfirmProvider("anthropic")}
-                className="px-3 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50">
+                className="px-3 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50"
+              >
                 Clear (use env)
               </button>
             </div>
@@ -6867,12 +7693,15 @@ function AiProviderSettingsPanel() {
           {/* OpenAI */}
           <div className="p-3 rounded-lg border border-border space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-text-primary">OpenAI</span>
+              <span className="text-sm font-medium text-text-primary">
+                OpenAI
+              </span>
               <a
                 href="https://platform.openai.com/docs/models"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-button hover:underline">
+                className="text-xs text-button hover:underline"
+              >
                 Model docs
               </a>
             </div>
@@ -6896,12 +7725,14 @@ function AiProviderSettingsPanel() {
               <button
                 onClick={() => handleSaveProvider("openai")}
                 disabled={isSaving}
-                className="px-3 py-1 text-xs rounded bg-button text-white hover:bg-button-hover disabled:opacity-50">
+                className="px-3 py-1 text-xs rounded bg-button text-white hover:bg-button-hover disabled:opacity-50"
+              >
                 Save
               </button>
               <button
                 onClick={() => setClearConfirmProvider("openai")}
-                className="px-3 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50">
+                className="px-3 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50"
+              >
                 Clear (use env)
               </button>
             </div>
@@ -6913,12 +7744,15 @@ function AiProviderSettingsPanel() {
           {/* Gemini */}
           <div className="p-3 rounded-lg border border-border space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-text-primary">Google Gemini</span>
+              <span className="text-sm font-medium text-text-primary">
+                Google Gemini
+              </span>
               <a
                 href="https://ai.google.dev/gemini-api/docs/models"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-button hover:underline">
+                className="text-xs text-button hover:underline"
+              >
                 Model docs
               </a>
             </div>
@@ -6942,12 +7776,14 @@ function AiProviderSettingsPanel() {
               <button
                 onClick={() => handleSaveProvider("gemini")}
                 disabled={isSaving}
-                className="px-3 py-1 text-xs rounded bg-button text-white hover:bg-button-hover disabled:opacity-50">
+                className="px-3 py-1 text-xs rounded bg-button text-white hover:bg-button-hover disabled:opacity-50"
+              >
                 Save
               </button>
               <button
                 onClick={() => setClearConfirmProvider("gemini")}
-                className="px-3 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50">
+                className="px-3 py-1 text-xs rounded border border-red-300 text-red-600 hover:bg-red-50"
+              >
                 Clear (use env)
               </button>
             </div>
@@ -6962,7 +7798,9 @@ function AiProviderSettingsPanel() {
       <ConfirmModal
         isOpen={clearConfirmProvider !== null}
         onClose={() => setClearConfirmProvider(null)}
-        onConfirm={() => clearConfirmProvider && handleClearProvider(clearConfirmProvider)}
+        onConfirm={() =>
+          clearConfirmProvider && handleClearProvider(clearConfirmProvider)
+        }
         title="Clear API Key Settings?"
         message={`This will permanently delete your saved ${clearConfirmProvider?.toUpperCase()} API key and model configuration. The app will fall back to using environment variables (ANTHROPIC_API_KEY, CONVEX_OPENAI_API_KEY). This affects ALL AI features including AI Review and SEO Content generation.`}
         confirmText="Yes, Clear Settings"
@@ -7077,8 +7915,8 @@ function AiPromptSettingsPanel() {
           <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary">
             <p>
               View and customize the AI review prompt. The default prompt
-              analyzes components against Convex component specifications. Current
-              default status:{" "}
+              analyzes components against Convex component specifications.
+              Current default status:{" "}
               <span className="font-medium text-text-primary">
                 {activePrompt.statusLabel}
               </span>
@@ -7153,7 +7991,9 @@ function AiPromptSettingsPanel() {
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <div className="text-xs text-text-secondary">
-                    {activePrompt.isDefault ? "Default Prompt" : "Custom Prompt"}
+                    {activePrompt.isDefault
+                      ? "Default Prompt"
+                      : "Custom Prompt"}
                   </div>
                   <div className="text-xs text-text-secondary mt-1">
                     {activePrompt.statusLabel}
@@ -7337,17 +8177,19 @@ function SeoPromptSettingsPanel() {
         <div className="p-4 border-t border-border space-y-4">
           <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary space-y-2">
             <p>
-              This prompt controls how AI generates component directory content (description,
-              use cases, how it works) and SKILL.md. The same prompt is used by the admin
-              Generate Content button, the submission form, and the profile edit flow.
-              Generation reads the GitHub README as the primary source, uses the component
-              name and short description as secondary context, and grounds Convex terminology
-              against `llms.txt`.
+              This prompt controls how AI generates component directory content
+              (description, use cases, how it works) and SKILL.md. The same
+              prompt is used by the admin Generate Content button, the
+              submission form, and the profile edit flow. Generation reads the
+              GitHub README as the primary source, uses the component name and
+              short description as secondary context, and grounds Convex
+              terminology against `llms.txt`.
             </p>
             <p className="text-text-tertiary">
-              <strong>SKILL.md:</strong> Generated skills follow Anthropic skill creator guidelines with
-              trigger context from category, tags, and use cases. Custom edits override the
-              default prompt for all three surfaces.
+              <strong>SKILL.md:</strong> Generated skills follow Anthropic skill
+              creator guidelines with trigger context from category, tags, and
+              use cases. Custom edits override the default prompt for all three
+              surfaces.
             </p>
           </div>
 
@@ -7397,7 +8239,9 @@ function SeoPromptSettingsPanel() {
 
           {/* Placeholder Reference */}
           <div className="p-2 rounded border border-border bg-bg-primary">
-            <p className="text-xs font-medium text-text-primary mb-1">Available Placeholders:</p>
+            <p className="text-xs font-medium text-text-primary mb-1">
+              Available Placeholders:
+            </p>
             <p className="text-xs text-text-secondary font-mono">
               {CONTENT_PROMPT_PLACEHOLDERS.join(" ")}
             </p>
@@ -7506,9 +8350,15 @@ function DeletionManagementPanel() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const deletionSettings = useQuery(api.packages.getDeletionCleanupSettings);
-  const packagesMarkedForDeletion = useQuery(api.packages.getPackagesMarkedForDeletion);
-  const updateDeletionSetting = useMutation(api.packages.updateDeletionCleanupSetting);
-  const permanentlyDelete = useMutation(api.packages.adminPermanentlyDeletePackage);
+  const packagesMarkedForDeletion = useQuery(
+    api.packages.getPackagesMarkedForDeletion,
+  );
+  const updateDeletionSetting = useMutation(
+    api.packages.updateDeletionCleanupSetting,
+  );
+  const permanentlyDelete = useMutation(
+    api.packages.adminPermanentlyDeletePackage,
+  );
 
   const handleToggleAutoDelete = async () => {
     if (!deletionSettings) return;
@@ -7539,8 +8389,13 @@ function DeletionManagementPanel() {
     }
   };
 
-  const handlePermanentDelete = async (packageId: Id<"packages">, packageName: string) => {
-    if (!confirm(`Permanently delete "${packageName}"? This cannot be undone.`)) {
+  const handlePermanentDelete = async (
+    packageId: Id<"packages">,
+    packageName: string,
+  ) => {
+    if (
+      !confirm(`Permanently delete "${packageName}"? This cannot be undone.`)
+    ) {
       return;
     }
     setIsDeleting(packageId);
@@ -7659,11 +8514,17 @@ function DeletionManagementPanel() {
                         {pkg.componentName || pkg.name}
                       </p>
                       <p className="text-xs text-text-secondary">
-                        Marked: {formatDate(pkg.markedForDeletionAt)} by {pkg.markedForDeletionBy || "user"}
+                        Marked: {formatDate(pkg.markedForDeletionAt)} by{" "}
+                        {pkg.markedForDeletionBy || "user"}
                       </p>
                     </div>
                     <button
-                      onClick={() => handlePermanentDelete(pkg._id, pkg.componentName || pkg.name)}
+                      onClick={() =>
+                        handlePermanentDelete(
+                          pkg._id,
+                          pkg.componentName || pkg.name,
+                        )
+                      }
                       disabled={isDeleting === pkg._id}
                       className="ml-2 px-2 py-1 text-xs rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
                     >
@@ -7684,8 +8545,9 @@ function DeletionManagementPanel() {
           {/* Info about cron */}
           <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary">
             <p>
-              A scheduled job runs daily at 2 AM UTC to permanently delete packages
-              that have been marked for deletion and have passed the waiting period.
+              A scheduled job runs daily at 2 AM UTC to permanently delete
+              packages that have been marked for deletion and have passed the
+              waiting period.
             </p>
           </div>
         </div>
@@ -7699,10 +8561,14 @@ function DeletionManagementPanel() {
 function SlugMigrationPanel() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isGeneratingAll, setIsGeneratingAll] = useState(false);
-  const [isGeneratingSingle, setIsGeneratingSingle] = useState<string | null>(null);
+  const [isGeneratingSingle, setIsGeneratingSingle] = useState<string | null>(
+    null,
+  );
 
   const packagesWithoutSlugs = useQuery(api.packages.getPackagesWithoutSlugs);
-  const generateSlugForPackage = useMutation(api.packages.generateSlugForPackage);
+  const generateSlugForPackage = useMutation(
+    api.packages.generateSlugForPackage,
+  );
   const generateMissingSlugs = useMutation(api.packages.generateMissingSlugs);
 
   const missingCount = packagesWithoutSlugs?.length ?? 0;
@@ -7711,7 +8577,9 @@ function SlugMigrationPanel() {
     setIsGeneratingAll(true);
     try {
       const result = await generateMissingSlugs({});
-      toast.success(`Generated ${result.generated} slugs (${result.skipped} skipped)`);
+      toast.success(
+        `Generated ${result.generated} slugs (${result.skipped} skipped)`,
+      );
     } catch {
       toast.error("Failed to generate slugs");
     } finally {
@@ -7719,7 +8587,10 @@ function SlugMigrationPanel() {
     }
   };
 
-  const handleGenerateSingle = async (packageId: Id<"packages">, packageName: string) => {
+  const handleGenerateSingle = async (
+    packageId: Id<"packages">,
+    packageName: string,
+  ) => {
     setIsGeneratingSingle(packageId);
     try {
       const slug = await generateSlugForPackage({ packageId });
@@ -7772,8 +8643,9 @@ function SlugMigrationPanel() {
           {/* Info section */}
           <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary">
             <p>
-              Components without URL slugs will not have detail pages at /components/:slug.
-              Use this tool to auto-generate slugs from package names.
+              Components without URL slugs will not have detail pages at
+              /components/:slug. Use this tool to auto-generate slugs from
+              package names.
             </p>
           </div>
 
@@ -7793,7 +8665,9 @@ function SlugMigrationPanel() {
                 disabled={isGeneratingAll}
                 className="px-4 py-2 text-sm font-medium rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors disabled:opacity-50"
               >
-                {isGeneratingAll ? "Generating..." : `Generate ${missingCount} Slugs`}
+                {isGeneratingAll
+                  ? "Generating..."
+                  : `Generate ${missingCount} Slugs`}
               </button>
             </div>
           )}
@@ -7858,7 +8732,9 @@ function SlugMigrationPanel() {
 function ContentMigrationPanel() {
   const [isExpanded, setIsExpanded] = useState(false);
   const allPackages = useQuery(api.packages.getAllPackages);
-  const regenerateContent = useAction(api.seoContent.regenerateDirectoryContent);
+  const regenerateContent = useAction(
+    api.seoContent.regenerateDirectoryContent,
+  );
   const migrateToContent = useMutation(api.seoContentDb.migrateToContentModel);
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [migratingId, setMigratingId] = useState<string | null>(null);
@@ -7875,7 +8751,8 @@ function ContentMigrationPanel() {
   );
 
   const v2Packages = useMemo(
-    () => (allPackages ?? []).filter((pkg: any) => pkg.contentModelVersion === 2),
+    () =>
+      (allPackages ?? []).filter((pkg: any) => pkg.contentModelVersion === 2),
     [allPackages],
   );
 
@@ -7883,7 +8760,9 @@ function ContentMigrationPanel() {
     setGeneratingId(packageId);
     try {
       await regenerateContent({ packageId });
-      toast.success("Content generation started. It will complete in the background.");
+      toast.success(
+        "Content generation started. It will complete in the background.",
+      );
     } catch {
       toast.error("Failed to start content generation.");
     } finally {
@@ -7936,9 +8815,10 @@ function ContentMigrationPanel() {
         <div className="p-4 border-t border-border space-y-4">
           <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary">
             <p>
-              Migrate approved packages from the old SEO content model (v1) to the new generated
-              content model (v2: Description, Use Cases, How it Works). First generate content,
-              then migrate to make v2 the active model for a package.
+              Migrate approved packages from the old SEO content model (v1) to
+              the new generated content model (v2: Description, Use Cases, How
+              it Works). First generate content, then migrate to make v2 the
+              active model for a package.
             </p>
           </div>
 
@@ -7960,12 +8840,14 @@ function ContentMigrationPanel() {
                       <p className="text-xs text-text-secondary">
                         {pkg.contentGenerationStatus === "completed"
                           ? "Content generated, ready to migrate"
-                          : (generatingId === pkg._id || pkg.contentGenerationStatus === "generating")
+                          : generatingId === pkg._id ||
+                              pkg.contentGenerationStatus === "generating"
                             ? ""
                             : pkg.contentGenerationStatus === "error"
                               ? "Generation failed"
                               : "No v2 content yet"}
-                        {(generatingId === pkg._id || pkg.contentGenerationStatus === "generating") && (
+                        {(generatingId === pkg._id ||
+                          pkg.contentGenerationStatus === "generating") && (
                           <AiLoadingDots size={12} />
                         )}
                       </p>
@@ -7973,10 +8855,17 @@ function ContentMigrationPanel() {
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         onClick={() => handleGenerate(pkg._id)}
-                        disabled={generatingId === pkg._id || pkg.contentGenerationStatus === "generating"}
+                        disabled={
+                          generatingId === pkg._id ||
+                          pkg.contentGenerationStatus === "generating"
+                        }
                         className="px-3 py-1 text-xs font-medium rounded bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors disabled:opacity-50"
                       >
-                        {generatingId === pkg._id ? <AiLoadingDots size={12} /> : "Generate"}
+                        {generatingId === pkg._id ? (
+                          <AiLoadingDots size={12} />
+                        ) : (
+                          "Generate"
+                        )}
                       </button>
                       {pkg.contentGenerationStatus === "completed" && (
                         <button
@@ -8032,7 +8921,8 @@ function ThumbnailTemplatePanel() {
   >([]);
   const [isGeneratingSelected, setIsGeneratingSelected] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const [editingTemplateId, setEditingTemplateId] = useState<Id<"thumbnailTemplates"> | null>(null);
+  const [editingTemplateId, setEditingTemplateId] =
+    useState<Id<"thumbnailTemplates"> | null>(null);
   const [editingTemplateName, setEditingTemplateName] = useState("");
 
   // Upload multiple background templates (names derived from filenames or user input)
@@ -8052,7 +8942,9 @@ function ThumbnailTemplatePanel() {
           templateName = newTemplateName.trim();
         } else {
           // Extract name from filename (remove extension)
-          templateName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+          templateName = file.name
+            .replace(/\.[^/.]+$/, "")
+            .replace(/[-_]/g, " ");
         }
 
         const uploadUrl = await generateUploadUrl();
@@ -8066,7 +8958,8 @@ function ThumbnailTemplatePanel() {
         await createTemplate({
           name: templateName,
           storageId,
-          isDefault: (!templates || templates.length === 0) && successCount === 0,
+          isDefault:
+            (!templates || templates.length === 0) && successCount === 0,
         });
         successCount++;
       } catch {
@@ -8078,7 +8971,9 @@ function ThumbnailTemplatePanel() {
     if (fileInputRef.current) fileInputRef.current.value = "";
 
     if (successCount > 0 && failCount === 0) {
-      toast.success(`${successCount} template${successCount > 1 ? "s" : ""} added`);
+      toast.success(
+        `${successCount} template${successCount > 1 ? "s" : ""} added`,
+      );
     } else if (successCount > 0) {
       toast.success(`${successCount} uploaded, ${failCount} failed`);
     } else {
@@ -8104,7 +8999,10 @@ function ThumbnailTemplatePanel() {
   };
 
   // Start editing a template name
-  const startEditingTemplate = (template: { _id: Id<"thumbnailTemplates">; name: string }) => {
+  const startEditingTemplate = (template: {
+    _id: Id<"thumbnailTemplates">;
+    name: string;
+  }) => {
     setEditingTemplateId(template._id);
     setEditingTemplateName(template.name);
   };
@@ -8209,9 +9107,9 @@ function ThumbnailTemplatePanel() {
           {/* Info */}
           <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary">
             <p>
-              Upload background images that serve as templates for auto-generated
-              thumbnails. User logos are centered on top of the selected template
-              to create 16:9 thumbnails.
+              Upload background images that serve as templates for
+              auto-generated thumbnails. User logos are centered on top of the
+              selected template to create 16:9 thumbnails.
             </p>
           </div>
 
@@ -8250,7 +9148,8 @@ function ThumbnailTemplatePanel() {
             </label>
           </div>
           <p className="text-[10px] text-text-secondary">
-            Select multiple images to batch upload. Names are derived from filenames.
+            Select multiple images to batch upload. Names are derived from
+            filenames.
           </p>
 
           {/* Template list */}
@@ -8285,9 +9184,12 @@ function ThumbnailTemplatePanel() {
                         <input
                           type="text"
                           value={editingTemplateName}
-                          onChange={(e) => setEditingTemplateName(e.target.value)}
+                          onChange={(e) =>
+                            setEditingTemplateName(e.target.value)
+                          }
                           onKeyDown={(e) => {
-                            if (e.key === "Enter") handleRenameTemplate(template._id);
+                            if (e.key === "Enter")
+                              handleRenameTemplate(template._id);
                             if (e.key === "Escape") {
                               setEditingTemplateId(null);
                               setEditingTemplateName("");
@@ -8339,7 +9241,10 @@ function ThumbnailTemplatePanel() {
                         className="p-1 rounded hover:bg-bg-hover transition-colors"
                         title="Rename template"
                       >
-                        <PencilSimple size={14} className="text-text-secondary" />
+                        <PencilSimple
+                          size={14}
+                          className="text-text-secondary"
+                        />
                       </button>
                     )}
                     {!template.isDefault && (
@@ -8433,7 +9338,9 @@ function ThumbnailTemplatePanel() {
 
                 <button
                   onClick={handleGenerateSelected}
-                  disabled={isGeneratingSelected || selectedPackageIds.length === 0}
+                  disabled={
+                    isGeneratingSelected || selectedPackageIds.length === 0
+                  }
                   className="text-xs px-3 py-1.5 rounded-lg bg-bg-primary text-text-primary hover:bg-bg-hover transition-colors border border-border flex items-center gap-1 disabled:opacity-50"
                 >
                   <ArrowsClockwise
@@ -8497,7 +9404,14 @@ function ThumbnailTemplatePanel() {
 }
 
 // Filter type includes review statuses, all, archived, marked_for_deletion, and settings
-type FilterType = ReviewStatus | "all" | "archived" | "marked_for_deletion" | "settings" | "api";
+type FilterType =
+  | ReviewStatus
+  | "all"
+  | "archived"
+  | "marked_for_deletion"
+  | "settings"
+  | "api"
+  | "logs";
 
 // Filter tabs component
 function FilterTabs({
@@ -8575,6 +9489,12 @@ function FilterTabs({
       icon: <Key size={16} />,
       tooltip: "API access management and analytics",
     },
+    {
+      value: "logs",
+      label: "Logs",
+      icon: <FileText size={16} />,
+      tooltip: "README update logs from the auto-update cron and manual refreshes",
+    },
   ];
 
   return (
@@ -8592,7 +9512,9 @@ function FilterTabs({
             >
               {tab.icon}
               <span>{tab.label}</span>
-              {tab.value !== "settings" && tab.value !== "api" && (
+              {tab.value !== "settings" &&
+                tab.value !== "api" &&
+                tab.value !== "logs" && (
                 <span
                   className={`px-1.5 py-0.5 rounded-full text-xs ${
                     activeFilter === tab.value
@@ -8611,6 +9533,349 @@ function FilterTabs({
   );
 }
 
+// ============ README UPDATE LOGS TAB ============
+// Browses readmeUpdateLogs like the Convex logs dashboard: filter by status
+// and source, text-filter by package name, select rows, delete selected,
+// or clear everything. Entries come from the auto-update cron plus the
+// admin and profile Update README buttons.
+
+type ReadmeLogStatus = "success" | "failed" | "skipped";
+type ReadmeLogSource = "cron" | "admin" | "profile";
+
+function formatLogTimestamp(ts: number): string {
+  return new Date(ts).toLocaleString("en-US", {
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
+
+function ReadmeLogStatusBadge({ status }: { status: ReadmeLogStatus }) {
+  const styles: Record<ReadmeLogStatus, string> = {
+    success: "bg-green-500/10 text-green-600 border-green-500/20",
+    failed: "bg-red-500/10 text-red-600 border-red-500/20",
+    skipped: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
+  };
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border ${styles[status]}`}
+    >
+      {status}
+    </span>
+  );
+}
+
+function ReadmeUpdateLogsTab() {
+  const [statusFilter, setStatusFilter] = useState<ReadmeLogStatus | "all">(
+    "all",
+  );
+  const [sourceFilter, setSourceFilter] = useState<ReadmeLogSource | "all">(
+    "all",
+  );
+  const [textFilter, setTextFilter] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmAction, setConfirmAction] = useState<"delete" | "clear" | null>(
+    null,
+  );
+  const [busy, setBusy] = useState(false);
+
+  const { results, status, loadMore } = usePaginatedQuery(
+    api.readmeAutoUpdate.listReadmeUpdateLogs,
+    {
+      status: statusFilter === "all" ? undefined : statusFilter,
+      source: sourceFilter === "all" ? undefined : sourceFilter,
+    },
+    { initialNumItems: 50 },
+  );
+
+  const deleteLogs = useMutation(api.readmeAutoUpdate.deleteReadmeUpdateLogs);
+  const clearLogs = useMutation(api.readmeAutoUpdate.clearReadmeUpdateLogs);
+
+  // Text filter applies client-side to the loaded page
+  const trimmedFilter = textFilter.trim().toLowerCase();
+  const visibleLogs = (results ?? []).filter(
+    (log) =>
+      trimmedFilter === "" ||
+      log.packageName.toLowerCase().includes(trimmedFilter),
+  );
+
+  const allVisibleSelected =
+    visibleLogs.length > 0 &&
+    visibleLogs.every((log) => selectedIds.has(log._id));
+
+  const toggleSelectAll = () => {
+    if (allVisibleSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(visibleLogs.map((log) => log._id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  // Reset selection when filters change so the count always matches visible rows
+  const handleStatusFilterChange = (value: ReadmeLogStatus | "all") => {
+    setStatusFilter(value);
+    setSelectedIds(new Set());
+  };
+  const handleSourceFilterChange = (value: ReadmeLogSource | "all") => {
+    setSourceFilter(value);
+    setSelectedIds(new Set());
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedIds.size === 0) return;
+    setBusy(true);
+    try {
+      await deleteLogs({
+        ids: [...selectedIds] as Array<Id<"readmeUpdateLogs">>,
+      });
+      toast.success(
+        `${selectedIds.size} log ${selectedIds.size === 1 ? "entry" : "entries"} deleted`,
+      );
+      setSelectedIds(new Set());
+    } catch {
+      toast.error("Failed to delete logs");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleClearAll = async () => {
+    setBusy(true);
+    try {
+      await clearLogs({});
+      toast.success("Logs cleared");
+      setSelectedIds(new Set());
+    } catch {
+      toast.error("Failed to clear logs");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-border bg-bg-card p-4 sm:p-5">
+        <div className="mb-4">
+          <h3 className="text-sm font-medium text-text-primary flex items-center gap-2">
+            <FileText size={16} />
+            README Update Logs
+          </h3>
+          <p className="text-xs text-text-secondary mt-1">
+            Every README update attempt from the official auto-update schedule,
+            the admin Update README button, and the profile Update README
+            button. The newest 500 entries are kept.
+          </p>
+        </div>
+
+        {/* Filter and action controls */}
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <MagnifyingGlass
+              size={14}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-secondary"
+            />
+            <input
+              type="text"
+              value={textFilter}
+              onChange={(e) => setTextFilter(e.target.value)}
+              placeholder="Filter by package..."
+              className="w-44 rounded-lg border border-border bg-bg-primary pl-8 pr-2 py-1.5 text-xs text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-1 focus:ring-border"
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) =>
+              handleStatusFilterChange(
+                e.target.value as ReadmeLogStatus | "all",
+              )
+            }
+            className="rounded-lg border border-border bg-bg-primary px-2 py-1.5 text-xs text-text-primary"
+          >
+            <option value="all">All statuses</option>
+            <option value="success">Success</option>
+            <option value="failed">Failed</option>
+            <option value="skipped">Skipped</option>
+          </select>
+          <select
+            value={sourceFilter}
+            onChange={(e) =>
+              handleSourceFilterChange(
+                e.target.value as ReadmeLogSource | "all",
+              )
+            }
+            className="rounded-lg border border-border bg-bg-primary px-2 py-1.5 text-xs text-text-primary"
+          >
+            <option value="all">All sources</option>
+            <option value="cron">Auto-update</option>
+            <option value="admin">Admin</option>
+            <option value="profile">Profile</option>
+          </select>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => setConfirmAction("delete")}
+              disabled={busy || selectedIds.size === 0}
+              className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <TrashSimple size={12} />
+              Delete selected
+              {selectedIds.size > 0 && ` (${selectedIds.size})`}
+            </button>
+            <button
+              onClick={() => setConfirmAction("clear")}
+              disabled={busy || (results ?? []).length === 0}
+              className="inline-flex items-center gap-1 rounded-full border border-red-500/30 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Trash size={12} />
+              Clear logs
+            </button>
+          </div>
+        </div>
+
+        {/* Log table */}
+        {status === "LoadingFirstPage" ? (
+          <div className="animate-pulse space-y-2">
+            <div className="h-8 rounded bg-bg-secondary" />
+            <div className="h-8 rounded bg-bg-secondary" />
+            <div className="h-8 rounded bg-bg-secondary" />
+          </div>
+        ) : visibleLogs.length === 0 ? (
+          <div className="rounded-lg border border-border bg-bg-primary p-6 text-center text-xs text-text-secondary">
+            {(results ?? []).length === 0
+              ? "No log entries yet. Entries appear when the auto-update runs or someone clicks Update README."
+              : "No log entries match the current filters."}
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border bg-bg-primary text-left text-text-secondary">
+                  <th className="w-8 px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={toggleSelectAll}
+                      aria-label="Select all visible log entries"
+                      className="accent-button"
+                    />
+                  </th>
+                  <th className="px-3 py-2 font-medium whitespace-nowrap">
+                    Timestamp
+                  </th>
+                  <th className="px-3 py-2 font-medium">Package</th>
+                  <th className="px-3 py-2 font-medium">Source</th>
+                  <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="px-3 py-2 font-medium">Changed</th>
+                  <th className="px-3 py-2 font-medium">Message</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleLogs.map((log) => (
+                  <tr
+                    key={log._id}
+                    className={`border-b border-border last:border-b-0 transition-colors ${
+                      selectedIds.has(log._id)
+                        ? "bg-bg-hover"
+                        : "hover:bg-bg-hover/50"
+                    }`}
+                  >
+                    <td className="px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(log._id)}
+                        onChange={() => toggleSelect(log._id)}
+                        aria-label={`Select log entry for ${log.packageName}`}
+                        className="accent-button"
+                      />
+                    </td>
+                    <td className="px-3 py-2 font-mono text-text-secondary whitespace-nowrap">
+                      {formatLogTimestamp(log._creationTime)}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-text-primary">
+                      {log.packageName}
+                    </td>
+                    <td className="px-3 py-2 text-text-secondary">
+                      {log.source === "cron" ? "auto-update" : log.source}
+                    </td>
+                    <td className="px-3 py-2">
+                      <ReadmeLogStatusBadge status={log.status} />
+                    </td>
+                    <td className="px-3 py-2 text-text-secondary">
+                      {log.status === "success"
+                        ? log.changed
+                          ? "yes"
+                          : "no"
+                        : "-"}
+                    </td>
+                    <td
+                      className="max-w-xs truncate px-3 py-2 text-text-secondary"
+                      title={log.message ?? undefined}
+                    >
+                      {log.message ?? "-"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* Load more */}
+        {status === "CanLoadMore" && (
+          <div className="mt-3 flex justify-center">
+            <button
+              onClick={() => loadMore(50)}
+              className="rounded-full border border-border px-4 py-1.5 text-xs font-medium text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+            >
+              Load more
+            </button>
+          </div>
+        )}
+        {status === "LoadingMore" && (
+          <div className="mt-3 text-center text-xs text-text-secondary">
+            Loading...
+          </div>
+        )}
+      </div>
+
+      <ConfirmModal
+        isOpen={confirmAction === "delete"}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={handleDeleteSelected}
+        title="Delete selected logs?"
+        message={`This permanently removes ${selectedIds.size} log ${selectedIds.size === 1 ? "entry" : "entries"}.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
+      />
+      <ConfirmModal
+        isOpen={confirmAction === "clear"}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={handleClearAll}
+        title="Clear all logs?"
+        message="This permanently removes every README update log entry."
+        confirmText="Clear logs"
+        cancelText="Cancel"
+        type="danger"
+      />
+    </div>
+  );
+}
+
 // Admin dashboard component
 // ============ API MANAGEMENT TAB ============
 
@@ -8623,7 +9888,9 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
   const stableNow = useMemo(() => Math.floor(Date.now() / 60_000) * 60_000, []);
 
   const updateSetting = useMutation(api.packages.updateAdminSetting);
-  const apiAnalytics = useQuery(api.apiKeys.getApiAnalytics, { now: stableNow });
+  const apiAnalytics = useQuery(api.apiKeys.getApiAnalytics, {
+    now: stableNow,
+  });
   const apiGrants = useQuery(api.apiKeys.listApiAccessGrants);
   const searchResults = useQuery(
     api.apiKeys.searchSubmitters,
@@ -8636,8 +9903,15 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
 
   const handleToggleGlobal = async () => {
     try {
-      await updateSetting({ key: "apiAccessEnabled" as const, value: !globalEnabled });
-      toast.success(globalEnabled ? "API access disabled globally" : "API access enabled globally");
+      await updateSetting({
+        key: "apiAccessEnabled" as const,
+        value: !globalEnabled,
+      });
+      toast.success(
+        globalEnabled
+          ? "API access disabled globally"
+          : "API access enabled globally",
+      );
     } catch {
       toast.error("Failed to update setting");
     }
@@ -8687,8 +9961,10 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
               Components REST API
             </h3>
             <p className="text-xs text-text-secondary mt-1">
-              When enabled, granted users can generate API keys on their profile page. When disabled, all API endpoints return 503.
-              The llms.txt and components.md content endpoints are not affected by this toggle.
+              When enabled, granted users can generate API keys on their profile
+              page. When disabled, all API endpoints return 503. The llms.txt
+              and components.md content endpoints are not affected by this
+              toggle.
             </p>
           </div>
           <button
@@ -8696,7 +9972,8 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
             aria-pressed={globalEnabled}
             className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${
               globalEnabled ? "bg-green-500" : "bg-gray-300"
-            }`}>
+            }`}
+          >
             <span
               className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${
                 globalEnabled ? "translate-x-6" : "translate-x-1"
@@ -8710,7 +9987,8 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
               globalEnabled
                 ? "bg-green-500/10 text-green-600 border-green-500/20"
                 : "bg-red-500/10 text-red-600 border-red-500/20"
-            }`}>
+            }`}
+          >
             {globalEnabled ? (
               <>
                 <ToggleRight size={12} /> API Enabled
@@ -8860,14 +10138,17 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
                     <tbody className="divide-y divide-border">
                       {apiAnalytics.recentRequests.map((req, i) => (
                         <tr key={i} className="hover:bg-bg-hover/50">
-                          <td className="px-3 py-1.5 font-mono">/{req.endpoint}</td>
+                          <td className="px-3 py-1.5 font-mono">
+                            /{req.endpoint}
+                          </td>
                           <td className="px-3 py-1.5">
                             <span
                               className={`${
                                 req.responseStatus >= 400
                                   ? "text-red-600"
                                   : "text-green-600"
-                              }`}>
+                              }`}
+                            >
                               {req.responseStatus}
                             </span>
                           </td>
@@ -8931,9 +10212,12 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
               {filteredSearch.map((user) => (
                 <div
                   key={user.email}
-                  className="flex flex-col gap-2 px-3 py-2 hover:bg-bg-hover/50 sm:flex-row sm:items-center sm:justify-between">
+                  className="flex flex-col gap-2 px-3 py-2 hover:bg-bg-hover/50 sm:flex-row sm:items-center sm:justify-between"
+                >
                   <div className="min-w-0">
-                    <p className="text-xs font-medium text-text-primary">{user.name}</p>
+                    <p className="text-xs font-medium text-text-primary">
+                      {user.name}
+                    </p>
                     <p className="text-[10px] text-text-secondary break-all">
                       {user.email} &middot; {user.submissionCount} submission
                       {user.submissionCount !== 1 ? "s" : ""}
@@ -8942,18 +10226,21 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
                   <button
                     onClick={() => handleGrant(user.email, user.name)}
                     disabled={granting === user.email}
-                    className="self-start px-3 py-1 text-xs rounded-full bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 sm:self-auto">
+                    className="self-start px-3 py-1 text-xs rounded-full bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 sm:self-auto"
+                  >
                     {granting === user.email ? "Granting..." : "Grant Access"}
                   </button>
                 </div>
               ))}
             </div>
           )}
-          {userSearchQuery.length >= 2 && filteredSearch.length === 0 && searchResults && (
-            <p className="mt-2 text-xs text-text-tertiary">
-              No matching submitters found.
-            </p>
-          )}
+          {userSearchQuery.length >= 2 &&
+            filteredSearch.length === 0 &&
+            searchResults && (
+              <p className="mt-2 text-xs text-text-tertiary">
+                No matching submitters found.
+              </p>
+            )}
         </div>
 
         {/* Granted users list */}
@@ -8968,7 +10255,8 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
                   key={grant._id}
                   className={`flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between ${
                     grant.revoked ? "opacity-50" : ""
-                  }`}>
+                  }`}
+                >
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-xs font-medium text-text-primary truncate">
@@ -8985,15 +10273,16 @@ function ApiManagementTab({ adminSettings }: { adminSettings: any }) {
                       {new Date(grant.grantedAt).toLocaleDateString("en-US", {
                         month: "short",
                         day: "numeric",
-                      })}
-                      {" "}by {grant.grantedBy}
+                      })}{" "}
+                      by {grant.grantedBy}
                     </p>
                   </div>
                   {!grant.revoked && (
                     <button
                       onClick={() => handleRevoke(grant.email)}
                       disabled={revoking === grant.email}
-                      className="self-start px-3 py-1 text-xs rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 sm:self-auto">
+                      className="self-start px-3 py-1 text-xs rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 sm:self-auto"
+                    >
                       {revoking === grant.email ? "Revoking..." : "Revoke"}
                     </button>
                   )}
@@ -9031,7 +10320,7 @@ function AdminDashboard({
   // Admin settings for default reward amount
   const adminSettings = useQuery(api.packages.getAdminSettings);
   const defaultRewardAmount = adminSettings?.defaultRewardAmount ?? 25;
-  
+
   // Default to all to show complete overview first
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   // Pagination state - track current page for each filter
@@ -9046,19 +10335,23 @@ function AdminDashboard({
     archived: 1,
     settings: 1,
     api: 1,
+    logs: 1,
   });
   // Items per page options
   type ItemsPerPageOption = 5 | 10 | 20 | 40 | 100;
   const [itemsPerPage, setItemsPerPage] = useState<ItemsPerPageOption>(20);
-  const [showItemsPerPageDropdown, setShowItemsPerPageDropdown] = useState(false);
+  const [showItemsPerPageDropdown, setShowItemsPerPageDropdown] =
+    useState(false);
   const itemsPerPageOptions: ItemsPerPageOption[] = [5, 10, 20, 40, 100];
-  
+
   // Track which packages are expanded (open)
   const [expandedPackages, setExpandedPackages] = useState<Set<string>>(
     new Set(),
   );
   // Hash-driven scroll + highlight + auto-expand (e.g. /submissions/admin#pkg-<id>)
-  const [hashTargetPackageId, setHashTargetPackageId] = useState<string | null>(null);
+  const [hashTargetPackageId, setHashTargetPackageId] = useState<string | null>(
+    null,
+  );
   const hashTargetRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -9074,7 +10367,10 @@ function AdminDashboard({
         return next;
       });
       // Fade the highlight after 4s so pagination / filter jumps have time to render first.
-      window.setTimeout(() => setHashTargetPackageId((cur) => (cur === id ? null : cur)), 4000);
+      window.setTimeout(
+        () => setHashTargetPackageId((cur) => (cur === id ? null : cur)),
+        4000,
+      );
     };
     parseHash();
     window.addEventListener("hashchange", parseHash);
@@ -9107,7 +10403,12 @@ function AdminDashboard({
 
     // Does the current filter include this package?
     const matchesCurrentFilter = (() => {
-      if (activeFilter === "settings" || activeFilter === "api") return false;
+      if (
+        activeFilter === "settings" ||
+        activeFilter === "api" ||
+        activeFilter === "logs"
+      )
+        return false;
       if (activeFilter === "marked_for_deletion")
         return targetPkg.markedForDeletion === true;
       if (activeFilter === "archived") return pkgIsArchived;
@@ -9129,7 +10430,12 @@ function AdminDashboard({
 
     // Replicate the filter + sort used for rendering so we can locate the index.
     const filtered = packages.filter((pkg: any) => {
-      if (activeFilter === "settings" || activeFilter === "api") return false;
+      if (
+        activeFilter === "settings" ||
+        activeFilter === "api" ||
+        activeFilter === "logs"
+      )
+        return false;
       if (activeFilter === "marked_for_deletion")
         return pkg.markedForDeletion === true;
       if (activeFilter === "archived") return pkg.visibility === "archived";
@@ -9153,11 +10459,14 @@ function AdminDashboard({
           return b.weeklyDownloads - a.weeklyDownloads;
         case "approved_at": {
           const approvedSort = (b.approvedAt ?? 0) - (a.approvedAt ?? 0);
-          return approvedSort !== 0 ? approvedSort : b.submittedAt - a.submittedAt;
+          return approvedSort !== 0
+            ? approvedSort
+            : b.submittedAt - a.submittedAt;
         }
         case "verified": {
           const s =
-            Number(Boolean(b.convexVerified)) - Number(Boolean(a.convexVerified));
+            Number(Boolean(b.convexVerified)) -
+            Number(Boolean(a.convexVerified));
           return s !== 0 ? s : b.submittedAt - a.submittedAt;
         }
         case "community": {
@@ -9197,7 +10506,7 @@ function AdminDashboard({
   const [activeSettingsSection, setActiveSettingsSection] = useState<string>(
     ADMIN_SETTINGS_SECTIONS[0].id,
   );
-  
+
   // Reset page to 1 when filter changes
   const handleFilterChange = (filter: FilterType) => {
     setActiveFilter(filter);
@@ -9246,7 +10555,7 @@ function AdminDashboard({
       window.removeEventListener("scroll", updateActiveSection);
     };
   }, [activeFilter]);
-  
+
   // Reset all pages to 1 when items per page changes
   const handleItemsPerPageChange = (value: ItemsPerPageOption) => {
     setItemsPerPage(value);
@@ -9261,6 +10570,7 @@ function AdminDashboard({
       archived: 1,
       settings: 1,
       api: 1,
+      logs: 1,
     });
     setShowItemsPerPageDropdown(false);
   };
@@ -9299,12 +10609,14 @@ function AdminDashboard({
   const archivedPackages = packages?.filter((p) => isArchived(p)) ?? [];
 
   // Packages marked for deletion (across all statuses)
-  const markedForDeletionPackages = packages?.filter((p) => p.markedForDeletion) ?? [];
+  const markedForDeletionPackages =
+    packages?.filter((p) => p.markedForDeletion) ?? [];
 
   const counts: Record<FilterType, number> = {
     all: nonArchivedPackages.length,
     settings: 0,
     api: 0,
+    logs: 0,
     pending: nonArchivedPackages.filter(
       (p) => !p.reviewStatus || p.reviewStatus === "pending",
     ).length,
@@ -9323,10 +10635,16 @@ function AdminDashboard({
 
   // Filter packages based on active filter
   const filteredPackages = packages?.filter((pkg) => {
-    // Settings tab shows nothing (no package list)
-    if (activeFilter === "settings" || activeFilter === "api") return false;
+    // Settings, API, and Logs tabs show nothing (no package list)
+    if (
+      activeFilter === "settings" ||
+      activeFilter === "api" ||
+      activeFilter === "logs"
+    )
+      return false;
     // Marked for deletion tab shows only packages marked for deletion
-    if (activeFilter === "marked_for_deletion") return pkg.markedForDeletion === true;
+    if (activeFilter === "marked_for_deletion")
+      return pkg.markedForDeletion === true;
     // Archived tab shows only archived packages
     if (activeFilter === "archived") return isArchived(pkg);
     // All other tabs exclude archived packages
@@ -9352,21 +10670,32 @@ function AdminDashboard({
           return b.weeklyDownloads - a.weeklyDownloads;
         case "approved_at": {
           const approvedSort = (b.approvedAt ?? 0) - (a.approvedAt ?? 0);
-          return approvedSort !== 0 ? approvedSort : b.submittedAt - a.submittedAt;
+          return approvedSort !== 0
+            ? approvedSort
+            : b.submittedAt - a.submittedAt;
         }
         case "verified": {
-          const verifiedSort = Number(Boolean(b.convexVerified))
-            - Number(Boolean(a.convexVerified));
-          return verifiedSort !== 0 ? verifiedSort : b.submittedAt - a.submittedAt;
+          const verifiedSort =
+            Number(Boolean(b.convexVerified)) -
+            Number(Boolean(a.convexVerified));
+          return verifiedSort !== 0
+            ? verifiedSort
+            : b.submittedAt - a.submittedAt;
         }
         case "community": {
-          const communitySort = Number(Boolean(b.communitySubmitted))
-            - Number(Boolean(a.communitySubmitted));
-          return communitySort !== 0 ? communitySort : b.submittedAt - a.submittedAt;
+          const communitySort =
+            Number(Boolean(b.communitySubmitted)) -
+            Number(Boolean(a.communitySubmitted));
+          return communitySort !== 0
+            ? communitySort
+            : b.submittedAt - a.submittedAt;
         }
         case "featured": {
-          const featuredSort = Number(Boolean(b.featured)) - Number(Boolean(a.featured));
-          return featuredSort !== 0 ? featuredSort : b.submittedAt - a.submittedAt;
+          const featuredSort =
+            Number(Boolean(b.featured)) - Number(Boolean(a.featured));
+          return featuredSort !== 0
+            ? featuredSort
+            : b.submittedAt - a.submittedAt;
         }
         default:
           return b.submittedAt - a.submittedAt;
@@ -9383,7 +10712,10 @@ function AdminDashboard({
     });
   };
 
-  const getSubmissionDateMeta = (pkg: { submittedAt: number; approvedAt?: number }) => {
+  const getSubmissionDateMeta = (pkg: {
+    submittedAt: number;
+    approvedAt?: number;
+  }) => {
     if (sortBy === "approved_at" && pkg.approvedAt) {
       return {
         label: "Approved",
@@ -9400,7 +10732,9 @@ function AdminDashboard({
   return (
     <div className="max-w-7xl mx-auto">
       {/* Mobile search bar */}
-      <div className={`mb-4 sm:hidden ${activeFilter === "settings" || activeFilter === "api" ? "hidden" : ""}`}>
+      <div
+        className={`mb-4 sm:hidden ${activeFilter === "settings" || activeFilter === "api" || activeFilter === "logs" ? "hidden" : ""}`}
+      >
         <div className="relative">
           <MagnifyingGlass
             size={16}
@@ -9434,469 +10768,526 @@ function AdminDashboard({
       </div>
 
       {/* Submissions list (hidden in settings view) */}
-      {activeFilter !== "settings" && activeFilter !== "api" && <div className="rounded-lg border border-border bg-light shadow-sm mb-6">
-        <div className="p-3 border-b border-border bg-bg-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <h2 className="text-base font-light text-text-primary">
-            Package Submissions
-          </h2>
-          <div className="flex items-center gap-3">
-            {/* Sort dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setShowSortDropdown(!showSortDropdown)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border bg-white text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
-              >
-                <SortAscending size={14} />
-                <span className="hidden sm:inline">
-                  {sortOptions.find((o) => o.value === sortBy)?.label}
-                </span>
-                <CaretDown
-                  size={12}
-                  className={`transition-transform ${showSortDropdown ? "rotate-180" : ""}`}
-                />
-              </button>
-              {showSortDropdown && (
-                <>
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setShowSortDropdown(false)}
-                  />
-                  <div className="absolute right-0 top-full mt-1 z-20 min-w-[140px] py-1 rounded-lg border border-border bg-white shadow-lg">
-                    {sortOptions.map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={() => {
-                          setSortBy(option.value);
-                          setShowSortDropdown(false);
-                        }}
-                        className={`w-full px-3 py-1.5 text-left text-xs transition-colors ${
-                          sortBy === option.value
-                            ? "bg-bg-hover text-text-primary font-medium"
-                            : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-            
-            {/* Items per page dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setShowItemsPerPageDropdown(!showItemsPerPageDropdown)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border bg-white text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
-              >
-                <List size={14} />
-                <span className="hidden sm:inline">{itemsPerPage}</span>
-                <span className="sm:hidden">{itemsPerPage}</span>
-                <CaretDown
-                  size={12}
-                  className={`transition-transform ${showItemsPerPageDropdown ? "rotate-180" : ""}`}
-                />
-              </button>
-              {showItemsPerPageDropdown && (
-                <>
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setShowItemsPerPageDropdown(false)}
-                  />
-                  <div className="absolute right-0 top-full mt-1 z-20 min-w-[80px] py-1 rounded-lg border border-border bg-white shadow-lg">
-                    {itemsPerPageOptions.map((option) => (
-                      <button
-                        key={option}
-                        onClick={() => handleItemsPerPageChange(option)}
-                        className={`w-full px-3 py-1.5 text-left text-xs transition-colors ${
-                          itemsPerPage === option
-                            ? "bg-bg-hover text-text-primary font-medium"
-                            : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-                        }`}
-                      >
-                        {option} per page
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-            
-            <span className="text-xs text-text-secondary">
-              Showing {Math.min((currentPage[activeFilter] - 1) * itemsPerPage + 1, filteredPackages?.length ?? 0)}-{Math.min(currentPage[activeFilter] * itemsPerPage, filteredPackages?.length ?? 0)} of {filteredPackages?.length ?? 0}
-            </span>
-          </div>
-        </div>
-
-        {packages === undefined ? (
-          <div className="p-8 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto border-button"></div>
-          </div>
-        ) : filteredPackages?.length === 0 ? (
-          <div className="p-8 text-center text-text-secondary">
-            {searchTerm
-              ? "No packages found matching your search."
-              : "No packages found for this filter."}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4 p-4">
-            {sortPackages(filteredPackages || [])
-              .slice(
-                (currentPage[activeFilter] - 1) * itemsPerPage,
-                currentPage[activeFilter] * itemsPerPage
-              )
-              .map((pkg) => {
-              const isExpanded = expandedPackages.has(pkg._id);
-              const dateMeta = getSubmissionDateMeta(pkg);
-              const isHashTarget = hashTargetPackageId === pkg._id;
-              return (
-                <div
-                  key={pkg._id}
-                  id={`pkg-${pkg._id}`}
-                  ref={isHashTarget ? hashTargetRef : undefined}
-                  className={`rounded-lg border bg-white transition-colors ${
-                    isHashTarget
-                      ? "border-[#E05C35] ring-2 ring-[#E05C35]"
-                      : "border-border"
-                  }`}
+      {activeFilter !== "settings" && activeFilter !== "api" && (
+        <div className="rounded-lg border border-border bg-light shadow-sm mb-6">
+          <div className="p-3 border-b border-border bg-bg-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+            <h2 className="text-base font-light text-text-primary">
+              Package Submissions
+            </h2>
+            <div className="flex items-center gap-3">
+              {/* Sort dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowSortDropdown(!showSortDropdown)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border bg-white text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
                 >
-                  {/* Collapsible header - always visible */}
-                  <button
-                    onClick={() => togglePackage(pkg._id)}
-                    className="w-full p-4 flex items-center justify-between gap-4 hover:bg-bg-hover/30 transition-colors text-left"
-                  >
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-3 min-w-0 flex-1">
-                      {/* Primary row on mobile / inline on desktop: caret + thumb + star + name */}
-                      <div className="flex items-center gap-2 sm:gap-3 min-w-0 w-full sm:w-auto sm:flex-1">
-                        <CaretRight
-                          size={16}
-                          weight="bold"
-                          className={`shrink-0 text-text-secondary transition-transform duration-200 ${
-                            isExpanded ? "rotate-90" : ""
+                  <SortAscending size={14} />
+                  <span className="hidden sm:inline">
+                    {sortOptions.find((o) => o.value === sortBy)?.label}
+                  </span>
+                  <CaretDown
+                    size={12}
+                    className={`transition-transform ${showSortDropdown ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {showSortDropdown && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setShowSortDropdown(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-1 z-20 min-w-[140px] py-1 rounded-lg border border-border bg-white shadow-lg">
+                      {sortOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            setSortBy(option.value);
+                            setShowSortDropdown(false);
+                          }}
+                          className={`w-full px-3 py-1.5 text-left text-xs transition-colors ${
+                            sortBy === option.value
+                              ? "bg-bg-hover text-text-primary font-medium"
+                              : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
                           }`}
-                        />
-                        {pkg.thumbnailUrl && (
-                          <img
-                            src={pkg.thumbnailUrl}
-                            alt=""
-                            className="w-8 h-5 object-cover rounded shrink-0"
-                          />
-                        )}
-                        {pkg.featured && (
-                          <Star
-                            size={16}
-                            weight="fill"
-                            className="text-amber-500 shrink-0"
-                          />
-                        )}
-                        <span className="font-medium text-text-primary truncate min-w-0 flex-1">
-                          {pkg.componentName || pkg.name}
-                        </span>
-                      </div>
-                      {/* Secondary row on mobile / inline on desktop: version + badges */}
-                      <div className="flex items-center gap-2 sm:gap-3 flex-wrap pl-6 sm:pl-0 sm:shrink-0 sm:min-h-7">
-                        <span className="inline-flex items-center text-xs leading-none px-2 py-0.5 rounded-full bg-bg-primary text-text-secondary border border-border shrink-0">
-                          v{pkg.version}
-                        </span>
-                        <StatusBadge status={pkg.reviewStatus} />
-                        <VisibilityBadge visibility={pkg.visibility} markedForDeletion={pkg.markedForDeletion} />
-                        {pkg.pendingNpmName && (
-                          <Tooltip
-                            content={`npm URL points to ${pkg.pendingNpmName}`}
-                          >
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium leading-none border bg-amber-500/10 text-amber-600 border-amber-500/20">
-                              <Warning size={14} weight="bold" />
-                              <span className="hidden sm:inline">
-                                npm mismatch
-                              </span>
-                            </span>
-                          </Tooltip>
-                        )}
-                        <span className="hidden sm:inline-flex">
-                          <PaymentBadge rewardStatus={pkg.rewardStatus} rewardTotalAmount={pkg.rewardTotalAmount} />
-                        </span>
-                        <span className="hidden sm:inline-flex">
-                          <ComponentDetailQuickLink slug={pkg.slug} />
-                        </span>
-                      </div>
+                        >
+                          {option.label}
+                        </button>
+                      ))}
                     </div>
-                    <div className="flex items-center gap-3 shrink-0 self-center text-xs text-text-secondary whitespace-nowrap">
-                      <span className="hidden sm:inline-flex sm:items-center sm:self-center">
-                        {pkg.weeklyDownloads.toLocaleString()}/wk
-                      </span>
-                      <span className="inline-flex items-center self-center">
-                        {formatDate(dateMeta.timestamp)}
-                      </span>
+                  </>
+                )}
+              </div>
+
+              {/* Items per page dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() =>
+                    setShowItemsPerPageDropdown(!showItemsPerPageDropdown)
+                  }
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-border bg-white text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                >
+                  <List size={14} />
+                  <span className="hidden sm:inline">{itemsPerPage}</span>
+                  <span className="sm:hidden">{itemsPerPage}</span>
+                  <CaretDown
+                    size={12}
+                    className={`transition-transform ${showItemsPerPageDropdown ? "rotate-180" : ""}`}
+                  />
+                </button>
+                {showItemsPerPageDropdown && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setShowItemsPerPageDropdown(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-1 z-20 min-w-[80px] py-1 rounded-lg border border-border bg-white shadow-lg">
+                      {itemsPerPageOptions.map((option) => (
+                        <button
+                          key={option}
+                          onClick={() => handleItemsPerPageChange(option)}
+                          className={`w-full px-3 py-1.5 text-left text-xs transition-colors ${
+                            itemsPerPage === option
+                              ? "bg-bg-hover text-text-primary font-medium"
+                              : "text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                          }`}
+                        >
+                          {option} per page
+                        </button>
+                      ))}
                     </div>
-                  </button>
+                  </>
+                )}
+              </div>
 
-                  {/* Expandable content */}
-                  {isExpanded && (
-                    <div>
-                      {/* Package details */}
-                      <div className="px-4 flex flex-col sm:flex-row items-stretch sm:items-start justify-between gap-4 pb-4">
-                        <div className="w-full flex-1 min-w-0">
-                          <p className="text-sm text-text-secondary mb-3 line-clamp-2">
-                            {pkg.description}
-                          </p>
+              <span className="text-xs text-text-secondary">
+                Showing{" "}
+                {Math.min(
+                  (currentPage[activeFilter] - 1) * itemsPerPage + 1,
+                  filteredPackages?.length ?? 0,
+                )}
+                -
+                {Math.min(
+                  currentPage[activeFilter] * itemsPerPage,
+                  filteredPackages?.length ?? 0,
+                )}{" "}
+                of {filteredPackages?.length ?? 0}
+              </span>
+            </div>
+          </div>
 
-                          {/* Pending npm rename review */}
-                          {pkg.pendingNpmName && (
-                            <NpmMismatchPanel
-                              packageId={pkg._id}
-                              currentName={pkg.name}
-                              pendingNpmName={pkg.pendingNpmName}
+          {packages === undefined ? (
+            <div className="p-8 text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto border-button"></div>
+            </div>
+          ) : filteredPackages?.length === 0 ? (
+            <div className="p-8 text-center text-text-secondary">
+              {searchTerm
+                ? "No packages found matching your search."
+                : "No packages found for this filter."}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4 p-4">
+              {sortPackages(filteredPackages || [])
+                .slice(
+                  (currentPage[activeFilter] - 1) * itemsPerPage,
+                  currentPage[activeFilter] * itemsPerPage,
+                )
+                .map((pkg) => {
+                  const isExpanded = expandedPackages.has(pkg._id);
+                  const dateMeta = getSubmissionDateMeta(pkg);
+                  const isHashTarget = hashTargetPackageId === pkg._id;
+                  return (
+                    <div
+                      key={pkg._id}
+                      id={`pkg-${pkg._id}`}
+                      ref={isHashTarget ? hashTargetRef : undefined}
+                      className={`rounded-lg border bg-white transition-colors ${
+                        isHashTarget
+                          ? "border-[#E05C35] ring-2 ring-[#E05C35]"
+                          : "border-border"
+                      }`}
+                    >
+                      {/* Collapsible header - always visible */}
+                      <button
+                        onClick={() => togglePackage(pkg._id)}
+                        className="w-full p-4 flex items-center justify-between gap-4 hover:bg-bg-hover/30 transition-colors text-left"
+                      >
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-3 min-w-0 flex-1">
+                          {/* Primary row on mobile / inline on desktop: caret + thumb + star + name */}
+                          <div className="flex items-center gap-2 sm:gap-3 min-w-0 w-full sm:w-auto sm:flex-1">
+                            <CaretRight
+                              size={16}
+                              weight="bold"
+                              className={`shrink-0 text-text-secondary transition-transform duration-200 ${
+                                isExpanded ? "rotate-90" : ""
+                              }`}
                             />
-                          )}
+                            {pkg.thumbnailUrl && (
+                              <img
+                                src={pkg.thumbnailUrl}
+                                alt=""
+                                className="w-8 h-5 object-cover rounded shrink-0"
+                              />
+                            )}
+                            {pkg.featured && (
+                              <Star
+                                size={16}
+                                weight="fill"
+                                className="text-amber-500 shrink-0"
+                              />
+                            )}
+                            <span className="font-medium text-text-primary truncate min-w-0 flex-1">
+                              {pkg.componentName || pkg.name}
+                            </span>
+                          </div>
+                          {/* Secondary row on mobile / inline on desktop: version + badges */}
+                          <div className="flex items-center gap-2 sm:gap-3 flex-wrap pl-6 sm:pl-0 sm:shrink-0 sm:min-h-7">
+                            <span className="inline-flex items-center text-xs leading-none px-2 py-0.5 rounded-full bg-bg-primary text-text-secondary border border-border shrink-0">
+                              v{pkg.version}
+                            </span>
+                            <StatusBadge status={pkg.reviewStatus} />
+                            <VisibilityBadge
+                              visibility={pkg.visibility}
+                              markedForDeletion={pkg.markedForDeletion}
+                            />
+                            {pkg.pendingNpmName && (
+                              <Tooltip
+                                content={`npm URL points to ${pkg.pendingNpmName}`}
+                              >
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium leading-none border bg-amber-500/10 text-amber-600 border-amber-500/20">
+                                  <Warning size={14} weight="bold" />
+                                  <span className="hidden sm:inline">
+                                    npm mismatch
+                                  </span>
+                                </span>
+                              </Tooltip>
+                            )}
+                            <span className="hidden sm:inline-flex">
+                              <PaymentBadge
+                                rewardStatus={pkg.rewardStatus}
+                                rewardTotalAmount={pkg.rewardTotalAmount}
+                              />
+                            </span>
+                            <span className="hidden sm:inline-flex">
+                              <ComponentDetailQuickLink slug={pkg.slug} />
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0 self-center text-xs text-text-secondary whitespace-nowrap">
+                          <span className="hidden sm:inline-flex sm:items-center sm:self-center">
+                            {pkg.weeklyDownloads.toLocaleString()}/wk
+                          </span>
+                          <span className="inline-flex items-center self-center">
+                            {formatDate(dateMeta.timestamp)}
+                          </span>
+                        </div>
+                      </button>
 
-                          {/* Submitter Info (name, discord, email all editable) */}
-                          <AuthorToggleSection
+                      {/* Expandable content */}
+                      {isExpanded && (
+                        <div>
+                          {/* Package details */}
+                          <div className="px-4 flex flex-col sm:flex-row items-stretch sm:items-start justify-between gap-4 pb-4">
+                            <div className="w-full flex-1 min-w-0">
+                              <p className="text-sm text-text-secondary mb-3 line-clamp-2">
+                                {pkg.description}
+                              </p>
+
+                              {/* Pending npm rename review */}
+                              {pkg.pendingNpmName && (
+                                <NpmMismatchPanel
+                                  packageId={pkg._id}
+                                  currentName={pkg.name}
+                                  pendingNpmName={pkg.pendingNpmName}
+                                />
+                              )}
+
+                              {/* Submitter Info (name, discord, email all editable) */}
+                              <AuthorToggleSection
+                                packageId={pkg._id}
+                                submitterEmail={pkg.submitterEmail}
+                                additionalEmails={pkg.additionalEmails}
+                                submitterName={pkg.submitterName}
+                                submitterDiscord={pkg.submitterDiscord}
+                              />
+
+                              {/* AI Review Results */}
+                              <AiReviewResultsPanel
+                                aiReviewStatus={pkg.aiReviewStatus}
+                                aiReviewSummary={pkg.aiReviewSummary}
+                                aiReviewCriteria={pkg.aiReviewCriteria}
+                                aiReviewError={pkg.aiReviewError}
+                                aiReviewedAt={pkg.aiReviewedAt}
+                                packageName={pkg.name}
+                                collaborators={pkg.collaborators}
+                                npmUrl={pkg.npmUrl}
+                                repositoryUrl={pkg.repositoryUrl}
+                              />
+
+                              <PackageComponentDetailsEditor
+                                packageId={pkg._id}
+                                componentName={pkg.componentName}
+                                slug={pkg.slug}
+                                category={pkg.category}
+                                tags={pkg.tags}
+                                shortDescription={pkg.shortDescription}
+                                longDescription={pkg.longDescription}
+                                videoUrl={pkg.videoUrl}
+                                demoUrl={pkg.demoUrl}
+                                thumbnailUrl={pkg.thumbnailUrl}
+                                hideThumbnailInCategory={
+                                  pkg.hideThumbnailInCategory
+                                }
+                                thumbnailUploadedByUser={
+                                  pkg.thumbnailUploadedByUser
+                                }
+                                convexVerified={pkg.convexVerified}
+                                communitySubmitted={pkg.communitySubmitted}
+                                authorUsername={pkg.authorUsername}
+                                authorAvatar={pkg.authorAvatar}
+                                logoUrl={pkg.logoUrl}
+                                logoStorageId={pkg.logoStorageId}
+                                selectedTemplateId={pkg.selectedTemplateId}
+                                thumbnailGeneratedAt={pkg.thumbnailGeneratedAt}
+                                seoGenerationStatus={pkg.seoGenerationStatus}
+                                seoGeneratedAt={pkg.seoGeneratedAt}
+                                seoGenerationError={pkg.seoGenerationError}
+                                seoValueProp={pkg.seoValueProp}
+                                seoBenefits={pkg.seoBenefits}
+                                seoUseCases={pkg.seoUseCases}
+                                seoFaq={pkg.seoFaq}
+                                seoResourceLinks={pkg.seoResourceLinks}
+                                contentModelVersion={pkg.contentModelVersion}
+                                contentGenerationStatus={
+                                  pkg.contentGenerationStatus
+                                }
+                                contentGeneratedAt={pkg.contentGeneratedAt}
+                                contentGenerationError={
+                                  pkg.contentGenerationError
+                                }
+                                generatedDescription={pkg.generatedDescription}
+                                generatedUseCases={pkg.generatedUseCases}
+                                generatedHowItWorks={pkg.generatedHowItWorks}
+                                readmeIncludedMarkdown={
+                                  pkg.readmeIncludedMarkdown
+                                }
+                                readmeIncludeSource={pkg.readmeIncludeSource}
+                                skillMd={pkg.skillMd}
+                                npmDescription={pkg.description}
+                                repositoryUrl={pkg.repositoryUrl}
+                                npmUrl={pkg.npmUrl}
+                                submittedShortDescription={
+                                  pkg.submittedShortDescription
+                                }
+                                submittedLongDescription={
+                                  pkg.submittedLongDescription
+                                }
+                              />
+                              <PackageMetadataEditor
+                                packageId={pkg._id}
+                                initialName={pkg.name}
+                                initialDescription={pkg.description}
+                                initialNpmUrl={pkg.npmUrl}
+                                initialRepositoryUrl={pkg.repositoryUrl}
+                                initialHomepageUrl={pkg.homepageUrl}
+                                initialInstallCommand={pkg.installCommand}
+                                initialVersion={pkg.version}
+                                initialLicense={pkg.license}
+                                initialWeeklyDownloads={pkg.weeklyDownloads}
+                                initialTotalFiles={pkg.totalFiles}
+                                initialLastPublish={pkg.lastPublish}
+                                initialCollaborators={pkg.collaborators}
+                              />
+                            </div>
+
+                            {/* Stats and links */}
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 shrink-0 w-full sm:w-auto">
+                              <div className="flex sm:flex-col items-center sm:items-end gap-3 sm:gap-1 text-sm text-text-secondary">
+                                <Tooltip content="Weekly downloads">
+                                  <div className="flex items-center gap-1 whitespace-nowrap">
+                                    <DownloadSimple size={14} />
+                                    <span>
+                                      {pkg.weeklyDownloads.toLocaleString()}/wk
+                                    </span>
+                                  </div>
+                                </Tooltip>
+                                <Tooltip
+                                  content={`${dateMeta.label}: ${formatDate(dateMeta.timestamp)}`}
+                                >
+                                  <div className="flex items-center gap-1 whitespace-nowrap">
+                                    <CalendarBlank size={14} />
+                                    <span>
+                                      {formatDate(dateMeta.timestamp)}
+                                    </span>
+                                  </div>
+                                </Tooltip>
+                              </div>
+
+                              {/* Links */}
+                              <div className="flex gap-1 sm:ml-0 flex-wrap">
+                                <Tooltip content="View on npm">
+                                  <a
+                                    href={pkg.npmUrl}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      window.open(
+                                        pkg.npmUrl,
+                                        "_blank",
+                                        "noopener,noreferrer",
+                                      );
+                                    }}
+                                    className="px-3 py-1.5 rounded-full text-xs font-medium bg-button text-white hover:bg-button-hover transition-colors cursor-pointer"
+                                  >
+                                    npm
+                                  </a>
+                                </Tooltip>
+                                {pkg.repositoryUrl && (
+                                  <Tooltip content="View repository">
+                                    <a
+                                      href={pkg.repositoryUrl}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        window.open(
+                                          pkg.repositoryUrl,
+                                          "_blank",
+                                          "noopener,noreferrer",
+                                        );
+                                      }}
+                                      className="px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
+                                    >
+                                      repo
+                                    </a>
+                                  </Tooltip>
+                                )}
+                                {pkg.demoUrl && (
+                                  <Tooltip content="View live demo">
+                                    <a
+                                      href={pkg.demoUrl}
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        window.open(
+                                          pkg.demoUrl,
+                                          "_blank",
+                                          "noopener,noreferrer",
+                                        );
+                                      }}
+                                      className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
+                                    >
+                                      <Browser size={12} />
+                                      demo
+                                    </a>
+                                  </Tooltip>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Inline action buttons */}
+                          <InlineActions
                             packageId={pkg._id}
-                            submitterEmail={pkg.submitterEmail}
-                            additionalEmails={pkg.additionalEmails}
-                            submitterName={pkg.submitterName}
-                            submitterDiscord={pkg.submitterDiscord}
-                          />
-
-                          {/* AI Review Results */}
-                          <AiReviewResultsPanel
-                            aiReviewStatus={pkg.aiReviewStatus}
-                            aiReviewSummary={pkg.aiReviewSummary}
-                            aiReviewCriteria={pkg.aiReviewCriteria}
-                            aiReviewError={pkg.aiReviewError}
-                            aiReviewedAt={pkg.aiReviewedAt}
+                            currentStatus={pkg.reviewStatus}
+                            currentVisibility={pkg.visibility}
+                            currentFeatured={pkg.featured}
+                            currentFeaturedSortOrder={pkg.featuredSortOrder}
+                            currentHideFromSubmissions={pkg.hideFromSubmissions}
+                            userEmail={userEmail || ""}
                             packageName={pkg.name}
-                            collaborators={pkg.collaborators}
-                            npmUrl={pkg.npmUrl}
                             repositoryUrl={pkg.repositoryUrl}
-                          />
-
-                          <PackageComponentDetailsEditor
-                            packageId={pkg._id}
-                            componentName={pkg.componentName}
-                            slug={pkg.slug}
-                            category={pkg.category}
-                            tags={pkg.tags}
-                            shortDescription={pkg.shortDescription}
-                            longDescription={pkg.longDescription}
-                            videoUrl={pkg.videoUrl}
-                            demoUrl={pkg.demoUrl}
-                            thumbnailUrl={pkg.thumbnailUrl}
-                            hideThumbnailInCategory={pkg.hideThumbnailInCategory}
-                            thumbnailUploadedByUser={pkg.thumbnailUploadedByUser}
+                            isArchivedView={activeFilter === "archived"}
                             convexVerified={pkg.convexVerified}
                             communitySubmitted={pkg.communitySubmitted}
-                            authorUsername={pkg.authorUsername}
-                            authorAvatar={pkg.authorAvatar}
-                            logoUrl={pkg.logoUrl}
-                            logoStorageId={pkg.logoStorageId}
-                            selectedTemplateId={pkg.selectedTemplateId}
-                            thumbnailGeneratedAt={pkg.thumbnailGeneratedAt}
+                            hideSeoAndSkillContentOnDetailPage={
+                              pkg.hideSeoAndSkillContentOnDetailPage
+                            }
                             seoGenerationStatus={pkg.seoGenerationStatus}
-                            seoGeneratedAt={pkg.seoGeneratedAt}
-                            seoGenerationError={pkg.seoGenerationError}
-                            seoValueProp={pkg.seoValueProp}
-                            seoBenefits={pkg.seoBenefits}
-                            seoUseCases={pkg.seoUseCases}
-                            seoFaq={pkg.seoFaq}
-                            seoResourceLinks={pkg.seoResourceLinks}
-                            contentModelVersion={pkg.contentModelVersion}
-                            contentGenerationStatus={pkg.contentGenerationStatus}
-                            contentGeneratedAt={pkg.contentGeneratedAt}
-                            contentGenerationError={pkg.contentGenerationError}
-                            generatedDescription={pkg.generatedDescription}
-                            generatedUseCases={pkg.generatedUseCases}
-                            generatedHowItWorks={pkg.generatedHowItWorks}
-                            readmeIncludedMarkdown={pkg.readmeIncludedMarkdown}
-                            readmeIncludeSource={pkg.readmeIncludeSource}
-                            skillMd={pkg.skillMd}
                             npmDescription={pkg.description}
-                            repositoryUrl={pkg.repositoryUrl}
-                            npmUrl={pkg.npmUrl}
-                            submittedShortDescription={pkg.submittedShortDescription}
-                            submittedLongDescription={pkg.submittedLongDescription}
-                          />
-                          <PackageMetadataEditor
-                            packageId={pkg._id}
-                            initialName={pkg.name}
-                            initialDescription={pkg.description}
-                            initialNpmUrl={pkg.npmUrl}
-                            initialRepositoryUrl={pkg.repositoryUrl}
-                            initialHomepageUrl={pkg.homepageUrl}
-                            initialInstallCommand={pkg.installCommand}
-                            initialVersion={pkg.version}
-                            initialLicense={pkg.license}
-                            initialWeeklyDownloads={pkg.weeklyDownloads}
-                            initialTotalFiles={pkg.totalFiles}
-                            initialLastPublish={pkg.lastPublish}
-                            initialCollaborators={pkg.collaborators}
+                            hideThumbnailInCategory={
+                              pkg.hideThumbnailInCategory
+                            }
+                            thumbnailUrl={pkg.thumbnailUrl}
+                            lastRefreshedAt={pkg.lastRefreshedAt}
+                            refreshError={pkg.refreshError}
+                            slug={pkg.slug}
+                            submitterEmail={pkg.submitterEmail}
+                            rewardStatus={pkg.rewardStatus}
+                            defaultRewardAmount={defaultRewardAmount}
+                            reviewedBy={pkg.reviewedBy}
+                            hasSkillMd={Boolean(pkg.skillMd)}
                           />
                         </div>
-
-                        {/* Stats and links */}
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 shrink-0 w-full sm:w-auto">
-                          <div className="flex sm:flex-col items-center sm:items-end gap-3 sm:gap-1 text-sm text-text-secondary">
-                            <Tooltip content="Weekly downloads">
-                              <div className="flex items-center gap-1 whitespace-nowrap">
-                                <DownloadSimple size={14} />
-                                <span>
-                                  {pkg.weeklyDownloads.toLocaleString()}/wk
-                                </span>
-                              </div>
-                            </Tooltip>
-                            <Tooltip
-                              content={`${dateMeta.label}: ${formatDate(dateMeta.timestamp)}`}
-                            >
-                              <div className="flex items-center gap-1 whitespace-nowrap">
-                                <CalendarBlank size={14} />
-                                <span>{formatDate(dateMeta.timestamp)}</span>
-                              </div>
-                            </Tooltip>
-                          </div>
-
-                          {/* Links */}
-                          <div className="flex gap-1 sm:ml-0 flex-wrap">
-                            <Tooltip content="View on npm">
-                              <a
-                                href={pkg.npmUrl}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  window.open(
-                                    pkg.npmUrl,
-                                    "_blank",
-                                    "noopener,noreferrer",
-                                  );
-                                }}
-                                className="px-3 py-1.5 rounded-full text-xs font-medium bg-button text-white hover:bg-button-hover transition-colors cursor-pointer"
-                              >
-                                npm
-                              </a>
-                            </Tooltip>
-                            {pkg.repositoryUrl && (
-                              <Tooltip content="View repository">
-                                <a
-                                  href={pkg.repositoryUrl}
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    window.open(
-                                      pkg.repositoryUrl,
-                                      "_blank",
-                                      "noopener,noreferrer",
-                                    );
-                                  }}
-                                  className="px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
-                                >
-                                  repo
-                                </a>
-                              </Tooltip>
-                            )}
-                            {pkg.demoUrl && (
-                              <Tooltip content="View live demo">
-                                <a
-                                  href={pkg.demoUrl}
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    window.open(
-                                      pkg.demoUrl,
-                                      "_blank",
-                                      "noopener,noreferrer",
-                                    );
-                                  }}
-                                  className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border border-border text-text-primary hover:bg-bg-hover transition-colors cursor-pointer"
-                                >
-                                  <Browser size={12} />
-                                  demo
-                                </a>
-                              </Tooltip>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Inline action buttons */}
-                      <InlineActions
-                        packageId={pkg._id}
-                        currentStatus={pkg.reviewStatus}
-                        currentVisibility={pkg.visibility}
-                        currentFeatured={pkg.featured}
-                        currentFeaturedSortOrder={pkg.featuredSortOrder}
-                        currentHideFromSubmissions={pkg.hideFromSubmissions}
-                        userEmail={userEmail || ""}
-                        packageName={pkg.name}
-                        repositoryUrl={pkg.repositoryUrl}
-                        isArchivedView={activeFilter === "archived"}
-                        convexVerified={pkg.convexVerified}
-                        communitySubmitted={pkg.communitySubmitted}
-                        hideSeoAndSkillContentOnDetailPage={
-                          pkg.hideSeoAndSkillContentOnDetailPage
-                        }
-                        seoGenerationStatus={pkg.seoGenerationStatus}
-                        npmDescription={pkg.description}
-                        hideThumbnailInCategory={pkg.hideThumbnailInCategory}
-                        thumbnailUrl={pkg.thumbnailUrl}
-                        lastRefreshedAt={pkg.lastRefreshedAt}
-                        refreshError={pkg.refreshError}
-                        slug={pkg.slug}
-                        submitterEmail={pkg.submitterEmail}
-                        rewardStatus={pkg.rewardStatus}
-                        defaultRewardAmount={defaultRewardAmount}
-                        reviewedBy={pkg.reviewedBy}
-                        hasSkillMd={Boolean(pkg.skillMd)}
-                      />
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
-            
-            {/* Pagination controls */}
-            {(() => {
-              const totalPages = Math.ceil((filteredPackages?.length ?? 0) / itemsPerPage);
-              const page = currentPage[activeFilter];
-              if (totalPages <= 1) return null;
-              
-              return (
-                <div className="flex items-center justify-center gap-2 pt-4 border-t border-border mt-4">
-                  <button
-                    onClick={() => setCurrentPage((prev) => ({ ...prev, [activeFilter]: Math.max(1, page - 1) }))}
-                    disabled={page === 1}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-                  
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                      <button
-                        key={pageNum}
-                        onClick={() => setCurrentPage((prev) => ({ ...prev, [activeFilter]: pageNum }))}
-                        className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${
-                          page === pageNum
-                            ? "bg-button text-white"
-                            : "border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary"
-                        }`}
-                      >
-                        {pageNum}
-                      </button>
-                    ))}
+                  );
+                })}
+
+              {/* Pagination controls */}
+              {(() => {
+                const totalPages = Math.ceil(
+                  (filteredPackages?.length ?? 0) / itemsPerPage,
+                );
+                const page = currentPage[activeFilter];
+                if (totalPages <= 1) return null;
+
+                return (
+                  <div className="flex items-center justify-center gap-2 pt-4 border-t border-border mt-4">
+                    <button
+                      onClick={() =>
+                        setCurrentPage((prev) => ({
+                          ...prev,
+                          [activeFilter]: Math.max(1, page - 1),
+                        }))
+                      }
+                      disabled={page === 1}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                        (pageNum) => (
+                          <button
+                            key={pageNum}
+                            onClick={() =>
+                              setCurrentPage((prev) => ({
+                                ...prev,
+                                [activeFilter]: pageNum,
+                              }))
+                            }
+                            className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${
+                              page === pageNum
+                                ? "bg-button text-white"
+                                : "border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary"
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        ),
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() =>
+                        setCurrentPage((prev) => ({
+                          ...prev,
+                          [activeFilter]: Math.min(totalPages, page + 1),
+                        }))
+                      }
+                      disabled={page === totalPages}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
                   </div>
-                  
-                  <button
-                    onClick={() => setCurrentPage((prev) => ({ ...prev, [activeFilter]: Math.min(totalPages, page + 1) }))}
-                    disabled={page === totalPages}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                </div>
-              );
-            })()}
-          </div>
-        )}
-      </div>}
+                );
+              })()}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Settings view: Categories, Auto-Refresh, AI Review, Stats */}
       {activeFilter === "settings" && (
@@ -9972,9 +11363,14 @@ function AdminDashboard({
                 id="settings-stats"
                 className="scroll-mt-28 rounded-lg border border-border bg-bg-card p-4"
               >
-                <h3 className="text-sm font-medium text-text-primary mb-3">Stats</h3>
+                <h3 className="text-sm font-medium text-text-primary mb-3">
+                  Stats
+                </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-                  <Tooltip content="Total packages (excluding archived)" position="top">
+                  <Tooltip
+                    content="Total packages (excluding archived)"
+                    position="top"
+                  >
                     <div className="rounded-lg border border-border p-2 bg-bg-primary">
                       <div className="flex items-center gap-1 text-text-secondary mb-1">
                         <Package size={12} />
@@ -10089,6 +11485,9 @@ function AdminDashboard({
       {activeFilter === "api" && (
         <ApiManagementTab adminSettings={adminSettings} />
       )}
+
+      {/* README update logs tab */}
+      {activeFilter === "logs" && <ReadmeUpdateLogsTab />}
     </div>
   );
 }

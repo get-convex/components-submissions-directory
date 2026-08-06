@@ -1,5 +1,13 @@
 // Card component for the directory grid listing
-import { DownloadIcon, CheckCircledIcon, PersonIcon } from "@radix-ui/react-icons";
+import { DownloadIcon, CheckCircledIcon } from "@radix-ui/react-icons";
+
+// Badge from a curated category membership; only entries with a badgeUrl render
+export interface CuratedBadge {
+  categorySlug: string;
+  label: string;
+  badgeUrl?: string;
+}
+
 interface ComponentCardProps {
   name: string;
   componentName?: string;
@@ -19,6 +27,7 @@ interface ComponentCardProps {
   showAllTimeDownloads?: boolean;
   convexVerified?: boolean;
   communitySubmitted?: boolean;
+  curatedBadges?: CuratedBadge[];
   featured?: boolean;
   npmUrl: string;
   repositoryUrl?: string;
@@ -41,21 +50,31 @@ export function ComponentCard({
   showAllTimeDownloads = false,
   convexVerified,
   communitySubmitted,
+  curatedBadges,
   featured,
   npmUrl,
   className,
 }: ComponentCardProps) {
+  // Only curated badges with an uploaded image render; badge-less curated
+  // categories leave the card unchanged.
+  const curatedBadgeImages = (curatedBadges ?? []).filter((b) => b.badgeUrl);
   const displayName = componentName || name;
   const rawDescription = shortDescription || description;
   const displayDescription =
-    rawDescription.length > 113 ? `${rawDescription.slice(0, 113).trimEnd()}...` : rawDescription;
+    rawDescription.length > 113
+      ? `${rawDescription.slice(0, 113).trimEnd()}...`
+      : rawDescription;
   // Only show thumbnail if URL exists AND showThumbnail is true
   const shouldShowThumbnail = thumbnailUrl && showThumbnail;
-  const cardHeightClass = featured || shouldShowThumbnail ? "h-full" : "h-[190px]";
-  const descriptionHeightClass = featured || shouldShowThumbnail ? "" : "min-h-[3rem]";
+  const cardHeightClass =
+    featured || shouldShowThumbnail ? "h-full" : "h-[190px]";
+  const descriptionHeightClass =
+    featured || shouldShowThumbnail ? "" : "min-h-[3rem]";
 
   // Use the base path for navigation
-  const basePath = window.location.pathname.startsWith("/components") ? "/components" : "";
+  const basePath = window.location.pathname.startsWith("/components")
+    ? "/components"
+    : "";
   const href = slug ? `${basePath}/${slug}` : npmUrl;
 
   // Format download count (B tier keeps huge all-time numbers compact)
@@ -80,7 +99,8 @@ export function ComponentCard({
   return (
     <a
       href={href}
-      className={`group flex ${cardHeightClass} flex-col overflow-hidden rounded-xl border border-border bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${className ?? ""}`}>
+      className={`group flex ${cardHeightClass} flex-col overflow-hidden rounded-xl border border-border bg-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${className ?? ""}`}
+    >
       {/* Thumbnail */}
       {shouldShowThumbnail && (
         <div className="aspect-video w-full overflow-hidden rounded-t-lg bg-bg-secondary">
@@ -100,13 +120,26 @@ export function ComponentCard({
         {/* Header row: name */}
         <div className="flex items-start justify-between gap-2 mb-1">
           <h3 className="truncate text-lg font-medium leading-tight text-neutral-n12 md:text-lg">
+            {/* Curated category badges render inline right before the first
+                letter of the name; long names keep truncating as before */}
+            {curatedBadgeImages.map((badge) => (
+              <img
+                key={badge.categorySlug}
+                src={badge.badgeUrl}
+                alt={badge.label}
+                title={badge.label}
+                className="mr-1.5 inline-block h-4 w-auto max-w-[80px] object-contain align-[-2px]"
+                loading="lazy"
+              />
+            ))}
             {displayName}
           </h3>
         </div>
 
         {/* Description */}
         <p
-          className={`mb-3 line-clamp-3 text-xs leading-4 text-[rgb(41_41_41/var(--tw-text-opacity,1))] ${descriptionHeightClass}`}>
+          className={`mb-3 line-clamp-3 text-xs leading-4 text-[rgb(41_41_41/var(--tw-text-opacity,1))] ${descriptionHeightClass}`}
+        >
           {displayDescription}
         </p>
 
@@ -140,7 +173,7 @@ export function ComponentCard({
               ) : (
                 <div />
               )}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 shrink-0">
                 {communitySubmitted && !convexVerified && (
                   <span
                     className="inline-flex items-center gap-0.5 text-[11px] font-medium px-1.5 py-0.5 rounded-full"
@@ -148,8 +181,8 @@ export function ComponentCard({
                       backgroundColor: "#E9DDC2",
                       color: "rgb(87, 74, 48)",
                     }}
-                    title="Community submitted">
-                    <PersonIcon className="w-3 h-3" />
+                    title="Community submitted"
+                  >
                     Community
                   </span>
                 )}
@@ -160,8 +193,8 @@ export function ComponentCard({
                       backgroundColor: "#E9DDC2",
                       color: "rgb(87, 74, 48)",
                     }}
-                    title="Community submitted">
-                    <PersonIcon className="w-3 h-3" />
+                    title="Community submitted"
+                  >
                     Community
                   </span>
                 )}
@@ -172,7 +205,8 @@ export function ComponentCard({
                       backgroundColor: "rgb(203, 237, 182)",
                       color: "rgb(34, 137, 9)",
                     }}
-                    title="Verified by Convex team">
+                    title="Verified by Convex team"
+                  >
                     <CheckCircledIcon className="w-3 h-3" />
                     Verified
                   </span>

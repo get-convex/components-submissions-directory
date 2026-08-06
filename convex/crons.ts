@@ -46,4 +46,16 @@ crons.cron(
   {},
 );
 
+// Run hourly at :30 (offset from the daily jobs above) to auto-update READMEs
+// for official get-convex components. Actual execution is gated by:
+// - officialReadmeAutoUpdateEnabled admin toggle
+// - officialReadmeUpdateIntervalHours (hour/day/3 days/week/month schedule)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+crons.cron(
+  "official-readme-auto-update",
+  "30 * * * *",
+  internal.readmeAutoUpdate.scheduledOfficialReadmeUpdate as any,
+  {},
+);
+
 export default crons;

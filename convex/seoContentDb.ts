@@ -236,7 +236,9 @@ export const updateGeneratedContent = mutation({
   },
 });
 
-// Internal mutation: update only the README markdown field (no AI content changes)
+// Internal mutation: update only the README markdown field (no AI content changes).
+// Skips the write when the stored content is identical (keeps hourly auto-update
+// runs idempotent) and returns whether anything changed for the update log.
 export const _updateReadmeOnly = internalMutation({
   args: {
     packageId: v.id("packages"),
@@ -245,13 +247,23 @@ export const _updateReadmeOnly = internalMutation({
       v.union(v.literal("markers"), v.literal("full")),
     ),
   },
-  returns: v.null(),
+  returns: v.boolean(),
   handler: async (ctx, args) => {
+    const pkg = await ctx.db.get(args.packageId);
+    if (!pkg) {
+      return false;
+    }
+    const unchanged =
+      pkg.readmeIncludedMarkdown === args.readmeIncludedMarkdown &&
+      pkg.readmeIncludeSource === args.readmeIncludeSource;
+    if (unchanged) {
+      return false;
+    }
     await ctx.db.patch(args.packageId, {
       readmeIncludedMarkdown: args.readmeIncludedMarkdown,
       readmeIncludeSource: args.readmeIncludeSource,
     });
-    return null;
+    return true;
   },
 });
 

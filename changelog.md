@@ -7,7 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Admin-gated the auto-refresh admin functions (2026-08-06 03:15 UTC)
+  - `updateRefreshSetting`, `getRefreshStats`, `getRecentRefreshLogs`, and `getRefreshSettings` in `convex/packages.ts` were public with no auth check, so unauthenticated callers could read refresh logs and stats and toggle the auto-refresh setting straight against the deployment URL. The mutation now requires an admin identity (`requireAdminIdentity`, throws `Authentication required`), and the three queries return safe defaults for non-admins (empty logs, zeroed stats, default settings) instead of erroring, matching the file's existing admin query pattern. Admin dashboard behavior is unchanged since the panel only renders for confirmed admins.
+  - Verified unauthenticated on dev via the public HTTP API: all three queries return empty/default data and the mutation throws before writing. Requires a production deploy to take effect there.
+  - PRD: `prds/admin-gate-refresh-functions.md`
+  - Files: `convex/packages.ts`
+
+### Changed
+
+- Removed the person icon from the Community pill on directory cards (2026-08-06 06:10 UTC)
+  - The icon made the pill wide enough to crowd the card footer, so the pill is now text-only. The Verified pill keeps its check icon. Files: `src/components/ComponentCard.tsx`.
+
 ### Added
+
+- Official README auto-update with admin logs (2026-08-06 02:45 UTC)
+  - New "Auto-update READMEs" toggle in the Official Convex Components block of admin Category Management. When on, every approved and visible official component (get-convex org / `@convex-dev` scope) gets its README refreshed from GitHub on a configurable schedule: every hour (default), every day, every 3 days, every week, or every month. The refresh reuses the exact internal action behind the existing Update README buttons, so behavior is identical to clicking them by hand.
+  - One hourly cron (`official-readme-auto-update`, runs at :30) is gated by the toggle and an interval check against a stored last-run timestamp, so the schedule setting works without redeploying crons. GitHub fetches are staggered 10 seconds apart to stay far under rate limits, and `_updateReadmeOnly` now skips the database write when the fetched README is byte-identical to what is stored.
+  - Every attempt (cron, admin button, or profile button) writes a row to a new `readmeUpdateLogs` table recording package, status (success / failed / skipped), source, whether content actually changed, and an error or skip reason. The table is capped at the newest 500 rows via a cleanup that runs after each cron pass.
+  - New Logs tab in the admin dashboard, styled like the Convex logs page: status and source filter selects, a package-name text filter, a paginated table with Load more, row checkboxes with select-all, Delete selected, and Clear logs, both behind the site's `ConfirmModal`.
+  - Verified end to end on dev (2026-08-06 02:20 UTC): toggle on, manual cron trigger scheduled all 10 official packages, staggered fetches logged one per 10 seconds, 9 rows recorded `changed: true` and one (`@convex-dev/stripe`) `changed: false` with no write, the interval gate blocked an immediate second run, non-admin log queries return empty, delete removed exactly the selected row, and the toggle was returned to its default off state.
+  - PRD: `prds/official-readme-auto-update.md`
+  - Files: `convex/schema.ts`, `convex/readmeAutoUpdate.ts` (new), `convex/seoContent.ts`, `convex/seoContentDb.ts`, `convex/packages.ts`, `convex/crons.ts`, `src/pages/Admin.tsx`
+
+- Curated categories with member badges (2026-08-06 00:55 UTC)
+  - Admins can now create a "curated" category type in Settings > Category Management for hand-picked collections such as YC Companies. A curated category has a name, description, and an optional small badge image, and gets the same sidebar link and `/components/categories/:slug` landing page as any other enabled category.
+  - Membership is managed per category from a new "Manage members" panel in admin: search approved components and add or remove them from the list. Membership lives in a new `categoryMemberships` join table, so a component keeps its normal primary category and can belong to any number of curated collections at once. Adds are idempotent and hidden or unapproved members are excluded from public listings at query time.
+  - Member components show the category's badge image on their directory card inline in the title, right before the first letter of the component name (square corners; long names keep truncating as before), and next to the badges on the detail page, with the category label as the tooltip. The badge image is optional at every layer: a curated category works with just a name and description, and cards render nothing extra until a badge is uploaded. Uploading, replacing, or clearing the badge and renaming the category all resync the denormalized `curatedBadges` on every member.
+  - Curated categories are excluded from the submit form picker and cannot be assigned as a component's primary category (same guard as the derived official category). Deleting a curated category removes its memberships and strips its badge from former members.
+  - PRD: `prds/curated-categories.md`
+  - Files: `convex/schema.ts`, `convex/packages.ts`, `src/components/ComponentCard.tsx`, `src/pages/ComponentDetail.tsx`, `src/pages/Directory.tsx`, `src/pages/CategoryPage.tsx`, `src/pages/Admin.tsx`, `src/lib/categories.ts`
 
 - npm URL mismatch check and review flow (2026-08-05 07:30 UTC)
   - When a submitter changes their npm URL to point at a different package than the listing tracks, the edit page now shows an amber warning under the npm field and a confirm modal ("Save and request review") before saving. The save goes through, but the record is flagged with a new `pendingNpmName` field and the Slack notification gains the old and new package names plus a note that name, slug, install command, and download stats keep tracking the old package until the team acts.
@@ -26,6 +56,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Files: `convex/packages.ts`, `src/pages/ProfileEditSubmission.tsx`
 
 ### Fixed
+
+- Scheduled auto-refresh silently failed every night (2026-08-06 03:00 UTC)
+  - The daily `check-and-refresh-packages` cron ran, found stale packages, and created a refresh log, but every batch died before touching a single package: `_getStalePackages` returned entries shaped `{ _id, name, lastRefreshedAt }` while `_refreshPackageBatch` only accepts `{ _id, name }`, so Convex argument validation rejected every scheduled batch with an extra-field error. The log stayed stuck at `status: "running"` with 0 succeeded and an empty errors array, which is why the admin panel showed "Last run: 0 succeeded" nightly while packages drifted 9+ days stale. Manual Refresh All / Refresh Approved Only buttons were unaffected because they use `_getAllApprovedPackages`, which already returns the correct shape.
+  - Fix: `_getStalePackages` no longer includes `lastRefreshedAt` in its return value (it was only needed internally for sort order), so scheduled batches now pass validation. Verified on dev: `scheduledRefreshCheck` refreshed 18 of 18 stale packages with a completed log entry. Requires a production deploy to take effect there.
+  - PRD: `prds/scheduled-refresh-validation-fix.md`
+  - Files: `convex/packages.ts`
 
 - Asset caching and noindex headers never applied in production (2026-07-27 18:55 UTC)
   - The `[[headers]]` blocks added in the PageSpeed pass were silently ignored: Netlify custom headers do not apply to URLs handled by an edge function, and the og-meta edge function was mapped to all of `/components/*`, catching every JS, CSS, and font request. Verified live: hashed assets returned `max-age=0,must-revalidate`, `x-vercel-cache: MISS` on every request (www.convex.dev is a Vercel site proxying to Netlify, and Vercel will not edge cache `max-age=0` responses), and `/components/dashboard` had no `x-robots-tag`. Each asset took 150 to 275 ms through the two proxy layers and was revalidated on every page load.

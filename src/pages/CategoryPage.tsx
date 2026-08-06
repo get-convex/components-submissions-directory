@@ -7,7 +7,11 @@ import { CategorySidebar } from "../components/CategorySidebar";
 import { SearchBar } from "../components/SearchBar";
 import Header from "../components/Header";
 import { setPageTitle, setPageDescription } from "../lib/seo";
-import { CaretSortIcon, ChevronDownIcon, ChevronLeftIcon } from "@radix-ui/react-icons";
+import {
+  CaretSortIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
+} from "@radix-ui/react-icons";
 
 type SortBy = "newest" | "downloads" | "updated" | "rating" | "verified";
 
@@ -94,14 +98,17 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
     setDownloadsDisplay(dlDisplay);
   }, [convex, categorySlug, sortBy]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // Set page SEO based on category
   useEffect(() => {
     if (categoryData) {
       setPageTitle(`${categoryData.label} Components`);
       setPageDescription(
-        categoryData.description || `Browse ${categoryData.label} components for Convex.`
+        categoryData.description ||
+          `Browse ${categoryData.label} components for Convex.`,
       );
     }
   }, [categoryData]);
@@ -116,9 +123,10 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
       (c) =>
         c.name.toLowerCase().includes(term) ||
         c.description.toLowerCase().includes(term) ||
-        (c.shortDescription && c.shortDescription.toLowerCase().includes(term)) ||
+        (c.shortDescription &&
+          c.shortDescription.toLowerCase().includes(term)) ||
         (c.tags && c.tags.some((t) => t.toLowerCase().includes(term))) ||
-        (c.authorUsername && c.authorUsername.toLowerCase().includes(term))
+        (c.authorUsername && c.authorUsername.toLowerCase().includes(term)),
     );
   }, [components, searchTerm]);
 
@@ -129,7 +137,8 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
     return filteredComponents.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredComponents, currentPage]);
 
-  const directoryCardHoverClass = "hover:bg-[rgb(246_238_219/var(--tw-bg-opacity,1))]";
+  const directoryCardHoverClass =
+    "hover:bg-[rgb(246_238_219/var(--tw-bg-opacity,1))]";
 
   const clearSearch = () => {
     setSearchTerm("");
@@ -143,9 +152,12 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
         <Header />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-16">
           <div className="text-center py-16">
-            <h1 className="text-2xl font-semibold text-text-primary mb-2">Category not found</h1>
+            <h1 className="text-2xl font-semibold text-text-primary mb-2">
+              Category not found
+            </h1>
             <p className="text-sm text-text-secondary mb-6">
-              The category you're looking for doesn't exist or has been disabled.
+              The category you're looking for doesn't exist or has been
+              disabled.
             </p>
             <a
               href={DIRECTORY_ROOT_HREF}
@@ -191,7 +203,8 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
           </p>
           {categoryData && (
             <p className="text-xs text-text-tertiary mt-2">
-              {categoryData.count} {categoryData.count === 1 ? "component" : "components"}
+              {categoryData.count}{" "}
+              {categoryData.count === 1 ? "component" : "components"}
               {categoryData.verifiedCount > 0 && (
                 <span> · {categoryData.verifiedCount} verified</span>
               )}
@@ -252,10 +265,16 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
                   {sortOpen && (
                     <div className="absolute left-0 top-full mt-1 w-full rounded-lg border border-border bg-white shadow-lg py-1 z-30">
                       {[
-                        { value: "downloads" as const, label: "Most downloads" },
+                        {
+                          value: "downloads" as const,
+                          label: "Most downloads",
+                        },
                         { value: "newest" as const, label: "Newest" },
                         { value: "verified" as const, label: "Verified" },
-                        { value: "updated" as const, label: "Recently updated" },
+                        {
+                          value: "updated" as const,
+                          label: "Recently updated",
+                        },
                         { value: "rating" as const, label: "Highest rated" },
                       ].map((opt) => (
                         <button
@@ -387,7 +406,10 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
             {!components && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="rounded-lg bg-white p-4 animate-pulse">
+                  <div
+                    key={i}
+                    className="rounded-lg bg-white p-4 animate-pulse"
+                  >
                     <div className="h-4 bg-bg-secondary rounded w-3/4 mb-2" />
                     <div className="h-3 bg-bg-secondary rounded w-full mb-1" />
                     <div className="h-3 bg-bg-secondary rounded w-2/3" />
@@ -432,16 +454,20 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
                       category={comp.category}
                       thumbnailUrl={comp.thumbnailUrl}
                       showThumbnail={
-                        !categoryData?.hideThumbnails && !comp.hideThumbnailInCategory
+                        !categoryData?.hideThumbnails &&
+                        !comp.hideThumbnailInCategory
                       }
                       authorUsername={comp.authorUsername}
                       authorAvatar={comp.authorAvatar}
                       weeklyDownloads={comp.weeklyDownloads}
                       allTimeDownloads={comp.allTimeDownloads}
                       showWeeklyDownloads={downloadsDisplay.showWeeklyDownloads}
-                      showAllTimeDownloads={downloadsDisplay.showAllTimeDownloads}
+                      showAllTimeDownloads={
+                        downloadsDisplay.showAllTimeDownloads
+                      }
                       convexVerified={comp.convexVerified}
                       communitySubmitted={comp.communitySubmitted}
+                      curatedBadges={comp.curatedBadges}
                       featured={comp.featured}
                       npmUrl={comp.npmUrl}
                       repositoryUrl={comp.repositoryUrl}
@@ -464,7 +490,9 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
                       Page {currentPage} of {totalPages}
                     </span>
                     <button
-                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      onClick={() =>
+                        setCurrentPage((p) => Math.min(totalPages, p + 1))
+                      }
                       disabled={currentPage === totalPages}
                       className="px-3 py-1.5 text-sm rounded-md border border-border bg-white text-text-primary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bg-secondary transition-colors"
                     >
@@ -474,7 +502,6 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
                 )}
               </>
             )}
-
           </main>
         </div>
       </div>

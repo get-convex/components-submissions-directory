@@ -128,6 +128,18 @@ const applicationTables = {
     convexVerified: v.optional(v.boolean()),
     // Component was submitted or built by the community
     communitySubmitted: v.optional(v.boolean()),
+    // Denormalized badges from curated category memberships, so directory cards
+    // render with zero extra reads. Kept in sync by membership and category
+    // mutations. badgeUrl is optional: badge-less curated categories still work.
+    curatedBadges: v.optional(
+      v.array(
+        v.object({
+          categorySlug: v.string(),
+          label: v.string(),
+          badgeUrl: v.optional(v.string()),
+        }),
+      ),
+    ),
     // GitHub username of primary author
     authorUsername: v.optional(v.string()),
     // GitHub avatar URL
@@ -322,8 +334,7 @@ const applicationTables = {
       v.union(v.literal("active"), v.literal("hidden"), v.literal("archived")),
     ),
     statusUpdatedAt: v.optional(v.number()),
-  })
-    .index("by_package_and_created", ["packageId", "createdAt"]),
+  }).index("by_package_and_created", ["packageId", "createdAt"]),
 
   // Review status change notifications shown in the submitter's header bell
   statusNotifications: defineTable({
@@ -361,17 +372,12 @@ const applicationTables = {
     ),
     error: v.optional(v.string()),
     provider: v.optional(
-      v.union(
-        v.literal("anthropic"),
-        v.literal("openai"),
-        v.literal("gemini"),
-      ),
+      v.union(v.literal("anthropic"), v.literal("openai"), v.literal("gemini")),
     ),
     model: v.optional(v.string()),
     source: v.optional(v.string()),
     rawOutput: v.optional(v.string()),
-  })
-    .index("by_package_and_created", ["packageId", "createdAt"]),
+  }).index("by_package_and_created", ["packageId", "createdAt"]),
 
   // Historical security scan runs for admin audit and comparison
   securityScanRuns: defineTable({
@@ -503,6 +509,13 @@ const applicationTables = {
     // When set, membership is computed by rule instead of the package `category` field.
     // "official" = repo in the get-convex GitHub org or an @convex-dev npm package.
     derivedFrom: v.optional(v.literal("official")),
+    // "curated" = membership is hand-picked by admins via the categoryMemberships
+    // join table instead of the package `category` field. Components keep their
+    // primary category and can belong to any number of curated categories.
+    kind: v.optional(v.literal("curated")),
+    // Optional small badge image shown on member component cards (curated only)
+    badgeStorageId: v.optional(v.id("_storage")),
+    badgeUrl: v.optional(v.string()),
     // Hide every thumbnail on this category's page and grouped directory section,
     // for categories where only a few components have images and the grid looks uneven.
     hideThumbnails: v.optional(v.boolean()),
@@ -514,14 +527,27 @@ const applicationTables = {
     .index("by_sort_order", ["sortOrder"])
     .index("by_enabled_and_sortOrder", ["enabled", "sortOrder"]),
 
+  // Join table for curated category membership (many-to-many).
+  // Admins hand-pick which components belong to a curated category, so a
+  // component can live in multiple categories without changing its primary
+  // `category` field.
+  categoryMemberships: defineTable({
+    categoryId: v.id("categories"),
+    packageId: v.id("packages"),
+    addedAt: v.number(),
+    addedBy: v.optional(v.string()),
+  })
+    .index("by_category", ["categoryId"])
+    .index("by_package", ["packageId"])
+    .index("by_category_and_package", ["categoryId", "packageId"]),
+
   // Star ratings for components (one per user session / fingerprint)
   componentRatings: defineTable({
     packageId: v.id("packages"),
     rating: v.number(), // 1-5
     sessionId: v.string(), // anonymous session identifier
     createdAt: v.number(),
-  })
-    .index("by_package_and_session", ["packageId", "sessionId"]),
+  }).index("by_package_and_session", ["packageId", "sessionId"]),
 
   // Thumbnail background templates for auto-generating 16:9 thumbnails
   // Admin uploads gradient/image backgrounds; user logos get centered on top
@@ -691,6 +717,27 @@ const applicationTables = {
     packageId: v.id("packages"),
     createdAt: v.number(),
   }).index("by_userKey_and_createdAt", ["userKey", "createdAt"]),
+
+  // Audit log for README update attempts (cron auto-update, admin button, profile button).
+  // One row per package attempt; browsed/filtered/cleared from the admin Logs tab.
+  readmeUpdateLogs: defineTable({
+    packageId: v.optional(v.id("packages")),
+    packageName: v.string(),
+    status: v.union(
+      v.literal("success"),
+      v.literal("failed"),
+      v.literal("skipped"),
+    ),
+    source: v.union(
+      v.literal("cron"),
+      v.literal("admin"),
+      v.literal("profile"),
+    ),
+    changed: v.optional(v.boolean()), // true when the stored README content actually changed
+    message: v.optional(v.string()), // error or skip reason
+  })
+    .index("by_status", ["status"])
+    .index("by_source", ["source"]),
 
   // Per-user API keys for REST API access
   apiKeys: defineTable({
