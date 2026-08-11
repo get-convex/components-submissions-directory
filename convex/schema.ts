@@ -753,6 +753,28 @@ const applicationTables = {
     .index("by_tokenIdentifier_and_status", ["tokenIdentifier", "status"])
     .index("by_status", ["status"]),
 
+  // Latest aggregated all-time downloads growth series across approved packages.
+  // One snapshot document at a time (old ones deleted on save); built on demand
+  // from the npm downloads API by the admin Growth tab.
+  downloadGrowthSeries: defineTable({
+    generatedAt: v.number(),
+    startMonth: v.string(), // "YYYY-MM"
+    endMonth: v.string(), // "YYYY-MM"
+    months: v.array(
+      v.object({
+        month: v.string(), // "YYYY-MM"
+        downloads: v.number(), // downloads in that month across all packages
+        cumulative: v.number(), // running all-time total through that month
+      }),
+    ),
+    packagesIncluded: v.number(),
+    packagesFailed: v.array(v.string()),
+    totalDownloads: v.number(),
+    // Packages baked into this snapshot's months; lets refreshes stay
+    // incremental (only new packages need their npm history fetched)
+    packageNames: v.optional(v.array(v.string())),
+  }),
+
   // Admin-granted API access per user email (checked at key generation and profile gate)
   apiAccessGrants: defineTable({
     email: v.string(),

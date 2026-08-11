@@ -1,6 +1,26 @@
 # Task List
 
+## to do
+
 ## completed
+
+- [x] Growth tab date range and replay video export (2026-08-11 22:05 UTC)
+  - Components authoring launched December 2025 (news.convex.dev/components-authoring), so the chart card gained a From/To month range selector that defaults to January 2025 through the latest month. The window frames the animated chart, the share image, and the new replay video, with a Reset link and a running total through the selected end month; changing it replays the animation. "Generate video" records the share card animation off screen (short hold, 2.4s sweep with a counting total, hold on the finished card) via canvas.captureStream and MediaRecorder, MP4 when the browser supports it (WebM fallback with a convert note), with inline preview and download. Backend untouched: cumulative totals stay all time so the header keeps matching the dashboard.
+  - PRD: `prds/downloads-growth-share-chart.md` (date range and replay video follow-up)
+  - Files: `src/components/DownloadsGrowthTab.tsx`
+  - Verification: typecheck and eslint clean; browser harness recorded a 4.5s 1200x630 MP4 (video/mp4;codecs=avc1, ~1MB) and the rendered frame was visually verified via screenshot.
+
+- [x] Growth tab incremental refresh from stored all time downloads (2026-08-11 21:55 UTC)
+  - "Refresh data" no longer refetches every package's full npm history. The snapshot now stores its `packageNames`, and the default refresh is incremental: historical months are kept as-is, the newest point is trued up against the stored `allTimeDownloads` sum (the same figure the admin dashboard shows), and only packages new since the snapshot get their npm history fetched. Full rebuild runs automatically when there is no usable snapshot or packages were removed, or on demand via a new "Full rebuild from npm" link; the action returns `mode` so the toast says which path ran.
+  - PRD: `prds/downloads-growth-share-chart.md` (follow-up section)
+  - Files: `convex/schema.ts`, `convex/downloadsGrowth.ts`, `src/components/DownloadsGrowthTab.tsx`
+  - Verification: typecheck and eslint clean; CLI smoke test on dev with an admin identity ran the forced full rebuild (18 packages, 25 months, 11.16M downloads, ~2.6 min) then the incremental pass (same totals in 1.2 s with zero npm calls); `packageNames` confirmed present in the saved snapshot.
+
+- [x] Admin Growth tab: animated downloads chart with shareable image (2026-08-11 21:05 UTC)
+  - New "Growth" tab in the admin dashboard showing cumulative all time npm downloads across every approved component as an animated dither dot-matrix hockey stick (warm cream background, orange dots, no green, no dark mode). Refresh data runs a new admin action that pulls each package's full daily download history from npm's range API (540-day windows), aggregates by month, and saves a `downloadGrowthSeries` snapshot; npm 429 rate limiting is handled with fully sequential fetching, 400ms spacing, exponential backoff, and a second retry pass. The tab also generates a 1200 x 630 share PNG (editable title full card or chart-only) with download, copy to clipboard, and post on X actions.
+  - PRD: `prds/downloads-growth-share-chart.md`
+  - Files: `convex/schema.ts`, `convex/downloadsGrowth.ts` (new), `src/components/DownloadsGrowthTab.tsx` (new), `src/pages/Admin.tsx`
+  - Verification: convex deploy, app typecheck (only pre-existing errors), and eslint clean; CLI smoke test on dev with an admin identity fetched 21/21 packages with 0 failures (~40M downloads, 92 months, ~2.7 min, under the 10 min action limit); chart and both share card variants visually verified in the browser against the real dev snapshot.
 
 - [x] Admin-gate the auto-refresh admin functions (2026-08-06 03:15 UTC)
   - Security review flagged `updateRefreshSetting`, `getRefreshStats`, and `getRecentRefreshLogs` as public functions with no auth check: anyone could read refresh logs/stats and toggle the auto-refresh setting unauthenticated. `getRefreshSettings` had the same gap. Fixed with the file's existing patterns: the mutation now calls `requireAdminIdentity` (throws `Authentication required`), and the three queries use `getAdminIdentity` and return safe defaults for non-admins (`[]`, zeroed stats, default settings) to avoid info leakage. No frontend changes needed since `AutoRefreshSettingsPanel` only renders for confirmed admins, and no cron or action calls these functions.

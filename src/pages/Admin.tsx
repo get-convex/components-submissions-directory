@@ -76,6 +76,7 @@ import {
 } from "@phosphor-icons/react";
 import { ExternalLinkIcon as RadixExternalLinkIcon } from "@radix-ui/react-icons";
 import AiLoadingDots from "../components/AiLoadingDots";
+import DownloadsGrowthTab from "../components/DownloadsGrowthTab";
 import { AI_REVIEW_PROMPT_STATUS_LABEL } from "../../shared/aiReviewPromptMeta";
 
 // Review status type
@@ -9411,7 +9412,8 @@ type FilterType =
   | "marked_for_deletion"
   | "settings"
   | "api"
-  | "logs";
+  | "logs"
+  | "growth";
 
 // Filter tabs component
 function FilterTabs({
@@ -9478,6 +9480,12 @@ function FilterTabs({
       tooltip: "Show archived packages",
     },
     {
+      value: "growth",
+      label: "Growth",
+      icon: <ChartBar size={16} />,
+      tooltip: "All time downloads growth chart and share image",
+    },
+    {
       value: "settings",
       label: "Settings",
       icon: <Gear size={16} />,
@@ -9514,7 +9522,8 @@ function FilterTabs({
               <span>{tab.label}</span>
               {tab.value !== "settings" &&
                 tab.value !== "api" &&
-                tab.value !== "logs" && (
+                tab.value !== "logs" &&
+                tab.value !== "growth" && (
                 <span
                   className={`px-1.5 py-0.5 rounded-full text-xs ${
                     activeFilter === tab.value
@@ -10336,6 +10345,7 @@ function AdminDashboard({
     settings: 1,
     api: 1,
     logs: 1,
+    growth: 1,
   });
   // Items per page options
   type ItemsPerPageOption = 5 | 10 | 20 | 40 | 100;
@@ -10406,7 +10416,8 @@ function AdminDashboard({
       if (
         activeFilter === "settings" ||
         activeFilter === "api" ||
-        activeFilter === "logs"
+        activeFilter === "logs" ||
+        activeFilter === "growth"
       )
         return false;
       if (activeFilter === "marked_for_deletion")
@@ -10433,7 +10444,8 @@ function AdminDashboard({
       if (
         activeFilter === "settings" ||
         activeFilter === "api" ||
-        activeFilter === "logs"
+        activeFilter === "logs" ||
+        activeFilter === "growth"
       )
         return false;
       if (activeFilter === "marked_for_deletion")
@@ -10571,6 +10583,7 @@ function AdminDashboard({
       settings: 1,
       api: 1,
       logs: 1,
+      growth: 1,
     });
     setShowItemsPerPageDropdown(false);
   };
@@ -10617,6 +10630,7 @@ function AdminDashboard({
     settings: 0,
     api: 0,
     logs: 0,
+    growth: 0,
     pending: nonArchivedPackages.filter(
       (p) => !p.reviewStatus || p.reviewStatus === "pending",
     ).length,
@@ -10635,11 +10649,12 @@ function AdminDashboard({
 
   // Filter packages based on active filter
   const filteredPackages = packages?.filter((pkg) => {
-    // Settings, API, and Logs tabs show nothing (no package list)
+    // Settings, API, Logs, and Growth tabs show nothing (no package list)
     if (
       activeFilter === "settings" ||
       activeFilter === "api" ||
-      activeFilter === "logs"
+      activeFilter === "logs" ||
+      activeFilter === "growth"
     )
       return false;
     // Marked for deletion tab shows only packages marked for deletion
@@ -10733,7 +10748,7 @@ function AdminDashboard({
     <div className="max-w-7xl mx-auto">
       {/* Mobile search bar */}
       <div
-        className={`mb-4 sm:hidden ${activeFilter === "settings" || activeFilter === "api" || activeFilter === "logs" ? "hidden" : ""}`}
+        className={`mb-4 sm:hidden ${activeFilter === "settings" || activeFilter === "api" || activeFilter === "logs" || activeFilter === "growth" ? "hidden" : ""}`}
       >
         <div className="relative">
           <MagnifyingGlass
@@ -10768,7 +10783,9 @@ function AdminDashboard({
       </div>
 
       {/* Submissions list (hidden in settings view) */}
-      {activeFilter !== "settings" && activeFilter !== "api" && (
+      {activeFilter !== "settings" &&
+        activeFilter !== "api" &&
+        activeFilter !== "growth" && (
         <div className="rounded-lg border border-border bg-light shadow-sm mb-6">
           <div className="p-3 border-b border-border bg-bg-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <h2 className="text-base font-light text-text-primary">
@@ -11488,6 +11505,9 @@ function AdminDashboard({
 
       {/* README update logs tab */}
       {activeFilter === "logs" && <ReadmeUpdateLogsTab />}
+
+      {/* All time downloads growth tab */}
+      {activeFilter === "growth" && <DownloadsGrowthTab />}
     </div>
   );
 }

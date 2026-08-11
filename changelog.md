@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Growth tab date range selector and replay video export (2026-08-11 22:05 UTC)
+  - From/To month selects on the chart card, defaulting to January 2025 through the latest month since components authoring launched December 2025; the window frames the animated chart, the share image, and the replay video, with a Reset link and the running total through the selected end month. Cumulative values stay all time so the headline number keeps matching the dashboard.
+  - "Generate video" records the share card animation off screen at 1200 x 630 with canvas.captureStream and MediaRecorder (short hold, 2.4s sweep with a counting total, hold on the finished card), preferring MP4 (H.264) with a WebM fallback and note, and shows an inline preview with a download button. Verified in the browser: 4.5s MP4 at ~1MB.
+  - The share card total and the Post on X text now use the cumulative value at the end of the selected window.
+  - Files: `src/components/DownloadsGrowthTab.tsx`
+
+### Changed
+
+- Growth tab refresh is now incremental instead of a full npm refetch (2026-08-11 21:55 UTC)
+  - The `downloadGrowthSeries` snapshot stores its `packageNames`, so "Refresh data" reuses the saved monthly history, reads the current total from the same stored `allTimeDownloads` sum the dashboard shows (zero npm calls), and only fetches full npm history for packages approved since the snapshot. Growth since the last snapshot lands on the current month.
+  - A full npm rebuild still runs automatically when there is no usable snapshot or packages were removed (their baked-in history cannot be subtracted), and admins can force one with the new "Full rebuild from npm" action. The action reports its `mode` and the toast says whether data was synced from stored totals or rebuilt from npm.
+  - Measured on dev: incremental refresh 1.2 s versus ~2.6 min for the full rebuild, identical totals.
+  - Files: `convex/schema.ts`, `convex/downloadsGrowth.ts`, `src/components/DownloadsGrowthTab.tsx`
+
+### Added
+
+- Admin Growth tab: animated all time downloads chart with shareable image (2026-08-11 21:05 UTC)
+  - New "Growth" tab in the admin dashboard renders cumulative npm downloads across every approved component as an animated dither dot-matrix hockey stick: orange dots rising over a faint dot grid on warm cream, swept left to right with per-column easing on load, replay, and refresh. Hovering shows the month, running total, and that month's downloads.
+  - "Refresh data" runs a new admin action (`generateGrowthSeries`) that pulls each package's full daily download history from npm's range API in 540-day windows, aggregates by month, and stores a single `downloadGrowthSeries` snapshot. npm rate limits bursts hard, so fetching is fully sequential with 400ms spacing, exponential backoff on 429/5xx, and a second retry pass; a package only counts when every window succeeds. Verified 21/21 packages clean on dev (~2.7 minutes, well under the action limit).
+  - "Generate image" renders a 1200 x 630 PNG at 2x for social: a full card with an editable serif title, the orange total, chart, and footer, or a chart-only variant. Buttons download the PNG, copy it to the clipboard (falls back to download), or open a prefilled X draft with the image on the clipboard.
+  - PRD: `prds/downloads-growth-share-chart.md`
+  - Files: `convex/schema.ts`, `convex/downloadsGrowth.ts` (new), `src/components/DownloadsGrowthTab.tsx` (new), `src/pages/Admin.tsx`
+
 ### Security
 
 - Admin-gated the auto-refresh admin functions (2026-08-06 03:15 UTC)
