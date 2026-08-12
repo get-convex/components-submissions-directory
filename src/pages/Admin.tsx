@@ -6253,6 +6253,9 @@ function SubmitListingSettingsPanel() {
   const updateSubmitListingSettings = useMutation(
     api.packages.updateSubmitPageSizeSetting,
   );
+  // Directory list-view thumbnail toggle lives here with other listing settings
+  const adminSettings = useQuery(api.packages.getAdminSettings);
+  const updateAdminSetting = useMutation(api.packages.updateAdminSetting);
 
   const handlePageSizeChange = async (value: 20 | 40 | 60) => {
     try {
@@ -6260,6 +6263,19 @@ function SubmitListingSettingsPanel() {
       toast.success(`Default Submit page size set to ${value}`);
     } catch {
       toast.error("Failed to update Submit page size");
+    }
+  };
+
+  const handleListThumbnailsToggle = async () => {
+    if (!adminSettings) return;
+    try {
+      await updateAdminSetting({
+        key: "showListViewThumbnails",
+        value: !adminSettings.showListViewThumbnails,
+      });
+      toast.success("Setting updated");
+    } catch {
+      toast.error("Failed to update setting");
     }
   };
 
@@ -6311,6 +6327,38 @@ function SubmitListingSettingsPanel() {
               </button>
             ))}
           </div>
+
+          {/* Show thumbnails in directory list view */}
+          {adminSettings && (
+            <div className="flex items-center justify-between pt-4 border-t border-border">
+              <div>
+                <label className="text-sm font-medium text-text-primary">
+                  Show thumbnails in list view
+                </label>
+                <p className="text-xs text-text-secondary mt-0.5">
+                  Global list-view-only override: shows thumbnails on directory
+                  list rows even when per-category or per-component thumbnail
+                  settings hide them. Grid view is unaffected.
+                </p>
+              </div>
+              <button
+                onClick={() => void handleListThumbnailsToggle()}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                  adminSettings.showListViewThumbnails
+                    ? "bg-green-600"
+                    : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    adminSettings.showListViewThumbnails
+                      ? "translate-x-6"
+                      : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

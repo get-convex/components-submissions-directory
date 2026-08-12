@@ -3581,6 +3581,11 @@ async function getAdminSettingsHelper(ctx: QueryCtx) {
     .query("adminSettings")
     .withIndex("by_key", (q) => q.eq("key", "showAllTimeDownloads"))
     .first();
+  // Global list-view thumbnail toggle for the public Directory list layout
+  const showListViewThumbnails = await ctx.db
+    .query("adminSettings")
+    .withIndex("by_key", (q) => q.eq("key", "showListViewThumbnails"))
+    .first();
 
   return {
     autoAiReview: autoAiReview?.value || false,
@@ -3601,6 +3606,8 @@ async function getAdminSettingsHelper(ctx: QueryCtx) {
     // Defaults: weekly on (current behavior), all-time off until enabled
     showWeeklyDownloads: showWeeklyDownloads?.value ?? true,
     showAllTimeDownloads: showAllTimeDownloads?.value ?? false,
+    // Default off: list view ships thumbnail-free until enabled
+    showListViewThumbnails: showListViewThumbnails?.value ?? false,
   };
 }
 
@@ -3622,6 +3629,7 @@ const adminSettingsReturnValidator = v.object({
   securityScanScheduleDays: v.number(),
   showWeeklyDownloads: v.boolean(),
   showAllTimeDownloads: v.boolean(),
+  showListViewThumbnails: v.boolean(),
 });
 
 export const getAdminSettings = query({
@@ -3664,6 +3672,24 @@ export const getDownloadsDisplaySettings = query({
   },
 });
 
+// Public query: list-view display settings for the Directory list layout.
+// Lightweight on purpose (1 read) since the public directory calls it on load.
+export const getListViewSettings = query({
+  args: {},
+  returns: v.object({
+    showListViewThumbnails: v.boolean(),
+  }),
+  handler: async (ctx) => {
+    const listThumbs = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q) => q.eq("key", "showListViewThumbnails"))
+      .first();
+    return {
+      showListViewThumbnails: listThumbs?.value ?? false,
+    };
+  },
+});
+
 // Update admin setting (boolean)
 export const updateAdminSetting = mutation({
   args: {
@@ -3683,6 +3709,7 @@ export const updateAdminSetting = mutation({
       v.literal("autoSecurityScan"),
       v.literal("showWeeklyDownloads"),
       v.literal("showAllTimeDownloads"),
+      v.literal("showListViewThumbnails"),
     ),
     value: v.boolean(),
   },

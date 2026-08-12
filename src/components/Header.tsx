@@ -14,6 +14,8 @@ import {
   BookOpen,
   ChartBar,
   Bell,
+  Rows,
+  SquaresFour,
 } from "@phosphor-icons/react";
 import { FileTextIcon } from "@radix-ui/react-icons";
 import { HeaderSearch } from "./HeaderSearch";
@@ -23,7 +25,18 @@ function useBasePath() {
   return "/components";
 }
 
-export default function Header() {
+// Directory view mode shared with pages that opt into the header toggle
+export type DirectoryViewMode = "grid" | "list";
+
+interface HeaderProps {
+  // Optional grid/list toggle rendered before the Directory nav link on
+  // desktop (next to the search icon on mobile). Only pages that pass both
+  // props (e.g. Directory) show the toggle; all other pages render unchanged.
+  viewMode?: DirectoryViewMode;
+  onViewModeChange?: (mode: DirectoryViewMode) => void;
+}
+
+export default function Header({ viewMode, onViewModeChange }: HeaderProps) {
   const basePath = useBasePath();
   const { isAuthenticated, isLoading: authLoading, signIn } = useAuth();
   const user = useQuery(api.auth.loggedInUser);
@@ -50,6 +63,23 @@ export default function Header() {
   );
   const markStatusRead = useMutation(api.notifications.markStatusNotificationRead);
   const markAllStatusRead = useMutation(api.notifications.markAllStatusNotificationsRead);
+
+  // Grid/list toggle button (only when the page opts in via props)
+  const renderViewToggle = () =>
+    viewMode && onViewModeChange ? (
+      <button
+        type="button"
+        onClick={() => onViewModeChange(viewMode === "grid" ? "list" : "grid")}
+        aria-label={
+          viewMode === "grid" ? "Switch to list view" : "Switch to grid view"
+        }
+        title={
+          viewMode === "grid" ? "Switch to list view" : "Switch to grid view"
+        }
+        className="p-1.5 rounded-full text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors">
+        {viewMode === "grid" ? <Rows size={16} /> : <SquaresFour size={16} />}
+      </button>
+    ) : null;
 
   const userItems = userFeed ?? [];
   const adminItems = adminFeed ?? [];
@@ -234,6 +264,7 @@ export default function Header() {
 
             {/* Nav links (desktop) */}
             <nav className="hidden sm:flex items-center gap-5">
+              {renderViewToggle()}
               <a
                 href={`${basePath}/`}
                 className="text-sm font-medium text-text-primary hover:text-text-secondary transition-colors">
@@ -346,8 +377,9 @@ export default function Header() {
             </nav>
 
             {/* Mobile search (always visible on mobile) */}
-            <div className="sm:hidden">
+            <div className="sm:hidden flex items-center gap-1">
               <HeaderSearch />
+              {renderViewToggle()}
             </div>
 
             {/* Mobile bell (always visible on mobile so the badge is reachable) */}

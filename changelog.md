@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Directory list view with header toggle and admin thumbnail setting (2026-08-12 19:25 UTC)
+  - New grid/list toggle in the header (Phosphor `Rows` in grid mode, `SquaresFour` in list mode), shown only on the Directory page. On desktop it sits in the left nav just before the "Directory" link (moved from next to the search icon at 2026-08-12 20:01 UTC); on mobile it stays beside the search icon. List mode keeps the sidebar, section order, and category headings while rendering Featured, category sections, Other, and flat search results as compact rows via the new `ComponentListRow` component. The choice persists in `localStorage` and a list-shaped skeleton renders while loading.
+  - Category sections in list view gain a "Load more" button using the existing client-side paging; the "View all {label}" link appears once a section is exhausted. Grid view is unchanged, including its "View all" links.
+  - Thumbnails are hidden in list view by default. New global admin setting "Show thumbnails in list view" (`showListViewThumbnails`, in the Submit Listing Settings panel below the page-size buttons; moved there from AI Review Settings at 2026-08-12 19:58 UTC for discoverability) shows a fixed-size thumbnail on the right of each row; it applies to list view only and overrides per-category and per-component thumbnail hide flags. Read publicly through the new slim `getListViewSettings` query (1 read).
+  - PRD: `prds/directory-list-view.md`
+  - Files: `convex/packages.ts`, `src/components/ComponentListRow.tsx` (new), `src/components/Header.tsx`, `src/pages/Directory.tsx`, `src/pages/Admin.tsx`
+
 - Growth tab date range selector and replay video export (2026-08-11 22:05 UTC)
   - From/To month selects on the chart card, defaulting to January 2025 through the latest month since components authoring launched December 2025; the window frames the animated chart, the share image, and the replay video, with a Reset link and the running total through the selected end month. Cumulative values stay all time so the headline number keeps matching the dashboard.
   - "Generate video" records the share card animation off screen at 1200 x 630 with canvas.captureStream and MediaRecorder (short hold, 2.4s sweep with a counting total, hold on the finished card), preferring MP4 (H.264) with a WebM fallback and note, and shows an inline preview with a download button. Verified in the browser: 4.5s MP4 at ~1MB.

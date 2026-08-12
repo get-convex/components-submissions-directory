@@ -3,9 +3,10 @@ import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useConvex } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { ComponentCard } from "../components/ComponentCard";
+import { ComponentListRow } from "../components/ComponentListRow";
 import { CategorySidebar } from "../components/CategorySidebar";
 import { SearchBar } from "../components/SearchBar";
-import Header from "../components/Header";
+import Header, { type DirectoryViewMode } from "../components/Header";
 import { FAQSection } from "../components/FAQSection";
 import { AuthoringBanner } from "../components/AuthoringBanner";
 import { setPageTitle, setPageDescription } from "../lib/seo";
@@ -30,9 +31,24 @@ const getInitialSearchTerm = (): string => {
   return new URLSearchParams(window.location.search).get("q") ?? "";
 };
 
+// Restore the last chosen grid/list view (grid is the default)
+const VIEW_MODE_STORAGE_KEY = "directoryViewMode";
+const getInitialViewMode = (): DirectoryViewMode => {
+  if (typeof window === "undefined") return "grid";
+  try {
+    return localStorage.getItem(VIEW_MODE_STORAGE_KEY) === "list"
+      ? "list"
+      : "grid";
+  } catch {
+    return "grid";
+  }
+};
+
 export default function Directory() {
   const [searchTerm, setSearchTerm] = useState(getInitialSearchTerm);
   const [sortBy, setSortBy] = useState<SortBy>("downloads");
+  const [viewMode, setViewMode] =
+    useState<DirectoryViewMode>(getInitialViewMode);
   const [sortOpen, setSortOpen] = useState(false);
   const [gridColumns, setGridColumns] = useState<number>(getGridColumnCount);
   const [visibleBySection, setVisibleBySection] = useState<
@@ -84,21 +100,27 @@ export default function Directory() {
     showWeeklyDownloads: boolean;
     showAllTimeDownloads: boolean;
   }>({ showWeeklyDownloads: true, showAllTimeDownloads: false });
+  // Global admin toggle: show thumbnails on list-view rows (default off)
+  const [listViewSettings, setListViewSettings] = useState<{
+    showListViewThumbnails: boolean;
+  }>({ showListViewThumbnails: false });
 
   const fetchGeneration = useRef(0);
   const fetchData = useCallback(async () => {
     const gen = ++fetchGeneration.current;
-    const [comp, cats, feat, dlDisplay] = await Promise.all([
+    const [comp, cats, feat, dlDisplay, listSettings] = await Promise.all([
       convex.query(api.packages.listApprovedComponents, { sortBy }),
       convex.query(api.packages.listCategories, {}),
       convex.query(api.packages.getFeaturedComponents, {}),
       convex.query(api.packages.getDownloadsDisplaySettings, {}),
+      convex.query(api.packages.getListViewSettings, {}),
     ]);
     if (gen !== fetchGeneration.current) return;
     setComponents(comp);
     setCategories(cats);
     setFeatured(feat);
     setDownloadsDisplay(dlDisplay);
+    setListViewSettings(listSettings);
   }, [convex, sortBy]);
 
   useEffect(() => {
@@ -174,17 +196,61 @@ export default function Directory() {
     }));
   };
 
+  // Persist grid/list choice so it sticks across visits
+  const handleViewModeChange = (mode: DirectoryViewMode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode);
+    } catch {
+      // Storage unavailable (private mode); keep in-memory state only
+    }
+  };
+
   const showFeatured = !searchTerm.trim() && featured && featured.length > 0;
   const directoryCardHoverClass =
     "hover:bg-[rgb(246_238_219/var(--tw-bg-opacity,1))]";
+  const isListView = viewMode === "list";
   const clearFilters = () => {
     setSearchTerm("");
   };
 
+  // List view renders every section as compact rows inside one bordered
+  // container. Thumbnails follow the global admin toggle only (overrides
+  // per-category and per-component hide flags, list view only).
+  const renderListRows = (comps: any[]) => (
+    <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-white shadow-sm">
+      {comps.map((comp) => (
+        <ComponentListRow
+          key={comp._id}
+          name={comp.name}
+          componentName={comp.componentName}
+          slug={comp.slug}
+          shortDescription={comp.shortDescription}
+          description={comp.description}
+          category={comp.category}
+          thumbnailUrl={comp.thumbnailUrl}
+          showThumbnail={listViewSettings.showListViewThumbnails}
+          authorUsername={comp.authorUsername}
+          authorAvatar={comp.authorAvatar}
+          weeklyDownloads={comp.weeklyDownloads}
+          allTimeDownloads={comp.allTimeDownloads}
+          showWeeklyDownloads={downloadsDisplay.showWeeklyDownloads}
+          showAllTimeDownloads={downloadsDisplay.showAllTimeDownloads}
+          convexVerified={comp.convexVerified}
+          communitySubmitted={comp.communitySubmitted}
+          curatedBadges={comp.curatedBadges}
+          featured={comp.featured}
+          npmUrl={comp.npmUrl}
+          repositoryUrl={comp.repositoryUrl}
+        />
+      ))}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-bg-primary">
-      {/* Global header with auth */}
-      <Header />
+      {/* Global header with auth + grid/list view toggle */}
+      <Header viewMode={viewMode} onViewModeChange={handleViewModeChange} />
 
       {/* Page header: compact one-line title + inline subtitle to reduce whitespace */}
       <header>
@@ -395,6 +461,16 @@ export default function Directory() {
                   New and popular components from the Convex team and
                   community.{" "}
                 </p>
+                {isListView ? (
+                  renderListRows(
+                    featured!.slice(
+                      0,
+                      featuredFirstRowCount +
+                        (visibleBySection["featured"] ?? featuredExtraPerLoad),
+                    ),
+                  )
+                ) : (
+                  <>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                   {featured!.slice(0, featuredFirstRowCount).map((comp) => (
                     <ComponentCard
@@ -465,6 +541,8 @@ export default function Directory() {
                       ))}
                   </div>
                 )}
+                  </>
+                )}
                 {featured!.slice(featuredFirstRowCount).length >
                   (visibleBySection["featured"] ?? featuredExtraPerLoad) && (
                   <div className="mt-5 flex justify-center">
@@ -481,29 +559,43 @@ export default function Directory() {
               </section>
             )}
 
-            {/* Loading state: mirrors the real ComponentCard layout (aspect-video
-                thumbnail + body) so cards do not grow and shift when data lands */}
-            {!components && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="flex flex-col overflow-hidden rounded-xl border border-border bg-white shadow-sm animate-pulse"
-                  >
-                    <div className="aspect-video w-full bg-bg-secondary" />
-                    <div className="p-3">
-                      <div className="h-5 bg-bg-secondary rounded w-3/4 mb-2" />
-                      <div className="h-3 bg-bg-secondary rounded w-full mb-1" />
-                      <div className="h-3 bg-bg-secondary rounded w-2/3 mb-4" />
+            {/* Loading state: mirrors the active layout (cards or list rows)
+                so content does not grow and shift when data lands */}
+            {!components &&
+              (isListView ? (
+                <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-white shadow-sm animate-pulse">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="px-3 py-3">
+                      <div className="h-4 bg-bg-secondary rounded w-1/3 mb-2" />
+                      <div className="h-3 bg-bg-secondary rounded w-2/3 mb-2" />
                       <div className="flex items-center gap-2.5">
-                        <div className="h-6 w-6 bg-bg-secondary rounded-full" />
+                        <div className="h-4 w-4 bg-bg-secondary rounded-full" />
                         <div className="h-3 bg-bg-secondary rounded w-20" />
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="flex flex-col overflow-hidden rounded-xl border border-border bg-white shadow-sm animate-pulse"
+                    >
+                      <div className="aspect-video w-full bg-bg-secondary" />
+                      <div className="p-3">
+                        <div className="h-5 bg-bg-secondary rounded w-3/4 mb-2" />
+                        <div className="h-3 bg-bg-secondary rounded w-full mb-1" />
+                        <div className="h-3 bg-bg-secondary rounded w-2/3 mb-4" />
+                        <div className="flex items-center gap-2.5">
+                          <div className="h-6 w-6 bg-bg-secondary rounded-full" />
+                          <div className="h-3 bg-bg-secondary rounded w-20" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
 
             {/* Results */}
             {components && displayComponents.length === 0 && (
@@ -552,42 +644,58 @@ export default function Directory() {
                       <p className="text-sm text-text-secondary mb-4">
                         {cat.description}
                       </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                        {visibleComponents.map((comp) => (
-                          <ComponentCard
-                            key={comp._id}
-                            name={comp.name}
-                            componentName={comp.componentName}
-                            slug={comp.slug}
-                            shortDescription={comp.shortDescription}
-                            description={comp.description}
-                            category={comp.category}
-                            thumbnailUrl={comp.thumbnailUrl}
-                            showThumbnail={
-                              !cat.hideThumbnails &&
-                              !comp.hideThumbnailInCategory
+                      {isListView ? (
+                        renderListRows(visibleComponents)
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                          {visibleComponents.map((comp) => (
+                            <ComponentCard
+                              key={comp._id}
+                              name={comp.name}
+                              componentName={comp.componentName}
+                              slug={comp.slug}
+                              shortDescription={comp.shortDescription}
+                              description={comp.description}
+                              category={comp.category}
+                              thumbnailUrl={comp.thumbnailUrl}
+                              showThumbnail={
+                                !cat.hideThumbnails &&
+                                !comp.hideThumbnailInCategory
+                              }
+                              authorUsername={comp.authorUsername}
+                              authorAvatar={comp.authorAvatar}
+                              weeklyDownloads={comp.weeklyDownloads}
+                              allTimeDownloads={comp.allTimeDownloads}
+                              showWeeklyDownloads={
+                                downloadsDisplay.showWeeklyDownloads
+                              }
+                              showAllTimeDownloads={
+                                downloadsDisplay.showAllTimeDownloads
+                              }
+                              convexVerified={comp.convexVerified}
+                              communitySubmitted={comp.communitySubmitted}
+                              curatedBadges={comp.curatedBadges}
+                              featured={comp.featured}
+                              npmUrl={comp.npmUrl}
+                              repositoryUrl={comp.repositoryUrl}
+                              className={directoryCardHoverClass}
+                            />
+                          ))}
+                        </div>
+                      )}
+                      {isListView && hasMore && (
+                        <div className="mt-5 flex justify-center">
+                          <button
+                            onClick={() =>
+                              loadMoreSection(sectionKey, groupedCardsPerLoad)
                             }
-                            authorUsername={comp.authorUsername}
-                            authorAvatar={comp.authorAvatar}
-                            weeklyDownloads={comp.weeklyDownloads}
-                            allTimeDownloads={comp.allTimeDownloads}
-                            showWeeklyDownloads={
-                              downloadsDisplay.showWeeklyDownloads
-                            }
-                            showAllTimeDownloads={
-                              downloadsDisplay.showAllTimeDownloads
-                            }
-                            convexVerified={comp.convexVerified}
-                            communitySubmitted={comp.communitySubmitted}
-                            curatedBadges={comp.curatedBadges}
-                            featured={comp.featured}
-                            npmUrl={comp.npmUrl}
-                            repositoryUrl={comp.repositoryUrl}
-                            className={directoryCardHoverClass}
-                          />
-                        ))}
-                      </div>
-                      {hasMore && (
+                            className="inline-flex items-center rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-secondary"
+                          >
+                            Load more
+                          </button>
+                        </div>
+                      )}
+                      {!isListView && hasMore && (
                         <div className="mt-5 flex justify-center">
                           <a
                             href={`/components/categories/${cat.category}`}
@@ -597,6 +705,18 @@ export default function Directory() {
                           </a>
                         </div>
                       )}
+                      {isListView &&
+                        !hasMore &&
+                        catComponents.length > groupedCardsPerLoad && (
+                          <div className="mt-5 flex justify-center">
+                            <a
+                              href={`/components/categories/${cat.category}`}
+                              className="inline-flex items-center rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-bg-secondary"
+                            >
+                              View all {cat.label}
+                            </a>
+                          </div>
+                        )}
                     </section>
                   );
                 })}
@@ -613,6 +733,23 @@ export default function Directory() {
                     <p className="text-sm text-text-secondary mb-4">
                       Additional community components.
                     </p>
+                    {isListView ? (
+                      renderListRows(
+                        displayComponents
+                          .filter(
+                            (c) =>
+                              !c.category ||
+                              !categoryItems.find(
+                                (cat) => cat.category === c.category,
+                              ),
+                          )
+                          .slice(
+                            0,
+                            visibleBySection["category:__other__"] ??
+                              groupedCardsPerLoad,
+                          ),
+                      )
+                    ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                       {displayComponents
                         .filter(
@@ -658,6 +795,7 @@ export default function Directory() {
                           />
                         ))}
                     </div>
+                    )}
                     {displayComponents.filter(
                       (c) =>
                         !c.category ||
@@ -686,6 +824,9 @@ export default function Directory() {
               </>
             ) : components && displayComponents.length > 0 ? (
               <>
+                {isListView ? (
+                  renderListRows(displayComponents.slice(0, flatVisibleCount))
+                ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {displayComponents.slice(0, flatVisibleCount).map((comp) => (
                     <ComponentCard
@@ -716,6 +857,7 @@ export default function Directory() {
                     />
                   ))}
                 </div>
+                )}
                 {hasMoreFlatResults && (
                   <div className="mt-5 flex justify-center">
                     <button

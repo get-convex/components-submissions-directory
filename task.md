@@ -4,6 +4,12 @@
 
 ## completed
 
+- [x] Directory list view with header toggle and admin thumbnail setting (2026-08-12 19:25 UTC)
+  - Added a grid/list toggle to the header (Phosphor `Rows`/`SquaresFour`) that only renders on the Directory page via optional `viewMode` props on `Header`; on desktop it sits before the "Directory" nav link (moved from next to the search icon at 2026-08-12 20:01 UTC per feedback), on mobile next to the search icon. List mode keeps the sidebar and category headers and renders all sections (Featured, categories, Other, flat search) as compact rows through the new `ComponentListRow` component, with per-category "Load more" (then "View all"), a list-shaped loading skeleton, and the choice persisted in `localStorage`. Thumbnails are hidden in list view by default; the new global `showListViewThumbnails` admin setting (toggle in the Submit Listing Settings panel, moved there from AI Review Settings at 2026-08-12 19:58 UTC; read publicly via the slim `getListViewSettings` query) shows fixed-size right-side thumbnails and overrides per-category/per-component hide flags for list view only. Grid view untouched.
+  - PRD: `prds/directory-list-view.md`
+  - Files: `convex/packages.ts`, `src/components/ComponentListRow.tsx` (new), `src/components/Header.tsx`, `src/pages/Directory.tsx`, `src/pages/Admin.tsx`, `changelog.md`, `files.md`
+  - Verification: dev deploy clean; `getListViewSettings` returns false by default; browser-verified grid unchanged, toggle + refresh persistence, list rows without thumbnails, and thumbnails appearing after flipping the admin setting (then restored); convex typecheck clean, app typecheck shows only pre-existing errors in untouched files.
+
 - [x] Growth tab recording-friendly polish (2026-08-12 01:30 UTC)
   - Moved the "N package(s) skipped on the last run" note out of the header into its own strip between the chart card and the Share this growth section so screen recordings of the header and chart stay clean, and made the chart legend labels (max value marker like 33M and the month row like Aug 2026) bigger and bolder (11px soft gray to 16px semibold ink) in both the live chart and the exported image/video. UI only; no data refresh required.
   - Files: `src/components/DownloadsGrowthTab.tsx`
