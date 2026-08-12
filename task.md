@@ -4,6 +4,11 @@
 
 ## completed
 
+- [x] Growth tab recording-friendly polish (2026-08-12 01:30 UTC)
+  - Moved the "N package(s) skipped on the last run" note out of the header into its own strip between the chart card and the Share this growth section so screen recordings of the header and chart stay clean, and made the chart legend labels (max value marker like 33M and the month row like Aug 2026) bigger and bolder (11px soft gray to 16px semibold ink) in both the live chart and the exported image/video. UI only; no data refresh required.
+  - Files: `src/components/DownloadsGrowthTab.tsx`
+  - Verification: typecheck and eslint clean.
+
 - [x] Growth tab date range and replay video export (2026-08-11 22:05 UTC)
   - Components authoring launched December 2025 (news.convex.dev/components-authoring), so the chart card gained a From/To month range selector that defaults to January 2025 through the latest month. The window frames the animated chart, the share image, and the new replay video, with a Reset link and a running total through the selected end month; changing it replays the animation. "Generate video" records the share card animation off screen (short hold, 2.4s sweep with a counting total, hold on the finished card) via canvas.captureStream and MediaRecorder, MP4 when the browser supports it (WebM fallback with a convert note), with inline preview and download. Backend untouched: cumulative totals stay all time so the header keeps matching the dashboard.
   - PRD: `prds/downloads-growth-share-chart.md` (date range and replay video follow-up)

@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Growth tab polish for screen recordings (2026-08-12 01:30 UTC)
+  - The skipped-packages warning moved out of the header (next to Replay/Refresh) into its own strip between the chart card and the Share this growth section, keeping recordings of the growth curve clean.
+  - Chart legend labels (the max value marker and the month row) went from 11px soft gray to 16px semibold ink in both the live chart and the exported share image and replay video. Display only; existing snapshots render with the new styling without refreshing data.
+  - Files: `src/components/DownloadsGrowthTab.tsx`
+
 - Growth tab refresh is now incremental instead of a full npm refetch (2026-08-11 21:55 UTC)
   - The `downloadGrowthSeries` snapshot stores its `packageNames`, so "Refresh data" reuses the saved monthly history, reads the current total from the same stored `allTimeDownloads` sum the dashboard shows (zero npm calls), and only fetches full npm history for packages approved since the snapshot. Growth since the last snapshot lands on the current month.
   - A full npm rebuild still runs automatically when there is no usable snapshot or packages were removed (their baked-in history cannot be subtracted), and admins can force one with the new "Full rebuild from npm" action. The action reports its `mode` and the toast says whether data was synced from stored totals or rebuilt from npm.

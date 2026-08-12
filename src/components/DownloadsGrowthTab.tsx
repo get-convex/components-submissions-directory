@@ -143,13 +143,15 @@ function drawDitherChart(
   }
 
   if (showLabels) {
-    ctx.fillStyle = INK_SOFT;
-    ctx.font = `11px "GT America", ui-sans-serif, sans-serif`;
+    // Legend labels read bolder and bigger so they hold up in screenshots
+    // and screen recordings
+    ctx.fillStyle = INK;
+    ctx.font = `600 16px "GT America", ui-sans-serif, sans-serif`;
     ctx.textBaseline = "top";
 
     // Max value marker, top left
     ctx.textAlign = "left";
-    ctx.fillText(formatCompact(maxValue), padX, 6);
+    ctx.fillText(formatCompact(maxValue), padX, 4);
 
     // Month ticks along the bottom
     const tickCount = Math.min(6, months.length);
@@ -712,13 +714,6 @@ export default function DownloadsGrowthTab() {
                 ? `Cumulative npm downloads across ${series.packagesIncluded} approved components · generated ${generatedDate}`
                 : "No growth data generated yet"}
             </p>
-            {series && series.packagesFailed.length > 0 && (
-              <p className="mt-1 flex items-center gap-1 text-xs text-orange-700">
-                <Warning size={12} weight="bold" />
-                {series.packagesFailed.length} package(s) skipped on the last
-                run
-              </p>
-            )}
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             <div className="flex gap-2">
@@ -838,6 +833,15 @@ export default function DownloadsGrowthTab() {
           </>
         )}
       </div>
+
+      {/* Skipped packages note: kept out of the header and chart so screen
+          recordings of the growth curve stay clean */}
+      {series && series.packagesFailed.length > 0 && (
+        <p className="flex items-center gap-1.5 px-1 text-xs text-orange-700">
+          <Warning size={12} weight="bold" />
+          {series.packagesFailed.length} package(s) skipped on the last run
+        </p>
+      )}
 
       {/* Share image builder */}
       <div className="rounded-lg border border-border bg-bg-card p-4 sm:p-6">
