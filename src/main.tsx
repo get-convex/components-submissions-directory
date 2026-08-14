@@ -1,21 +1,22 @@
 import { createRoot } from "react-dom/client";
 import { Component, Suspense, lazy, useEffect, useMemo, useState } from "react";
 import type { ErrorInfo, ReactNode } from "react";
-import { ConvexReactClient } from "convex/react";
+import { ConvexReactClient, useQuery } from "convex/react";
 import { useConvexAuth } from "convex/react";
 import { ConvexProviderWithAuthKit } from "@convex-dev/workos";
 import "./index.css";
-// Indexed routes (sitemap: /components, /submit, /submissions, and slugs) stay
-// eagerly imported so crawlers never wait on a lazy chunk. ComponentDetail also
+import { api } from "../convex/_generated/api";
+// Indexed routes (sitemap: /components, /submit, and slugs) stay eagerly
+// imported so crawlers never wait on a lazy chunk. ComponentDetail also
 // injects JSON-LD client side and must render immediately.
 import Directory from "./pages/Directory";
 import CategoryPage from "./pages/CategoryPage";
-import Submit from "./pages/Submit";
 import SubmitForm from "./pages/SubmitForm";
 import ComponentDetail from "./pages/ComponentDetail";
 import NotFound from "./pages/NotFound";
 // Admin, auth-gated, and noindex routes load on demand. This keeps the ~17k
 // lines of admin/profile code out of the initial bundle every visitor downloads.
+const Submit = lazy(() => import("./pages/Submit"));
 const SubmitCheck = lazy(() => import("./pages/SubmitCheck"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Profile = lazy(() => import("./pages/Profile"));
@@ -111,8 +112,8 @@ function Router() {
     if (segments.length === 2 && segments[1] === "admin") {
       return <Admin />;
     }
-    // /submissions = Public submissions directory (table view)
-    return <Submit />;
+    // /submissions = Submissions directory (admin only, others go to /components)
+    return <SubmissionsGate />;
   }
 
   // /submit/check = Public preflight checker
@@ -172,6 +173,34 @@ function Router() {
   }
 
   return <NotFound />;
+}
+
+// /submissions is admin only (@convex.dev email). Everyone else, logged in or
+// not, is sent to the directory root. Waits for auth and the admin check to
+// settle so admins are not bounced to /components during token load on a hard
+// refresh.
+function SubmissionsGate() {
+  const { isLoading: authLoading, isAuthenticated } = useConvexAuth();
+  const isAdmin = useQuery(api.auth.isAdmin);
+  const isChecking =
+    authLoading || (isAuthenticated && isAdmin === undefined);
+  const shouldRedirect = !isChecking && !isAdmin;
+
+  useEffect(() => {
+    if (shouldRedirect) {
+      window.location.replace(DIRECTORY_ROOT_HREF);
+    }
+  }, [shouldRedirect]);
+
+  if (isChecking || shouldRedirect) {
+    return (
+      <div className="min-h-screen flex justify-center items-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-button"></div>
+      </div>
+    );
+  }
+
+  return <Submit />;
 }
 
 // Callback component handles post-OAuth redirect

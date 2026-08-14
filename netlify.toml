@@ -31,6 +31,11 @@
 # authoritative X-Robots-Tag is set inside og-meta.ts. These rules would
 # take over if the edge function were ever removed.
 [[headers]]
+  for = "/components/submissions"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+[[headers]]
   for = "/components/submissions/admin"
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"

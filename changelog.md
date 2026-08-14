@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The submissions directory at `/components/submissions` is now admin only (2026-08-13 06:05 UTC)
+  - The page previously public at `/components/submissions` now requires a logged-in `@convex.dev` admin, the same rule as `/components/submissions/admin`. A new `SubmissionsGate` in `src/main.tsx` waits for auth and the `api.auth.isAdmin` check to settle (so admins are not bounced during token load on hard refresh), renders the table for admins, and sends everyone else to `/components` with `window.location.replace`. `/submissions/admin` and every other route are untouched.
+  - The "Submissions" link in the header (desktop and mobile) moved under the existing admin-only nav group so non-admins never see it. `Submit.tsx` also became a lazy chunk (35 kB out of the shared bundle) since the page is no longer indexed.
+  - SEO/AEO cleanup for the previously live URL: removed `/components/submissions` from the sitemap static pages in `convex/http.ts`, added it to `isNoindexPath` in `netlify/edge-functions/og-meta.ts` so crawlers get `X-Robots-Tag: noindex` and drop the URL, and added a defense-in-depth `X-Robots-Tag` header block in `netlify.toml`. A server 301 is not possible since auth lives in the browser; client redirect plus noindex is the correct pairing. Optional follow-up: request removal in Google Search Console to speed up deindexing.
+  - PRD: `prds/hide-submissions-directory.md`
+  - Files: `src/main.tsx`, `src/components/Header.tsx`, `convex/packages.ts`, `convex/http.ts`, `netlify/edge-functions/og-meta.ts`, `netlify.toml`
+
+### Security
+
+- Admin-gated the submissions listing queries (2026-08-13 06:05 UTC)
+  - `getSubmitPackagesPage` and `searchSubmitPackagesPage` in `convex/packages.ts` (the only queries behind the submissions page) now check `getAdminIdentity` and return an empty page in the same validator shape for non-admins, so hiding the page client side cannot be bypassed through the public Convex API or WebSocket. Verified on dev: unauthenticated CLI calls return `{ items: [], total: 0 }`, an admin identity gets full data.
+
 ### Added
 
 - Directory list view with header toggle and admin thumbnail setting (2026-08-12 19:25 UTC)

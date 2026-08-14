@@ -270,13 +270,13 @@ export default function Header({ viewMode, onViewModeChange }: HeaderProps) {
                 className="text-sm font-medium text-text-primary hover:text-text-secondary transition-colors">
                 Directory
               </a>
-              <a
-                href={`${basePath}/submissions`}
-                className="text-sm font-medium text-text-primary hover:text-text-secondary transition-colors">
-                Submissions
-              </a>
               {isAdmin && (
                 <>
+                  <a
+                    href={`${basePath}/submissions`}
+                    className="text-sm font-medium text-text-primary hover:text-text-secondary transition-colors">
+                    Submissions
+                  </a>
                   <a
                     href={`${basePath}/submissions/admin`}
                     className="flex items-center gap-1 text-sm font-medium text-text-primary hover:text-text-secondary transition-colors">
@@ -483,13 +483,13 @@ export default function Header({ viewMode, onViewModeChange }: HeaderProps) {
               className="px-3 py-2 text-sm font-medium text-text-primary hover:bg-bg-hover rounded-lg transition-colors">
               Directory
             </a>
-            <a
-              href={`${basePath}/submissions`}
-              className="px-3 py-2 text-sm font-medium text-text-primary hover:bg-bg-hover rounded-lg transition-colors">
-              Submissions
-            </a>
             {isAdmin && (
               <>
+                <a
+                  href={`${basePath}/submissions`}
+                  className="px-3 py-2 text-sm font-medium text-text-primary hover:bg-bg-hover rounded-lg transition-colors">
+                  Submissions
+                </a>
                 <a
                   href={`${basePath}/submissions/admin`}
                   className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-text-primary hover:bg-bg-hover rounded-lg transition-colors">

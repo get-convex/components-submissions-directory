@@ -1519,17 +1519,14 @@ http.route({
     const origin = DIRECTORY_ORIGIN;
     const today = new Date().toISOString().slice(0, 10);
 
+    // /components/submissions is intentionally absent: the page is admin only
+    // and noindexed (see netlify/edge-functions/og-meta.ts)
     const staticPages = [
       { loc: `${origin}/components`, changefreq: "daily", priority: "1.0" },
       {
         loc: `${origin}/components/submit`,
         changefreq: "monthly",
         priority: "0.5",
-      },
-      {
-        loc: `${origin}/components/submissions`,
-        changefreq: "weekly",
-        priority: "0.4",
       },
     ];
 

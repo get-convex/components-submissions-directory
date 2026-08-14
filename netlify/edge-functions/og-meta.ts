@@ -42,11 +42,13 @@ function extractSlug(pathname: string): string | null {
 
 // Routes that must never be indexed. Netlify [[headers]] rules do not apply
 // to URLs handled by an edge function, so the X-Robots-Tag header has to be
-// set here. Exact matches only: /components/submissions (without /admin) and
-// /components/submit ARE indexed and must never match.
+// set here. Exact matches only: /components/submit IS indexed and must never
+// match. /components/submissions is admin only (client redirects non-admins
+// to /components), so crawlers get noindex to drop the previously live URL.
 function isNoindexPath(pathname: string): boolean {
   const path = pathname.replace(/\/+$/, "");
   return (
+    path === "/components/submissions" ||
     path === "/components/submissions/admin" ||
     path === "/components/callback" ||
     path === "/components/dashboard" ||

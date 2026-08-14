@@ -1854,7 +1854,20 @@ function dedupeAndFilterResults(results: any[]) {
   return combined.slice(0, 50);
 }
 
-// Public query: Paginated submissions listing for Submit.tsx
+// Empty page in the paginatedPublicPackagesValidator shape, returned to
+// non-admins so the submissions listing leaks nothing through the public API.
+function emptySubmitPackagesPage(pageSize: 20 | 40 | 60) {
+  return {
+    items: [],
+    total: 0,
+    page: 1,
+    pageSize,
+    totalPages: 1,
+  };
+}
+
+// SECURITY: Admin-only query - the /components/submissions page is hidden
+// behind admin access, so non-admins get an empty page instead of data
 export const getSubmitPackagesPage = query({
   args: {
     sortBy: v.optional(
@@ -1873,13 +1886,18 @@ export const getSubmitPackagesPage = query({
     const page = args.page ?? 1;
     const pageSize = args.pageSize ?? 40;
 
+    const adminIdentity = await getAdminIdentity(ctx);
+    if (!adminIdentity) {
+      return emptySubmitPackagesPage(pageSize);
+    }
+
     const visiblePackages = await getVisibleSubmitPackages(ctx);
     const sortedPackages = sortPublicPackages(visiblePackages, sortBy);
     return paginatePublicPackages(sortedPackages, page, pageSize);
   },
 });
 
-// Public query: Paginated submission search for Submit.tsx
+// SECURITY: Admin-only query - same gating as getSubmitPackagesPage
 export const searchSubmitPackagesPage = query({
   args: {
     searchTerm: v.string(),
@@ -1899,6 +1917,11 @@ export const searchSubmitPackagesPage = query({
     const page = args.page ?? 1;
     const pageSize = args.pageSize ?? 40;
     const searchTerm = args.searchTerm.trim().toLowerCase();
+
+    const adminIdentity = await getAdminIdentity(ctx);
+    if (!adminIdentity) {
+      return emptySubmitPackagesPage(pageSize);
+    }
 
     const visiblePackages = await getVisibleSubmitPackages(ctx);
     const searchedPackages = searchTerm
