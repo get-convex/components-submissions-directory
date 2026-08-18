@@ -485,3 +485,24 @@
     @apply w-full px-4 py-3 rounded-full bg-button text-white font-normal hover:bg-button-hover transition-colors shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed;
   }
 }
+
+/* Theme the @convex-internal/web-analytics consent banner. */
+.wa-banner {
+  --wa-banner-background-color: #ffffff;
+  --wa-banner-text-color: theme("colors.text-primary");
+  --wa-banner-border-color: theme("colors.border.DEFAULT");
+  --wa-banner-border-radius: theme("borderRadius.container");
+  --wa-banner-box-shadow: theme("boxShadow.md");
+  --wa-banner-backdrop-filter: blur(4px);
+  --wa-banner-padding: 0.75rem;
+  --wa-banner-action-gap: 0.75rem;
+  --wa-banner-button-border-radius: 9999px;
+  --wa-banner-button-padding: 0.625rem 1rem;
+  --wa-banner-button-min-height: auto;
+  --wa-banner-button-font-size: 0.875rem;
+  --wa-banner-button-font-weight: 500;
+  --wa-banner-button-line-height: 1;
+  --wa-banner-decline-background-color: theme("colors.bg-card");
+  --wa-banner-accept-background-color: theme("colors.button.DEFAULT");
+  --wa-banner-accept-text-color: #ffffff;
+}
