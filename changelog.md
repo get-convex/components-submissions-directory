@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bumped `@convex-internal/web-analytics` from 1.0.3 to 1.1.0 (2026-08-21 14:43 UTC)
+  - Drop-in: `WebAnalyticsProvider` already takes no `posthogConfig`. Files: `package.json`
+
 - The submissions directory at `/components/submissions` is now admin only (2026-08-13 06:05 UTC)
   - The page previously public at `/components/submissions` now requires a logged-in `@convex.dev` admin, the same rule as `/components/submissions/admin`. A new `SubmissionsGate` in `src/main.tsx` waits for auth and the `api.auth.isAdmin` check to settle (so admins are not bounced during token load on hard refresh), renders the table for admins, and sends everyone else to `/components` with `window.location.replace`. `/submissions/admin` and every other route are untouched.
   - The "Submissions" link in the header (desktop and mobile) moved under the existing admin-only nav group so non-admins never see it. `Submit.tsx` also became a lazy chunk (35 kB out of the shared bundle) since the page is no longer indexed.

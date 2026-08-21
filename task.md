@@ -4,6 +4,9 @@
 
 ## completed
 
+- [x] Update `@convex-internal/web-analytics` to 1.1.0 (2026-08-21 14:43 UTC)
+  - `package.json` only. No app code changes.
+
 - [x] Hide /components/submissions behind admin access (2026-08-13 06:10 UTC)
   - The submissions table page now requires a logged-in `@convex.dev` admin, matching `/submissions/admin`. New `SubmissionsGate` in `main.tsx` waits for auth and `api.auth.isAdmin` to settle, renders `Submit` for admins, and redirects everyone else (logged in or not) to `/components`. The header Submissions link (desktop and mobile) moved into the admin-only nav group, and `Submit.tsx` became a lazy chunk since the page is no longer indexed. `getSubmitPackagesPage` and `searchSubmitPackagesPage` are admin-gated server side and return empty pages for non-admins so the data cannot be pulled through the public API. SEO cleanup: removed `/components/submissions` from the sitemap in `convex/http.ts`, added it to `isNoindexPath` in `og-meta.ts`, and added an `X-Robots-Tag` header block in `netlify.toml`. No other routes changed.
   - PRD: `prds/hide-submissions-directory.md`
