@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bumped `@convex-internal/web-analytics` from 1.1.0 to 1.1.1 (2026-08-21 16:33 UTC)
+  - Drop-in. Files: `package.json`
+
 - Bumped `@convex-internal/web-analytics` from 1.0.3 to 1.1.0 (2026-08-21 14:43 UTC)
   - Drop-in: `WebAnalyticsProvider` already takes no `posthogConfig`. Files: `package.json`
 

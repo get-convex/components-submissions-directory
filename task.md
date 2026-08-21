@@ -4,6 +4,9 @@
 
 ## completed
 
+- [x] Update `@convex-internal/web-analytics` to 1.1.1 (2026-08-21 16:33 UTC)
+  - `package.json` only. No app code changes.
+
 - [x] Update `@convex-internal/web-analytics` to 1.1.0 (2026-08-21 14:43 UTC)
   - `package.json` only. No app code changes.
 
