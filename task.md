@@ -4,6 +4,9 @@
 
 ## completed
 
+- [x] Update `@convex-internal/web-analytics` to 2.0.1 (2026-08-21 23:02 UTC)
+  - Bumped the package and pointed `WebAnalyticsProvider` at `@convex-internal/web-analytics/react`. Banner CSS still comes from the package; existing `.wa-banner` tokens in `src/index.css` are unchanged.
+
 - [x] Update `@convex-internal/web-analytics` to 1.1.1 (2026-08-21 16:33 UTC)
   - `package.json` only. No app code changes.
 

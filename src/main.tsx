@@ -23,7 +23,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 const ProfileEditSubmission = lazy(() => import("./pages/ProfileEditSubmission"));
 const Documentation = lazy(() => import("./pages/Documentation"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
-import { WebAnalyticsProvider } from "@convex-internal/web-analytics";
+import { WebAnalyticsProvider } from "@convex-internal/web-analytics/react";
 import Footer from "./components/Footer";
 import { isReservedRoute, parseSlugFromPath } from "./lib/slugs";
 import { ConnectAuthProvider, useConnectAuth } from "./lib/connectAuth";
