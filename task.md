@@ -4,6 +4,9 @@
 
 ## completed
 
+- [x] Return HTTP 404 for missing component slugs (2026-08-22 01:04 UTC)
+  - Confirmed misses return 404; reserved routes and lookup failures keep the existing SPA response. Typecheck, build, and edge behavior smoke test pass.
+
 - [x] Update `@convex-internal/web-analytics` to 2.0.1 (2026-08-21 23:02 UTC)
   - Bumped the package and pointed `WebAnalyticsProvider` at `@convex-internal/web-analytics/react`. Banner CSS still comes from the package; existing `.wa-banner` tokens in `src/index.css` are unchanged.
 

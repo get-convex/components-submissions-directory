@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Missing component slugs now return HTTP 404 (2026-08-22 01:00 UTC)
+  - Confirmed misses return 404; lookup failures keep the existing SPA response.
+
 ### Changed
 
 - Bumped `@convex-internal/web-analytics` from 1.1.1 to 2.0.1 (2026-08-21 23:02 UTC)

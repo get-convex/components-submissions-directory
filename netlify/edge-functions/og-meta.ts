@@ -15,7 +15,8 @@ type ReviewStatus =
   | "rejected";
 
 function extractSlug(pathname: string): string | null {
-  const match = pathname.match(/^\/components\/([^/.]+(?:\/[^/.]+)*)$/);
+  const normalized = pathname.replace(/\/+$/, "") || "/";
+  const match = normalized.match(/^\/components\/([^/.]+(?:\/[^/.]+)*)$/);
   if (!match) return null;
   const slug = match[1];
   const reserved = [
@@ -26,14 +27,20 @@ function extractSlug(pathname: string): string | null {
     "profile",
     "submissions",
     "documentation",
+    "dashboard",
     "badge",
     "categories",
   ];
   if (
     reserved.includes(slug) ||
+    slug.startsWith("submit/") ||
     slug.startsWith("submissions/") ||
     slug.startsWith("badge/") ||
-    slug.startsWith("categories/")
+    slug.startsWith("callback/") ||
+    slug.startsWith("categories/") ||
+    slug.startsWith("dashboard/") ||
+    slug.startsWith("documentation/") ||
+    slug.startsWith("profile/")
   ) {
     return null;
   }
@@ -196,7 +203,9 @@ function getRobotsContent(reviewStatus?: ReviewStatus): string {
   return reviewStatus === "approved" ? "index, follow" : "noindex, nofollow";
 }
 
-async function fetchComponent(slug: string): Promise<ComponentData | null> {
+async function fetchComponent(
+  slug: string
+): Promise<ComponentData | null | undefined> {
   const convexCloudUrl =
     Deno.env.get("VITE_CONVEX_URL") || defaultConvexCloudUrl;
   const apiUrl = `${convexCloudUrl}/api/query`;
@@ -211,14 +220,12 @@ async function fetchComponent(slug: string): Promise<ComponentData | null> {
         format: "json",
       }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) return undefined;
     const json = await res.json();
-    if (json.status === "success" && json.value) {
-      return json.value as ComponentData;
-    }
-    return null;
+    if (json.status !== "success") return undefined;
+    return json.value ? (json.value as ComponentData) : null;
   } catch {
-    return null;
+    return undefined;
   }
 }
 
@@ -477,8 +484,16 @@ export default async (
     context.next(),
   ]);
 
-  if (!component) {
+  // Keep serving the SPA if Convex could not confirm whether the slug exists.
+  if (component === undefined) {
     return response;
+  }
+
+  if (component === null) {
+    return new Response(response.body, {
+      status: 404,
+      headers: response.headers,
+    });
   }
 
   const contentType = response.headers.get("content-type") || "";
