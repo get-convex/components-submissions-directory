@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bumped `@convex-internal/web-analytics` from 2.0.1 to 2.1.0 (2026-08-26 15:30 UTC)
+  - Drop-in. Files: `package.json`
+
 - Bumped `@convex-internal/web-analytics` from 1.1.1 to 2.0.1 (2026-08-21 23:02 UTC)
   - React entry is now `@convex-internal/web-analytics/react`. Files: `package.json`, `src/main.tsx`
 

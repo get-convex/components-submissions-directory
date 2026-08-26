@@ -4,6 +4,9 @@
 
 ## completed
 
+- [x] Update `@convex-internal/web-analytics` to 2.1.0 (2026-08-26 15:30 UTC)
+  - `package.json` only. No app code changes.
+
 - [x] Return HTTP 404 for missing component slugs (2026-08-22 01:04 UTC)
   - Confirmed misses return 404; reserved routes and lookup failures keep the existing SPA response. Typecheck, build, and edge behavior smoke test pass.
 
