@@ -1,6 +1,6 @@
 # Task List
 
-Session updates complete on 2026-09-10 04:23 UTC. Changelog cut as 2.3.0 for the GitHub messaging, Broadcast tab, Growth live total, and admin-gate commit.
+Session updates complete on 2026-09-10 20:41 UTC. Header gained a "Build" link to the Convex components docs (desktop nav and mobile menu). GitHub issue checkbox now defaults on. Local main rebased onto origin/main (web-analytics 2.2.0 and the 404 fix) with docs conflicts merged.
 
 ## to do
 
@@ -28,6 +28,14 @@ Session updates complete on 2026-09-10 04:23 UTC. Changelog cut as 2.3.0 for the
   - `src/components/CodeBlock.tsx:97` (`lineNumbers` not in shiki `FileOptions`), `src/pages/CategoryPage.tsx:128`, and `src/pages/ComponentDetail.tsx:1267-1268` (implicit `any`). Present before and after the 2026-08-14 security change and after a clean `_generated` rebuild. Likely fallout from the local `convex` package moving 1.32.0 to 1.44.0.
 
 ## completed
+
+- [x] Add a "Build" nav link to the Convex components docs (2026-09-10 20:40 UTC)
+  - `src/components/Header.tsx`: external link to `https://docs.convex.dev/components/overview` (new tab) after Directory in the desktop left nav and in the mobile dropdown menu.
+  - Verification: `tsc -p .` clean.
+
+- [x] Default the "Also send as a GitHub issue" checkbox to checked (2026-09-10 20:38 UTC)
+  - `CommentsPanel` in `src/pages/Admin.tsx` initializes `alsoCreateGithubIssue` to `true`. Gate on `canMirrorToGithub` unchanged. `src/docs/admin-notes.md` step 3 updated to match.
+  - Verification: `tsc -p .` clean, eslint clean on the changed lines.
 
 - [x] Move GitHub Broadcast out of Settings into its own admin tab (2026-09-10 04:19 UTC)
   - [x] New `broadcast` filter tab next to Logs (`MegaphoneSimple`). Compose, reply sync, and history render as three cards. Settings jump nav no longer lists it. `#settings-github-broadcast` still opens the tab.

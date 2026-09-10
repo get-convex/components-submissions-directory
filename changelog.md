@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- "Build" link in the header nav pointing to the Convex components docs (2026-09-10 20:40 UTC)
+  - Sits after Directory in the desktop nav and in the mobile dropdown menu. Opens `https://docs.convex.dev/components/overview` in a new tab.
+  - Files: `src/components/Header.tsx`
+
+### Changed
+
+- "Also send as a GitHub issue" is now checked by default in the admin Comments panel (2026-09-10 20:38 UTC)
+  - Admins were forgetting to tick it, so submitters never saw the message. A normal reply now mirrors to GitHub unless the admin unticks the box for that message. The `canMirrorToGithub` gate is unchanged, so packages without a github.com repo are unaffected and the checkbox still does not render for them.
+  - Files: `src/pages/Admin.tsx`, `src/docs/admin-notes.md`
+
 ## [2.3.0] 2026-09-10
 
 ### Changed

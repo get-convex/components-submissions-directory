@@ -395,7 +395,7 @@ Custom WorkOS Connect OAuth PKCE provider. Handles authorize redirect, callback 
 Shared header component with auth state management. Uses `useAuth()` from `src/lib/auth` for auth state and sign in/out, and `useQuery(api.auth.loggedInUser)` for user data. Accepts optional `viewMode` / `onViewModeChange` props (exports the `DirectoryViewMode` type); when both are passed (only the Directory does), a Phosphor `Rows`/`SquaresFour` toggle button renders before the "Directory" link in the desktop left nav (and next to the search icon on mobile) to switch between grid and list layouts. Features:
 - Floating pill design with `rounded-full`, white/95 background, backdrop blur, and shadow
 - Convex wordmark logo (black SVG, 70px height)
-- Navigation links (Directory, Submit) with medium font weight
+- Navigation links (Directory, Build, Submit) with medium font weight. Build is an external link to `https://docs.convex.dev/components/overview` (new tab) shown in both the desktop nav and the mobile dropdown
 - Admin-only navigation links (Submissions, Admin, Docs, Dashboard) visible only to @convex.dev users
 - Social icons (GitHub, Discord) and Docs icon linking to external resources
 - User menu with avatar, My Submissions link, and Sign Out button

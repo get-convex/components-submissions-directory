@@ -1639,7 +1639,9 @@ function CommentsPanel({
   const [newComment, setNewComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
-  const [alsoCreateGithubIssue, setAlsoCreateGithubIssue] = useState(false);
+  // On by default: admins almost always want the submitter notified on GitHub.
+  // Untick per message to keep it private. Ignored when the repo is not github.com.
+  const [alsoCreateGithubIssue, setAlsoCreateGithubIssue] = useState(true);
   const canMirrorToGithub = isGitHubRepoUrl(repositoryUrl);
 
   const comments = useQuery(api.packages.getPackageComments, {
