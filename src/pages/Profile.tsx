@@ -33,6 +33,7 @@ import {
   Terminal,
   Info,
   ArrowsClockwise,
+  GithubLogo,
 } from "@phosphor-icons/react";
 
 // Get base path for links (always /components)
@@ -447,6 +448,22 @@ function ViewNotesModal({
                     <span className="px-1.5 py-0.5 rounded-full bg-green-500 text-white text-[10px] font-medium">
                       New
                     </span>
+                  )}
+                  {/* Mirrored here from a reply on the GitHub issue */}
+                  {note.source === "github" && (
+                    <a
+                      href={note.githubCommentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-border text-[10px] text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors"
+                      title="You posted this as a comment on the GitHub issue"
+                    >
+                      <GithubLogo size={10} />
+                      via GitHub
+                      {note.githubAuthorLogin
+                        ? ` @${note.githubAuthorLogin}`
+                        : ""}
+                    </a>
                   )}
                 </div>
                 <p className="text-sm text-text-primary whitespace-pre-wrap">

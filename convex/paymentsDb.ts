@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { mutation, internalMutation, internalQuery, query } from "./_generated/server";
+import { internalMutation, internalQuery, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { requireAdminIdentity } from "./auth";
 
 // Internal query to get package data for reward
 export const _getPackageForReward = internalQuery({
@@ -157,6 +158,9 @@ export const getPaymentsForPackage = query({
     }),
   ),
   handler: async (ctx, args) => {
+    // Payment rows carry recipient email, name, and amounts
+    await requireAdminIdentity(ctx);
+
     const payments = await ctx.db
       .query("payments")
       .withIndex("by_package", (q) => q.eq("packageId", args.packageId))
@@ -213,7 +217,7 @@ async function reconcileRewardStatuses(ctx: any, packagePayments: Record<string,
   return details;
 }
 
-export const backfillRewardStatusFromPayments = mutation({
+export const backfillRewardStatusFromPayments = internalMutation({
   args: {},
   returns: v.object({
     packagesUpdated: v.number(),
@@ -248,6 +252,8 @@ export const getPaymentStats = query({
     failedCount: v.number(),
   }),
   handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
+
     const allPayments = await ctx.db.query("payments").take(1000);
 
     let totalAmountSent = 0;

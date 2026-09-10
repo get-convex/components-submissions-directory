@@ -73,6 +73,10 @@ import {
   ToggleLeft,
   ToggleRight,
   FileText,
+  MegaphoneSimple,
+  ChatCircle,
+  ArrowCounterClockwise,
+  Plugs,
 } from "@phosphor-icons/react";
 import { ExternalLinkIcon as RadixExternalLinkIcon } from "@radix-ui/react-icons";
 import AiLoadingDots from "../components/AiLoadingDots";
@@ -1610,23 +1614,33 @@ function NotesButton({
   );
 }
 
+// Client-side mirror of convex/githubIssues parseGitHubRepo: only github.com
+// repos can receive issues, so the checkbox is hidden for anything else.
+function isGitHubRepoUrl(url?: string): boolean {
+  return !!url && /^(https?:\/\/)?(www\.)?github\.com\/[^/\s]+\/[^/\s]+/i.test(url.trim());
+}
+
 // Comments panel for package - private user/admin messages
 function CommentsPanel({
   packageId,
   packageName,
   userEmail,
+  repositoryUrl,
   isOpen,
   onClose,
 }: {
   packageId: Id<"packages">;
   packageName: string;
   userEmail: string;
+  repositoryUrl?: string;
   isOpen: boolean;
   onClose: () => void;
 }) {
   const [newComment, setNewComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
+  const [alsoCreateGithubIssue, setAlsoCreateGithubIssue] = useState(false);
+  const canMirrorToGithub = isGitHubRepoUrl(repositoryUrl);
 
   const comments = useQuery(api.packages.getPackageComments, {
     packageId,
@@ -1644,6 +1658,13 @@ function CommentsPanel({
   const unreadCount = useQuery(api.packages.getUnreadCommentsCount, {
     packageId,
   });
+  // Existing GitHub issue for this package, if any. Drives the checkbox label
+  // so the admin knows whether the message becomes a comment or a new issue.
+  const openIssue = useQuery(
+    api.githubIssues.getOpenIssueForPackage,
+    canMirrorToGithub ? { packageId } : "skip",
+  );
+  const willCommentOnIssue = !!openIssue && openIssue.state !== "closed";
 
   // Handle ESC key to close panel
   useEffect(() => {
@@ -1662,13 +1683,21 @@ function CommentsPanel({
   const handleAddComment = async () => {
     if (!newComment.trim() || isSubmitting) return;
     setIsSubmitting(true);
+    const mirror = canMirrorToGithub && alsoCreateGithubIssue;
     try {
       await addComment({
         packageId,
         content: newComment.trim(),
+        alsoCreateGithubIssue: mirror || undefined,
       });
       setNewComment("");
-      toast.success("Message added");
+      toast.success(
+        mirror
+          ? willCommentOnIssue
+            ? "Message added, replying on the GitHub issue"
+            : "Message added, opening GitHub issue"
+          : "Message added",
+      );
     } catch (error) {
       toast.error("Failed to add comment");
     } finally {
@@ -1827,6 +1856,22 @@ function CommentsPanel({
                         New
                       </span>
                     )}
+                    {/* Mirrored from a GitHub issue reply by githubReplySync */}
+                    {comment.source === "github" && (
+                      <a
+                        href={comment.githubCommentUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-border text-[10px] text-text-secondary hover:text-text-primary hover:bg-bg-hover transition-colors whitespace-nowrap shrink-0"
+                        title="Reply posted on the GitHub issue"
+                      >
+                        <GithubLogo size={10} />
+                        via GitHub
+                        {comment.githubAuthorLogin
+                          ? ` @${comment.githubAuthorLogin}`
+                          : ""}
+                      </a>
+                    )}
                   </div>
                   <div className="flex flex-wrap items-center gap-1 shrink-0">
                     {comment.authorEmail === userEmail && (
@@ -1877,6 +1922,45 @@ function CommentsPanel({
                 <p className="text-sm text-text-primary whitespace-pre-wrap break-words">
                   {comment.content}
                 </p>
+                {/* GitHub mirror state, patched in by githubIssues.createIssueForComment */}
+                {comment.githubIssueStatus === "pending" && (
+                  <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-text-secondary">
+                    <GithubLogo size={12} />
+                    Opening GitHub issue...
+                  </p>
+                )}
+                {comment.githubIssueStatus === "created" &&
+                  comment.githubIssueUrl && (
+                    <a
+                      href={comment.githubIssueUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex items-center gap-1.5 text-xs text-text-secondary hover:text-text-primary transition-colors"
+                    >
+                      <GithubLogo size={12} />
+                      {comment.githubMirrorKind === "comment"
+                        ? "Sent as GitHub comment"
+                        : "Sent as GitHub issue"}
+                      {comment.githubIssueState === "closed" && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-bg-hover text-[10px] text-text-secondary">
+                          Closed
+                        </span>
+                      )}
+                      <ArrowSquareOut size={11} />
+                    </a>
+                  )}
+                {comment.githubIssueStatus === "failed" && (
+                  <p
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs text-red-600"
+                    title={comment.githubIssueError}
+                  >
+                    <GithubLogo size={12} />
+                    GitHub issue failed
+                    {comment.githubIssueError
+                      ? `: ${comment.githubIssueError}`
+                      : ""}
+                  </p>
+                )}
                 {comment.status && comment.status !== "active" && (
                   <p className="mt-2 text-xs text-text-secondary">
                     Status:{" "}
@@ -1926,6 +2010,32 @@ function CommentsPanel({
               <PaperPlaneTilt size={16} />
             </button>
           </div>
+          {/* GitHub mirror option, only when the package points at github.com */}
+          {canMirrorToGithub && (
+            <label className="mt-3 flex items-start gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={alsoCreateGithubIssue}
+                onChange={(e) => setAlsoCreateGithubIssue(e.target.checked)}
+                className="mt-0.5 h-3.5 w-3.5 rounded border-border accent-button"
+              />
+              <span className="text-xs text-text-secondary leading-snug">
+                <span className="inline-flex items-center gap-1 text-text-primary">
+                  <GithubLogo size={12} />
+                  {willCommentOnIssue
+                    ? `Also reply on the open GitHub issue #${openIssue.issueKey.split("#")[1]}`
+                    : openIssue?.state === "closed"
+                      ? "Open a new GitHub issue (previous one is closed)"
+                      : "Also send as a GitHub issue"}
+                </span>
+                <span className="block text-[11px] text-text-secondary/80">
+                  {willCommentOnIssue
+                    ? "Posts a comment on the existing issue so the conversation stays in one place. The thread stays private."
+                    : "Opens a public issue on the submitter's repo so they get notified. The thread stays private."}
+                </span>
+              </span>
+            </label>
+          )}
         </div>
       </div>
     </div>
@@ -1937,10 +2047,12 @@ function CommentsButton({
   packageId,
   packageName,
   userEmail,
+  repositoryUrl,
 }: {
   packageId: Id<"packages">;
   packageName: string;
   userEmail: string;
+  repositoryUrl?: string;
 }) {
   const [showComments, setShowComments] = useState(false);
   const commentCount = useQuery(api.packages.getPackageCommentCount, {
@@ -1987,6 +2099,7 @@ function CommentsButton({
         packageId={packageId}
         packageName={packageName}
         userEmail={userEmail}
+        repositoryUrl={repositoryUrl}
         isOpen={showComments}
         onClose={() => setShowComments(false)}
       />
@@ -4498,6 +4611,7 @@ function InlineActions({
               packageId={packageId}
               packageName={packageName}
               userEmail={userEmail}
+              repositoryUrl={repositoryUrl}
             />
           </div>
 
@@ -8776,6 +8890,799 @@ function SlugMigrationPanel() {
   );
 }
 
+// ============ GITHUB BROADCAST SECTION ============
+
+type BroadcastFilter = "approved" | "pending" | "rejected" | "all";
+
+const BROADCAST_FILTERS: Array<{
+  id: BroadcastFilter;
+  label: string;
+  hint: string;
+}> = [
+  { id: "approved", label: "Approved", hint: "Live in the directory" },
+  { id: "pending", label: "Pending", hint: "Pending, in review, or unset" },
+  { id: "rejected", label: "Rejected", hint: "Rejected submissions" },
+  { id: "all", label: "All", hint: "Every non archived submission" },
+];
+
+// Roughly how long a broadcast takes at the backend's 10s stagger.
+function estimateBroadcastDuration(count: number): string {
+  const seconds = count * 10;
+  if (seconds < 60) return `about ${seconds}s`;
+  const minutes = Math.ceil(seconds / 60);
+  return `about ${minutes} min`;
+}
+
+function formatBroadcastDate(timestamp: number): string {
+  return new Date(timestamp).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+// One past or running broadcast: status, progress bar, expandable results.
+// Small pill button used for the row actions so they match the message panels.
+function rowActionClass(variant: "default" | "danger" = "default"): string {
+  return variant === "danger"
+    ? "px-2.5 py-1 text-xs font-medium rounded-full border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+    : "px-2.5 py-1 text-xs font-medium rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors";
+}
+
+function BroadcastHistoryRow({
+  broadcast,
+  isExpanded,
+  onToggle,
+  onCancel,
+  onArchive,
+  onRestore,
+  onDelete,
+}: {
+  broadcast: {
+    _id: Id<"githubBroadcasts">;
+    title: string;
+    body: string;
+    statusFilter: BroadcastFilter;
+    status: "running" | "completed" | "cancelled";
+    total: number;
+    sent: number;
+    failed: number;
+    skipped: number;
+    replies?: number;
+    archivedAt?: number;
+    createdBy: string;
+    createdAt: number;
+  };
+  isExpanded: boolean;
+  onToggle: () => void;
+  onCancel: () => void;
+  onArchive: () => void;
+  onRestore: () => void;
+  onDelete: () => void;
+}) {
+  const items = useQuery(
+    api.githubIssues.getBroadcastItems,
+    isExpanded ? { broadcastId: broadcast._id } : "skip",
+  );
+  const done = broadcast.sent + broadcast.failed + broadcast.skipped;
+  const pct = broadcast.total > 0 ? Math.round((done / broadcast.total) * 100) : 0;
+  const filterLabel =
+    BROADCAST_FILTERS.find((f) => f.id === broadcast.statusFilter)?.label ??
+    broadcast.statusFilter;
+  const isRunning = broadcast.status === "running";
+  const isArchived = broadcast.archivedAt !== undefined;
+  const replies = broadcast.replies ?? 0;
+
+  const statusPill =
+    broadcast.status === "running"
+      ? "bg-blue-100 text-blue-700"
+      : broadcast.status === "completed"
+        ? "bg-green-100 text-green-700"
+        : "bg-orange-100 text-orange-700";
+
+  // Row actions live inside the toggle button, so stop the click from
+  // expanding the row and mirror that for keyboard activation.
+  const action =
+    (fn: () => void) =>
+    (e: React.MouseEvent | React.KeyboardEvent) => {
+      if ("key" in e && e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      e.stopPropagation();
+      fn();
+    };
+
+  return (
+    <div
+      className={`rounded-lg border border-border bg-bg-primary overflow-hidden ${
+        isArchived ? "opacity-70" : ""
+      }`}
+    >
+      <button
+        onClick={onToggle}
+        className="w-full flex items-start gap-3 p-3 text-left hover:bg-bg-hover transition-colors"
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium text-text-primary truncate">
+              {broadcast.title}
+            </span>
+            <span
+              className={`px-1.5 py-0.5 text-[10px] font-medium rounded ${statusPill}`}
+            >
+              {broadcast.status === "running"
+                ? "Sending"
+                : broadcast.status === "completed"
+                  ? "Done"
+                  : "Cancelled"}
+            </span>
+            {isArchived && (
+              <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-bg-hover text-text-secondary">
+                Archived
+              </span>
+            )}
+            <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-bg-hover text-text-secondary">
+              {filterLabel}
+            </span>
+            {replies > 0 && (
+              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-green-50 text-green-700">
+                <ChatCircle size={10} />
+                {replies} repl{replies === 1 ? "y" : "ies"}
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-text-secondary">
+            {formatBroadcastDate(broadcast.createdAt)} by{" "}
+            {broadcast.createdBy.split("@")[0]}
+            {" · "}
+            {broadcast.sent} sent
+            {broadcast.failed > 0 ? `, ${broadcast.failed} failed` : ""}
+            {broadcast.skipped > 0 ? `, ${broadcast.skipped} skipped` : ""}
+            {" of "}
+            {broadcast.total}
+          </p>
+          {/* Progress bar */}
+          <div className="mt-2 h-1.5 w-full rounded-full bg-bg-hover overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                broadcast.status === "running"
+                  ? "bg-blue-500"
+                  : broadcast.status === "completed"
+                    ? "bg-green-500"
+                    : "bg-orange-400"
+              }`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {isRunning && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={action(onCancel)}
+              onKeyDown={action(onCancel)}
+              className={rowActionClass("danger")}
+            >
+              Cancel
+            </span>
+          )}
+          {!isRunning && !isArchived && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={action(onArchive)}
+              onKeyDown={action(onArchive)}
+              className={`${rowActionClass()} inline-flex items-center gap-1`}
+              title="Hide from the default list. Reply sync keeps working."
+            >
+              <Archive size={11} />
+              Archive
+            </span>
+          )}
+          {!isRunning && isArchived && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={action(onRestore)}
+              onKeyDown={action(onRestore)}
+              className={`${rowActionClass()} inline-flex items-center gap-1`}
+            >
+              <ArrowCounterClockwise size={11} />
+              Restore
+            </span>
+          )}
+          {!isRunning && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={action(onDelete)}
+              onKeyDown={action(onDelete)}
+              className={`${rowActionClass("danger")} inline-flex items-center gap-1`}
+              title="Remove this record. Issues on GitHub are not touched."
+            >
+              <Trash size={11} />
+              Delete
+            </span>
+          )}
+          {isExpanded ? (
+            <CaretUp size={16} className="text-text-secondary" />
+          ) : (
+            <CaretDown size={16} className="text-text-secondary" />
+          )}
+        </div>
+      </button>
+
+      {isExpanded && (
+        <div className="border-t border-border p-3 space-y-3">
+          <div className="p-3 rounded-lg bg-bg-hover text-xs text-text-secondary whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
+            {broadcast.body}
+          </div>
+          {items === undefined ? (
+            <div className="flex justify-center py-4">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-button"></div>
+            </div>
+          ) : items.length === 0 ? (
+            <p className="text-xs text-text-secondary text-center py-2">
+              No items recorded.
+            </p>
+          ) : (
+            <div className="space-y-1.5 max-h-72 overflow-y-auto">
+              {items.map((item) => (
+                <div
+                  key={item._id}
+                  className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-border bg-white"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-text-primary truncate">
+                      {item.packageName}
+                    </p>
+                    <p className="text-[11px] text-text-secondary truncate">
+                      {item.repo ?? "No GitHub repo"}
+                      {item.error && item.status !== "sent"
+                        ? ` · ${item.error}`
+                        : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {(item.replyCount ?? 0) > 0 && (
+                      <span
+                        className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full bg-green-50 text-green-700"
+                        title="Replies mirrored into this package's message thread"
+                      >
+                        <ChatCircle size={11} />
+                        {item.replyCount}
+                      </span>
+                    )}
+                    {item.issueState === "closed" && (
+                      <span className="px-2 py-0.5 text-[11px] rounded-full bg-bg-hover text-text-secondary">
+                        Closed
+                      </span>
+                    )}
+                    {item.status === "sent" && item.issueUrl ? (
+                      <a
+                        href={item.issueUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-green-200 text-green-700 hover:bg-green-50 transition-colors"
+                      >
+                        <GithubLogo size={11} />
+                        Issue
+                        <ArrowSquareOut size={10} />
+                      </a>
+                    ) : (
+                      <span
+                        className={`px-2 py-0.5 text-[11px] rounded-full ${
+                          item.status === "queued"
+                            ? "bg-blue-50 text-blue-600"
+                            : item.status === "failed"
+                              ? "bg-red-50 text-red-600"
+                              : "bg-bg-hover text-text-secondary"
+                        }`}
+                      >
+                        {item.status === "queued"
+                          ? item.attempts > 0
+                            ? "Retrying"
+                            : "Queued"
+                          : item.status === "failed"
+                            ? "Failed"
+                            : "Skipped"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Compose one GitHub issue and send it to every submitter's repo matching a
+// review status filter. Sends run in the backend one at a time (10s apart).
+function GithubBroadcastSection() {
+  const [filter, setFilter] = useState<BroadcastFilter>("approved");
+  const [title, setTitle] = useState("");
+  const [body, setBody] = useState("");
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const [cancelTarget, setCancelTarget] =
+    useState<Id<"githubBroadcasts"> | null>(null);
+  const [expandedId, setExpandedId] = useState<Id<"githubBroadcasts"> | null>(
+    null,
+  );
+  const [showArchived, setShowArchived] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    _id: Id<"githubBroadcasts">;
+    title: string;
+    total: number;
+  } | null>(null);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const targetCount = useQuery(api.githubIssues.getBroadcastTargetCount, {
+    statusFilter: filter,
+  });
+  const broadcasts = useQuery(api.githubIssues.listGithubBroadcasts, {
+    includeArchived: showArchived,
+  });
+  const startBroadcast = useMutation(api.githubIssues.startGithubBroadcast);
+  const cancelBroadcast = useMutation(api.githubIssues.cancelGithubBroadcast);
+  const archiveBroadcast = useMutation(api.githubIssues.archiveGithubBroadcast);
+  const restoreBroadcast = useMutation(api.githubIssues.restoreGithubBroadcast);
+  const deleteBroadcast = useMutation(api.githubIssues.deleteGithubBroadcast);
+
+  // Reply sync: mirrors GitHub issue replies into package threads.
+  const syncStatus = useQuery(api.githubReplySync.getSyncStatus);
+  const setReplySyncEnabled = useMutation(
+    api.githubReplySync.setReplySyncEnabled,
+  );
+  const testConnection = useAction(api.githubReplySync.testConnection);
+  const syncNow = useMutation(api.githubReplySync.syncNow);
+
+  const runningCount =
+    broadcasts?.filter((b) => b.status === "running").length ?? 0;
+
+  const handleToggleReplySync = async () => {
+    if (!syncStatus) return;
+    const next = !syncStatus.enabled;
+    try {
+      await setReplySyncEnabled({ enabled: next });
+      toast.success(
+        next
+          ? "Reply sync on. Checking GitHub for replies now."
+          : "Reply sync off",
+      );
+    } catch {
+      toast.error("Failed to update reply sync");
+    }
+  };
+
+  const handleTestConnection = async () => {
+    setIsTestingConnection(true);
+    try {
+      const result = await testConnection({});
+      if (result.ok) toast.success(result.message);
+      else toast.error(result.message, { duration: 8000 });
+    } catch (error) {
+      toast.error(
+        error instanceof ConvexError
+          ? String(error.data)
+          : "Connection test failed",
+      );
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
+
+  const handleSyncNow = async () => {
+    setIsSyncing(true);
+    try {
+      await syncNow({});
+      toast.success("Sync started. Results appear below in a few seconds.");
+    } catch {
+      toast.error("Failed to start sync");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleArchive = async (broadcastId: Id<"githubBroadcasts">) => {
+    try {
+      await archiveBroadcast({ broadcastId });
+      toast.success("Broadcast archived");
+    } catch (error) {
+      toast.error(
+        error instanceof ConvexError
+          ? String(error.data)
+          : "Failed to archive broadcast",
+      );
+    }
+  };
+
+  const handleRestore = async (broadcastId: Id<"githubBroadcasts">) => {
+    try {
+      await restoreBroadcast({ broadcastId });
+      toast.success("Broadcast restored");
+    } catch {
+      toast.error("Failed to restore broadcast");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteBroadcast({ broadcastId: deleteTarget._id });
+      if (expandedId === deleteTarget._id) setExpandedId(null);
+      toast.success("Broadcast deleted");
+    } catch (error) {
+      toast.error(
+        error instanceof ConvexError
+          ? String(error.data)
+          : "Failed to delete broadcast",
+      );
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
+  const eligible = targetCount?.eligible ?? 0;
+  const missingRepo = targetCount?.missingRepo ?? 0;
+  const canSend =
+    title.trim().length > 0 &&
+    body.trim().length > 0 &&
+    eligible > 0 &&
+    !isStarting &&
+    runningCount === 0;
+
+  const handleStart = async () => {
+    setIsStarting(true);
+    try {
+      const id = await startBroadcast({
+        title: title.trim(),
+        body: body.trim(),
+        statusFilter: filter,
+      });
+      toast.success(
+        `Broadcast started. Sending to ${eligible} repo${eligible === 1 ? "" : "s"}, ${estimateBroadcastDuration(eligible)}.`,
+      );
+      setTitle("");
+      setBody("");
+      setExpandedId(id);
+    } catch (error) {
+      toast.error(
+        error instanceof ConvexError
+          ? String(error.data)
+          : "Failed to start broadcast",
+      );
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!cancelTarget) return;
+    try {
+      await cancelBroadcast({ broadcastId: cancelTarget });
+      toast.success("Broadcast cancelled");
+    } catch {
+      toast.error("Failed to cancel broadcast");
+    } finally {
+      setCancelTarget(null);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-border bg-bg-card p-4 sm:p-5">
+        <div className="mb-4">
+          <h3 className="text-sm font-medium text-text-primary flex items-center gap-2">
+            <MegaphoneSimple size={16} />
+            GitHub Broadcast
+            {runningCount > 0 && (
+              <span className="px-1.5 py-0.5 text-[10px] font-medium bg-blue-100 text-blue-700 rounded">
+                sending
+              </span>
+            )}
+          </h3>
+          <p className="text-xs text-text-secondary mt-1">
+            Open one GitHub issue on every matching submitter repo. Issues go
+            out one at a time, 10 seconds apart, using{" "}
+            <code className="bg-bg-primary px-1 rounded">GITHUB_TOKEN</code>.
+            Confirm the recipient count before anything is sent.
+          </p>
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-text-primary">
+            Recipients
+          </label>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {BROADCAST_FILTERS.map((option) => {
+              const isActive = filter === option.id;
+              return (
+                <Tooltip key={option.id} content={option.hint} position="top">
+                  <button
+                    type="button"
+                    onClick={() => setFilter(option.id)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
+                      isActive
+                        ? "border-button bg-button text-white"
+                        : "border-border bg-white text-text-secondary hover:text-text-primary hover:bg-bg-hover"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                </Tooltip>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs text-text-secondary">
+            {targetCount === undefined ? (
+              "Counting..."
+            ) : (
+              <>
+                <span className="font-medium text-text-primary">
+                  {eligible}
+                </span>{" "}
+                component{eligible === 1 ? "" : "s"} with GitHub repos will
+                receive this issue
+                {missingRepo > 0
+                  ? `, ${missingRepo} skipped (no GitHub repo)`
+                  : ""}
+                {eligible > 0 ? ` · ${estimateBroadcastDuration(eligible)}` : ""}
+              </>
+            )}
+          </p>
+        </div>
+
+        <div className="mt-4 space-y-2">
+          <label htmlFor="broadcast-title" className="sr-only">
+            Issue title
+          </label>
+          <input
+            id="broadcast-title"
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Issue title"
+            maxLength={200}
+            className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-button transition-colors"
+          />
+          <label htmlFor="broadcast-body" className="sr-only">
+            Issue message
+          </label>
+          <textarea
+            id="broadcast-body"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Issue message. Markdown works. A footer linking back to each component's directory listing is added automatically."
+            rows={6}
+            className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-button transition-colors resize-y"
+          />
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <p className="text-xs text-text-secondary">
+              {runningCount > 0
+                ? "A broadcast is already sending. Wait for it to finish or cancel it below."
+                : "You will confirm the recipient count before anything is sent."}
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowConfirm(true)}
+              disabled={!canSend}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 shrink-0"
+            >
+              <GithubLogo size={16} />
+              {isStarting
+                ? "Starting..."
+                : `Send to ${eligible} repo${eligible === 1 ? "" : "s"}`}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-bg-card p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-medium text-text-primary inline-flex items-center gap-2">
+              <ArrowsClockwise size={14} />
+              Reply sync
+            </h3>
+            <p className="text-xs text-text-secondary mt-0.5">
+              When a submitter replies on an issue we opened, the reply lands
+              in that package&apos;s message thread, counts toward the header
+              bell, and posts to Slack. Polls GitHub every couple of minutes.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleToggleReplySync()}
+            disabled={!syncStatus}
+            aria-label={
+              syncStatus?.enabled ? "Turn reply sync off" : "Turn reply sync on"
+            }
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+              syncStatus?.enabled ? "bg-green-600" : "bg-gray-300"
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                syncStatus?.enabled ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
+
+        <div className="mt-3 p-3 rounded-lg bg-bg-hover text-xs text-text-secondary space-y-1.5">
+          <p>
+            Needs a personal access token (classic) with the{" "}
+            <code className="bg-bg-primary px-1 rounded">notifications</code>{" "}
+            scope. Set{" "}
+            <code className="bg-bg-primary px-1 rounded">
+              GITHUB_NOTIFICATIONS_TOKEN
+            </code>{" "}
+            on the deployment; otherwise{" "}
+            <code className="bg-bg-primary px-1 rounded">GITHUB_TOKEN</code> is
+            tried. Fine grained tokens cannot read notifications.
+          </p>
+          {syncStatus && (
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 pt-1">
+              <dt className="text-text-secondary/80">Token</dt>
+              <dd className="text-text-primary">
+                {syncStatus.state.tokenLogin
+                  ? `@${syncStatus.state.tokenLogin} via ${
+                      syncStatus.state.tokenSource === "notifications"
+                        ? "GITHUB_NOTIFICATIONS_TOKEN"
+                        : "GITHUB_TOKEN"
+                    }`
+                  : syncStatus.notificationsTokenConfigured ||
+                      syncStatus.defaultTokenConfigured
+                    ? "Not tested yet"
+                    : "No token configured"}
+              </dd>
+              <dt className="text-text-secondary/80">Last poll</dt>
+              <dd className="text-text-primary">
+                {syncStatus.state.lastPolledAt
+                  ? formatBroadcastDate(syncStatus.state.lastPolledAt)
+                  : "Never"}
+                {syncStatus.state.pollIntervalSeconds
+                  ? ` · GitHub asks for ${syncStatus.state.pollIntervalSeconds}s between polls`
+                  : ""}
+              </dd>
+              {syncStatus.state.lastRunSummary && (
+                <>
+                  <dt className="text-text-secondary/80">Last result</dt>
+                  <dd className="text-text-primary">
+                    {syncStatus.state.lastRunSummary}
+                  </dd>
+                </>
+              )}
+              {syncStatus.state.lastError && (
+                <>
+                  <dt className="text-red-600">Last error</dt>
+                  <dd className="text-red-600 break-words">
+                    {syncStatus.state.lastError}
+                  </dd>
+                </>
+              )}
+            </dl>
+          )}
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void handleTestConnection()}
+            disabled={isTestingConnection}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-white text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
+          >
+            <Plugs size={14} />
+            {isTestingConnection ? "Testing..." : "Test connection"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSyncNow()}
+            disabled={isSyncing}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-white text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-50"
+            title="Check the last 24 hours of notifications now"
+          >
+            <ArrowsClockwise size={14} />
+            {isSyncing ? "Starting..." : "Sync now"}
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-border bg-bg-card p-4 sm:p-5">
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <h3 className="text-sm font-medium text-text-primary">Broadcasts</h3>
+          <button
+            type="button"
+            onClick={() => setShowArchived((prev) => !prev)}
+            className="text-xs text-text-secondary hover:text-text-primary transition-colors whitespace-nowrap"
+          >
+            {showArchived ? "Hide archived" : "Show archived"}
+          </button>
+        </div>
+        {broadcasts === undefined ? (
+          <div className="flex justify-center py-4">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-button"></div>
+          </div>
+        ) : broadcasts.length === 0 ? (
+          <p className="text-xs text-text-secondary text-center py-4">
+            {showArchived
+              ? "No broadcasts yet. Send one above to open issues on matching repos."
+              : "No active broadcasts. Send one above, or show archived to see past runs."}
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {broadcasts.map((broadcast) => (
+              <BroadcastHistoryRow
+                key={broadcast._id}
+                broadcast={broadcast}
+                isExpanded={expandedId === broadcast._id}
+                onToggle={() =>
+                  setExpandedId((prev) =>
+                    prev === broadcast._id ? null : broadcast._id,
+                  )
+                }
+                onCancel={() => setCancelTarget(broadcast._id)}
+                onArchive={() => void handleArchive(broadcast._id)}
+                onRestore={() => void handleRestore(broadcast._id)}
+                onDelete={() =>
+                  setDeleteTarget({
+                    _id: broadcast._id,
+                    title: broadcast.title,
+                    total: broadcast.total,
+                  })
+                }
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <ConfirmModal
+        isOpen={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          void handleDelete();
+        }}
+        title="Delete broadcast?"
+        message={`This removes "${deleteTarget?.title ?? ""}" and its ${deleteTarget?.total ?? 0} per repo result${deleteTarget?.total === 1 ? "" : "s"} from the history. Issues already on GitHub are not touched, and replies already mirrored into message threads stay. Reply sync stops for this broadcast's issues, so archive instead if any are still open.`}
+        confirmText="Delete"
+        cancelText="Keep"
+        type="danger"
+      />
+
+      <ConfirmModal
+        isOpen={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        onConfirm={() => {
+          void handleStart();
+        }}
+        title="Send GitHub issues?"
+        message={`This opens a public issue titled "${title.trim()}" on ${eligible} repo${eligible === 1 ? "" : "s"} (${BROADCAST_FILTERS.find((f) => f.id === filter)?.label ?? filter}). Sends run 10 seconds apart, ${estimateBroadcastDuration(eligible)}. You can cancel while it runs.`}
+        confirmText="Send"
+        cancelText="Back"
+      />
+
+      <ConfirmModal
+        isOpen={cancelTarget !== null}
+        onClose={() => setCancelTarget(null)}
+        onConfirm={() => {
+          void handleCancel();
+        }}
+        title="Cancel broadcast?"
+        message="Issues already opened stay on GitHub. Remaining repos will not receive one."
+        confirmText="Cancel broadcast"
+        cancelText="Keep sending"
+        type="danger"
+      />
+    </div>
+  );
+}
+
 // ============ CONTENT MODEL MIGRATION PANEL ============
 
 function ContentMigrationPanel() {
@@ -9452,7 +10359,7 @@ function ThumbnailTemplatePanel() {
   );
 }
 
-// Filter type includes review statuses, all, archived, marked_for_deletion, and settings
+// Filter type includes review statuses, all, archived, marked_for_deletion, and tool tabs
 type FilterType =
   | ReviewStatus
   | "all"
@@ -9461,7 +10368,32 @@ type FilterType =
   | "settings"
   | "api"
   | "logs"
-  | "growth";
+  | "growth"
+  | "broadcast";
+
+const ADMIN_TOOL_TABS = [
+  "settings",
+  "api",
+  "logs",
+  "growth",
+  "broadcast",
+] as const;
+
+type AdminToolTab = (typeof ADMIN_TOOL_TABS)[number];
+
+function isAdminToolTab(filter: FilterType): filter is AdminToolTab {
+  return (ADMIN_TOOL_TABS as readonly FilterType[]).includes(filter);
+}
+
+function emptyToolTabPages(): Record<AdminToolTab, number> {
+  return {
+    settings: 1,
+    api: 1,
+    logs: 1,
+    growth: 1,
+    broadcast: 1,
+  };
+}
 
 // Filter tabs component
 function FilterTabs({
@@ -9551,7 +10483,19 @@ function FilterTabs({
       icon: <FileText size={16} />,
       tooltip: "README update logs from the auto-update cron and manual refreshes",
     },
+    {
+      value: "broadcast",
+      label: "Broadcast",
+      icon: <MegaphoneSimple size={16} />,
+      tooltip: "Open GitHub issues on submitter repos and sync replies",
+    },
   ];
+
+  const broadcasts = useQuery(api.githubIssues.listGithubBroadcasts, {
+    includeArchived: false,
+  });
+  const broadcastRunning =
+    broadcasts?.some((broadcast) => broadcast.status === "running") ?? false;
 
   return (
     <div className="rounded-xl border border-border bg-bg-card p-1">
@@ -9568,10 +10512,18 @@ function FilterTabs({
             >
               {tab.icon}
               <span>{tab.label}</span>
-              {tab.value !== "settings" &&
-                tab.value !== "api" &&
-                tab.value !== "logs" &&
-                tab.value !== "growth" && (
+              {tab.value === "broadcast" && broadcastRunning && (
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                    activeFilter === tab.value
+                      ? "bg-white/20 text-white"
+                      : "bg-blue-100 text-blue-700"
+                  }`}
+                >
+                  sending
+                </span>
+              )}
+              {!isAdminToolTab(tab.value) && (
                 <span
                   className={`px-1.5 py-0.5 rounded-full text-xs ${
                     activeFilter === tab.value
@@ -10390,10 +11342,7 @@ function AdminDashboard({
     rejected: 1,
     marked_for_deletion: 1,
     archived: 1,
-    settings: 1,
-    api: 1,
-    logs: 1,
-    growth: 1,
+    ...emptyToolTabPages(),
   });
   // Items per page options
   type ItemsPerPageOption = 5 | 10 | 20 | 40 | 100;
@@ -10414,6 +11363,15 @@ function AdminDashboard({
   useEffect(() => {
     if (typeof window === "undefined") return;
     const parseHash = () => {
+      if (window.location.hash === "#settings-github-broadcast") {
+        setActiveFilter("broadcast");
+        window.history.replaceState(
+          null,
+          "",
+          `${window.location.pathname}${window.location.search}`,
+        );
+        return;
+      }
       const match = window.location.hash.match(/^#pkg-(.+)$/);
       if (!match) return;
       const id = match[1];
@@ -10461,13 +11419,7 @@ function AdminDashboard({
 
     // Does the current filter include this package?
     const matchesCurrentFilter = (() => {
-      if (
-        activeFilter === "settings" ||
-        activeFilter === "api" ||
-        activeFilter === "logs" ||
-        activeFilter === "growth"
-      )
-        return false;
+      if (isAdminToolTab(activeFilter)) return false;
       if (activeFilter === "marked_for_deletion")
         return targetPkg.markedForDeletion === true;
       if (activeFilter === "archived") return pkgIsArchived;
@@ -10489,13 +11441,7 @@ function AdminDashboard({
 
     // Replicate the filter + sort used for rendering so we can locate the index.
     const filtered = packages.filter((pkg: any) => {
-      if (
-        activeFilter === "settings" ||
-        activeFilter === "api" ||
-        activeFilter === "logs" ||
-        activeFilter === "growth"
-      )
-        return false;
+      if (isAdminToolTab(activeFilter)) return false;
       if (activeFilter === "marked_for_deletion")
         return pkg.markedForDeletion === true;
       if (activeFilter === "archived") return pkg.visibility === "archived";
@@ -10628,10 +11574,7 @@ function AdminDashboard({
       rejected: 1,
       marked_for_deletion: 1,
       archived: 1,
-      settings: 1,
-      api: 1,
-      logs: 1,
-      growth: 1,
+      ...emptyToolTabPages(),
     });
     setShowItemsPerPageDropdown(false);
   };
@@ -10679,6 +11622,7 @@ function AdminDashboard({
     api: 0,
     logs: 0,
     growth: 0,
+    broadcast: 0,
     pending: nonArchivedPackages.filter(
       (p) => !p.reviewStatus || p.reviewStatus === "pending",
     ).length,
@@ -10697,14 +11641,8 @@ function AdminDashboard({
 
   // Filter packages based on active filter
   const filteredPackages = packages?.filter((pkg) => {
-    // Settings, API, Logs, and Growth tabs show nothing (no package list)
-    if (
-      activeFilter === "settings" ||
-      activeFilter === "api" ||
-      activeFilter === "logs" ||
-      activeFilter === "growth"
-    )
-      return false;
+    // Tool tabs show their own views, not the package list
+    if (isAdminToolTab(activeFilter)) return false;
     // Marked for deletion tab shows only packages marked for deletion
     if (activeFilter === "marked_for_deletion")
       return pkg.markedForDeletion === true;
@@ -10796,7 +11734,7 @@ function AdminDashboard({
     <div className="max-w-7xl mx-auto">
       {/* Mobile search bar */}
       <div
-        className={`mb-4 sm:hidden ${activeFilter === "settings" || activeFilter === "api" || activeFilter === "logs" || activeFilter === "growth" ? "hidden" : ""}`}
+        className={`mb-4 sm:hidden ${isAdminToolTab(activeFilter) ? "hidden" : ""}`}
       >
         <div className="relative">
           <MagnifyingGlass
@@ -10830,10 +11768,8 @@ function AdminDashboard({
         />
       </div>
 
-      {/* Submissions list (hidden in settings view) */}
-      {activeFilter !== "settings" &&
-        activeFilter !== "api" &&
-        activeFilter !== "growth" && (
+      {/* Submissions list (hidden on tool tabs) */}
+      {!isAdminToolTab(activeFilter) && (
         <div className="rounded-lg border border-border bg-light shadow-sm mb-6">
           <div className="p-3 border-b border-border bg-bg-card flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
             <h2 className="text-base font-light text-text-primary">
@@ -11553,6 +12489,9 @@ function AdminDashboard({
 
       {/* README update logs tab */}
       {activeFilter === "logs" && <ReadmeUpdateLogsTab />}
+
+      {/* GitHub broadcast and reply sync */}
+      {activeFilter === "broadcast" && <GithubBroadcastSection />}
 
       {/* All time downloads growth tab */}
       {activeFilter === "growth" && <DownloadsGrowthTab />}

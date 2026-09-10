@@ -58,4 +58,15 @@ crons.cron(
   {},
 );
 
+// Every 2 minutes: mirror GitHub issue replies into package message threads.
+// Cheap when idle (GitHub answers 304 for free). Gated by:
+// - githubReplySyncEnabled admin toggle
+// - the X-Poll-Interval GitHub last asked for
+crons.interval(
+  "github-reply-sync",
+  { minutes: 2 },
+  internal.githubReplySync.pollNotifications,
+  {},
+);
+
 export default crons;

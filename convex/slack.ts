@@ -1,6 +1,26 @@
 import { internalAction } from "./_generated/server";
 import { v } from "convex/values";
 
+// Shared shape for package related Slack posts so every source (private
+// message, GitHub reply, status change) reads the same in the channel.
+export function formatSlackNotification(
+  pkg: { name: string; componentName?: string; slug?: string },
+  headline: string,
+  fromLabel: string,
+  content: string,
+): string {
+  const slugForUrl = pkg.slug ?? pkg.name;
+  const displayName = `${pkg.componentName ?? pkg.name} (${pkg.name})`;
+  const preview =
+    content.length > 200 ? `${content.slice(0, 200)}...` : content;
+  return (
+    `${headline} ${displayName}\n` +
+    `From: ${fromLabel}\n` +
+    `https://www.convex.dev/components/${slugForUrl}\n` +
+    `Preview: ${preview}`
+  );
+}
+
 export const sendMessage = internalAction({
   args: { text: v.string() },
   returns: v.null(),

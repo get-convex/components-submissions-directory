@@ -236,6 +236,8 @@ export const getOfficialReadmeAutoUpdateSettings = query({
   args: {},
   returns: settingsReturnValidator,
   handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
+
     const enabled = await ctx.db
       .query("adminSettings")
       .withIndex("by_key", (q) => q.eq("key", ENABLED_KEY))

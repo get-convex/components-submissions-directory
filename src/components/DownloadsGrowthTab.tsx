@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAction, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
@@ -45,6 +45,57 @@ function formatMonthLabel(month: string): string {
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
   ];
   return `${names[(m ?? 1) - 1]} ${y}`;
+}
+
+// ---------------------------------------------------------------------------
+// Live sync with the dashboard
+// The stored snapshot supplies the shape of the curve. The headline number
+// comes from the live approved-package total the dashboard also reads, so the
+// two never disagree. Date work lives here rather than in the Convex query,
+// which has to stay deterministic to keep its cache and reactivity.
+// ---------------------------------------------------------------------------
+
+function currentMonthKey(): string {
+  const now = new Date();
+  const m = String(now.getUTCMonth() + 1).padStart(2, "0");
+  return `${now.getUTCFullYear()}-${m}`;
+}
+
+function nextMonthKey(month: string): string {
+  let [year, monthNum] = month.split("-").map(Number);
+  monthNum++;
+  if (monthNum > 12) {
+    monthNum = 1;
+    year++;
+  }
+  return `${year}-${String(monthNum).padStart(2, "0")}`;
+}
+
+// Extend the stored curve through the current month, then land the difference
+// between the snapshot and the live total on the final point. No npm calls.
+function syncMonthsToLiveTotal(
+  storedMonths: Array<MonthPoint>,
+  liveTotal: number,
+  throughMonth: string,
+): Array<MonthPoint> {
+  if (storedMonths.length === 0) return storedMonths;
+  const months = storedMonths.map((m) => ({ ...m }));
+  let last = months[months.length - 1];
+  while (last.month < throughMonth) {
+    last = {
+      month: nextMonthKey(last.month),
+      downloads: 0,
+      cumulative: last.cumulative,
+    };
+    months.push(last);
+  }
+  const previousCumulative =
+    months.length > 1 ? months[months.length - 2].cumulative : 0;
+  // Clamp so an archived or removed package can never make the curve dip
+  const target = Math.max(liveTotal, previousCumulative);
+  last.downloads = target - previousCumulative;
+  last.cumulative = target;
+  return months;
 }
 
 // Linearly interpolate the cumulative value at fractional month index t (0..1)
@@ -533,7 +584,19 @@ export default function DownloadsGrowthTab() {
   // Months inside the selected window drive the chart, image, and video.
   // Cumulative values stay all time running totals; the range only frames
   // the view, so the default window starts at Jan 2025.
-  const allMonths = series?.months ?? [];
+  // The stored curve is extended to the current month and trued up to the
+  // live approved-package total before anything renders.
+  const allMonths = useMemo(
+    () =>
+      series
+        ? syncMonthsToLiveTotal(
+            series.months,
+            series.liveTotalDownloads,
+            currentMonthKey(),
+          )
+        : [],
+    [series],
+  );
   const seriesStart = allMonths[0]?.month ?? DEFAULT_RANGE_START;
   const seriesEnd = allMonths[allMonths.length - 1]?.month ?? DEFAULT_RANGE_START;
   const defaultStart =
@@ -547,7 +610,7 @@ export default function DownloadsGrowthTab() {
   // The card and video show the total through the end of the window
   const windowTotal =
     visibleMonths[visibleMonths.length - 1]?.cumulative ??
-    series?.totalDownloads ??
+    series?.liveTotalDownloads ??
     0;
 
   const handleRangeChange = (which: "start" | "end", value: string) => {
@@ -595,8 +658,9 @@ export default function DownloadsGrowthTab() {
         months: visibleMonths,
         title: title.trim() || DEFAULT_TITLE,
         totalDownloads: windowTotal,
-        packagesIncluded: series.packagesIncluded,
-        generatedAt: series.generatedAt,
+        packagesIncluded: series.livePackagesIncluded,
+        // The total is live, so the card is dated when it is generated
+        generatedAt: Date.now(),
         chartOnly,
       }
     : null;
@@ -707,13 +771,22 @@ export default function DownloadsGrowthTab() {
               </p>
             </div>
             <p className="mt-2 text-4xl font-light text-text-primary tabular-nums sm:text-5xl">
-              {series ? series.totalDownloads.toLocaleString("en-US") : "—"}
+              {series ? series.liveTotalDownloads.toLocaleString("en-US") : "—"}
             </p>
             <p className="mt-1.5 text-xs text-text-secondary">
               {series
-                ? `Cumulative npm downloads across ${series.packagesIncluded} approved components · generated ${generatedDate}`
+                ? `Cumulative npm downloads across ${series.livePackagesIncluded} approved components · same figure as the dashboard All Time card`
                 : "No growth data generated yet"}
             </p>
+            {series && (
+              <p className="mt-1 text-xs text-text-secondary">
+                Total updates live from stored npm data with no npm requests.
+                Month by month curve last rebuilt {generatedDate}
+                {series.livePackagesIncluded > series.snapshotPackagesIncluded
+                  ? ` · ${series.livePackagesIncluded - series.snapshotPackagesIncluded} component(s) added since, their history sits in the current month until you refresh`
+                  : ""}
+              </p>
+            )}
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             <div className="flex gap-2">
@@ -728,6 +801,7 @@ export default function DownloadsGrowthTab() {
               <button
                 onClick={() => void handleRefreshData()}
                 disabled={isGenerating}
+                title="Rebuilds the monthly curve from stored totals. Only components added since the last rebuild are fetched from npm, so this stays well under npm rate limits."
                 className="flex items-center gap-2 rounded-lg bg-button px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-button-hover disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <ArrowsClockwise
@@ -735,13 +809,14 @@ export default function DownloadsGrowthTab() {
                   weight="bold"
                   className={isGenerating ? "animate-spin" : ""}
                 />
-                {isGenerating ? "Refreshing…" : "Refresh data"}
+                {isGenerating ? "Refreshing…" : "Refresh curve"}
               </button>
             </div>
             {series && (
               <button
                 onClick={() => void handleRefreshData(true)}
                 disabled={isGenerating}
+                title="Refetches every component's full download history from npm. Slow and rate limit heavy; only needed after components are removed."
                 className="text-xs text-text-secondary underline-offset-2 transition-colors hover:text-text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Full rebuild from npm

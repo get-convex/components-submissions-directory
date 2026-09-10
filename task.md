@@ -1,8 +1,72 @@
 # Task List
 
+Session updates complete on 2026-09-10 04:23 UTC. Changelog cut as 2.3.0 for the GitHub messaging, Broadcast tab, Growth live total, and admin-gate commit.
+
 ## to do
 
+- [ ] Admin Broadcast tab: signed-in click-through
+  - Code and docs are in. Browser hit Admin Sign In at `http://localhost:5173/components/submissions/admin`. After an `@convex.dev` login: Broadcast sits next to Logs, Settings jump nav has no GitHub Broadcast, Logs has no package list, `#settings-github-broadcast` opens Broadcast, sending pill appears while a job runs.
+
+- [ ] GitHub reply sync: live verification with a classic token
+  - Why: code and cron are on dev, but the dev `GITHUB_TOKEN` is fine grained, so the poller records `GitHub refused access to notifications (403)...` and stops. GitHub's notifications API only accepts a classic token. The token must belong to the same GitHub account that opened issue #2 (the account behind `GITHUB_TOKEN`), because the poller reads that account's notifications.
+  - [x] 1. Create the token. Signed in as the `GITHUB_TOKEN` account, open [https://github.com/settings/tokens/new](https://github.com/settings/tokens/new) (classic). Note `components-directory reply sync`, tick only the `notifications` scope, Generate, copy the `ghp_` value.
+  - [x] 2. Add it to dev. Dashboard [https://dashboard.convex.dev/d/third-hedgehog-429/settings/environment-variables](https://dashboard.convex.dev/d/third-hedgehog-429/settings/environment-variables), Add `GITHUB_NOTIFICATIONS_TOKEN`. Or `npx convex env set GITHUB_NOTIFICATIONS_TOKEN ghp_...`. Leave `GITHUB_TOKEN` as is.
+  - [x] 3. Test connection. With `npx convex dev` and `npm run dev` running, open [http://localhost:5173/components/submissions/admin](http://localhost:5173/components/submissions/admin), Broadcast tab (next to Logs), Reply sync card, click Test connection. Expect `Connected as @login using GITHUB_NOTIFICATIONS_TOKEN. Notifications scope OK.` Note the login.
+  - [x] 4. Turn Reply sync on. Click the Off pill; it flips to On and polls immediately. Token, Last poll, and Last result fill in.
+  - [ ] 5. Reply on GitHub from a different account than the step 3 login (or have a teammate do it): [https://github.com/waynesutton/agent-ready-component/issues/2](https://github.com/waynesutton/agent-ready-component/issues/2), comment `Testing reply sync`.
+  - [ ] 6. Sync and confirm. Click Sync now. Last result shows 1 inserted. Header bell count goes up by one. All tab, search `agent ready`, expand, Comments panel shows the comment with a "via GitHub @login" pill that links to it. Slack has one `New GitHub reply on agent ready` post (needs `SLACK_WEBHOOK_URL` on dev). Click Sync now again: 0 inserted, 1 duplicate, no second copy, no second Slack post.
+  - [ ] 7. Reply from the thread. In the same Comments panel the checkbox reads "Also reply on the open GitHub issue". Tick it, Reply. Message shows "Sent as GitHub comment". Issue #2 has the new comment and [https://github.com/waynesutton/agent-ready-component/issues](https://github.com/waynesutton/agent-ready-component/issues) has no issue #3.
+  - [ ] 8. Prod. Set the same variable at [https://dashboard.convex.dev/d/helpful-ptarmigan-118/settings/environment-variables](https://dashboard.convex.dev/d/helpful-ptarmigan-118/settings/environment-variables) (or `npx convex env set --prod ...`), `npx convex deploy`, then repeat steps 3 and 4 on the production admin page. Sync stays off until flipped.
+  - [ ] 9. Broadcast lifecycle. On the existing completed broadcast in the Broadcast tab: Archive (row disappears), Show archived (row returns with Archived pill), Restore, then Delete and read the confirm copy about reply sync stopping for that broadcast.
+
+- [ ] GitHub issue messaging: browser verification against a real repo
+  - Code is deployed to dev. Still needs an admin session to (1) send a message with the checkbox on a test package whose repo the token can write to and confirm the issue link appears in the thread, and (2) run a small broadcast (Rejected filter), watch progress tick every 10s, and cancel mid run. The agent sandbox could not keep a Vite server alive or reach Convex over the network, and the browser had no admin login.
+
+- [ ] Enforcement by construction for public function auth
+  - Add a `convex/access.ts` exporting `adminQuery` and `adminMutation` built on `customQuery`/`customMutation` from `convex-helpers`, then move admin functions onto them so the gate is structural instead of remembered per function. `packages.ts` alone has over 100 public functions, which is why the per-function pattern keeps slipping (three separate security fixes now: 2026-08-06, 2026-08-13, 2026-08-14).
+- [ ] Pre-existing app typecheck errors, unrelated to any recent change
+  - `src/components/CodeBlock.tsx:97` (`lineNumbers` not in shiki `FileOptions`), `src/pages/CategoryPage.tsx:128`, and `src/pages/ComponentDetail.tsx:1267-1268` (implicit `any`). Present before and after the 2026-08-14 security change and after a clean `_generated` rebuild. Likely fallout from the local `convex` package moving 1.32.0 to 1.44.0.
+
 ## completed
+
+- [x] Move GitHub Broadcast out of Settings into its own admin tab (2026-09-10 04:19 UTC)
+  - [x] New `broadcast` filter tab next to Logs (`MegaphoneSimple`). Compose, reply sync, and history render as three cards. Settings jump nav no longer lists it. `#settings-github-broadcast` still opens the tab.
+  - [x] `isAdminToolTab` covers Settings, API, Logs, Growth, and Broadcast so the package list stays hidden on all of them. Logs previously still showed the submissions list.
+  - [x] Sending pill on the Broadcast tab while a job is running.
+  - [x] Docs: `src/docs/admin-broadcast.md`, Settings keeps a pointer, dashboard/index/notes/updating-docs updated.
+  - PRD: `prds/admin-broadcast-tab.md`
+  - Files: `src/pages/Admin.tsx`, `src/pages/Documentation.tsx`, `src/docs/admin-broadcast.md` (new), `src/docs/admin-settings.md`, `src/docs/admin-dashboard.md`, `src/docs/admin-notes.md`, `src/docs/index.md`, `src/docs/updating-docs.md`
+
+- [x] In-app documentation for GitHub issue messaging, broadcast, and reply sync (2026-09-09 05:45 UTC)
+  - `src/docs/admin-notes.md`: new "GitHub issue messaging" section covering the checkbox, the per message GitHub state pills, the one open issue per package label logic, issue contents, how replies come back (via GitHub pill, unread count, one Slack post, dedupe, bot and self skip), and a pointer to broadcast.
+  - `src/docs/admin-settings.md`: new "GitHub Broadcast and Reply Sync" panel section (filters and counts, 10 second stagger and rate limit math, history and error table, cancel / archive / restore / delete table with the delete side effect on reply matching, reply sync card fields, and the classic token setup steps). Environment variables table gained `GITHUB_TOKEN`, `GITHUB_NOTIFICATIONS_TOKEN`, and `SLACK_WEBHOOK_URL`.
+  - `src/docs/profile.md`: "Messages that arrive as GitHub issues" subsection for submitters. `src/docs/index.md`: link descriptions updated.
+  - Verification: `npm run build` passes; anchor ids match the viewer's heading slug rule.
+
+- [x] GitHub reply sync, comment on the open issue, and broadcast archive / restore / delete (2026-09-09 05:35 UTC)
+  - Reply sync: `convex/githubReplySync.ts` polls `GET /notifications?participating=true` every 2 minutes (cron `github-reply-sync`, gated by the `githubReplySyncEnabled` admin toggle and the stored `X-Poll-Interval`), sends `If-Modified-Since` so idle polls are free 304s, maps each issue thread to a package through the new `githubIssueKey` on `packageComments` or `issueKey` on `githubBroadcastItems`, fetches that issue's comments since the last poll minus a 10 minute buffer, drops the token user's own comments and bots, and inserts each reply as a `source: "github"` message that is unread for admins. One Slack post per reply through the shared `formatSlackNotification` (moved from `packages.ts` into `slack.ts`). Dedupe is on `githubCommentId`. Unmatched threads are left unread on GitHub and counted in the poll summary. Threads we did mirror are marked read.
+  - Token handling: reads `GITHUB_NOTIFICATIONS_TOKEN` first, then `GITHUB_TOKEN`. The notifications endpoints only accept a classic PAT with the `notifications` scope, so a fine grained token yields a plain language `lastError` and a failing Test connection instead of a silent cron.
+  - Comment instead of a second issue: `createIssueForComment` now checks for an open issue for the package (latest created comment issue or latest sent broadcast item), confirms its state with `GET /repos/{owner}/{repo}/issues/{n}`, and posts a comment there (`githubMirrorKind: "comment"`). If the issue is closed it opens a new one and marks the old rows closed. The admin checkbox label reads "Also reply on the open GitHub issue" or "Open a new GitHub issue (previous one is closed)" based on `getOpenIssueForPackage`.
+  - Broadcast lifecycle: `archiveGithubBroadcast`, `restoreGithubBroadcast`, `deleteGithubBroadcast` (refuses while running; deletes items in batches of 500 via `_deleteBroadcastItemsBatch` and unsets `githubBroadcastId` on mirrored replies). `listGithubBroadcasts` takes `includeArchived`. History rows show a replies count, an Archived pill, and Archive / Restore / Delete pills; Delete uses the danger `ConfirmModal` and says that reply sync stops for that broadcast's issues.
+  - Admin Settings gained a Reply sync card (on/off, token login and source, last poll, last result, last error, Test connection, Sync now) and a Show archived toggle. Profile threads show the same "via GitHub @login" pill.
+  - PRD: `prds/github-reply-sync.md`
+  - Files: `convex/schema.ts`, `convex/githubReplySync.ts` (new), `convex/githubIssues.ts`, `convex/packages.ts`, `convex/slack.ts`, `convex/crons.ts`, `src/pages/Admin.tsx`, `src/pages/Profile.tsx`, `changelog.md`, `files.md`
+  - Verification: `tsc -p convex` clean; `tsc -p tsconfig.app.json` shows only the four pre-existing errors in untouched files; eslint reports zero errors on every changed line range in `Admin.tsx`, `Profile.tsx`, and `packages.ts`, and zero errors on the new and touched Convex files; `npm run build` (Netlify) passes. On dev: `npx convex dev` pushed schema, cron, and functions; `githubIssues:backfillGithubIssueKeys` keyed 1 comment and 1 broadcast item; `githubReplySync:_findIssueTargets` resolved `waynesutton/agent-ready-component#2` to its package and broadcast and skipped an unknown key; `githubReplySync:pollNotifications {force:true}` ran without throwing and wrote the expected 403 fine grained token message to `githubSyncState.lastError`. Live reply verification with a classic token is listed under to do.
+
+- [x] GitHub issue messaging and broadcast (2026-09-08 18:40 UTC)
+  - Feature 1: "Also send as a GitHub issue" checkbox in the admin user-messages panel, shown only when the package's `repositoryUrl` is on github.com. `addPackageComment` gained an optional `alsoCreateGithubIssue` flag (admin only, repo must parse); the comment saves first with `githubIssueStatus: "pending"`, then `githubIssues.createIssueForComment` opens the issue and patches the comment with the URL or the error. The thread shows pending / link / failed states reactively.
+  - Feature 2: "GitHub Broadcast" section in admin Settings. Filter pills (Approved / Pending / Rejected / All) with a live eligible-vs-skipped count and duration estimate, title and body inputs, `ConfirmModal` with the exact count, live progress bar, cancel, and expandable per-package history with issue links. Backend is a sequential worker (`processNextBroadcastItem`) that sends one issue then reschedules 10s later, honors `Retry-After` / `X-RateLimit-Reset` on 403/429 with a 3 attempt cap per repo, and stops when cancelled.
+  - PRD: `prds/github-issue-messaging.md`
+  - Files: `convex/schema.ts`, `convex/githubIssues.ts` (new), `convex/packages.ts`, `src/pages/Admin.tsx`, `changelog.md`, `files.md`
+  - Verification: convex typecheck clean, app typecheck shows only the four pre-existing errors in untouched files, eslint clean on `convex/githubIssues.ts` and on every new line range in `Admin.tsx` (baseline errors elsewhere unchanged), `npm run build` (Netlify) clean, `npx convex dev` watcher pushed the schema and functions to dev with "Convex functions ready!". `parseGitHubRepo` unit-checked against 11 URL shapes (https, .git, deep path, git+https, ssh, www, gitlab, owner only, garbage, undefined, lookalike host). Final pass after the `ConfirmModal` `void` wrapper fix (2026-09-08 19:30 UTC): `tsc -p convex` clean, `tsc -p tsconfig.app.json` shows only the pre-existing errors, eslint clean on the new `Admin.tsx` ranges, `vite build` passes. Browser verification of both flows is listed under to do.
+
+- [x] Sync the Growth tab total with the dashboard and keep it current without npm calls (2026-09-04 18:55 UTC)
+  - Two causes for the 32.9M vs 40.1M gap. `getGrowthSeries` returned a frozen snapshot total (built Aug 11) while the dashboard sums `allTimeDownloads` live, and the two covered different package sets (Growth: 146 approved; dashboard: 152 active, including 6 rejected community packages).
+  - The snapshot now supplies only the curve's shape. The query returns `liveTotalDownloads` and `livePackagesIncluded` read off the packages table, plus `snapshotTotal` and `snapshotPackagesIncluded` for what the stored months cover, all through a shared `readGrowthPackages(ctx)` helper. `syncMonthsToLiveTotal` on the client extends the curve to the current month and trues up the final point, clamped so it cannot dip. Zero npm requests on page load.
+  - Per the user's call, the dashboard's All Time Downloads card is now approved only rather than widening the Growth chart, since the share image says "approved components". Only that card changed.
+  - PRD: `prds/growth-tab-live-total-sync.md`
+  - Files: `convex/downloadsGrowth.ts`, `convex/dashboard.ts`, `src/components/DownloadsGrowthTab.tsx`, `src/pages/Dashboard.tsx`, `changelog.md`, `files.md`
+  - Verification: convex typecheck clean, app typecheck shows only the four pre-existing errors in untouched files, eslint clean on the two changed Convex files and `DownloadsGrowthTab.tsx` (`Dashboard.tsx` shows only its three pre-existing floating-promise errors at lines 690, 1023, 1127). Needs a browser check after `npx convex dev` that the Growth header equals the dashboard card and the chart's right edge is Sep 2026.
 
 - [x] Update `@convex-internal/web-analytics` to 2.1.0 (2026-08-26 15:30 UTC)
   - `package.json` only. No app code changes.
@@ -18,6 +82,13 @@
 
 - [x] Update `@convex-internal/web-analytics` to 1.1.0 (2026-08-21 14:43 UTC)
   - `package.json` only. No app code changes.
+
+- [x] Admin-gate the public money, PII, and admin-control functions (2026-08-14 07:05 UTC)
+  - A sec-check audit of all 211 public Convex functions found 51 with no auth reference in the handler. After separating the intentional public directory reads, the real gaps were: the two Tremendous reward actions (anyone could send a real gift card), the two payment queries (recipient emails, names, amounts, order ids), the admin settings read and both write mutations (auto-approve, API access, security scan, reward amount), five internal note and comment queries (`authorEmail` exposure), two admin config reads, and five AI or thumbnail generation actions (provider credit and compute abuse). Each now calls `requireAdminIdentity` first. The three migration backfills became `internalMutation` so they left the public API entirely, matching `backfillCategoryCounts`.
+  - Deliberately left public after checking every call site: `getLatestSecurityScan` (`ComponentDetail`, `Submit`), `fetchGitHubIssues` and `refreshGitHubIssueCounts` (public issues panel), the directory reads, and `rateComponent`.
+  - PRD: `prds/sec-check-public-function-auth-gaps.md`
+  - Files: `convex/payments.ts`, `convex/paymentsDb.ts`, `convex/packages.ts`, `convex/seoContent.ts`, `convex/thumbnailGenerator.ts`, `convex/readmeAutoUpdate.ts`, `changelog.md`, `files.md`
+  - Verification: convex typecheck clean, eslint clean on all six changed files, app typecheck shows only the four pre-existing errors in untouched files, `npx convex dev --once` pushed clean. Unauthenticated `curl` against the dev deployment with type-correct args returns `Authentication required` for `paymentsDb:getPaymentStats`, `packages:getAdminSettings`, `readmeAutoUpdate:getOfficialReadmeAutoUpdateSettings`, and `payments:sendTestReward` (blocked before any Tremendous call); both backfills return `Could not find public function`; control check `packages:listCategories` still returns data so public pages are unaffected. Prod picks this up on the next `npx convex deploy`.
 
 - [x] Hide /components/submissions behind admin access (2026-08-13 06:10 UTC)
   - The submissions table page now requires a logged-in `@convex.dev` admin, matching `/submissions/admin`. New `SubmissionsGate` in `main.tsx` waits for auth and `api.auth.isAdmin` to settle, renders `Submit` for admins, and redirects everyone else (logged in or not) to `/components`. The header Submissions link (desktop and mobile) moved into the admin-only nav group, and `Submit.tsx` became a lazy chunk since the page is no longer indexed. `getSubmitPackagesPage` and `searchSubmitPackagesPage` are admin-gated server side and return empty pages for non-admins so the data cannot be pulled through the public API. SEO cleanup: removed `/components/submissions` from the sitemap in `convex/http.ts`, added it to `isNoindexPath` in `og-meta.ts`, and added an `X-Robots-Tag` header block in `netlify.toml`. No other routes changed.
@@ -254,7 +325,7 @@
 
 - [x] Fix Unicode bullet use-case lists rendering as one paragraph (2026-06-11 13:30 UTC)
   - Root cause: LLM-generated `generatedUseCases` used `•` instead of markdown `-` list markers.
-  - Fix: composable `normalizeMarkdown` pipeline in `shared/normalizeMarkdown.ts`; applied at render, save, and export; prompt now requires `- ` per line.
+  - Fix: composable `normalizeMarkdown` pipeline in `shared/normalizeMarkdown.ts`; applied at render, save, and export; prompt now requires `-`  per line.
   - Files: `shared/normalizeMarkdown.ts`, `shared/seoPromptTemplate.ts`, `src/components/Markdown.tsx`, `convex/seoContent.ts`, `convex/packages.ts`, `convex/http.ts`, `convex/router.ts`, `shared/buildSkillMd.ts`, `changelog.md`, `task.md`, `files.md`
   - Verification: `npx tsc --noEmit` passed.
 
@@ -688,7 +759,7 @@ Session updates complete on 2026-03-27 01:00 UTC.
   - `listCategories` now reads only the categories table (no package scan)
   - REST API `/api/components/search` now uses Convex search indexes instead of loading all packages
   - Added `_searchApprovedPackages` internal query and `backfillCategoryCounts` internal mutation
-  - Source: https://stack.convex.dev/optimizing-openclaw
+  - Source: [https://stack.convex.dev/optimizing-openclaw](https://stack.convex.dev/optimizing-openclaw)
   - Files changed: `convex/schema.ts`, `convex/packages.ts`, `convex/http.ts`, `src/pages/Directory.tsx`, `src/pages/CategoryPage.tsx`
 
 - [ ] Debug and fix admin thumbnail generation from `ComponentDetailsEditor.tsx` (2026-03-19 01:05 UTC)
@@ -1105,11 +1176,15 @@ Session updates complete on 2026-03-12 22:45 UTC.
 - [x] fix mcp (2026-03-06 06:45 UTC)
 - [x] badge shield on each component page (2026-03-06 09:15 UTC)
 - [x] Added badge preview with image to ComponentDetail.tsx
+
 - [x]Fixed edge function conflict blocking badge endpoint
-- [x] Updated og-meta.ts to skip both "badge" and "badge/\*" paths so badge redirects work
-- [x] Updated badge endpoint docs in src/docs/badges.md and src/docs/api-endpoints.md to use /components/badge/<slug>
+
+- [x] Updated og-meta.ts to skip both "badge" and "badge/" paths so badge redirects work
+- [x] Updated badge endpoint docs in src/docs/badges.md and src/docs/api-endpoints.md to use /components/badge/
 - [x] Added dedicated Netlify edge function `component-badge.ts` for `/components/badge/*` to bypass SPA fallback and proxy badge SVG directly
+
 - [x]Verified production build passes with `npm run build` (2026-03-06 UTC)
+
 - [x] Updated fix plan and PRD with final working badge routing pattern
 - [x] Added local `badge-palette-preview.html` with badge/status color previews and added it to `.gitignore`
 - [x] Submission badge sync rollout (2026-03-06 01:45 UTC)
@@ -1181,7 +1256,9 @@ Session updates complete on 2026-03-12 22:45 UTC.
 - [x] Created `netlify/edge-functions/og-meta.ts` to serve dynamic OG tags to bots (2026-03-05 23:45 UTC)
 - [x] Updated `netlify.toml` with edge function registration on `/components/*` (2026-03-05 23:45 UTC)
 - [x] Updated `files.md`, `changelog.md`, `task.md` (2026-03-05 23:50 UTC)
-      [x] fix opengraph view (2026-03-06 06:15 UTC)
+  ```
+  [x] fix opengraph view (2026-03-06 06:15 UTC)
+  ```
 
 ### OpenGraph meta fix v2: HTML injection approach
 
@@ -1199,7 +1276,7 @@ Session updates complete on 2026-03-12 22:45 UTC.
 - [x] Updated `convex/aiSettings.ts` DEFAULT_REVIEW_PROMPT to v2 (2025-03-05 21:30 UTC)
 - [x] Updated `convex/aiReview.ts` REVIEW_CRITERIA and default prompt template to v2 (2025-03-05 21:30 UTC)
 - [x] Fixed false negative: only exported query/mutation/action need returns validators, not helper functions (2025-03-05 21:30 UTC)
-- [x] Fixed false positive: public API functions should NOT use internal\* (2025-03-05 21:30 UTC)
+- [x] Fixed false positive: public API functions should NOT use internal (2025-03-05 21:30 UTC)
 - [x] Added ctx.auth unavailability note and auth callback pattern guidance (2025-03-05 21:30 UTC)
 - [x] Updated "How AI Review Works" section in Admin settings panel to match v2 criteria (2025-03-05 22:00 UTC)
 - [x] Updated `files.md`, `changelog.md`, and `task.md` (2025-03-05 22:00 UTC)
@@ -1384,9 +1461,11 @@ Acceptance checks:
 
 - [ ] vercel.json in website can point to repo app
 - [ ] fix ai check
+
 - docs for badges
 - add image builder
-- [ ] add image builder from https://component-thumbnail-gen.netlify.app/ and https://github.com/waynesutton/component-directory-image-generator
+
+- [ ] add image builder from [https://component-thumbnail-gen.netlify.app/](https://component-thumbnail-gen.netlify.app/) and [https://github.com/waynesutton/component-directory-image-generator](https://github.com/waynesutton/component-directory-image-generator)
 - [ ] add incre
 - [x] header and footer
 - [ ] fix font colros a
@@ -1520,25 +1599,21 @@ Acceptance checks:
 ## Recent updates
 
 - [x] Added admin delete controls for older AI review runs (2026-03-08 17:04 UTC)
-
   - Added `deleteAiReviewRun` mutation with a backend guard that blocks deletion of the latest saved review snapshot
   - Updated the AI review history drawer to let admins delete older runs from both the run list and the detail pane with confirmation
   - Verified with Convex codegen, Convex TypeScript checks, and production build
 
 - [x] Added Escape key close support for AI review history drawer (2026-03-08 17:05 UTC)
-
   - Updated `AiReviewHistoryPanel` to close on `Escape`
   - Kept delete confirmation flow safe by ignoring drawer close on `Escape` while the confirm modal is open
   - Verified with production build
 
 - [x] Added persistent AI review run history and admin review drawer (2026-03-08 06:06 UTC)
-
   - Added `aiReviewRuns` storage so previous AI review runs are preserved instead of being overwritten on `packages`
   - Added admin history query and right-side drawer with run list, score summary, provider metadata, criteria checklist, and raw model output
   - Verified with Convex codegen, Convex TypeScript checks, and production build
 
 - [x] Unified font sizes between AI generated SEO content and long description markdown in ComponentDetail.tsx (2026-03-05 UTC)
-
   - Replaced `prose prose-sm` with explicit `text-sm text-text-secondary` selectors
   - Long description now matches SEO content styling
   - Changed "Made by" to "by" in author row
@@ -1546,19 +1621,16 @@ Acceptance checks:
 - [x] Updated "Live Demo URL" label to "Live Demo URL or Example App" in SubmitForm.tsx and ComponentDetailsEditor.tsx (2026-03-05 17:45 UTC)
 
 - [x] Fixed long package name overflow in ComponentDetail author row (2026-03-05 15:30 UTC)
-
   - Added `flex-wrap` to author row so items wrap gracefully instead of overflowing
   - Added `truncate max-w-[280px] sm:max-w-none` to repo name link (truncates on mobile, full on desktop)
   - Added `title` attribute for hover tooltip showing full name when truncated
 
 - [x] Fixed long description markdown rendering and added submit form mini preview (2026-03-05 23:08 UTC)
-
   - `ComponentDetail.tsx`: long description markdown now preserves line breaks and uses purple links (`#8D2676`) with hover underline
   - `SubmitForm.tsx`: long description now includes safe markdown support guidance and live mini markdown preview
   - Supports headings, bullet lists, line breaks, and markdown links in author-facing submit flow
 
 - [x] Implemented MCP Additive Rollout Phase 1 (2026-03-03 18:00 UTC)
-
   - Added MCP protocol endpoint at `/api/mcp/protocol` with JSON-RPC 2.0 interface
   - Implemented `initialize`, `tools/list`, and `tools/call` methods
   - Added 5 tools: `search_components`, `get_component`, `get_install_command`, `get_docs`, `list_categories`
@@ -1570,7 +1642,6 @@ Acceptance checks:
   - PRD: `prds/mcp-additive-rollout-phase1.md`
 
 - [x] Added runtime AI provider failover across admin settings and environment vars (2026-03-04 02:29 UTC)
-
   - Added `convex/aiProviderFallback.ts` for candidate chain building and sequential fallback execution
   - Added `_getProviderSettingsForFallback` internal query in `convex/aiSettings.ts`
   - Updated `convex/aiReview.ts` and `convex/seoContent.ts` to try active admin, backup admin, then env providers on runtime failures
@@ -1578,13 +1649,11 @@ Acceptance checks:
   - Verified via Convex codegen and TypeScript checks
 
 - [x] Fixed TypeScript errors in AgentInstallSection.tsx (2026-03-03 09:30 UTC)
-
   - Removed undefined `PromptComponentData` type reference
   - Made `npmUrl`, `version`, `description`, `weeklyDownloads` required in local interface
   - Build verified passing (tsc and npm run build)
 
 - [x] Synced Status Legend, Visibility Guide, and Badges across Profile.tsx, Submit.tsx, and Admin.tsx (2026-03-03 09:15 UTC)
-
   - Profile.tsx: removed Archived and Pending Deletion from Visibility Guide
   - Profile.tsx: added Featured status, updated rejected icon to Prohibit for consistency
   - Profile.tsx: removed DeletionBadge component and markedForDeletion SubmissionCard props
@@ -1593,7 +1662,6 @@ Acceptance checks:
   - Build verified passing (tsc and npm run build)
 
 - [x] Rebuilt Footer.tsx to match official Convex.dev footer design (2026-03-03 08:25 UTC)
-
   - Dark background (`#141414`) with Convex design system tokens
   - White Convex wordmark logo, 4 link columns (Product, Developers, Company, Social)
   - Social icons from `/public/*.svg`, external links with `ExternalLinkIcon`
@@ -1603,12 +1671,10 @@ Acceptance checks:
   - Original footer saved as `FooterBackup.tsx`
 
 - [x] Updated Directory sort label text from "Verified first" to "Verified" and revalidated production build (2026-03-03 07:52 UTC)
-
   - Updated desktop and mobile sort display labels in `src/pages/Directory.tsx`
   - Confirmed `npm run build` passes for Netlify style output
 
 - [x] Added Related Components section to component detail pages (2026-03-03 07:29 UTC)
-
   - New `getRelatedComponents` query scoring by category, tags, and downloads
   - Compact no-thumbnail cards (max 3) below View llms.txt with border divider
   - New `showRelatedOnDetailPage` admin setting with toggle in AI Review Settings panel (on by default)
@@ -1617,7 +1683,6 @@ Acceptance checks:
   - Build verified passing
 
 - [x] Added Component Authoring Challenge banner to Directory page (2026-03-03 07:15 UTC)
-
   - Created `src/components/ChallengeBanner.tsx` with dark background, grid texture, and pink bordered CTA button
   - Uses inline SVG data URL based on `public/banner-grid.svg` with boosted stroke visibility for dark backgrounds
   - Placed above FAQSection in `src/pages/Directory.tsx`
@@ -1625,26 +1690,22 @@ Acceptance checks:
   - Build verified passing
 
 - [x] Fixed Convex return validator mismatch for private message thread payloads (2026-03-03 06:44 UTC)
-
   - Updated `getPackageComments` return validator in `convex/packages.ts` to include optional `statusUpdatedAt`
   - Resolved runtime `ReturnsValidationError` caused by archived or hidden message records
   - Verified with local build and Convex function validation
 
 - [x] Updated Directory badge placement for community-only component cards (2026-03-03 06:32 UTC)
-
   - Adjusted `src/components/ComponentCard.tsx` so Community-only listings render in the same right-side badge slot as Verified
   - Preserved dual-badge order when both badges are present (Community then Verified)
   - Verified with production build
 
 - [x] Added hidden or archived message toggle and restore controls in Profile and Admin message modals (2026-03-03 06:32 UTC)
-
   - Added `Show hidden or archived` toggle in both modals
   - Added `Restore` action for owned hidden and archived messages
   - Updated backend message queries to support optional `includeInactive`
   - Confirmed admin own notes deletion remains enforced in backend and UI
 
 - [x] Fixed private message routing and ownership controls between Profile and Admin (2026-03-03 06:24 UTC)
-
   - Profile requests now write to private `packageComments` message thread
   - Admin `Comments` panel now represents private submitter/admin messages, not public frontend comments
   - `Submit.tsx` no longer renders package comments publicly
@@ -1652,14 +1713,12 @@ Acceptance checks:
   - Enforced backend authorization for note/comment ownership operations
 
 - [x] Published team handoff guide for WorkOS Connect with Convex and Netlify (2026-03-03 01:28 UTC)
-
   - Updated `prds/workos-convex-environment-runbook.md` with final working configuration and explicit route policy
   - Added `prds/workos-connect-convex-netlify-how-to.md` with development, staging, and production setup sections
   - Included route matrix for public, authenticated, admin, and non app alias routes
   - Excluded secrets and used placeholders for safe sharing in Notion
 
 - [x] Added Community badge toggle to Admin Actions row (2026-03-03)
-
   - Added `communitySubmitted` prop to `InlineActions` component
   - Added `handleToggleCommunity` handler calling `updateComponentDetails` mutation
   - Added Community toggle button with `Users` icon and Community badge color scheme
@@ -1668,14 +1727,12 @@ Acceptance checks:
   - Build verified passing
 
 - [x] Finalized Connect environment variable guidance after admin doc cross-check (2026-03-03 01:12 UTC)
-
   - Confirmed this app uses WorkOS Connect OAuth client credentials with AuthKit domain based OAuth endpoints
   - Validated local `.env.local` requires `VITE_WORKOS_CLIENT_ID`, `VITE_WORKOS_REDIRECT_URI`, and `VITE_WORKOS_AUTHKIT_DOMAIN`
   - Confirmed Convex dev and prod require `WORKOS_CLIENT_ID` and `WORKOS_AUTHKIT_DOMAIN`
   - Updated session docs to reflect Connect domain requirements in runbook and migration PRD
 
 - [x] Switched app auth flow to WorkOS Connect OAuth with PKCE and Convex token bridge (2026-03-03 00:26 UTC)
-
   - Added `src/lib/connectAuth.tsx` provider and hook for OAuth authorize, callback exchange, token storage, and sign out
   - Updated `src/main.tsx` to use `ConnectAuthProvider` + `ConvexProviderWithAuthKit` with custom connect hook
   - Updated `src/lib/auth.tsx` to use connect `signIn`/`signOut` while keeping `useConvexAuth` auth state
@@ -1685,7 +1742,6 @@ Acceptance checks:
   - Verification: `tsc -p convex`, `tsc -p .`, and `npm run build` passed
 
 - [x] Migrated auth wiring from legacy Convex Auth to WorkOS AuthKit across frontend and Convex backend (2026-03-02 23:42 UTC)
-
   - Updated `src/main.tsx` provider stack to `AuthKitProvider` + `ConvexProviderWithAuthKit`
   - Updated `src/lib/auth.tsx` to use WorkOS `signIn` and `signOut`
   - Reworked `convex/auth.ts` admin and user checks to use `ctx.auth.getUserIdentity()`
@@ -1695,7 +1751,6 @@ Acceptance checks:
   - Verified with `npm run lint`
 
 - [x] Added Community badge feature for community-submitted components (2026-03-02 12:00 UTC)
-
   - New `communitySubmitted` field on packages schema
   - Created `CommunityBadge` component with `#E9DDC2` background color
   - Badge appears between downloads and Verified on Directory cards
@@ -1707,32 +1762,27 @@ Acceptance checks:
   - Build verified passing
 
 - [x] Fixed `View llms.txt` visibility when keywords are missing (2026-02-27 12:00 UTC)
-
   - Moved llms link out of the Keywords conditional in `src/pages/ComponentDetail.tsx`
   - Link now renders whenever component links are available, regardless of tags
   - Verified with `npx tsc -p . --noEmit --pretty false`
 
 - [x] Synced session docs for pagination and markdown link updates (2026-02-27 12:00 UTC)
-
   - Updated `files.md` with Submit pagination APIs and admin setting query coverage
   - Updated PRD index in `files.md` with session PRDs
   - Updated `changelog.md` unreleased notes to reflect completed session documentation
 
 - [x] Updated Netlify markdown alias PRD with centralized helper and local fallback notes (2026-02-27 12:00 UTC)
-
   - Documented why alias URLs are production-only and why localhost must use Convex API endpoints
   - Added guidance for shared URL helper usage to prevent route drift across frontend and Convex HTTP output
   - Captured verification matrix for local and production link behavior
 
 - [x] Fixed localhost markdown and llms dropdown links after URL centralization (2026-02-27 12:00 UTC)
-
   - Added client-aware URL strategy in `shared/componentUrls.ts`
   - Localhost now resolves markdown and llms links to Convex HTTP endpoints
   - Netlify production remains on alias URLs backed by edge function and redirects
   - Verified with `npx tsc -p . --noEmit`, `npx tsc -p convex/tsconfig.json --noEmit`, and `npm run build`
 
 - [x] Added Submit page pagination with admin default page size control (2026-02-27 12:00 UTC)
-
   - Added paginated public queries in `convex/packages.ts` for Submit list and search views
   - Added admin and public setting queries plus admin mutation for Submit default page size (`20`, `40`, `60`)
   - Updated `src/pages/Submit.tsx` to load paged results with Previous and Next controls
@@ -1740,7 +1790,6 @@ Acceptance checks:
   - Verified with `npx tsc -p convex -noEmit --pretty false` and `npx tsc -p . -noEmit --pretty false`
 
 - [x] Centralized component markdown and llms URL generation (2026-02-27 12:00 UTC)
-
   - Added shared helper at `shared/componentUrls.ts` for detail, markdown alias, and llms URL construction
   - Updated `src/pages/ComponentDetail.tsx` dropdown with `Open markdown file`, `Open in ChatGPT`, `Open in Claude`, and `Open in Perplexity`
   - Added `View llms.txt` link below Keywords on component detail page
@@ -1748,20 +1797,17 @@ Acceptance checks:
   - Verified with `npm run build`, `npx tsc -p convex/tsconfig.json --noEmit`, and `npx tsc -p . --noEmit`
 
 - [x] Kept markdown alias URL on Netlify domain (2026-02-27 12:00 UTC)
-
   - Added Netlify Edge Function mapping for `/components/*/*.md`
   - Added `netlify/edge-functions/component-markdown.ts` to resolve markdown by slug
   - Removed client-side redirect for markdown alias from router
   - Alias now serves markdown without switching browser URL to Convex domain
 
 - [x] Added markdown alias URL support for component slugs (2026-02-27 12:00 UTC)
-
   - Added route handling for `/components/<slug>/<slug>.md`
   - Client router now redirects alias URL to Convex markdown endpoint
   - Keeps SPA/admin routes stable while providing markdown access path
 
 - [x] Fixed Netlify SPA routing and GitHub avatar URLs (2026-02-27 12:00 UTC)
-
   - Fixed routes like `/components/submissions/admin` returning 404 markdown
   - Replaced greedy named-parameter redirect rules with explicit splat suffix rules:
     - `/components/*.md` for markdown
@@ -1771,7 +1817,6 @@ Acceptance checks:
   - Main `/components/llms.txt` and `/components.md` still work
 
 - [x] Created Tremendous Rewards Integration PRD (2026-02-27 12:00 UTC)
-
   - Full PRD at `prds/tremendous-rewards-integration.md`
   - Documents Tremendous API setup, SDK usage, and environment variables
   - Defines new `payments` table schema and package reward fields
@@ -1781,7 +1826,6 @@ Acceptance checks:
   - Ready for implementation
 
 - [x] Applied Convex return validator best practices to internal functions (2026-02-26 12:00 UTC)
-
   - Removed redundant `returns: v.null()` from 5 internal mutations (`_saveSeoContent`, `_updateSeoStatus`, `_setSeoError`, `_updateThumbnailJob`, `_saveGeneratedThumbnail`)
   - Removed `returns: v.union(v.null(), v.any())` from 2 internal queries (`_getPackage`, `_getPackageByName`)
   - Fixed `ctx.db.patch` API bugs in `seoContentDb.ts` (was incorrectly passing table name as first argument)
@@ -1790,7 +1834,6 @@ Acceptance checks:
   - No behavioral changes; TypeScript inference handles return types for internal functions
 
 - [x] AI Review Results panel collapsed by default in Admin dashboard (2026-02-26 12:00 UTC)
-
   - Entire panel now collapsed by default, showing only status icon, label, and date
   - Single toggle expands/collapses all content (summary, error, and criteria)
   - Removed nested toggle (previously had outer panel + inner criteria toggle)
@@ -1798,7 +1841,6 @@ Acceptance checks:
   - Reduces vertical space in admin package rows
 
 - [x] Removed user visibility controls from Profile page (2026-02-26 12:00 UTC)
-
   - Removed Hide, Show, Delete, and Cancel Deletion buttons from user profile
   - Users must contact admin via "Send Request" to manage component visibility
   - Removed `ConfirmModal` component (no longer needed)
@@ -1810,7 +1852,6 @@ Acceptance checks:
   - Build verified passing
 
 - [x] Added Download Skill button for SKILL.md files (2026-02-25 12:00 UTC)
-
   - Download button with Phosphor FileArrowDown icon next to Markdown dropdown in author row
   - Button only appears when SKILL.md has been generated (after SEO content generation runs)
   - SKILL.md section now has both copy and download buttons
@@ -1818,13 +1859,11 @@ Acceptance checks:
   - Uses browser Blob API for client-side file generation
 
 - [x] Directory sidebar sticky position adjusted (2026-02-25 12:00 UTC)
-
   - Changed sticky top from `top-6` to `top-20` (80px from viewport top)
   - Submit button now remains visible below the header when scrolling
   - Entire sidebar (Submit, Search, Sort, Categories) stays sticky together
 
 - [x] SEO Prompt Versioning and Multi-Provider AI support (2026-02-25 12:00 UTC)
-
   - Added `seoPromptVersions` table to schema for SEO prompt version history
   - Added SEO prompt queries/mutations to `convex/aiSettings.ts`: `getSeoDefaultPrompt`, `getSeoActivePrompt`, `getSeoPromptVersions`, `saveSeoPromptVersion`, `activateSeoPromptVersion`, `resetSeoToDefaultPrompt`
   - Added `DEFAULT_SEO_PROMPT` constant with placeholder substitution (e.g., `{{displayName}}`, `{{packageName}}`)
@@ -1839,7 +1878,6 @@ Acceptance checks:
   - Added confirmation modal for "Clear (use env)" buttons with danger styling and warning message
 
 - [x] Added Actions row to Admin InlineActions panel (2026-02-25 12:00 UTC)
-
   - New "Actions" row above Status and Visibility rows in expanded package view
   - Convex Verified toggle button (teal, shows fill when verified)
   - Regenerate SEO + Skill button (shows spinner during generation, green when completed)
@@ -1851,7 +1889,6 @@ Acceptance checks:
   - PRD: `prds/admin-actions-row.md`
 
 - [x] Added hide from submissions page feature for admin control (2026-02-25 12:00 UTC)
-
   - New `hideFromSubmissions` field on packages schema
   - `toggleHideFromSubmissions` mutation to toggle visibility on Submit.tsx
   - `listPackages` and `searchPackages` filter out hidden packages
@@ -1861,7 +1898,6 @@ Acceptance checks:
   - PRD: `prds/hide-from-submissions.md`
 
 - [x] Added featured components sort order for admin control (2026-02-25 12:00 UTC)
-
   - New `featuredSortOrder` field on packages schema
   - `getFeaturedComponents` query sorts by `featuredSortOrder` (nulls last), then newest first
   - `setFeaturedSortOrder` mutation for admin to set order value
@@ -1870,7 +1906,6 @@ Acceptance checks:
   - PRD: `prds/featured-sort-order.md`
 
 - [x] Added hide thumbnail in category option for components (2026-02-25 12:00 UTC)
-
   - New `hideThumbnailInCategory` field on packages schema
   - Checkbox in Admin Component Details editor (visible when thumbnail exists)
   - Thumbnails always shown in Featured section
@@ -1880,7 +1915,6 @@ Acceptance checks:
   - PRD: `prds/hide-thumbnail-in-category.md`
 
 - [x] Imported 41 official Convex components to production database (2026-02-24 12:00 UTC)
-
   - Created `seedOfficialComponents` internal action with `importAsPending` and `dryRun` flags
   - Added `browser-use` component (AI category) and synced with convex.dev/components source
   - Renamed `_upsertSeededComponent` to `_upsertOfficialComponent` with improved logic
@@ -1938,7 +1972,7 @@ Acceptance checks:
   - New `setComponentSeoTags()` consolidated helper in seo.ts
   - New `setTwitterTags()` and `setCanonicalUrl()` functions
   - Fixed index.html Twitter meta tags (changed `property` to `name`)
-  - Updated index.html URLs to production domain (www.convex.dev/components)
+  - Updated index.html URLs to production domain ([www.convex.dev/components](http://www.convex.dev/components))
 - [x] AI Provider Settings and Prompt Versioning feature (2026-02-23 12:00 UTC)
   - Added `aiProviderSettings` and `aiPromptVersions` tables to schema
   - Created `convex/aiSettings.ts` with provider and prompt management functions
@@ -2032,7 +2066,7 @@ Acceptance checks:
   - Updated ComponentDetail.tsx with copy button and pre-formatted display
   - Updated ComponentDetailsEditor.tsx with skillMd prop and status display
   - Updated Admin.tsx to pass skillMd prop to editor
-- [x] Configured Netlify SPA routing for /components/\* (2026-02-23 12:00 UTC)
+- [x] Configured Netlify SPA routing for /components/ (2026-02-23 12:00 UTC)
   - Router in `src/main.tsx` strips `/components` prefix for route matching
   - `netlify.toml` redirects `/` to `/components` (301)
   - `netlify.toml` redirects `/components` and `/components/*` to `/index.html` (200)
@@ -2183,12 +2217,12 @@ For admin auth to work, configure your WorkOS JWT template to include the email 
 
 1. Go to WorkOS Dashboard > Authentication > Sessions > Configure JWT Template
 2. Add these claims to your template:
-   ```json
+  ```json
    {
      "email": {{ user.email }},
      "name": "{{ user.first_name }} {{ user.last_name }}"
    }
-   ```
+  ```
 3. Save and sign out/in to get a new token
 
 - [x] SubmitForm.tsx layout update (2026-02-22 12:00 UTC)
@@ -2231,7 +2265,7 @@ For admin auth to work, configure your WorkOS JWT template to include the email 
 - [x] Build admin mutation (updateComponentDetails)
 - [x] Build thumbnail upload mutations (generateUploadUrl, saveThumbnail)
 - [x] Build autoFillAuthorFromRepo mutation
-- [x] Build internal queries (\_getPackageBySlug, \_recordBadgeFetch, getBadgeStats)
+- [x] Build internal queries (getPackageBySlug, recordBadgeFetch, getBadgeStats)
 - [x] Restructure frontend into src/pages/ and src/components/
 - [x] Update client-side router for /, /submit, /submit/admin, /:slug routes
 - [x] Build Directory.tsx page with search, sort, categories, featured section
@@ -2319,7 +2353,7 @@ For admin auth to work, configure your WorkOS JWT template to include the email 
 5. Auto-approve triggers if all criteria pass (when enabled)
 6. Auto-reject triggers if critical criteria fail (when enabled)
 
--
+- 
 
 ## Prod release checklist for directory sort refresh
 

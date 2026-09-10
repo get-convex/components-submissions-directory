@@ -33,8 +33,10 @@ Non-admin users are automatically redirected to their profile page. Unauthentica
 | Deletion | Marked for deletion (Clock icon) |
 | Settings | Admin settings panel |
 | API | API access controls and analytics |
+| Logs | README update logs |
+| Broadcast | GitHub issue broadcasts and reply sync |
 
-Each tab shows a count badge with the number of packages. Filter tabs wrap instead of horizontally scrolling, and tooltips appear above the bar.
+Tool tabs (Settings, API, Logs, Growth, Broadcast) have no package count badge. Filter tabs wrap instead of horizontally scrolling, and tooltips appear above the bar.
 
 ### Package list
 

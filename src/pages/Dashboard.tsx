@@ -780,7 +780,7 @@ export default function Dashboard() {
                   label="All Time Downloads"
                   value={stats.totalAllTimeDownloads}
                   icon={<DownloadSimple size={14} />}
-                  sublabel="Cumulative (npm)"
+                  sublabel={`Cumulative, ${stats.approved} approved`}
                 />
               </div>
             ) : (

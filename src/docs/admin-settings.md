@@ -180,6 +180,10 @@ Configure submitter payout rewards via Tremendous API.
 | Payment stats | Aggregate statistics for completed real rewards |
 | Send Test Reward | Sends to `TREMENDOUS_TEST_RECIPIENT_EMAIL` (creates `isTest` payment, does not change component state) |
 
+### GitHub Broadcast
+
+Broadcast moved out of Settings. Open the Broadcast tab next to Logs to send issues, watch progress, and manage reply sync. See [GitHub Broadcast](/components/documentation/admin-broadcast).
+
 ## Environment variables
 
 Some settings fall back to environment variables when not configured in the dashboard:
@@ -195,6 +199,9 @@ Some settings fall back to environment variables when not configured in the dash
 | Socket.dev API key | `SOCKET_API_KEY` |
 | Snyk token | `SNYK_TOKEN` |
 | Snyk organization | `SNYK_ORG_ID` |
+| GitHub issue creation (messages and broadcasts) | `GITHUB_TOKEN` (needs `public_repo` classic or Issues: write fine grained on the target repos) |
+| GitHub reply sync | `GITHUB_NOTIFICATIONS_TOKEN` (classic token with `notifications` scope; falls back to `GITHUB_TOKEN`) |
+| Slack posts for new messages and mirrored GitHub replies | `SLACK_WEBHOOK_URL` |
 
 Dashboard settings take precedence over environment variables.
 

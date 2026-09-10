@@ -66,6 +66,19 @@ Click "View Notes" to see the conversation thread between you and admins. Featur
 - **Hide/Archive** - Manage old messages
 - **Mark as read** - Clears notification badge
 
+### Messages that arrive as GitHub issues
+
+Admins can send a message to you as an issue on your component's GitHub repo, so you get a normal GitHub notification instead of having to check this page. The issue body is the message plus links back to your listing and this thread.
+
+You can answer either way:
+
+- Reply in the thread here
+- Reply on the GitHub issue
+
+A reply on GitHub shows up in this thread within a few minutes with a "via GitHub" pill linking to your comment. The admin team sees it the same way they see a message sent from here. If your GitHub login matches the author on your submission, the mirrored message is attributed to you.
+
+Follow up messages from admins post as comments on the same issue while it is open, so the whole conversation stays in one place.
+
 ## Status guide
 
 | Status | Meaning |

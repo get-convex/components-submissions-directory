@@ -33,6 +33,7 @@ All doc files live in `src/docs/`:
 | `admin-seo.md` | Content Generation | Admin Guide |
 | `admin-thumbnails.md` | Thumbnails | Admin Guide |
 | `admin-settings.md` | Settings | Admin Guide |
+| `admin-broadcast.md` | GitHub Broadcast | Admin Guide |
 | `admin-notes.md` | Notes and Comments | Admin Guide |
 | `mcp.md` | MCP (Model Context Protocol) | Integrations |
 | `api-endpoints.md` | Public API Endpoints | Integrations |

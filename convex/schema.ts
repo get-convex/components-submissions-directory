@@ -334,7 +334,104 @@ const applicationTables = {
       v.union(v.literal("active"), v.literal("hidden"), v.literal("archived")),
     ),
     statusUpdatedAt: v.optional(v.number()),
-  }).index("by_package_and_created", ["packageId", "createdAt"]),
+    // Set when an admin asked to mirror this message as a GitHub issue on the
+    // submitter's repo. Filled in by githubIssues.createIssueForComment.
+    githubIssueStatus: v.optional(
+      v.union(v.literal("pending"), v.literal("created"), v.literal("failed")),
+    ),
+    githubIssueUrl: v.optional(v.string()),
+    githubIssueError: v.optional(v.string()),
+    // owner/repo#n for the issue this message was mirrored to (as a new issue
+    // or as a comment on an existing one). Replies are matched on this key.
+    githubIssueKey: v.optional(v.string()),
+    githubMirrorKind: v.optional(
+      v.union(v.literal("issue"), v.literal("comment")),
+    ),
+    // Last known state of the issue this row owns; refreshed when an admin
+    // follows up or when the poller sees a state_change notification.
+    githubIssueState: v.optional(v.union(v.literal("open"), v.literal("closed"))),
+    // Set on rows created by githubReplySync when a submitter replied on GitHub.
+    source: v.optional(v.literal("github")),
+    githubCommentId: v.optional(v.number()),
+    githubCommentUrl: v.optional(v.string()),
+    githubAuthorLogin: v.optional(v.string()),
+    githubBroadcastId: v.optional(v.id("githubBroadcasts")),
+  })
+    .index("by_package_and_created", ["packageId", "createdAt"])
+    .index("by_github_issue_key", ["githubIssueKey"])
+    .index("by_github_comment_id", ["githubCommentId"])
+    .index("by_github_broadcast", ["githubBroadcastId"]),
+
+  // One row per admin "send a GitHub issue to every submitter" run.
+  // Counters are patched by the worker as items complete.
+  githubBroadcasts: defineTable({
+    title: v.string(),
+    body: v.string(),
+    statusFilter: v.union(
+      v.literal("approved"),
+      v.literal("pending"),
+      v.literal("rejected"),
+      v.literal("all"),
+    ),
+    status: v.union(
+      v.literal("running"),
+      v.literal("completed"),
+      v.literal("cancelled"),
+    ),
+    total: v.number(),
+    sent: v.number(),
+    failed: v.number(),
+    skipped: v.number(),
+    createdBy: v.string(),
+    createdAt: v.number(),
+    completedAt: v.optional(v.number()),
+    // GitHub replies mirrored into package threads, summed across items.
+    replies: v.optional(v.number()),
+    // Present when an admin archived the broadcast from the history list.
+    archivedAt: v.optional(v.number()),
+  }).index("by_created", ["createdAt"]),
+
+  // Per package outcome for a broadcast. Queued rows are processed one at a
+  // time by githubIssues.processNextBroadcastItem.
+  githubBroadcastItems: defineTable({
+    broadcastId: v.id("githubBroadcasts"),
+    packageId: v.id("packages"),
+    packageName: v.string(),
+    repo: v.optional(v.string()), // owner/name when parseable
+    status: v.union(
+      v.literal("queued"),
+      v.literal("sent"),
+      v.literal("failed"),
+      v.literal("skipped"),
+    ),
+    attempts: v.number(),
+    issueUrl: v.optional(v.string()),
+    issueKey: v.optional(v.string()), // owner/repo#n, used to match replies
+    issueState: v.optional(v.union(v.literal("open"), v.literal("closed"))),
+    replyCount: v.optional(v.number()),
+    error: v.optional(v.string()),
+    updatedAt: v.number(),
+  })
+    .index("by_broadcast", ["broadcastId"])
+    .index("by_broadcast_and_status", ["broadcastId", "status"])
+    .index("by_issue_key", ["issueKey"])
+    .index("by_package", ["packageId"]),
+
+  // Singleton for the GitHub notifications poller (githubReplySync). Holds
+  // the cached token login, polling cursor, and last run summary shown in the
+  // admin Reply sync card.
+  githubSyncState: defineTable({
+    tokenLogin: v.optional(v.string()),
+    tokenSource: v.optional(
+      v.union(v.literal("notifications"), v.literal("default")),
+    ),
+    lastPolledAt: v.optional(v.number()),
+    lastModified: v.optional(v.string()), // GitHub Last-Modified header
+    pollIntervalSeconds: v.optional(v.number()),
+    lastRunSummary: v.optional(v.string()),
+    lastError: v.optional(v.string()),
+    updatedAt: v.number(),
+  }),
 
   // Review status change notifications shown in the submitter's header bell
   statusNotifications: defineTable({

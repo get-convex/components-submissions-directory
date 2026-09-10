@@ -193,6 +193,9 @@ export const regenerateAllThumbnails = action({
   },
   returns: v.object({ queued: v.number() }),
   handler: async (ctx, args) => {
+    // Batch generation fans out across every package, so it is admin only
+    await requireAdminIdentity(ctx);
+
     const packages: Array<{
       _id: Id<"packages">;
       thumbnailUrl?: string;
@@ -229,6 +232,8 @@ export const regenerateSelectedThumbnails = action({
   },
   returns: v.object({ queued: v.number() }),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
     const uniquePackageIds = Array.from(new Set(args.packageIds));
     for (let i = 0; i < uniquePackageIds.length; i++) {
       const delay = i * 2000;

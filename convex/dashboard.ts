@@ -103,7 +103,9 @@ function computeDashboardStats(active: Array<DashboardPackage>) {
   let convexTeam = 0;
   let convexTeamSinceOct2025 = 0;
   // Note: despite the name, totalDownloads is the sum of WEEKLY downloads
-  // across packages. totalAllTimeDownloads is the true all-time sum.
+  // across every active package. totalAllTimeDownloads is the cumulative sum
+  // and counts approved packages only, matching the Growth tab's series so the
+  // two surfaces never report different all-time numbers.
   let totalDownloads = 0;
   let totalAllTimeDownloads = 0;
   let communityDownloads = 0;
@@ -126,9 +128,11 @@ function computeDashboardStats(active: Array<DashboardPackage>) {
     const submittedTs = pkg.submittedAt || pkg._creationTime;
     const allTime = pkg.allTimeDownloads ?? 0;
 
-    if (pkg.reviewStatus === "approved") approved++;
+    if (pkg.reviewStatus === "approved") {
+      approved++;
+      totalAllTimeDownloads += allTime;
+    }
     totalDownloads += downloads;
-    totalAllTimeDownloads += allTime;
 
     if (isTeam) {
       convexTeam++;

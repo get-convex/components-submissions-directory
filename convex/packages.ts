@@ -10,6 +10,8 @@ import {
   MutationCtx,
 } from "./_generated/server";
 import { getAdminIdentity, requireAdminIdentity } from "./auth";
+import { parseGitHubRepo as parseGitHubRepoForIssues } from "./githubIssues";
+import { formatSlackNotification } from "./slack";
 import { api, internal } from "./_generated/api";
 import { Id, Doc } from "./_generated/dataModel";
 import { buildSkillMdFromContent } from "../shared/buildSkillMd";
@@ -196,24 +198,6 @@ function userOwnsPackage(pkg: Doc<"packages">, userEmail: string): boolean {
   if (pkg.submitterEmail === userEmail) return true;
   if (pkg.additionalEmails?.includes(userEmail)) return true;
   return false;
-}
-
-function formatSlackNotification(
-  pkg: Doc<"packages">,
-  headline: string,
-  fromLabel: string,
-  content: string,
-): string {
-  const slugForUrl = pkg.slug ?? pkg.name;
-  const displayName = `${pkg.componentName ?? pkg.name} (${pkg.name})`;
-  const preview =
-    content.length > 200 ? `${content.slice(0, 200)}...` : content;
-  return (
-    `${headline} ${displayName}\n` +
-    `From: ${fromLabel}\n` +
-    `https://www.convex.dev/components/${slugForUrl}\n` +
-    `Preview: ${preview}`
-  );
 }
 
 function compactSlackSummary(summary?: string) {
@@ -2582,6 +2566,9 @@ export const getPackageNotes = query({
     }),
   ),
   handler: async (ctx, args) => {
+    // Notes are internal review threads and carry author emails
+    await requireAdminIdentity(ctx);
+
     // Get all notes for this package
     const notes = await ctx.db
       .query("packageNotes")
@@ -2614,6 +2601,8 @@ export const getPackageNoteCount = query({
   args: { packageId: v.id("packages") },
   returns: v.number(),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
     const notes = await ctx.db
       .query("packageNotes")
       .withIndex("by_package_and_created", (q) =>
@@ -2629,6 +2618,8 @@ export const getUnrepliedUserRequestCount = query({
   args: { packageId: v.id("packages") },
   returns: v.number(),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
     const notes = await ctx.db
       .query("packageNotes")
       .withIndex("by_package_and_created", (q) =>
@@ -2775,6 +2766,8 @@ export const getUnreadUserNotesCount = query({
   args: { packageId: v.id("packages") },
   returns: v.number(),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
     const notes = await ctx.db
       .query("packageNotes")
       .withIndex("by_package_and_created", (q) =>
@@ -2839,6 +2832,8 @@ export const getUnreadCommentsCount = query({
   args: { packageId: v.id("packages") },
   returns: v.number(),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
     const comments = await ctx.db
       .query("packageComments")
       .withIndex("by_package_and_created", (q) =>
@@ -2866,7 +2861,7 @@ export const backfillCategoryCounts = internalMutation({
 });
 
 // Migration: Backfill maintainerNames for existing packages
-export const backfillMaintainerNames = mutation({
+export const backfillMaintainerNames = internalMutation({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
@@ -2886,7 +2881,7 @@ export const backfillMaintainerNames = mutation({
 });
 
 // Migration: Backfill package reliability fields used by directory sorting/visibility
-export const backfillPackageReliabilityFields = mutation({
+export const backfillPackageReliabilityFields = internalMutation({
   args: {},
   returns: v.number(),
   handler: async (ctx) => {
@@ -3659,6 +3654,7 @@ export const getAdminSettings = query({
   args: {},
   returns: adminSettingsReturnValidator,
   handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
     return await getAdminSettingsHelper(ctx);
   },
 });
@@ -3738,6 +3734,8 @@ export const updateAdminSetting = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
     // Find existing setting
     const existing = await ctx.db
       .query("adminSettings")
@@ -3794,6 +3792,8 @@ export const updateAdminSettingNumeric = mutation({
   },
   returns: v.null(),
   handler: async (ctx, args) => {
+    await requireAdminIdentity(ctx);
+
     // Find existing setting
     const existing = await ctx.db
       .query("adminSettingsNumeric")
@@ -3844,6 +3844,27 @@ export const getPackageComments = query({
         ),
       ),
       statusUpdatedAt: v.optional(v.number()),
+      githubIssueStatus: v.optional(
+        v.union(
+          v.literal("pending"),
+          v.literal("created"),
+          v.literal("failed"),
+        ),
+      ),
+      githubIssueUrl: v.optional(v.string()),
+      githubIssueError: v.optional(v.string()),
+      githubIssueKey: v.optional(v.string()),
+      githubMirrorKind: v.optional(
+        v.union(v.literal("issue"), v.literal("comment")),
+      ),
+      githubIssueState: v.optional(
+        v.union(v.literal("open"), v.literal("closed")),
+      ),
+      source: v.optional(v.literal("github")),
+      githubCommentId: v.optional(v.number()),
+      githubCommentUrl: v.optional(v.string()),
+      githubAuthorLogin: v.optional(v.string()),
+      githubBroadcastId: v.optional(v.id("githubBroadcasts")),
     }),
   ),
   handler: async (ctx, args) => {
@@ -3919,6 +3940,9 @@ export const addPackageComment = mutation({
   args: {
     packageId: v.id("packages"),
     content: v.string(),
+    // Admin only: also open a GitHub issue with this message on the
+    // submitter's repo so they get a notification where they already work.
+    alsoCreateGithubIssue: v.optional(v.boolean()),
   },
   returns: v.id("packageComments"),
   handler: async (ctx, args) => {
@@ -3939,6 +3963,12 @@ export const addPackageComment = mutation({
       throw new ConvexError("You can only message for your own submissions");
     }
 
+    // Only admins can mirror to GitHub, and only when the repo is on github.com.
+    const mirrorToGithub =
+      isAdmin &&
+      args.alsoCreateGithubIssue === true &&
+      parseGitHubRepoForIssues(pkg.repositoryUrl) !== null;
+
     // Insert a private thread message with read state.
     const commentId = await ctx.db.insert("packageComments", {
       packageId: args.packageId,
@@ -3949,7 +3979,16 @@ export const addPackageComment = mutation({
       adminHasRead: isAdmin,
       userHasRead: !isAdmin,
       status: "active",
+      githubIssueStatus: mirrorToGithub ? "pending" : undefined,
     });
+
+    if (mirrorToGithub) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.githubIssues.createIssueForComment,
+        { commentId },
+      );
+    }
 
     // Notify via Slack when a private message is added.
     const fromLabel = isAdmin
@@ -5346,6 +5385,12 @@ export const getMyPackageNotes = query({
           v.literal("archived"),
         ),
       ),
+      source: v.optional(v.literal("github")),
+      githubCommentUrl: v.optional(v.string()),
+      githubAuthorLogin: v.optional(v.string()),
+      githubMirrorKind: v.optional(
+        v.union(v.literal("issue"), v.literal("comment")),
+      ),
     }),
   ),
   handler: async (ctx, args) => {
@@ -5387,6 +5432,10 @@ export const getMyPackageNotes = query({
       isOwnMessage: comment.authorEmail === userEmail,
       userHasRead: comment.userHasRead,
       status: comment.status,
+      source: comment.source,
+      githubCommentUrl: comment.githubCommentUrl,
+      githubAuthorLogin: comment.githubAuthorLogin,
+      githubMirrorKind: comment.githubMirrorKind,
     }));
   },
 });
@@ -5753,6 +5802,8 @@ export const getDeletionCleanupSettings = query({
     deleteIntervalDays: v.number(),
   }),
   handler: async (ctx) => {
+    await requireAdminIdentity(ctx);
+
     const autoDeleteSetting = await ctx.db
       .query("adminSettings")
       .withIndex("by_key", (q) => q.eq("key", "autoDeleteMarkedPackages"))

@@ -3,6 +3,7 @@ import {
   action,
   internalQuery,
   internalMutation,
+  type QueryCtx,
 } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
@@ -41,11 +42,54 @@ const growthSeriesValidator = v.object({
   packageNames: v.optional(v.array(v.string())),
 });
 
-// Latest saved growth snapshot for the admin Growth tab.
+// The view the Growth tab renders: the stored curve plus the live totals it is
+// trued up against, so the header number never drifts from the dashboard.
+const growthSeriesViewValidator = v.object({
+  generatedAt: v.number(),
+  startMonth: v.string(),
+  endMonth: v.string(),
+  months: v.array(monthPointValidator),
+  packagesFailed: v.array(v.string()),
+  // What the stored month-by-month curve was built from
+  snapshotTotal: v.number(),
+  snapshotPackagesIncluded: v.number(),
+  // Read live from the packages table on every query, no npm calls
+  liveTotalDownloads: v.number(),
+  livePackagesIncluded: v.number(),
+});
+
+// Packages that count toward the all-time downloads total: approved, not
+// archived, not marked for deletion. Their stored allTimeDownloads is kept
+// fresh by the existing npm refresh flows, so reading it costs no npm calls.
+async function readGrowthPackages(
+  ctx: QueryCtx,
+): Promise<Array<{ name: string; allTimeDownloads?: number }>> {
+  const approved = await ctx.db
+    .query("packages")
+    .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) =>
+      q.eq("reviewStatus", "approved"),
+    )
+    .take(4000);
+
+  return approved
+    .filter(
+      (pkg) => pkg.visibility !== "archived" && pkg.markedForDeletion !== true,
+    )
+    .map((pkg) => ({
+      name: pkg.name,
+      allTimeDownloads: pkg.allTimeDownloads,
+    }));
+}
+
+// Latest saved growth snapshot for the admin Growth tab, paired with the live
+// approved-package totals. The snapshot supplies the shape of the curve; the
+// live sum supplies the headline number, which is the same figure the
+// dashboard's All Time Downloads card reads. The client trues the final point
+// up to the live total, so the chart stays current without touching npm.
 // Admin-gated; returns null for non-admins to avoid info leakage.
 export const getGrowthSeries = query({
   args: {},
-  returns: v.union(growthSeriesValidator, v.null()),
+  returns: v.union(growthSeriesViewValidator, v.null()),
   handler: async (ctx) => {
     const admin = await getAdminIdentity(ctx);
     if (!admin) return null;
@@ -54,14 +98,28 @@ export const getGrowthSeries = query({
       .query("downloadGrowthSeries")
       .order("desc")
       .first();
-    return snapshot ?? null;
+    if (!snapshot) return null;
+
+    const packages = await readGrowthPackages(ctx);
+    const liveTotalDownloads = packages.reduce(
+      (sum, p) => sum + (p.allTimeDownloads ?? 0),
+      0,
+    );
+
+    return {
+      generatedAt: snapshot.generatedAt,
+      startMonth: snapshot.startMonth,
+      endMonth: snapshot.endMonth,
+      months: snapshot.months,
+      packagesFailed: snapshot.packagesFailed,
+      snapshotTotal: snapshot.totalDownloads,
+      snapshotPackagesIncluded: snapshot.packagesIncluded,
+      liveTotalDownloads,
+      livePackagesIncluded: packages.length,
+    };
   },
 });
 
-// Packages that count toward the all-time downloads total (approved, not
-// archived, not marked for deletion), with their stored allTimeDownloads.
-// This is the same stored figure the admin dashboard sums, kept fresh by the
-// existing package refresh flows, so incremental refreshes need no npm calls.
 export const _getGrowthPackages = internalQuery({
   args: {},
   returns: v.array(
@@ -70,23 +128,7 @@ export const _getGrowthPackages = internalQuery({
       allTimeDownloads: v.optional(v.number()),
     }),
   ),
-  handler: async (ctx) => {
-    const approved = await ctx.db
-      .query("packages")
-      .withIndex("by_reviewStatus_and_visibility_and_markedForDeletion", (q) =>
-        q.eq("reviewStatus", "approved"),
-      )
-      .take(4000);
-
-    return approved
-      .filter(
-        (pkg) => pkg.visibility !== "archived" && pkg.markedForDeletion !== true,
-      )
-      .map((pkg) => ({
-        name: pkg.name,
-        allTimeDownloads: pkg.allTimeDownloads,
-      }));
-  },
+  handler: async (ctx) => readGrowthPackages(ctx),
 });
 
 // Latest snapshot for the action to decide between incremental and full runs.

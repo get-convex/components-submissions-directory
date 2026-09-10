@@ -10,6 +10,7 @@ import { internal } from "./_generated/api";
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { buildProviderCandidates, executeWithProviderFallback } from "./aiProviderFallback";
+import { requireAdminIdentity } from "./auth";
 import {
   DEFAULT_SEO_PROMPT_TEMPLATE,
   DEFAULT_CONTENT_PROMPT_TEMPLATE,
@@ -649,6 +650,9 @@ export const regenerateSeoContent = action({
   args: { packageId: v.id("packages") },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
+    // AI generation costs provider credits, so it is admin only
+    await requireAdminIdentity(ctx);
+
     // Schedule the generation to run immediately
     await ctx.scheduler.runAfter(0, internal.seoContent.generateSeoContent, {
       packageId: args.packageId,
@@ -945,6 +949,8 @@ export const regenerateDirectoryContent = action({
   args: { packageId: v.id("packages") },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
+    await requireAdminIdentity(ctx);
+
     await ctx.scheduler.runAfter(0, internal.seoContent.generateDirectoryContent, {
       packageId: args.packageId,
     });
@@ -1024,6 +1030,8 @@ export const refreshReadmeContent = action({
   args: { packageId: v.id("packages") },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
+    await requireAdminIdentity(ctx);
+
     await ctx.scheduler.runAfter(0, internal.seoContent.refreshReadme, {
       packageId: args.packageId,
       source: "admin",

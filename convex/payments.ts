@@ -4,6 +4,7 @@ import { v, ConvexError } from "convex/values";
 import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
+import { requireAdminIdentity } from "./auth";
 
 // Tremendous API response types
 interface TremendousOrderResponse {
@@ -237,6 +238,9 @@ export const sendRewardManual = action({
     ctx,
     args,
   ): Promise<RewardSendResult> => {
+    // Sending a reward spends real money, so it is admin only
+    await requireAdminIdentity(ctx);
+
     const pkg = await ctx.runQuery(internal.paymentsDb._getPackageForReward, {
       packageId: args.packageId,
     });
@@ -281,6 +285,8 @@ export const sendTestReward = action({
     error: v.optional(v.string()),
   }),
   handler: async (ctx, args): Promise<RewardSendResult> => {
+    await requireAdminIdentity(ctx);
+
     const testRecipientEmail =
       process.env.TREMENDOUS_TEST_RECIPIENT_EMAIL?.trim();
 
