@@ -4,6 +4,7 @@ import { internal } from "./_generated/api";
 import { buildComponentUrls } from "../shared/componentUrls";
 import { normalizeMarkdown } from "../shared/normalizeMarkdown";
 import { isOfficialComponent } from "../shared/officialComponents";
+import { isSupportedRepoUrl, repoHostLabel } from "../shared/repoUrl";
 import { resolveApiCaller, rateLimitHeaders, type ApiCallerResult } from "./apiKeys";
 
 const http = httpRouter();
@@ -302,7 +303,7 @@ function buildComponentMarkdown(pkg: any): string {
   lines.push(`## Links\n`);
   lines.push(`- [npm package](${pkg.npmUrl})`);
   if (pkg.repositoryUrl)
-    lines.push(`- [GitHub repository](${pkg.repositoryUrl})`);
+    lines.push(`- [${repoHostLabel(pkg.repositoryUrl)} repository](${pkg.repositoryUrl})`);
   if (pkg.slug)
     lines.push(
       `- [Convex Components Directory](https://www.convex.dev/components/${pkg.slug})`,
@@ -455,7 +456,7 @@ function buildMarkdownIndexBody(
       lines.push(`- Version: ${pkg.version || "0.0.0"}`);
       lines.push(`- Install: \`${pkg.installCommand || `npm install ${pkg.name}`}\``);
       lines.push(`- [npm](${pkg.npmUrl})`);
-      if (pkg.repositoryUrl) lines.push(` | [GitHub](${pkg.repositoryUrl})`);
+      if (pkg.repositoryUrl) lines.push(` | [${repoHostLabel(pkg.repositoryUrl)}](${pkg.repositoryUrl})`);
       if (mdUrl) lines.push(` | [Markdown](${mdUrl})`);
       if (componentLinks && hasPublicSkill(pkg)) {
         lines.push(` | [Skill](${componentLinks.skillUrl})`);
@@ -572,7 +573,7 @@ http.route({
       lines.push(`- Skill: ${componentLinks.skillUrl}`);
     }
     lines.push(`- npm: ${pkg.npmUrl || ""}`);
-    if (pkg.repositoryUrl) lines.push(`- GitHub: ${pkg.repositoryUrl}`);
+    if (pkg.repositoryUrl) lines.push(`- ${repoHostLabel(pkg.repositoryUrl)}: ${pkg.repositoryUrl}`);
     if (pkg.demoUrl) lines.push(`- Demo: ${pkg.demoUrl}`);
     lines.push("");
 
@@ -1364,13 +1365,12 @@ http.route({
         );
       }
 
-      // Validate URL format
-      const urlPattern = /^https?:\/\/(www\.)?github\.com\/[^/]+\/[^/]+/;
-      if (!urlPattern.test(body.repoUrl)) {
+      // Validate URL format (GitHub or GitLab)
+      if (!isSupportedRepoUrl(body.repoUrl)) {
         return new Response(
           JSON.stringify({
             error:
-              "Invalid GitHub repository URL. Expected format: https://github.com/owner/repo",
+              "Invalid repository URL. Expected https://github.com/owner/repo or https://gitlab.com/owner/repo",
           }),
           { status: 400, headers: corsHeaders }
         );

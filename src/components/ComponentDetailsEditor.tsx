@@ -482,18 +482,23 @@ export function ComponentDetailsEditor({
     }
   };
 
-  // Auto-fill author from GitHub repo URL
-  // Updates local state immediately from mutation return value
+  // Auto-fill author from the repo URL (GitHub or GitLab)
+  // Updates local state immediately from mutation return value. GitLab
+  // avatars arrive via a scheduled action, so the field may fill in shortly after.
   const handleAutoFillAuthor = async () => {
     setFillingAuthor(true);
     try {
       const result = await autoFillAuthor({ packageId });
       if (result) {
         setAuthorUsername(result.authorUsername);
-        setAuthorAvatar(result.authorAvatar);
-        toast.success("Author info populated from GitHub");
+        if (result.authorAvatar) {
+          setAuthorAvatar(result.authorAvatar);
+          toast.success("Author info populated from repository");
+        } else {
+          toast.success("Author username set. Avatar will load from GitLab shortly.");
+        }
       } else {
-        toast.error("No GitHub repository URL found on this package");
+        toast.error("No GitHub or GitLab repository URL found on this package");
       }
     } catch {
       toast.error("Could not extract author from repository URL");
@@ -602,7 +607,7 @@ export function ComponentDetailsEditor({
         {!isSubmissionMode && (
           <div className="min-w-0">
             <label className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block">
-              Author GitHub Username
+              Author Username (GitHub or GitLab)
             </label>
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center min-w-0">
               <input

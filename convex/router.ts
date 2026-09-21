@@ -3,6 +3,7 @@ import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { normalizeMarkdown } from "../shared/normalizeMarkdown";
 import { buildComponentUrls } from "../shared/componentUrls";
+import { repoHostLabel } from "../shared/repoUrl";
 
 const http = httpRouter();
 const DIRECTORY_ORIGIN = "https://www.convex.dev";
@@ -197,7 +198,7 @@ function buildComponentMarkdown(pkg: any): string {
   lines.push(`## Links\n`);
   lines.push(`- [npm package](${pkg.npmUrl})`);
   if (pkg.repositoryUrl)
-    lines.push(`- [GitHub repository](${pkg.repositoryUrl})`);
+    lines.push(`- [${repoHostLabel(pkg.repositoryUrl)} repository](${pkg.repositoryUrl})`);
   if (pkg.slug)
     lines.push(
       `- [Convex Components Directory](https://www.convex.dev/components/${pkg.slug})`,

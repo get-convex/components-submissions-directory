@@ -15,7 +15,7 @@ A sending pill appears on the Broadcast tab while a job is running, so you can s
 ## Sending a broadcast
 
 1. Pick a filter: Approved, Pending, Rejected, or All. Pending covers pending, in review, and packages with no status yet
-2. Read the count. The card shows how many components have a GitHub repo and will get the issue, how many will be skipped, and a time estimate
+2. Read the count. The card shows how many components have a GitHub repo and will get the issue, how many will be skipped, and a time estimate. Components hosted on GitLab count as skipped, since issue creation is GitHub only
 3. Enter an issue title and body
 4. Click Send and confirm the exact count in the modal
 

@@ -19,6 +19,7 @@ import type * as dashboard from "../dashboard.js";
 import type * as downloadsGrowth from "../downloadsGrowth.js";
 import type * as githubIssues from "../githubIssues.js";
 import type * as githubReplySync from "../githubReplySync.js";
+import type * as gitlabApi from "../gitlabApi.js";
 import type * as http from "../http.js";
 import type * as notifications from "../notifications.js";
 import type * as packages from "../packages.js";
@@ -53,6 +54,7 @@ declare const fullApi: ApiFromModules<{
   downloadsGrowth: typeof downloadsGrowth;
   githubIssues: typeof githubIssues;
   githubReplySync: typeof githubReplySync;
+  gitlabApi: typeof gitlabApi;
   http: typeof http;
   notifications: typeof notifications;
   packages: typeof packages;

@@ -550,13 +550,14 @@ export default function ProfileEditSubmission({
                 Links
               </label>
               <p className="text-xs text-text-secondary mb-3">
-                Changing the GitHub repository or npm URL triggers an automatic
+                Changing the repository or npm URL triggers an automatic
                 security re-scan and notifies the Convex team.
               </p>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-text-primary mb-1">
-                    GitHub Repository URL
+                    Repository URL
+                    <span className="ml-1.5 text-xs font-normal text-text-secondary">GitHub or GitLab</span>
                   </label>
                   <input
                     type="url"

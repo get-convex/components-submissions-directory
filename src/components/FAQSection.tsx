@@ -27,7 +27,7 @@ export function FAQSection() {
         <div>
           <h3 className="text-sm font-medium text-text-primary">What are the requirements?</h3>
           <p className="text-sm text-text-secondary mt-1">
-            Components must be published on npm, have a public GitHub repository, and follow the{" "}
+            Components must be published on npm, have a public GitHub or GitLab repository, and follow the{" "}
             <a
               href="https://docs.convex.dev/components/authoring"
               target="_blank"

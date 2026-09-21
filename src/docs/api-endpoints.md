@@ -93,7 +93,7 @@ For individual components, the markdown output contains:
 - "From the README.md" section with imported README content
 - v2 content sections (Description, Use cases, How it works) when available
 - SKILL.md content (if available)
-- Links to npm, GitHub, demo
+- Links to npm, the repository (GitHub or GitLab), demo
 
 ## Badge endpoint
 
@@ -119,7 +119,7 @@ Each badge fetch is tracked in the `badgeFetches` table. This lets admins see wh
 
 ## Preflight check endpoint
 
-The preflight checker API validates a GitHub repository against review criteria.
+The preflight checker API validates a GitHub or GitLab repository against review criteria. `repoUrl` must point at `github.com` or `gitlab.com`; other hosts return 400.
 
 | Method | Path | Description |
 |--------|------|-------------|

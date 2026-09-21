@@ -118,7 +118,7 @@ The help text and placeholder reference describe README-first grounding and Conv
 | `{{packageName}}` | npm package name |
 | `{{description}}` | Short description |
 | `{{category}}` | Component category |
-| `{{readmeContent}}` | GitHub README content |
+| `{{readmeContent}}` | README content from the GitHub or GitLab repository |
 | `{{convexDocsContext}}` | Convex documentation context |
 
 ### Category Management
@@ -201,6 +201,7 @@ Some settings fall back to environment variables when not configured in the dash
 | Snyk organization | `SNYK_ORG_ID` |
 | GitHub issue creation (messages and broadcasts) | `GITHUB_TOKEN` (needs `public_repo` classic or Issues: write fine grained on the target repos) |
 | GitHub reply sync | `GITHUB_NOTIFICATIONS_TOKEN` (classic token with `notifications` scope; falls back to `GITHUB_TOKEN`) |
+| GitLab reads (README, preflight, AI review, issues, avatar) | `GITLAB_TOKEN` (optional; personal access token with `read_api` scope, only raises the rate limit. Public gitlab.com projects work without it) |
 | Slack posts for new messages and mirrored GitHub replies | `SLACK_WEBHOOK_URL` |
 
 Dashboard settings take precedence over environment variables.

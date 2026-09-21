@@ -82,6 +82,7 @@ import { ExternalLinkIcon as RadixExternalLinkIcon } from "@radix-ui/react-icons
 import AiLoadingDots from "../components/AiLoadingDots";
 import DownloadsGrowthTab from "../components/DownloadsGrowthTab";
 import { AI_REVIEW_PROMPT_STATUS_LABEL } from "../../shared/aiReviewPromptMeta";
+import { parseRepoUrl, repoHostLabel } from "../../shared/repoUrl";
 
 // Review status type
 type ReviewStatus =
@@ -1643,6 +1644,8 @@ function CommentsPanel({
   // Untick per message to keep it private. Ignored when the repo is not github.com.
   const [alsoCreateGithubIssue, setAlsoCreateGithubIssue] = useState(true);
   const canMirrorToGithub = isGitHubRepoUrl(repositoryUrl);
+  // GitLab repos are read only in this app, so explain why the mirror box is missing.
+  const isGitLabRepo = parseRepoUrl(repositoryUrl)?.provider === "gitlab";
 
   const comments = useQuery(api.packages.getPackageComments, {
     packageId,
@@ -2038,6 +2041,11 @@ function CommentsPanel({
               </span>
             </label>
           )}
+          {isGitLabRepo && (
+            <p className="mt-3 text-[11px] text-text-secondary/80">
+              Issue mirroring is available for GitHub repositories only.
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -2301,7 +2309,7 @@ function AiReviewResultsPanel({
 
 ### Package Info
 - **npm:** ${npmUrl || "N/A"}
-- **GitHub:** ${repositoryUrl || "N/A"}
+- **${repoHostLabel(repositoryUrl)}:** ${repositoryUrl || "N/A"}
 - **Maintainers:** ${maintainerList}
 
 ### Summary
@@ -3795,7 +3803,7 @@ function InlineActions({
     }
   };
 
-  // Refresh only the README content from GitHub
+  // Refresh only the README content from the repository (GitHub or GitLab)
   const handleRefreshReadme = async () => {
     if (isRefreshingReadme) return;
     setIsRefreshingReadme(true);
@@ -4147,7 +4155,7 @@ function InlineActions({
               content={
                 isRefreshingReadme
                   ? "Fetching README..."
-                  : "Fetch latest README from GitHub without regenerating AI content"
+                  : `Fetch latest README from ${repoHostLabel(repositoryUrl, "the repository")} without regenerating AI content`
               }
             >
               <button
@@ -4226,7 +4234,7 @@ function InlineActions({
               content={
                 !canAutoFill
                   ? "No data available to auto-fill"
-                  : `Auto-fill${repositoryUrl ? " author from GitHub" : ""}${repositoryUrl && npmDescription ? " and" : ""}${npmDescription ? " description from package" : ""}`
+                  : `Auto-fill${repositoryUrl ? ` author from ${repoHostLabel(repositoryUrl, "repository")}` : ""}${repositoryUrl && npmDescription ? " and" : ""}${npmDescription ? " description from package" : ""}`
               }
             >
               <button
@@ -6808,7 +6816,7 @@ function AdminSettingsPanel() {
                 How AI Review Works
               </p>
               <p className="mt-1">
-                The AI analyzes the package&apos;s GitHub repository against
+                The AI analyzes the package&apos;s GitHub or GitLab repository against
                 official{" "}
                 <a
                   href="https://docs.convex.dev/components/authoring"
@@ -8346,7 +8354,7 @@ function SeoPromptSettingsPanel() {
               (description, use cases, how it works) and SKILL.md. The same
               prompt is used by the admin Generate Content button, the
               submission form, and the profile edit flow. Generation reads the
-              GitHub README as the primary source, uses the component name and
+              repository README (GitHub or GitLab) as the primary source, uses the component name and
               short description as secondary context, and grounds Convex
               terminology against `llms.txt`.
             </p>

@@ -140,9 +140,9 @@ const applicationTables = {
         }),
       ),
     ),
-    // GitHub username of primary author
+    // Repo owner of the primary author: GitHub user/org or GitLab namespace path
     authorUsername: v.optional(v.string()),
-    // GitHub avatar URL
+    // Author avatar URL (github.com/{owner}.png or the GitLab namespace avatar)
     authorAvatar: v.optional(v.string()),
     // Human-readable component display name (e.g. "Convex Agent")
     componentName: v.optional(v.string()),
@@ -152,7 +152,8 @@ const applicationTables = {
     hideFromSubmissions: v.optional(v.boolean()),
     // Related component IDs (admin-managed)
     relatedComponentIds: v.optional(v.array(v.id("packages"))),
-    // Cached GitHub issue counts (refreshed via action)
+    // Cached issue counts from GitHub or GitLab (refreshed via action).
+    // Field names predate GitLab support; provider comes from repositoryUrl.
     githubOpenIssues: v.optional(v.number()),
     githubClosedIssues: v.optional(v.number()),
     githubIssuesFetchedAt: v.optional(v.number()),

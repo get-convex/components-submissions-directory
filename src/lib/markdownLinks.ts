@@ -1,44 +1,16 @@
 // Resolves links and image sources inside rendered README markdown against the
-// source GitHub repository. Handles plain repo URLs as well as monorepo
-// subdirectory URLs (e.g. ".../tree/main/packages/convex"), so relative links
-// like "../../examples/foo" climb from the README's actual location instead of
+// source repository (GitHub or GitLab). Handles plain repo URLs as well as
+// monorepo subdirectory URLs (e.g. ".../tree/main/packages/convex" or
+// ".../-/tree/main/packages/convex"), so relative links like
+// "../../examples/foo" climb from the README's actual location instead of
 // resolving against the app origin (which 404s).
 
-interface GitHubRepoRef {
-  owner: string;
-  repo: string;
-  /** Git ref (branch/tag/sha). Defaults to "HEAD" so it works for main/master. */
-  ref: string;
-  /** Repo-relative directory the README lives in ("" for repo root). */
-  dir: string;
-}
-
-/** Parse owner/repo plus optional tree/blob ref + subdirectory from a GitHub URL. */
-function parseGitHubRepo(repositoryUrl?: string): GitHubRepoRef | undefined {
-  if (!repositoryUrl) return undefined;
-  const ownerRepo = repositoryUrl.match(/github\.com[/:]([^/]+)\/([^/?#]+)/i);
-  if (!ownerRepo) return undefined;
-
-  const owner = ownerRepo[1];
-  const repo = ownerRepo[2].replace(/\.git$/i, "");
-
-  let ref = "HEAD";
-  let dir = "";
-  const treeOrBlob = repositoryUrl.match(
-    /\/(?:tree|blob)\/([^/?#]+)((?:\/[^?#]*)?)/i,
-  );
-  if (treeOrBlob) {
-    ref = treeOrBlob[1];
-    dir = (treeOrBlob[2] || "").replace(/^\/+/, "").replace(/\/+$/, "");
-  }
-
-  return { owner, repo, ref, dir };
-}
+import { parseRepoUrl, repoBlobUrl, repoRawUrl } from "../../shared/repoUrl";
 
 /**
  * Resolve a relative/root-relative target to a repo-relative path (incl. any
  * query/hash), anchored at the README's directory. Uses a dummy origin so URL
- * semantics handle "./", "../", and leading "/" the same way GitHub does.
+ * semantics handle "./", "../", and leading "/" the same way the hosts do.
  */
 function resolveWithinRepo(target: string, dir: string): string {
   const base = `https://example.invalid/${dir ? `${dir}/` : ""}`;
@@ -63,14 +35,16 @@ export function resolveRepositoryMarkdownHref(
   if (!href) return href;
   if (isAbsoluteOrAnchor(href)) return href;
 
-  const repo = parseGitHubRepo(repositoryUrl);
+  const repo = parseRepoUrl(repositoryUrl);
   if (!repo) return href;
 
   try {
-    const path = resolveWithinRepo(href, repo.dir);
-    // GitHub serves files via /blob and 301-redirects directories to /tree,
-    // so /blob works for both.
-    return `https://github.com/${repo.owner}/${repo.repo}/blob/${repo.ref}/${path}`;
+    // Split query/hash off so path segments alone get URL-encoded.
+    const resolved = resolveWithinRepo(href, repo.dir);
+    const suffixIndex = resolved.search(/[?#]/);
+    const path = suffixIndex === -1 ? resolved : resolved.slice(0, suffixIndex);
+    const suffix = suffixIndex === -1 ? "" : resolved.slice(suffixIndex);
+    return `${repoBlobUrl(repo, path)}${suffix}`;
   } catch {
     return href;
   }
@@ -83,12 +57,15 @@ export function resolveRepositoryImageSrc(
   if (!src) return src;
   if (isAbsoluteOrAnchor(src)) return src;
 
-  const repo = parseGitHubRepo(repositoryUrl);
+  const repo = parseRepoUrl(repositoryUrl);
   if (!repo) return src;
 
   try {
-    const path = resolveWithinRepo(src, repo.dir);
-    return `https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/${repo.ref}/${path}`;
+    const resolved = resolveWithinRepo(src, repo.dir);
+    const suffixIndex = resolved.search(/[?#]/);
+    const path = suffixIndex === -1 ? resolved : resolved.slice(0, suffixIndex);
+    const suffix = suffixIndex === -1 ? "" : resolved.slice(suffixIndex);
+    return `${repoRawUrl(repo, path)}${suffix}`;
   } catch {
     return src;
   }

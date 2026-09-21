@@ -29,9 +29,15 @@ import {
   removeJsonLd,
   buildComponentJsonLd,
 } from "../lib/seo";
+import { RepoHostIcon } from "../components/RepoHostIcon";
+import {
+  parseRepoUrl,
+  repoHostLabel,
+  repoIssuesUrl,
+  repoOwnerUrl,
+} from "../../shared/repoUrl";
 import {
   ArrowLeftIcon,
-  GitHubLogoIcon,
   ExternalLinkIcon,
   DownloadIcon,
   CopyIcon,
@@ -134,7 +140,7 @@ function buildMarkdownDoc(c: {
 
   lines.push(`## Links\n`);
   lines.push(`- [npm package](${c.npmUrl})`);
-  if (c.repositoryUrl) lines.push(`- [GitHub repository](${c.repositoryUrl})`);
+  if (c.repositoryUrl) lines.push(`- [${repoHostLabel(c.repositoryUrl)} repository](${c.repositoryUrl})`);
   if (c.slug)
     lines.push(`- [Convex Components Directory](https://www.convex.dev/components/${c.slug})`);
   if (c.slug && c.skillMd && c.hideSeoAndSkillContentOnDetailPage !== true)
@@ -457,7 +463,10 @@ function ComponentHelpModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
-  const githubIssuesUrl = repositoryUrl ? `${repositoryUrl.replace(/\/$/, "")}/issues` : null;
+  // Issues link for GitHub (/issues) or GitLab (/-/issues)
+  const parsedRepo = parseRepoUrl(repositoryUrl);
+  const issuesUrl = parsedRepo ? repoIssuesUrl(parsedRepo) : null;
+  const hostLabel = repoHostLabel(repositoryUrl);
 
   return (
     <div
@@ -487,16 +496,16 @@ function ComponentHelpModal({
             </h3>
             <p className="text-sm text-text-secondary leading-relaxed">
               For package specific bugs, install issues, and feature requests, contact the component
-              author through the GitHub repository or its Issues page.
+              author through the {hostLabel === "Repository" ? "source" : hostLabel} repository or its Issues page.
             </p>
-            {githubIssuesUrl ? (
+            {issuesUrl ? (
               <a
-                href={githubIssuesUrl}
+                href={issuesUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-2 inline-flex items-center gap-1.5 text-sm text-text-primary hover:underline">
-                <GitHubLogoIcon className="w-4 h-4" />
-                Open GitHub Issues
+                <RepoHostIcon repositoryUrl={repositoryUrl} className="w-4 h-4" />
+                Open {hostLabel} Issues
                 <ExternalLinkIcon className="w-3 h-3 text-text-secondary" />
               </a>
             ) : repositoryUrl ? (
@@ -505,7 +514,7 @@ function ComponentHelpModal({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-2 inline-flex items-center gap-1.5 text-sm text-text-primary hover:underline">
-                <GitHubLogoIcon className="w-4 h-4" />
+                <RepoHostIcon repositoryUrl={repositoryUrl} className="w-4 h-4" />
                 View repository
                 <ExternalLinkIcon className="w-3 h-3 text-text-secondary" />
               </a>
@@ -656,7 +665,10 @@ function SecurityReportModal({
     };
   }, []);
 
-  const githubIssuesUrl = repositoryUrl ? `${repositoryUrl.replace(/\/$/, "")}/issues` : null;
+  // Issues link for GitHub (/issues) or GitLab (/-/issues)
+  const parsedRepo = parseRepoUrl(repositoryUrl);
+  const issuesUrl = parsedRepo ? repoIssuesUrl(parsedRepo) : null;
+  const hostLabel = repoHostLabel(repositoryUrl);
 
   const providerNames: Record<string, string> = {
     socket: "Socket.dev",
@@ -754,16 +766,16 @@ function SecurityReportModal({
               </h3>
               <p className="text-sm text-text-secondary leading-relaxed">
                 For security concerns, dependency issues, or vulnerability reports, contact the
-                component author through the GitHub repository.
+                component author through the {hostLabel === "Repository" ? "source" : hostLabel} repository.
               </p>
-              {githubIssuesUrl ? (
+              {issuesUrl ? (
                 <a
-                  href={githubIssuesUrl}
+                  href={issuesUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-2 inline-flex items-center gap-1.5 text-sm text-text-primary hover:underline">
-                  <GitHubLogoIcon className="w-4 h-4" />
-                  Open GitHub Issues
+                  <RepoHostIcon repositoryUrl={repositoryUrl} className="w-4 h-4" />
+                  Open {hostLabel} Issues
                   <ExternalLinkIcon className="w-3 h-3 text-text-secondary" />
                 </a>
               ) : repositoryUrl ? (
@@ -772,7 +784,7 @@ function SecurityReportModal({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-2 inline-flex items-center gap-1.5 text-sm text-text-primary hover:underline">
-                  <GitHubLogoIcon className="w-4 h-4" />
+                  <RepoHostIcon repositoryUrl={repositoryUrl} className="w-4 h-4" />
                   View repository
                   <ExternalLinkIcon className="w-3 h-3 text-text-secondary" />
                 </a>
@@ -1018,9 +1030,14 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
     URL.revokeObjectURL(url);
   };
 
-  const authorGitHubUrl = component?.authorUsername
-    ? `https://github.com/${component.authorUsername}`
-    : null;
+  // Owner profile on the repo host (GitHub user/org or GitLab namespace).
+  // Falls back to github.com for legacy rows that have a username but no repo URL.
+  const parsedComponentRepo = parseRepoUrl(component?.repositoryUrl);
+  const authorGitHubUrl = parsedComponentRepo
+    ? repoOwnerUrl(parsedComponentRepo)
+    : component?.authorUsername
+      ? `https://github.com/${component.authorUsername}`
+      : null;
   const resolvedCategory = component?.category
     ? (dynamicCategories.find((category) => category.id === component.category) ?? null)
     : null;
@@ -1310,7 +1327,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-1.5 text-sm text-text-primary hover:underline">
-                <GitHubLogoIcon className="w-4 h-4" />
+                <RepoHostIcon repositoryUrl={component.repositoryUrl} className="w-4 h-4" />
                 View Repo
                 <ExternalLinkIcon className="w-3 h-3 text-text-secondary" />
               </a>

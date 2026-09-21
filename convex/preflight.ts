@@ -15,12 +15,15 @@ export async function hashIp(ip: string): Promise<string> {
   return hashHex.slice(0, 32);
 }
 
-// Normalize repo URL for consistent caching
+// Normalize repo URL for consistent caching. Strips GitHub /tree and /blob
+// paths and the GitLab /-/tree and /-/blob equivalents so subdirectory URLs
+// share a cache entry with the repo root.
 export function normalizeRepoUrl(url: string): string {
   return url
     .replace(/^git\+/, "")
     .replace(/\.git$/, "")
     .replace(/\/$/, "")
+    .replace(/\/-\/(tree|blob)\/[^/]+.*$/, "")
     .replace(/\/tree\/[^/]+.*$/, "")
     .replace(/\/blob\/[^/]+.*$/, "")
     .replace(/#.*$/, "")

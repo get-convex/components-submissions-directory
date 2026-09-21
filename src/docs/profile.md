@@ -68,7 +68,7 @@ Click "View Notes" to see the conversation thread between you and admins. Featur
 
 ### Messages that arrive as GitHub issues
 
-Admins can send a message to you as an issue on your component's GitHub repo, so you get a normal GitHub notification instead of having to check this page. The issue body is the message plus links back to your listing and this thread.
+Admins can send a message to you as an issue on your component's GitHub repo, so you get a normal GitHub notification instead of having to check this page. The issue body is the message plus links back to your listing and this thread. If your component is hosted on GitLab, messages stay in this thread only; issue mirroring is GitHub only.
 
 You can answer either way:
 

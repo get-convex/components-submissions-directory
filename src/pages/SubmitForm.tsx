@@ -22,6 +22,8 @@ import {
   SpinnerGap,
 } from "@phosphor-icons/react";
 import DocSectionEditor from "../components/DocSectionEditor";
+import { RepoHostIcon } from "../components/RepoHostIcon";
+import { isSupportedRepoUrl } from "../../shared/repoUrl";
 
 // Get base path for links (always /components)
 function useBasePath() {
@@ -350,11 +352,6 @@ export default function SubmitForm() {
     return pattern.test(email);
   };
 
-  const validateGitHubRepoUrl = (url: string): boolean => {
-    const pattern = /^https?:\/\/(www\.)?github\.com\/[^/]+\/[^/]+\/?(\.git)?$/;
-    return pattern.test(url);
-  };
-
   const validateUrl = (url: string): boolean => {
     const pattern = /^https?:\/\/.+/;
     return pattern.test(url);
@@ -365,7 +362,7 @@ export default function SubmitForm() {
     repositoryUrl.trim() &&
     npmPackageName.trim() &&
     shortDescription.trim() &&
-    validateGitHubRepoUrl(repositoryUrl.trim()) &&
+    isSupportedRepoUrl(repositoryUrl.trim()) &&
     isValidNpmPackageName(npmPackageName.trim());
 
   const handleGenerateContent = useCallback(async () => {
@@ -423,9 +420,9 @@ export default function SubmitForm() {
       return;
     }
 
-    if (!validateGitHubRepoUrl(repositoryUrl.trim())) {
+    if (!isSupportedRepoUrl(repositoryUrl.trim())) {
       setErrorMessage(
-        "Please enter a valid GitHub repository URL. Expected format: https://github.com/owner/repo"
+        "Please enter a valid GitHub or GitLab repository URL. Expected format: https://github.com/owner/repo or https://gitlab.com/owner/repo"
       );
       setShowError(true);
       return;
@@ -621,20 +618,26 @@ export default function SubmitForm() {
               />
             </div>
 
-            {/* GitHub Repository URL */}
+            {/* Repository URL (GitHub or GitLab) */}
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1">
-                GitHub Repo URL <span className="text-red-500">*</span>
+                Repository URL <span className="text-red-500">*</span>
+                <span className="ml-1.5 text-xs font-normal text-text-secondary">GitHub or GitLab</span>
               </label>
-              <input
-                type="text"
-                placeholder="https://github.com/owner/repo"
-                value={repositoryUrl}
-                onChange={(e) => setRepositoryUrl(e.target.value)}
-                required
-                disabled={isLoading}
-                className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20"
-              />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none">
+                  <RepoHostIcon repositoryUrl={repositoryUrl} size={16} />
+                </span>
+                <input
+                  type="text"
+                  placeholder="https://github.com/owner/repo"
+                  value={repositoryUrl}
+                  onChange={(e) => setRepositoryUrl(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20"
+                />
+              </div>
             </div>
 
             {/* npm package name (we build the npm URL from it) */}
@@ -744,7 +747,7 @@ export default function SubmitForm() {
                 )}
               </div>
               <p className="text-xs text-text-secondary mb-3">
-                Generate a description, use cases, and "how it works" section from your GitHub
+                Generate a description, use cases, and "how it works" section from your repository
                 README and npm package. You can edit the results before submitting. If you skip this
                 step, you can generate content later from your profile page.
               </p>
@@ -769,7 +772,7 @@ export default function SubmitForm() {
               </button>
               {!canGenerate && !contentGenerated && (
                 <p className="text-xs text-text-tertiary mt-2">
-                  Fill in Component Name, GitHub Repo URL, npm package URL, and Short Description
+                  Fill in Component Name, Repository URL, npm package URL, and Short Description
                   first.
                 </p>
               )}

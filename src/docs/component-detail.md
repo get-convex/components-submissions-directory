@@ -17,7 +17,7 @@ The detail page has two columns:
 - **Community badge** - If community submitted (appears below verified badge)
 - **Downloads** - Weekly npm download count
 - **Files/Size** - Package statistics
-- **Repository link** - GitHub repo link
+- **Repository link** - GitHub or GitLab repo link with the matching host icon
 - **Rating** - Star rating system
 - **How to get help** - Small modal trigger for support guidance
 - **Community scan via Socket.dev** - Opens a security report modal with scan status, providers, and recommendations
@@ -65,7 +65,7 @@ If the component has AI-generated SKILL.md content, a download button appears in
 
 ## Content sections
 
-The v2 content model generates structured sections using AI grounded on the GitHub README and Convex docs context:
+The v2 content model generates structured sections using AI grounded on the repository README (GitHub or GitLab) and Convex docs context:
 
 - **Description** - Component overview
 - **Use cases** - Common scenarios and applications
@@ -80,13 +80,13 @@ README content supports:
 - GitHub Flavored Markdown tables with borders and alternating row shading
 - Inline HTML from GitHub READMEs (`<div align="center">`, `<strong>`, badge images) via `rehype-raw`
 - Video URLs (`.mp4`, `.webm`, `.mov`) rendered as native `<video>` elements instead of broken images
-- Relative links like `CONTRIBUTING.md` resolved against the GitHub repository
+- Relative links and images like `CONTRIBUTING.md` or `./docs/demo.png` resolved against the repository, including GitHub `/tree/<ref>/<dir>` and GitLab `/-/tree/<ref>/<dir>` subdirectory URLs
 
 ## Help modal
 
 The "How to get help" modal in the sidebar:
 
-- Points to GitHub Issues when a repository URL exists
+- Points to the repository's Issues page (GitHub `/issues` or GitLab `/-/issues`) when a repository URL exists
 - Links to the Convex community at `https://convex.dev/community`
 - Shows a third-party component notice for community submissions
 
@@ -97,7 +97,7 @@ The "Community scan via Socket.dev" link in the sidebar opens a modal showing th
 - **Status** line indicating whether the component has been scanned and the scan date
 - **Providers** section listing Socket.dev and Snyk with links to run your own scan
 - **Recommendations** from the automated scan (when available)
-- **Contact the component author** section with a link to GitHub Issues (shown when findings or recommendations exist)
+- **Contact the component author** section with a link to the repository's Issues page (shown when findings or recommendations exist)
 - **Third-party component notice** reminding users that community components are not maintained by Convex
 
 The label is intentionally attributed to Socket.dev to make it clear the scan is a community service, not a Convex endorsement. If the component has not been scanned yet, the modal shows a notice to review the repository manually.

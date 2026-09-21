@@ -676,7 +676,7 @@ KEY REQUIREMENTS FROM DOCS:
 10. If a component provides functions for apps to re-export (makeXXXAPI pattern), it should use an app-side auth wrapper or accept an auth callback option where appropriate.
 
 REVIEW SCOPE:
-- This review starts from a stored package record, but the actual component validity check is based on the linked GitHub repository contents included below.
+- This review starts from a stored package record, but the actual component validity check is based on the linked repository contents (GitHub or GitLab) included below.
 - Do NOT assume the published npm tarball was scanned.
 - Judge whether the repository passes as a valid Convex component. Use npm/package-level details only when they are visible in the repository.
 - CRITICAL: Before evaluating ANY criteria, first locate the component source code using the LOCATING THE COMPONENT SOURCE CODE steps below. Do not review example/demo app code as if it were the component itself.

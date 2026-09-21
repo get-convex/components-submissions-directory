@@ -2,6 +2,7 @@
 // Shared between seoContent.ts (action, "use node") and packages.ts / seoContentDb.ts (mutations).
 
 import { normalizeMarkdown } from "./normalizeMarkdown";
+import { repoHostLabel } from "./repoUrl";
 
 export interface SkillMdContentInput {
   description: string;
@@ -90,7 +91,7 @@ export function buildSkillMdFromContent(
   lines.push("## Resources");
   lines.push("");
   if (npmUrl) lines.push(`- [npm package](${npmUrl})`);
-  if (repoUrl) lines.push(`- [GitHub repository](${repoUrl})`);
+  if (repoUrl) lines.push(`- [${repoHostLabel(repoUrl)} repository](${repoUrl})`);
   if (pkg.demoUrl) lines.push(`- [Live demo](${pkg.demoUrl})`);
   if (pkg.slug) {
     lines.push(

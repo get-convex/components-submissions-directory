@@ -11,6 +11,7 @@ import {
 } from "./_generated/server";
 import { getAdminIdentity, requireAdminIdentity } from "./auth";
 import { parseGitHubRepo as parseGitHubRepoForIssues } from "./githubIssues";
+import { fetchGitLabIssueCounts, fetchGitLabIssues } from "./gitlabApi";
 import { formatSlackNotification } from "./slack";
 import { api, internal } from "./_generated/api";
 import { Id, Doc } from "./_generated/dataModel";
@@ -20,6 +21,11 @@ import {
   isOfficialComponent,
   OFFICIAL_CATEGORY_SLUG,
 } from "../shared/officialComponents";
+import { parseRepoUrl } from "../shared/repoUrl";
+
+// Shared error copy for every place a repository URL is validated.
+const INVALID_REPO_URL_MESSAGE =
+  "Invalid repository URL. Expected https://github.com/owner/repo or https://gitlab.com/owner/repo";
 
 // ============ HELPER: Recount category package/verified counts ============
 // Recalculates denormalized counts on the categories table after approval/visibility changes.
@@ -1302,6 +1308,12 @@ async function scheduleSubmissionFollowups(
     text: slackText,
   });
 
+  if (validated.parsedRepo?.provider === "gitlab") {
+    await ctx.scheduler.runAfter(0, internal.gitlabApi.fillGitLabAuthorAvatar, {
+      packageId,
+    });
+  }
+
   if (prereqs.settings.autoAiReview && args.repositoryUrl) {
     const _: null = await ctx.runMutation(
       internal.packages._updateReviewStatus,
@@ -1336,11 +1348,9 @@ function validateSubmitInputs(args: any) {
     throw new ConvexError("Please fill in all required fields.");
   }
 
-  const parsedRepo = parseGitHubRepo(repositoryUrl);
+  const parsedRepo = parseRepoUrl(repositoryUrl);
   if (!parsedRepo) {
-    throw new ConvexError(
-      "Invalid GitHub repository URL. Expected format: https://github.com/owner/repo",
-    );
+    throw new ConvexError(INVALID_REPO_URL_MESSAGE);
   }
 
   return {
@@ -1379,10 +1389,13 @@ function buildPackageInsertData(
         .filter(Boolean)
     : undefined;
 
+  // GitHub exposes github.com/{owner}.png directly. GitLab avatars need an
+  // API call, which scheduleSubmissionFollowups runs after the insert.
   const authorUsername = validated.parsedRepo?.owner;
-  const authorAvatar = validated.parsedRepo
-    ? `https://github.com/${validated.parsedRepo.owner}.png`
-    : undefined;
+  const authorAvatar =
+    validated.parsedRepo?.provider === "github"
+      ? `https://github.com/${validated.parsedRepo.owner}.png`
+      : undefined;
 
   const generatedUseCases = args.generatedUseCases
     ? normalizeMarkdown(args.generatedUseCases)
@@ -5300,8 +5313,8 @@ export const requestSubmissionRefresh = mutation({
 });
 
 // ============ USER README REFRESH (rate limited) ============
-// Owners can pull the latest README from GitHub for their own submissions.
-// Limited per user to avoid spamming the GitHub API.
+// Owners can pull the latest README from GitHub or GitLab for their own
+// submissions. Limited per user to avoid spamming the host APIs.
 const README_REFRESH_WINDOW_MS = 10 * 60 * 1000;
 const MAX_README_REFRESHES_PER_WINDOW = 3;
 
@@ -5325,7 +5338,7 @@ export const refreshMyReadme = mutation({
       throw new ConvexError("You can only refresh your own submissions");
     }
     if (!pkg.repositoryUrl) {
-      throw new ConvexError("This submission has no GitHub repository URL");
+      throw new ConvexError("This submission has no repository URL");
     }
 
     // Rate limit: max refreshes per user within the rolling window
@@ -6101,10 +6114,8 @@ export const updateMySubmission = mutation({
       !!nextRepoUrl && nextRepoUrl !== (pkg.repositoryUrl ?? "");
     const npmChanged = !!nextNpmUrl && nextNpmUrl !== pkg.npmUrl;
 
-    if (repoChanged && !parseGitHubRepo(nextRepoUrl!)) {
-      throw new ConvexError(
-        "Invalid GitHub repository URL. Expected format: https://github.com/owner/repo",
-      );
+    if (repoChanged && !parseRepoUrl(nextRepoUrl!)) {
+      throw new ConvexError(INVALID_REPO_URL_MESSAGE);
     }
     let parsedNpmName: string | undefined;
     if (npmChanged) {
@@ -6855,15 +6866,16 @@ export const clearThumbnail = mutation({
   },
 });
 
-// ============ DIRECTORY EXPANSION: AUTO-FILL AUTHOR FROM GITHUB ============
+// ============ DIRECTORY EXPANSION: AUTO-FILL AUTHOR FROM REPO ============
 
-// Extract GitHub owner from repository URL and auto-populate author fields
-// Returns the extracted values so the UI can update local state immediately
+// Extract the repo owner (GitHub user/org or GitLab namespace) and populate
+// author fields. GitHub avatars are a direct URL; GitLab avatars arrive via a
+// scheduled action, so authorAvatar may be absent in the immediate response.
 export const autoFillAuthorFromRepo = mutation({
   args: { packageId: v.id("packages") },
   returns: v.union(
     v.null(),
-    v.object({ authorUsername: v.string(), authorAvatar: v.string() }),
+    v.object({ authorUsername: v.string(), authorAvatar: v.optional(v.string()) }),
   ),
   handler: async (ctx, args) => {
     await requireAdminIdentity(ctx);
@@ -6873,18 +6885,24 @@ export const autoFillAuthorFromRepo = mutation({
     const repoUrl = pkg.repositoryUrl;
     if (!repoUrl) return null;
 
-    const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
-    if (!match) return null;
+    const parsed = parseRepoUrl(repoUrl);
+    if (!parsed) return null;
 
-    const owner = match[1];
-    const authorUsername = owner;
-    const authorAvatar = `https://github.com/${owner}.png`;
+    const authorUsername = parsed.owner;
+    const authorAvatar =
+      parsed.provider === "github" ? `https://github.com/${parsed.owner}.png` : undefined;
 
     // Always overwrite when admin clicks auto-fill
     await ctx.db.patch("packages", args.packageId, {
       authorUsername,
       authorAvatar,
     });
+
+    if (parsed.provider === "gitlab") {
+      await ctx.scheduler.runAfter(0, internal.gitlabApi.fillGitLabAuthorAvatar, {
+        packageId: args.packageId,
+      });
+    }
 
     return { authorUsername, authorAvatar };
   },
@@ -8013,17 +8031,9 @@ const githubIssueValidator = v.object({
   comments: v.number(),
 });
 
-// Parse owner/repo from a GitHub repository URL
-function parseGitHubRepo(
-  repoUrl: string,
-): { owner: string; repo: string } | null {
-  const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
-  if (!match) return null;
-  return { owner: match[1], repo: match[2].replace(/\.git$/, "") };
-}
-
-// Public action: Fetch GitHub issues for a component's repository
-// Returns a list of issues (open or closed) for display in the issues tab
+// Public action: Fetch issues for a component's repository (GitHub or GitLab)
+// Returns a list of issues (open or closed) for display in the issues tab.
+// Name kept for client compatibility; dispatches on the repo provider.
 export const fetchGitHubIssues = action({
   args: {
     repositoryUrl: v.string(),
@@ -8035,12 +8045,16 @@ export const fetchGitHubIssues = action({
     hasMore: v.boolean(),
   }),
   handler: async (_ctx, args) => {
-    const parsed = parseGitHubRepo(args.repositoryUrl);
+    const parsed = parseRepoUrl(args.repositoryUrl);
     if (!parsed) {
       return { issues: [], hasMore: false };
     }
 
     const page = args.page ?? 1;
+    if (parsed.provider === "gitlab") {
+      return await fetchGitLabIssues(parsed, args.state, page);
+    }
+
     const perPage = 25;
     const url = `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/issues?state=${args.state}&per_page=${perPage}&page=${page}&sort=created&direction=desc`;
 
@@ -8130,10 +8144,13 @@ export const refreshGitHubIssueCounts = action({
     });
     if (!pkg || !pkg.repositoryUrl) return { openCount: 0, closedCount: 0 };
 
-    const parsed = parseGitHubRepo(pkg.repositoryUrl);
+    const parsed = parseRepoUrl(pkg.repositoryUrl);
     if (!parsed) return { openCount: 0, closedCount: 0 };
 
-    const counts = await fetchGitHubIssueCounts(parsed.owner, parsed.repo);
+    const counts =
+      parsed.provider === "gitlab"
+        ? await fetchGitLabIssueCounts(parsed)
+        : await fetchGitHubIssueCounts(parsed.owner, parsed.repo);
     await ctx.runMutation(internal.packages._updateGitHubIssueCounts, {
       packageId: args.packageId,
       ...counts,

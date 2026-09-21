@@ -875,7 +875,7 @@ function EditModal({
 
             {!canGenerate && (
               <p className="text-xs text-text-tertiary mb-2">
-                Requires a GitHub repo URL, npm URL, component name, and short
+                Requires a repository URL, npm URL, component name, and short
                 description.
               </p>
             )}
@@ -1538,7 +1538,7 @@ function SubmissionCard({
     return () => window.clearTimeout(timeout);
   }, [submission._id]);
 
-  // Pull the latest README from GitHub. Server enforces ownership and a
+  // Pull the latest README from GitHub or GitLab. Server enforces ownership and a
   // per-user rate limit; the local cooldown just prevents rapid re-clicks.
   const handleRefreshReadme = async () => {
     if (isRefreshingReadme || readmeCooldown) return;
@@ -1642,7 +1642,7 @@ function SubmissionCard({
                 title={
                   readmeCooldown
                     ? "README refresh requested. Wait a minute before trying again."
-                    : "Fetch the latest README from GitHub (limited to 3 per 10 minutes)"
+                    : "Fetch the latest README from the repository (limited to 3 per 10 minutes)"
                 }
                 className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-full border border-border text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >

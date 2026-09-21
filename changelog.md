@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- GitLab repository support with read parity to GitHub, gitlab.com only (2026-09-21 03:25 UTC)
+  - Submit, edit, and preflight accept `https://gitlab.com/<namespace>/<project>` in every shape GitHub URLs were already accepted in (https, `git+https`, ssh, `.git`, trailing slash, `/-/tree/<ref>/<dir>`, `/-/blob/<ref>/<file>`, nested groups). Lookalike hosts are still rejected. Error copy names both hosts.
+  - README fetch for Component Directory Content generation and refresh reads GitLab raw files at `ref=HEAD`, trying the same filename candidates in the subdirectory first and then the repo root. The `{{githubReadme}}` prompt placeholder keeps its name and now holds either provider's README.
+  - Issues list (`packages:fetchGitHubIssues`) and counts (`packages:refreshGitHubIssueCounts`) dispatch on provider. GitLab issues are mapped to the existing shape (`iid` to `number`, `web_url` to `html_url`, `author.username` to `user`, `user_notes_count` to `comments`), so the detail page and cached `githubOpenIssues` / `githubClosedIssues` fields work unchanged. Counts come from the `x-total` header because gitlab.com omits `open_issues_count` for unauthenticated callers.
+  - Author auto-fill on submit and in the admin editor sets `authorUsername` to the GitLab namespace path and fills `authorAvatar` a moment later through the `gitlabApi:fillGitLabAuthorAvatar` internal action (mutations stay fetch free). Group avatars arrive as relative paths and are resolved against the host.
+  - README relative links resolve to `gitlab.com/<ns>/<project>/-/blob/<ref>/<path>` and images to `/-/raw/<ref>/<path>`, matching the existing GitHub behavior.
+  - New `RepoHostIcon` renders the GitHub or GitLab logo from the repository URL. Live icon switch in the submit check input as the user types. Provider aware labels ("Open GitLab Issues", "View on GitLab", "GitLab repository") across the detail page, profile, edit submission, admin editor, FAQ, HTTP markdown and llms endpoints, and SKILL.md output.
+  - Optional `GITLAB_TOKEN` (read_api scope, sent as `PRIVATE-TOKEN`) raises the GitLab rate limit. Public projects need no token. A rejected token retries unauthenticated, same as `GITHUB_TOKEN`.
+  - Files: `shared/repoUrl.ts` (new), `convex/gitlabApi.ts` (new), `src/components/RepoHostIcon.tsx` (new), `convex/packages.ts`, `convex/seoContent.ts`, `convex/http.ts`, `convex/preflight.ts`, `convex/router.ts`, `convex/securityScan.ts`, `convex/schema.ts`, `convex/aiSettings.ts`, `shared/buildSkillMd.ts`, `src/lib/markdownLinks.ts`, `src/pages/Submit.tsx`, `src/pages/SubmitForm.tsx`, `src/pages/SubmitCheck.tsx`, `src/pages/ComponentDetail.tsx`, `src/pages/Profile.tsx`, `src/pages/ProfileEditSubmission.tsx`, `src/components/ComponentDetailsEditor.tsx`, `src/components/FAQSection.tsx`, `src/pages/Admin.tsx`, `src/docs/*.md`, `prds/gitlab-repo-support.md`
+  - Not changed on purpose: GitHub issue mirroring, broadcast, and reply sync stay GitHub only. GitLab packages show "Issue mirroring is available for GitHub repositories only." under the admin reply box. Snyk and Devin scans report that they require a GitHub repository. Official component derivation (`get-convex` org) stays GitHub only.
+  - Known gap: `convex/aiReview.ts` still parses GitHub only, so a GitLab preflight or admin AI review reports an error at the repo fetch step. Edits to that file are blocked by a lint hook false positive; the ready-to-apply change is in `prds/gitlab-repo-support.md`.
+
 - `DocSectionEditor` shared component for editing Component Directory Content sections (2026-09-17 09:18 UTC)
   - Each section (Description, Use cases, How it works) renders the way the public component page does: uppercase heading plus rendered markdown. A Preview / Edit toggle in the section header flips it into an auto-growing textarea. `Done` returns to preview. Empty sections show a dashed "Click to write this section" prompt.
   - Edit mode keeps the bottom-right resize grip (`resize-y`). Dragging it taller sets a floor that auto-grow respects, so typing never snaps the box back down. Helper text now says "Drag the corner for more room." (2026-09-21 02:36 UTC)
@@ -25,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Files: `src/pages/ProfileEditSubmission.tsx`, `src/pages/SubmitForm.tsx`
 
 ### Changed
+
+- Six duplicated GitHub URL regexes (`packages.ts`, `seoContent.ts`, `http.ts`, `markdownLinks.ts`, the three submit pages) replaced by the single `shared/repoUrl.ts` parser (2026-09-21 03:25 UTC)
+  - `convex/githubIssues.ts` keeps its own `parseGitHubRepo` gate so write flows cannot reach a GitLab host.
+  - `convex/preflight.ts` `normalizeRepoUrl` also strips GitLab `/-/tree/` and `/-/blob/` paths so subdirectory URLs share a cache key with the project root.
 
 - "Also send as a GitHub issue" is now checked by default in the admin Comments panel (2026-09-10 20:38 UTC)
   - Admins were forgetting to tick it, so submitters never saw the message. A normal reply now mirrors to GitHub unless the admin unticks the box for that message. The `canMirrorToGithub` gate is unchanged, so packages without a github.com repo are unaffected and the checkbox still does not render for them.

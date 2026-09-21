@@ -136,7 +136,7 @@ Most submitters do not come back to their profile page after submitting. They do
 
 ### Sending a message as a GitHub issue
 
-The checkbox appears under the reply box whenever the package has a github.com repository URL. It is checked by default, so a normal reply also goes to GitHub. Untick it to keep a message in the private thread only.
+The checkbox appears under the reply box whenever the package has a github.com repository URL. It is checked by default, so a normal reply also goes to GitHub. Untick it to keep a message in the private thread only. Packages hosted on GitLab show a short note instead of the checkbox: issue mirroring is available for GitHub repositories only, so those messages stay in the private thread.
 
 1. Expand the package row and find the Comments panel
 2. Type your message

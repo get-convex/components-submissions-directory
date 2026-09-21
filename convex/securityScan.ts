@@ -222,7 +222,8 @@ async function runSnykScan(repoUrl: string): Promise<ProviderResult> {
   }
 
   try {
-    // Parse owner/repo from GitHub URL
+    // Parse owner/repo from GitHub URL. Snyk imports GitHub targets only, so
+    // GitLab repos fail soft here and rely on the Socket and Devin scanners.
     const match = repoUrl.match(
       /github\.com\/([^/]+)\/([^/]+)/,
     );
@@ -231,7 +232,7 @@ async function runSnykScan(repoUrl: string): Promise<ProviderResult> {
         status: "error",
         findings: [],
         recommendations: [],
-        metadata: { error: "Could not parse GitHub owner/repo from URL" },
+        metadata: { error: "Snyk scanning requires a GitHub repository URL" },
       };
     }
     const [, owner, repo] = match;
@@ -369,7 +370,8 @@ async function runDevinScan(
   }
 
   try {
-    // Parse owner/repo for the repos parameter
+    // Parse owner/repo for the repos parameter. Devin's repos option targets
+    // GitHub; GitLab repos still get analyzed from the URL in the prompt.
     const match = repoUrl.match(/github\.com\/([^/]+\/[^/]+)/);
     const repoSlug = match ? match[1].replace(/\.git$/, "") : null;
 

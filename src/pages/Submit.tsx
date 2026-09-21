@@ -13,7 +13,6 @@ import {
   Copy,
   Check,
   ArrowSquareOut,
-  GithubLogo,
   Globe,
   Hourglass,
   GitPullRequest,
@@ -30,7 +29,14 @@ import {
   Info,
   Browser,
 } from "@phosphor-icons/react";
-import { ExternalLinkIcon as RadixExternalLinkIcon, Cross2Icon, GitHubLogoIcon } from "@radix-ui/react-icons";
+import { ExternalLinkIcon as RadixExternalLinkIcon, Cross2Icon } from "@radix-ui/react-icons";
+import { RepoHostIcon } from "../components/RepoHostIcon";
+import {
+  isSupportedRepoUrl,
+  parseRepoUrl,
+  repoHostLabel,
+  repoIssuesUrl,
+} from "../../shared/repoUrl";
 
 // Get base path for links (always /components)
 function useBasePath() {
@@ -1112,11 +1118,6 @@ function SubmitPackageModal({ onClose }: { onClose: () => void }) {
     return pattern.test(email);
   };
 
-  const validateGitHubRepoUrl = (url: string): boolean => {
-    const pattern = /^https?:\/\/(www\.)?github\.com\/[^/]+\/[^/]+\/?(\.git)?$/;
-    return pattern.test(url);
-  };
-
   const validateUrl = (url: string): boolean => {
     const pattern = /^https?:\/\/.+/;
     return pattern.test(url);
@@ -1141,9 +1142,9 @@ function SubmitPackageModal({ onClose }: { onClose: () => void }) {
       return;
     }
 
-    if (!validateGitHubRepoUrl(repositoryUrl.trim())) {
+    if (!isSupportedRepoUrl(repositoryUrl.trim())) {
       setErrorMessage(
-        "Please enter a valid GitHub repository URL. Expected format: https://github.com/owner/repo"
+        "Please enter a valid GitHub or GitLab repository URL. Expected format: https://github.com/owner/repo or https://gitlab.com/owner/repo"
       );
       setShowError(true);
       return;
@@ -1271,20 +1272,26 @@ function SubmitPackageModal({ onClose }: { onClose: () => void }) {
                 />
               </div>
 
-              {/* GitHub Repository URL */}
+              {/* Repository URL (GitHub or GitLab) */}
               <div>
                 <label className="block text-sm font-medium text-text-primary mb-1">
-                  GitHub Repo URL <span className="text-red-500">*</span>
+                  Repository URL <span className="text-red-500">*</span>
+                  <span className="ml-1.5 text-xs font-normal text-text-secondary">GitHub or GitLab</span>
                 </label>
-                <input
-                  type="text"
-                  placeholder="https://github.com/owner/repo"
-                  value={repositoryUrl}
-                  onChange={(e) => setRepositoryUrl(e.target.value)}
-                  required
-                  disabled={isLoading}
-                  className="w-full px-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20"
-                />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary pointer-events-none">
+                    <RepoHostIcon repositoryUrl={repositoryUrl} size={16} />
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="https://github.com/owner/repo"
+                    value={repositoryUrl}
+                    onChange={(e) => setRepositoryUrl(e.target.value)}
+                    required
+                    disabled={isLoading}
+                    className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20"
+                  />
+                </div>
               </div>
 
               {/* NPM URL */}
@@ -1945,9 +1952,10 @@ function SubmitSecurityReportModal({
     };
   }, []);
 
-  const githubIssuesUrl = repositoryUrl
-    ? `${repositoryUrl.replace(/\/$/, "")}/issues`
-    : null;
+  // Issues link for GitHub (/issues) or GitLab (/-/issues)
+  const parsedRepo = parseRepoUrl(repositoryUrl);
+  const repoIssuesHref = parsedRepo ? repoIssuesUrl(parsedRepo) : null;
+  const repoHostName = repoHostLabel(repositoryUrl);
 
   const providerNames: Record<string, string> = {
     socket: "Socket.dev",
@@ -2047,17 +2055,17 @@ function SubmitSecurityReportModal({
               </h3>
               <p className="text-sm text-text-secondary leading-relaxed">
                 For security concerns, dependency issues, or vulnerability reports, contact the
-                component author through the GitHub repository.
+                component author through the {repoHostName === "Repository" ? "source" : repoHostName} repository.
               </p>
-              {githubIssuesUrl ? (
+              {repoIssuesHref ? (
                 <a
-                  href={githubIssuesUrl}
+                  href={repoIssuesHref}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-2 inline-flex items-center gap-1.5 text-sm text-text-primary hover:underline"
                 >
-                  <GitHubLogoIcon className="w-4 h-4" />
-                  Open GitHub Issues
+                  <RepoHostIcon repositoryUrl={repositoryUrl} size={16} />
+                  Open {repoHostName} Issues
                   <RadixExternalLinkIcon className="w-3 h-3 text-text-secondary" />
                 </a>
               ) : repositoryUrl ? (
@@ -2067,7 +2075,7 @@ function SubmitSecurityReportModal({
                   rel="noopener noreferrer"
                   className="mt-2 inline-flex items-center gap-1.5 text-sm text-text-primary hover:underline"
                 >
-                  <GitHubLogoIcon className="w-4 h-4" />
+                  <RepoHostIcon repositoryUrl={repositoryUrl} size={16} />
                   View repository
                   <RadixExternalLinkIcon className="w-3 h-3 text-text-secondary" />
                 </a>
@@ -2411,7 +2419,7 @@ function PackageRow({
                     window.open(pkg.repositoryUrl, "_blank", "noopener,noreferrer");
                   }}
                   className="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors cursor-pointer">
-                  <GithubLogo size={16} />
+                  <RepoHostIcon repositoryUrl={pkg.repositoryUrl} size={16} />
                   Repo
                 </a>
               </Tooltip>

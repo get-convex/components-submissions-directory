@@ -36,7 +36,7 @@ Click a row to expand and see full details.
 | Button | Destination |
 |--------|-------------|
 | npm | npm package page |
-| Repo | GitHub repository |
+| Repo | GitHub or GitLab repository (icon matches the host) |
 | Website | Homepage URL (if set) |
 | Demo | Demo URL (if set) |
 
@@ -59,7 +59,7 @@ Use the search bar to find packages by:
 - Description
 - Maintainer names
 - Component name
-- GitHub repository URL
+- Repository URL (GitHub or GitLab)
 
 Search uses Convex full-text search indexes and is case-insensitive.
 
@@ -130,7 +130,7 @@ The expanded view includes a full Component Details editor for:
 - Thumbnail upload with preview and clear option
 - Logo upload, download, and clear
 - "Hide thumbnail in category listings" checkbox
-- Auto-fill author from GitHub
+- Auto-fill author from the repository URL. GitHub fills username and avatar immediately; GitLab fills the namespace path and fetches the avatar in the background
 - v2 content generation with regenerate, editable sections, README preview, and SKILL.md support
 - SEO visibility toggle for hiding generated content from the public detail page
 - Legacy `SeoContentSection` for v1 packages

@@ -17,6 +17,8 @@ import {
 } from "../shared/seoPromptTemplate";
 import { buildSkillMdFromContent } from "../shared/buildSkillMd";
 import { normalizeMarkdown } from "../shared/normalizeMarkdown";
+import { parseRepoUrl, repoHostLabel, type ParsedRepoUrl } from "../shared/repoUrl";
+import { fetchGitLabFile } from "./gitlabApi";
 
 // Helper to call AI provider with unified interface
 async function callAiProvider(
@@ -195,69 +197,55 @@ function dedupeStrings(values: string[]): string[] {
   return [...new Set(values.filter(Boolean))];
 }
 
-function parseGitHubReadmeTarget(
+// Resolve which README paths to try for a repo URL (GitHub or GitLab).
+// A /blob URL pointing at a README file is tried first, then its directory,
+// then the repo root.
+function parseReadmeTarget(
   repoUrl: string
-): { owner: string; repo: string; paths: string[]; ref?: string } | null {
-  const normalizedUrl = repoUrl
-    .replace(/^git\+/, "")
-    .replace(/\.git$/, "")
-    .replace(/#.*$/, "")
-    .replace(/\/$/, "");
+): { parsed: ParsedRepoUrl; owner: string; repo: string; paths: string[]; ref?: string } | null {
+  const parsed = parseRepoUrl(repoUrl);
+  if (!parsed) {
+    return null;
+  }
 
-  let url: URL;
+  // Recover the exact blob file path (the shared parser only keeps its directory).
+  let exactPath = "";
   try {
-    url = new URL(normalizedUrl);
+    const pathname = decodeURIComponent(new URL(repoUrl.replace(/^git\+/, "")).pathname);
+    const blobMatch = pathname.match(/\/blob\/[^/]+\/(.+?)\/?$/);
+    if (blobMatch) exactPath = blobMatch[1];
   } catch {
-    return null;
-  }
-
-  if (!/(^|\.)github\.com$/i.test(url.hostname)) {
-    return null;
-  }
-
-  const parts = url.pathname.split("/").filter(Boolean);
-  if (parts.length < 2) {
-    return null;
-  }
-
-  const [owner, rawRepo, mode, ...rest] = parts;
-  const repo = rawRepo.replace(/\.git$/, "");
-
-  if (mode === "blob" && rest.length >= 2) {
-    const ref = rest[0];
-    const exactPath = rest.slice(1).join("/");
-    const parentDir = exactPath.includes("/") ? exactPath.split("/").slice(0, -1).join("/") : "";
-    return {
-      owner,
-      repo,
-      ref,
-      paths: dedupeStrings([
-        /readme\./i.test(exactPath) ? exactPath : "",
-        ...buildReadmeCandidates(parentDir),
-        ...buildReadmeCandidates(""),
-      ]),
-    };
-  }
-
-  if (mode === "tree" && rest.length >= 1) {
-    const ref = rest[0];
-    const dirPath = rest.slice(1).join("/");
-    return {
-      owner,
-      repo,
-      ref,
-      paths: dedupeStrings([...buildReadmeCandidates(dirPath), ...buildReadmeCandidates("")]),
-    };
+    // Non URL inputs already parsed above via the ssh/git+ normalizer.
   }
 
   return {
-    owner,
-    repo,
-    paths: buildReadmeCandidates(""),
+    parsed,
+    owner: parsed.owner,
+    repo: parsed.repo,
+    ref: parsed.ref,
+    paths: dedupeStrings([
+      /readme\./i.test(exactPath) ? exactPath : "",
+      ...buildReadmeCandidates(parsed.dir),
+      ...buildReadmeCandidates(""),
+    ]),
   };
 }
 
-async function fetchGitHubReadme(
+function buildReadmeResult(path: string, rawText: string): GitHubReadmeResult | null {
+  const full = sanitizeReadme(rawText);
+  const forPrompt = sanitizeReadmeForPrompt(rawText);
+  if (!full) return null;
+  return {
+    content: `From the ${path}\n\n${forPrompt}`,
+    rawContent: forPrompt,
+    fullContent: full,
+    rawFullContent: rawText,
+    sourceLabel: path,
+  };
+}
+
+// Fetch the README from GitHub or GitLab. The GitHub branch is unchanged.
+async function fetchRepoReadme(
   repoUrl?: string,
   githubToken?: string
 ): Promise<GitHubReadmeResult | null> {
@@ -265,8 +253,22 @@ async function fetchGitHubReadme(
     return null;
   }
 
-  const target = parseGitHubReadmeTarget(repoUrl);
+  const target = parseReadmeTarget(repoUrl);
   if (!target) {
+    return null;
+  }
+
+  if (target.parsed.provider === "gitlab") {
+    for (const path of target.paths) {
+      try {
+        const rawText = await fetchGitLabFile(target.parsed, path, target.ref ?? "HEAD");
+        if (rawText === null) continue;
+        const result = buildReadmeResult(path, rawText);
+        if (result) return result;
+      } catch {
+        continue;
+      }
+    }
     return null;
   }
 
@@ -298,17 +300,9 @@ async function fetchGitHubReadme(
       }
 
       const rawText = await fetchTextWithTimeout(data.download_url, { headers }, 5000);
-      const full = sanitizeReadme(rawText);
-      const forPrompt = sanitizeReadmeForPrompt(rawText);
-
-      if (full) {
-        return {
-          content: `From the ${path}\n\n${forPrompt}`,
-          rawContent: forPrompt,
-          fullContent: full,
-          rawFullContent: rawText,
-          sourceLabel: path,
-        };
+      const result = buildReadmeResult(path, rawText);
+      if (result) {
+        return result;
       }
     } catch {
       continue;
@@ -521,7 +515,7 @@ function buildSkillMd(pkg: any, seoContent: SeoContentResponse): string {
     lines.push(`- [npm package](${npmUrl})`);
   }
   if (repoUrl) {
-    lines.push(`- [GitHub repository](${repoUrl})`);
+    lines.push(`- [${repoHostLabel(repoUrl)} repository](${repoUrl})`);
   }
   if (pkg.demoUrl) {
     lines.push(`- [Live demo](${pkg.demoUrl})`);
@@ -541,7 +535,7 @@ async function fetchSeoContext(ctx: any, pkg: any) {
     await Promise.all([
       ctx.runQuery(internal.aiSettings._getSeoActivePromptContent),
       ctx.runQuery(internal.aiSettings._getProviderSettingsForFallback),
-      fetchGitHubReadme(pkg.repositoryUrl, githubToken),
+      fetchRepoReadme(pkg.repositoryUrl, githubToken),
       fetchConvexDocsContext(),
     ]);
 
@@ -719,9 +713,9 @@ function buildResourceLinks(
     links.push({ label: "npm package", url: pkg.npmUrl });
   }
 
-  // GitHub repo
+  // GitHub or GitLab repo
   if (pkg.repositoryUrl) {
-    links.push({ label: "GitHub repository", url: pkg.repositoryUrl });
+    links.push({ label: `${repoHostLabel(pkg.repositoryUrl)} repository`, url: pkg.repositoryUrl });
   }
 
   // Demo URL
@@ -856,7 +850,7 @@ async function fetchContentContext(ctx: any, pkg: any) {
     await Promise.all([
       ctx.runQuery(internal.aiSettings._getSeoActivePromptContent),
       ctx.runQuery(internal.aiSettings._getProviderSettingsForFallback),
-      fetchGitHubReadme(pkg.repositoryUrl, githubToken),
+      fetchRepoReadme(pkg.repositoryUrl, githubToken),
       fetchConvexDocsContext(),
     ]);
 
@@ -979,7 +973,7 @@ export const refreshReadme = internalAction({
       if (!pkg.repositoryUrl) throw new ConvexError("No repository URL");
 
       const githubToken = process.env.GITHUB_TOKEN;
-      const githubReadme = await fetchGitHubReadme(pkg.repositoryUrl, githubToken);
+      const githubReadme = await fetchRepoReadme(pkg.repositoryUrl, githubToken);
       const fullReadmeContent = githubReadme?.fullContent || "";
       const readmeBlock = extractReadmeIncludeBlock(githubReadme?.rawFullContent || "");
 
@@ -1062,7 +1056,7 @@ async function fetchPreviewContext(
     await Promise.all([
       ctx.runQuery(internal.aiSettings._getSeoActivePromptContent),
       ctx.runQuery(internal.aiSettings._getProviderSettingsForFallback),
-      fetchGitHubReadme(repoUrl, githubToken),
+      fetchRepoReadme(repoUrl, githubToken),
       fetchConvexDocsContext(),
     ]);
   const readmeBlock = extractReadmeIncludeBlock(githubReadme?.rawFullContent || "");

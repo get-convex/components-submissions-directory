@@ -11,11 +11,12 @@ import {
   Warning,
   ArrowRight,
   Spinner,
-  GithubLogo,
   Package,
   ArrowLeft,
   Info,
 } from "@phosphor-icons/react";
+import { RepoHostIcon } from "../components/RepoHostIcon";
+import { isSupportedRepoUrl } from "../../shared/repoUrl";
 
 // Get base path for links (always /components)
 function useBasePath() {
@@ -64,11 +65,6 @@ export default function SubmitCheck() {
     }
   }, [authLoading, isAuthenticated, signIn]);
 
-  const validateGitHubRepoUrl = (url: string): boolean => {
-    const pattern = /^https?:\/\/(www\.)?github\.com\/[^/]+\/[^/]+/;
-    return pattern.test(url);
-  };
-
   // Validate inputs then open the usage warning modal
   const handleOpenWarning = (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,12 +72,14 @@ export default function SubmitCheck() {
     setResult(null);
 
     if (!repoUrl.trim()) {
-      setError("Please enter a GitHub repository URL");
+      setError("Please enter a GitHub or GitLab repository URL");
       return;
     }
 
-    if (!validateGitHubRepoUrl(repoUrl.trim())) {
-      setError("Please enter a valid GitHub repository URL (e.g., https://github.com/owner/repo)");
+    if (!isSupportedRepoUrl(repoUrl.trim())) {
+      setError(
+        "Please enter a valid GitHub or GitLab repository URL (e.g., https://github.com/owner/repo or https://gitlab.com/owner/repo)"
+      );
       return;
     }
 
@@ -181,14 +179,15 @@ export default function SubmitCheck() {
         {!result ? (
           <div className="bg-white border border-border rounded-lg p-6">
             <form onSubmit={handleOpenWarning} className="space-y-4">
-              {/* GitHub Repository URL */}
+              {/* Repository URL (GitHub or GitLab); the icon follows the host as you type */}
               <div>
                 <label className="block text-sm font-medium text-text-primary mb-1">
-                  GitHub Repository URL <span className="text-red-500">*</span>
+                  Repository URL <span className="text-red-500">*</span>
+                  <span className="ml-1.5 text-xs font-normal text-text-secondary">GitHub or GitLab</span>
                 </label>
                 <div className="relative">
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">
-                    <GithubLogo size={18} />
+                    <RepoHostIcon repositoryUrl={repoUrl} size={18} />
                   </div>
                   <input
                     type="text"
