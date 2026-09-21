@@ -1,8 +1,11 @@
 # Task List
 
-Session updates complete on 2026-09-10 20:41 UTC. Header gained a "Build" link to the Convex components docs (desktop nav and mobile menu). GitHub issue checkbox now defaults on. Local main rebased onto origin/main (web-analytics 2.2.0 and the 404 fix) with docs conflicts merged.
+Session updates complete on 2026-09-21 02:36 UTC. Component Directory Content editing on the Edit Submission and Submit pages uses the shared `DocSectionEditor`: docs-style preview by default, Preview / Edit toggle per section, auto-growing textarea that also keeps the bottom-right resize grip for manual expansion.
 
 ## to do
+
+- [ ] Docs-view content editor: signed-in click-through on the real pages
+  - `DocSectionEditor` was verified in isolation (see completed entry). Still worth one pass at `http://localhost:5173/components/profile/edit/<packageId>` and `/components/submit` after Generate Content with a WorkOS login: confirm the three sections render, Edit / Done flip cleanly, and Save Changes persists edited markdown. The agent browser had no WorkOS session.
 
 - [ ] Admin Broadcast tab: signed-in click-through
   - Code and docs are in. Browser hit Admin Sign In at `http://localhost:5173/components/submissions/admin`. After an `@convex.dev` login: Broadcast sits next to Logs, Settings jump nav has no GitHub Broadcast, Logs has no package list, `#settings-github-broadcast` opens Broadcast, sending pill appears while a job runs.
@@ -28,6 +31,17 @@ Session updates complete on 2026-09-10 20:41 UTC. Header gained a "Build" link t
   - `src/components/CodeBlock.tsx:97` (`lineNumbers` not in shiki `FileOptions`), `src/pages/CategoryPage.tsx:128`, and `src/pages/ComponentDetail.tsx:1267-1268` (implicit `any`). Present before and after the 2026-08-14 security change and after a clean `_generated` rebuild. Likely fallout from the local `convex` package moving 1.32.0 to 1.44.0.
 
 ## completed
+
+- [x] Restore the bottom-right drag grip in `DocSectionEditor` edit mode (2026-09-21 02:36 UTC)
+  - [x] Textarea is `resize-y overflow-y-auto` again. `onPointerUp` records the dragged `offsetHeight` in `manualHeightRef`; the auto-grow effect uses `max(scrollHeight, minEditHeight, manualHeight)` so a drag becomes the new floor and typing never shrinks the box. Helper text: "Drag the corner for more room."
+  - [x] `ComponentDetailsEditor.tsx` (admin) already had `resize-y` on all edit-mode textareas; no change needed there.
+  - Verification: `tsc -p . --noEmit` clean, eslint clean. Throwaway Vite mount (removed): computed `resize: vertical`, `overflow-y: auto`, `min-height: 120px`; simulated grip drag to 320px then typed 50 chars, height stayed 320px while `scrollHeight` was 318px.
+
+- [x] Docs-view editor for Component Directory Content and drag-box fix (2026-09-17 09:18 UTC)
+  - [x] New `src/components/DocSectionEditor.tsx`: uppercase section heading plus rendered `Markdown` in preview, Preview / Edit toggle (`aria-pressed`), auto-growing textarea in edit mode, `Done` returns to preview, dashed empty-state prompt opens edit.
+  - [x] `src/pages/ProfileEditSubmission.tsx` and `src/pages/SubmitForm.tsx`: replaced the `resize-y` textarea plus side-by-side or stacked preview blocks for Description, Use cases, and How it works with three `DocSectionEditor` instances inside one divided card. Dropped the unused `PencilSimple` import.
+  - Verification: `tsc -p . --noEmit` clean. `DocSectionEditor.tsx` eslint clean (remaining errors in the two page files are pre-existing floating-promise warnings). Mounted in a throwaway Vite page (removed): textarea `resize: none`, `overflow-y: hidden`, height 161px at 3 bullets and 252px at 6 bullets with `offsetHeight === scrollHeight`, Done re-rendered all 6 bullets, empty How it works prompt opened a focused textarea.
+  - PRD: `prds/docs-view-content-editor.md`
 
 - [x] Add a "Build" nav link to the Convex components docs (2026-09-10 20:40 UTC)
   - `src/components/Header.tsx`: external link to `https://docs.convex.dev/components/overview` (new tab) after Directory in the desktop left nav and in the mobile dropdown menu.

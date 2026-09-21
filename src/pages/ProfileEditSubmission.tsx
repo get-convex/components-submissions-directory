@@ -3,19 +3,14 @@ import { ConvexError } from "convex/values";
 import { useCallback, useEffect, useState } from "react";
 import { Toaster, toast } from "sonner";
 import { Markdown } from "../components/Markdown";
-import {
-  ArrowLeft,
-  Lightning,
-  PencilSimple,
-  SpinnerGap,
-  X,
-} from "@phosphor-icons/react";
+import { ArrowLeft, Lightning, SpinnerGap, X } from "@phosphor-icons/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import AiLoadingDots from "../components/AiLoadingDots";
 import { useAuth } from "../lib/auth";
 import Header from "../components/Header";
 import ReadmePreviewNotice from "../components/ReadmePreviewNotice";
+import DocSectionEditor from "../components/DocSectionEditor";
 
 function useBasePath() {
   return "/components";
@@ -730,113 +725,43 @@ export default function ProfileEditSubmission({
               )}
 
               {showContentSection && (
-                <div className="space-y-6 rounded-lg border border-border bg-white p-4">
-                  {/* Description: side-by-side editor + preview */}
-                  <div>
-                    <label className="flex items-center gap-1.5 text-sm font-medium text-text-primary mb-2">
-                      <PencilSimple size={14} /> Description
-                    </label>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                      <div className="flex flex-col">
-                        <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
-                          Edit
-                        </p>
-                        <textarea
-                          value={generatedDescription}
-                          onChange={(e) =>
-                            setGeneratedDescription(e.target.value)
-                          }
-                          disabled={isSubmitting}
-                          rows={4}
-                          className="w-full flex-1 px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20 resize-y min-h-[100px]"
-                        />
-                      </div>
-                      <div className="flex flex-col">
-                        <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
-                          Preview
-                        </p>
-                        <div className="flex-1 rounded-lg border border-border bg-bg-primary p-3 overflow-y-auto min-h-[100px]">
-                          <div className="markdown-body markdown-body-compact">
-                            <Markdown>
-                              {generatedDescription || "*No description yet*"}
-                            </Markdown>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Use Cases: side-by-side editor + preview */}
-                  <div>
-                    <label className="flex items-center gap-1.5 text-sm font-medium text-text-primary mb-2">
-                      <PencilSimple size={14} /> Use Cases
-                    </label>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                      <div className="flex flex-col">
-                        <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
-                          Edit
-                        </p>
-                        <textarea
-                          value={generatedUseCases}
-                          onChange={(e) => setGeneratedUseCases(e.target.value)}
-                          disabled={isSubmitting}
-                          rows={8}
-                          className="w-full flex-1 px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20 resize-y min-h-[180px]"
-                        />
-                      </div>
-                      <div className="flex flex-col">
-                        <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
-                          Preview
-                        </p>
-                        <div className="flex-1 rounded-lg border border-border bg-bg-primary p-3 overflow-y-auto min-h-[180px] max-h-[400px]">
-                          <div className="markdown-body markdown-body-compact">
-                            <Markdown>
-                              {generatedUseCases || "*No use cases yet*"}
-                            </Markdown>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* How it Works: side-by-side editor + preview */}
-                  <div>
-                    <label className="flex items-center gap-1.5 text-sm font-medium text-text-primary mb-2">
-                      <PencilSimple size={14} /> How it Works
-                    </label>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                      <div className="flex flex-col">
-                        <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
-                          Edit
-                        </p>
-                        <textarea
-                          value={generatedHowItWorks}
-                          onChange={(e) =>
-                            setGeneratedHowItWorks(e.target.value)
-                          }
-                          disabled={isSubmitting}
-                          rows={8}
-                          className="w-full flex-1 px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20 resize-y min-h-[180px]"
-                        />
-                      </div>
-                      <div className="flex flex-col">
-                        <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
-                          Preview
-                        </p>
-                        <div className="flex-1 rounded-lg border border-border bg-bg-primary p-3 overflow-y-auto min-h-[180px] max-h-[400px]">
-                          <div className="markdown-body markdown-body-compact">
-                            <Markdown>
-                              {generatedHowItWorks || "*No content yet*"}
-                            </Markdown>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                <div className="rounded-lg border border-border bg-white px-5 py-5">
+                  {/* Docs view: each section reads like the public page and
+                      flips to an auto-growing editor on demand */}
+                  <div className="divide-y divide-border">
+                    <DocSectionEditor
+                      title="Description"
+                      value={generatedDescription}
+                      onChange={setGeneratedDescription}
+                      disabled={isSubmitting || isGenerating}
+                      emptyText="No description yet."
+                      placeholder="What the component does and who it is for"
+                      repositoryUrl={repositoryUrl || undefined}
+                      minEditHeight={120}
+                    />
+                    <DocSectionEditor
+                      title="Use cases"
+                      value={generatedUseCases}
+                      onChange={setGeneratedUseCases}
+                      disabled={isSubmitting || isGenerating}
+                      emptyText="No use cases yet."
+                      placeholder="- **Use case name** when a developer needs to..."
+                      repositoryUrl={repositoryUrl || undefined}
+                    />
+                    <DocSectionEditor
+                      title="How it works"
+                      value={generatedHowItWorks}
+                      onChange={setGeneratedHowItWorks}
+                      disabled={isSubmitting || isGenerating}
+                      emptyText="No walkthrough yet."
+                      placeholder="How the component is installed, configured, and called"
+                      repositoryUrl={repositoryUrl || undefined}
+                    />
                   </div>
 
                   {/* README: full-width preview (read-only) */}
                   {readmeIncludedMarkdown && (
-                    <div>
+                    <div className="mt-5 border-t border-border pt-5">
                       <label className="text-sm font-medium text-text-primary mb-1 block">
                         README Preview
                       </label>

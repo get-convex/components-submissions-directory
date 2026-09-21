@@ -9,9 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `DocSectionEditor` shared component for editing Component Directory Content sections (2026-09-17 09:18 UTC)
+  - Each section (Description, Use cases, How it works) renders the way the public component page does: uppercase heading plus rendered markdown. A Preview / Edit toggle in the section header flips it into an auto-growing textarea. `Done` returns to preview. Empty sections show a dashed "Click to write this section" prompt.
+  - Edit mode keeps the bottom-right resize grip (`resize-y`). Dragging it taller sets a floor that auto-grow respects, so typing never snaps the box back down. Helper text now says "Drag the corner for more room." (2026-09-21 02:36 UTC)
+  - Files: `src/components/DocSectionEditor.tsx`
+
 - "Build" link in the header nav pointing to the Convex components docs (2026-09-10 20:40 UTC)
   - Sits after Directory in the desktop nav and in the mobile dropdown menu. Opens `https://docs.convex.dev/components/overview` in a new tab.
   - Files: `src/components/Header.tsx`
+
+### Fixed
+
+- Resizable "drag box" textareas on the Edit Submission and Submit pages (2026-09-17 09:18 UTC)
+  - The Component Directory Content block used `resize-y` textareas beside a fixed-height preview, so the two columns drifted out of sync and the grip handle let authors shrink the field into a scroll box. The block now uses `DocSectionEditor`: a `useLayoutEffect` sets the textarea height to `max(scrollHeight, minHeight, dragged height)` on every change, so the field grows with the content and never scrolls inside itself, and a manual drag only ever makes it taller. Verified: 161px at 3 bullets, 252px at 6 bullets; a 320px drag held at 320px after typing.
+  - Files: `src/pages/ProfileEditSubmission.tsx`, `src/pages/SubmitForm.tsx`
 
 ### Changed
 

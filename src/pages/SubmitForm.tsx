@@ -19,9 +19,9 @@ import {
   Checks,
   ArrowRight,
   Lightning,
-  PencilSimple,
   SpinnerGap,
 } from "@phosphor-icons/react";
+import DocSectionEditor from "../components/DocSectionEditor";
 
 // Get base path for links (always /components)
 function useBasePath() {
@@ -775,70 +775,43 @@ export default function SubmitForm() {
               )}
             </div>
 
-            {/* Generated Content Preview / Edit */}
+            {/* Generated Content: docs view with per-section Preview / Edit */}
             {contentGenerated && (
-              <div className="space-y-4 rounded-lg border border-border bg-white p-4">
-                {/* Description */}
-                <div>
-                  <label className="flex items-center gap-1.5 text-sm font-medium text-text-primary mb-1">
-                    <PencilSimple size={14} /> Description
-                  </label>
-                  <textarea
+              <div className="rounded-lg border border-border bg-white px-5 py-5">
+                <div className="divide-y divide-border">
+                  <DocSectionEditor
+                    title="Description"
                     value={generatedDescription}
-                    onChange={(e) => setGeneratedDescription(e.target.value)}
-                    disabled={isLoading}
-                    rows={3}
-                    className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20 resize-y"
+                    onChange={setGeneratedDescription}
+                    disabled={isLoading || isGenerating}
+                    emptyText="No description yet."
+                    placeholder="What the component does and who it is for"
+                    repositoryUrl={repositoryUrl || undefined}
+                    minEditHeight={120}
                   />
-                </div>
-
-                {/* Use Cases */}
-                <div>
-                  <label className="flex items-center gap-1.5 text-sm font-medium text-text-primary mb-1">
-                    <PencilSimple size={14} /> Use Cases
-                  </label>
-                  <textarea
+                  <DocSectionEditor
+                    title="Use cases"
                     value={generatedUseCases}
-                    onChange={(e) => setGeneratedUseCases(e.target.value)}
-                    disabled={isLoading}
-                    rows={5}
-                    className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20 resize-y"
+                    onChange={setGeneratedUseCases}
+                    disabled={isLoading || isGenerating}
+                    emptyText="No use cases yet."
+                    placeholder="- **Use case name** when a developer needs to..."
+                    repositoryUrl={repositoryUrl || undefined}
                   />
-                  <div className="mt-1 rounded border border-border bg-bg-primary p-2">
-                    <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
-                      Preview
-                    </p>
-                    <div className="markdown-body markdown-body-compact">
-                      <Markdown>{generatedUseCases}</Markdown>
-                    </div>
-                  </div>
-                </div>
-
-                {/* How it Works */}
-                <div>
-                  <label className="flex items-center gap-1.5 text-sm font-medium text-text-primary mb-1">
-                    <PencilSimple size={14} /> How it Works
-                  </label>
-                  <textarea
+                  <DocSectionEditor
+                    title="How it works"
                     value={generatedHowItWorks}
-                    onChange={(e) => setGeneratedHowItWorks(e.target.value)}
-                    disabled={isLoading}
-                    rows={5}
-                    className="w-full px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20 resize-y"
+                    onChange={setGeneratedHowItWorks}
+                    disabled={isLoading || isGenerating}
+                    emptyText="No walkthrough yet."
+                    placeholder="How the component is installed, configured, and called"
+                    repositoryUrl={repositoryUrl || undefined}
                   />
-                  <div className="mt-1 rounded border border-border bg-bg-primary p-2">
-                    <p className="text-[10px] uppercase tracking-wider text-text-tertiary mb-1">
-                      Preview
-                    </p>
-                    <div className="markdown-body markdown-body-compact">
-                      <Markdown>{generatedHowItWorks}</Markdown>
-                    </div>
-                  </div>
                 </div>
 
                 {/* README Include Preview */}
                 {readmeIncludedMarkdown && (
-                  <div>
+                  <div className="mt-5 border-t border-border pt-5">
                     <div className="flex items-center gap-2 mb-1">
                       <label className="text-sm font-medium text-text-primary">
                         README Preview
