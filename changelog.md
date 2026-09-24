@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Review outcome messages: rejection and approval drafts in User Messages (2026-09-24 01:33 UTC)
+  - A failed AI review writes a rejection draft that lists the blocking checks first, then advisory ones, and asks the submitter to run the Component Preflight Check (`https://www.convex.dev/components/submit/check`). Approving a component writes an approval draft with the listing link.
+  - Drafts open prefilled in the User Messages composer with a banner (Rejection draft from AI review or Approval draft, Not sent yet). Edits autosave after 500ms. Regenerate, Discard (inline confirm), and Write a different message (keeps the draft for later). Cmd+Enter or Ctrl+Enter sends. The existing GitHub checkbox still decides the mirror.
+  - Nothing sends by default. New Review messages group in AI Review Settings: Auto-send rejection message and Auto-send approval message, each with an Also post to GitHub option (on by default). Auto send fires only when the status actually changes to Rejected or Approved, whether an admin or Auto-reject on fail changed it.
+  - Auto sent rows use `authorEmail: "AI"`, author name Convex Components Team, and `source: "system"`. They count as team messages for unread counts and the submitter Profile, show an Auto-sent pill, and admins can hide, archive, or delete them.
+  - Amber dot on the Messages button and a hint under AI Review Results when a draft is waiting.
+  - Rejecting an older component with a stored failed review builds its draft on the spot. `reviewMessages:backfillRejectionDrafts` (internal, supports `dryRun`) drafts messages for components already rejected before this shipped. It never sends and skips anything the team already replied to.
+  - Files: `shared/reviewCriteria.ts` (new), `shared/reviewMessages.ts` (new), `convex/packageMessaging.ts` (new), `convex/reviewMessages.ts` (new), `convex/schema.ts`, `convex/packages.ts`, `src/pages/Admin.tsx`, `prds/review-outcome-messages.md`
+  - Known gap: `convex/aiReview.ts` keeps its own criteria list because a lint hook false positive blocked the import swap. Keep it in sync with `shared/reviewCriteria.ts`.
+
 - GitLab repository support with read parity to GitHub, gitlab.com only (2026-09-21 03:25 UTC)
   - Submit, edit, and preflight accept `https://gitlab.com/<namespace>/<project>` in every shape GitHub URLs were already accepted in (https, `git+https`, ssh, `.git`, trailing slash, `/-/tree/<ref>/<dir>`, `/-/blob/<ref>/<file>`, nested groups). Lookalike hosts are still rejected. Error copy names both hosts.
   - README fetch for Component Directory Content generation and refresh reads GitLab raw files at `ref=HEAD`, trying the same filename candidates in the subdirectory first and then the repo root. The `{{githubReadme}}` prompt placeholder keeps its name and now holds either provider's README.

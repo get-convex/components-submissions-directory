@@ -1671,6 +1671,64 @@ function CommentsPanel({
   );
   const willCommentOnIssue = !!openIssue && openIssue.state !== "closed";
 
+  // Review outcome draft (rejection or approval) waiting for a human send.
+  const draft = useQuery(
+    api.reviewMessages.getReviewMessageDraft,
+    isOpen ? { packageId } : "skip",
+  );
+  const updateDraft = useMutation(api.reviewMessages.updateReviewMessageDraft);
+  const regenerateDraft = useMutation(
+    api.reviewMessages.regenerateReviewMessageDraft,
+  );
+  const dismissDraft = useMutation(
+    api.reviewMessages.dismissReviewMessageDraft,
+  );
+  const sendDraft = useMutation(api.reviewMessages.sendReviewMessageDraft);
+  // Draft currently loaded into the composer, and the last content we know
+  // the server has, so autosave and live refresh do not fight the admin.
+  const [loadedDraftId, setLoadedDraftId] =
+    useState<Id<"reviewMessageDrafts"> | null>(null);
+  const [syncedDraftContent, setSyncedDraftContent] = useState("");
+  const [draftDetached, setDraftDetached] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [isDraftBusy, setIsDraftBusy] = useState(false);
+
+  // Prefill the composer once per draft, only when the admin has not typed.
+  if (draft && draft._id !== loadedDraftId && newComment === "") {
+    setLoadedDraftId(draft._id);
+    setSyncedDraftContent(draft.content);
+    setDraftDetached(false);
+    setConfirmDiscard(false);
+    setNewComment(draft.content);
+  }
+  const isDraftMode =
+    !!draft && draft._id === loadedDraftId && !draftDetached;
+  // Pick up server side refreshes (new AI review run) while untouched.
+  if (
+    isDraftMode &&
+    draft.content !== syncedDraftContent &&
+    newComment === syncedDraftContent
+  ) {
+    setSyncedDraftContent(draft.content);
+    setNewComment(draft.content);
+  }
+  const isDraftEdited =
+    isDraftMode &&
+    (draft.editedAt !== undefined || newComment.trim() !== draft.content);
+
+  // Debounced autosave of composer edits back to the draft.
+  useEffect(() => {
+    if (!isDraftMode || !loadedDraftId) return;
+    const content = newComment.trim();
+    if (!content || content === syncedDraftContent) return;
+    const timer = setTimeout(() => {
+      updateDraft({ draftId: loadedDraftId, content })
+        .then(() => setSyncedDraftContent(content))
+        .catch(() => toast.error("Could not save draft changes"));
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [isDraftMode, loadedDraftId, newComment, syncedDraftContent, updateDraft]);
+
   // Handle ESC key to close panel
   useEffect(() => {
     if (!isOpen) return;
@@ -1685,7 +1743,85 @@ function CommentsPanel({
 
   if (!isOpen) return null;
 
+  const errorText = (error: unknown, fallback: string) =>
+    error instanceof ConvexError ? String(error.data) : fallback;
+
+  const handleSendDraft = async () => {
+    if (!draft || !newComment.trim() || isSubmitting) return;
+    setIsSubmitting(true);
+    const mirror = canMirrorToGithub && alsoCreateGithubIssue;
+    const label =
+      draft.kind === "rejected" ? "Rejection message" : "Approval message";
+    try {
+      await sendDraft({
+        draftId: draft._id,
+        content: newComment.trim(),
+        alsoCreateGithubIssue: mirror,
+      });
+      setNewComment("");
+      toast.success(
+        mirror
+          ? willCommentOnIssue
+            ? `${label} sent, replying on the GitHub issue`
+            : `${label} sent, opening GitHub issue`
+          : `${label} sent`,
+      );
+    } catch (error) {
+      toast.error(errorText(error, "Failed to send message"));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRegenerateDraft = async () => {
+    if (!draft || isDraftBusy) return;
+    setIsDraftBusy(true);
+    try {
+      const content = await regenerateDraft({ draftId: draft._id });
+      setSyncedDraftContent(content);
+      setNewComment(content);
+      toast.success("Draft rebuilt from the latest review");
+    } catch (error) {
+      toast.error(errorText(error, "Failed to rebuild draft"));
+    } finally {
+      setIsDraftBusy(false);
+    }
+  };
+
+  const handleDiscardDraft = async () => {
+    if (!draft || isDraftBusy) return;
+    setIsDraftBusy(true);
+    try {
+      await dismissDraft({ draftId: draft._id });
+      setNewComment("");
+      setConfirmDiscard(false);
+      toast.success("Draft discarded");
+    } catch (error) {
+      toast.error(errorText(error, "Failed to discard draft"));
+    } finally {
+      setIsDraftBusy(false);
+    }
+  };
+
+  // Keep the draft saved but clear the composer for a free form message.
+  const handleDetachDraft = () => {
+    setDraftDetached(true);
+    setConfirmDiscard(false);
+    setNewComment("");
+  };
+
+  const handleUseDraft = () => {
+    if (!draft) return;
+    setDraftDetached(false);
+    setSyncedDraftContent(draft.content);
+    setNewComment(draft.content);
+  };
+
   const handleAddComment = async () => {
+    if (isDraftMode) {
+      await handleSendDraft();
+      return;
+    }
     if (!newComment.trim() || isSubmitting) return;
     setIsSubmitting(true);
     const mirror = canMirrorToGithub && alsoCreateGithubIssue;
@@ -1877,9 +2013,20 @@ function CommentsPanel({
                           : ""}
                       </a>
                     )}
+                    {/* Review outcome message sent by an auto send setting */}
+                    {comment.source === "system" && (
+                      <span
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-border text-[10px] text-text-secondary whitespace-nowrap shrink-0"
+                        title="Sent automatically by a Review messages setting"
+                      >
+                        <Robot size={10} />
+                        Auto-sent
+                      </span>
+                    )}
                   </div>
                   <div className="flex flex-wrap items-center gap-1 shrink-0">
-                    {comment.authorEmail === userEmail && (
+                    {(comment.authorEmail === userEmail ||
+                      comment.source === "system") && (
                       <>
                         {!comment.status || comment.status === "active" ? (
                           <>
@@ -1990,18 +2137,121 @@ function CommentsPanel({
 
         {/* Add comment input */}
         <div className="p-4 border-t border-border shrink-0">
+          {/* Review outcome draft banner */}
+          {isDraftMode && (
+            <div
+              className={`mb-3 rounded-lg border px-3 py-2 ${
+                draft.kind === "rejected"
+                  ? "border-red-200 bg-red-50/60"
+                  : "border-green-200 bg-green-50/60"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-text-primary">
+                  {draft.kind === "rejected" ? (
+                    <XCircle size={14} weight="fill" className="text-red-500" />
+                  ) : (
+                    <CheckCircle
+                      size={14}
+                      weight="fill"
+                      className="text-green-600"
+                    />
+                  )}
+                  {draft.kind === "rejected"
+                    ? "Rejection draft from AI review"
+                    : "Approval draft"}
+                </p>
+                <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-white border border-border text-[10px] text-text-secondary">
+                  Not sent yet
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] text-text-secondary leading-snug">
+                Review and edit below. Edits save automatically. Nothing goes
+                to the submitter until you send.
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                {isDraftEdited && (
+                  <button
+                    onClick={handleRegenerateDraft}
+                    disabled={isDraftBusy}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border bg-white text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors disabled:opacity-50"
+                    title="Replace your edits with a fresh draft from the latest review"
+                  >
+                    <ArrowClockwise size={10} />
+                    Regenerate
+                  </button>
+                )}
+                <button
+                  onClick={handleDetachDraft}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-border bg-white text-text-secondary hover:bg-bg-hover hover:text-text-primary transition-colors"
+                >
+                  <PencilSimple size={10} />
+                  Write a different message
+                </button>
+                {confirmDiscard ? (
+                  <span className="inline-flex items-center gap-1 text-[11px] text-text-secondary">
+                    Discard this draft?
+                    <button
+                      onClick={handleDiscardDraft}
+                      disabled={isDraftBusy}
+                      className="px-2 py-0.5 rounded-full border border-red-200 bg-white text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                    >
+                      Discard
+                    </button>
+                    <button
+                      onClick={() => setConfirmDiscard(false)}
+                      className="px-2 py-0.5 rounded-full border border-border bg-white text-text-secondary hover:bg-bg-hover transition-colors"
+                    >
+                      Keep
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDiscard(true)}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full border border-red-200 bg-white text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <X size={10} />
+                    Discard
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+          {/* Draft set aside for a free form message */}
+          {draft && draftDetached && draft._id === loadedDraftId && (
+            <p className="mb-2 flex items-center gap-2 text-[11px] text-text-secondary">
+              {draft.kind === "rejected" ? "Rejection" : "Approval"} draft is
+              saved.
+              <button
+                onClick={handleUseDraft}
+                className="text-text-primary underline underline-offset-2 hover:no-underline"
+              >
+                Use draft
+              </button>
+            </p>
+          )}
           <p className="text-xs text-text-secondary mb-2">
-            Press Enter to send, Shift+Enter for new line
+            {isDraftMode
+              ? "Press Cmd+Enter or Ctrl+Enter to send"
+              : "Press Enter to send, Shift+Enter for new line"}
           </p>
           <div className="flex gap-2">
             <textarea
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               placeholder="Add a private message..."
-              rows={2}
+              rows={isDraftMode ? 8 : 2}
+              aria-label={
+                isDraftMode ? "Review message draft" : "Private message"
+              }
               className="flex-1 px-3 py-2 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none focus:border-button transition-colors resize-none"
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
+                if (e.key !== "Enter") return;
+                // Long drafts need Enter for new lines; send is explicit.
+                const sendNow = isDraftMode
+                  ? e.metaKey || e.ctrlKey
+                  : !e.shiftKey;
+                if (sendNow) {
                   e.preventDefault();
                   handleAddComment();
                 }
@@ -2011,6 +2261,7 @@ function CommentsPanel({
               onClick={handleAddComment}
               disabled={isSubmitting || !newComment.trim()}
               className="px-4 py-2 rounded-lg bg-button text-white hover:bg-button-hover transition-colors disabled:opacity-50 self-end"
+              aria-label={isDraftMode ? "Send review message" : "Send message"}
             >
               <PaperPlaneTilt size={16} />
             </button>
@@ -2072,17 +2323,25 @@ function CommentsButton({
     packageId,
   });
 
+  // Shared subscription across rows: one query for every Messages button.
+  const packagesWithDrafts = useQuery(
+    api.reviewMessages.listPackagesWithPendingDrafts,
+    {},
+  );
+  const hasDraft = packagesWithDrafts?.includes(packageId) ?? false;
+
   const hasUnread = unreadCount !== undefined && unreadCount > 0;
   const badgeCount = hasUnread ? unreadCount : commentCount;
   const badgeColor = hasUnread ? "bg-blue-500" : "bg-green-500";
+  const baseTooltip = hasUnread
+    ? `${unreadCount} unread message${unreadCount > 1 ? "s" : ""}`
+    : `User messages${commentCount ? ` (${commentCount})` : ""}`;
 
   return (
     <>
       <Tooltip
         content={
-          hasUnread
-            ? `${unreadCount} unread message${unreadCount > 1 ? "s" : ""}`
-            : `User messages${commentCount ? ` (${commentCount})` : ""}`
+          hasDraft ? `${baseTooltip}. Review message draft ready` : baseTooltip
         }
       >
         <button
@@ -2101,6 +2360,12 @@ function CommentsButton({
             >
               {badgeCount > 9 ? "9+" : badgeCount}
             </span>
+          )}
+          {hasDraft && (
+            <span
+              className="absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-white"
+              aria-label="Review message draft ready"
+            />
           )}
         </button>
       </Tooltip>
@@ -2261,6 +2526,7 @@ function AiReviewResultsPanel({
   collaborators,
   npmUrl,
   repositoryUrl,
+  packageId,
 }: {
   aiReviewStatus?: AiReviewStatus;
   aiReviewSummary?: string;
@@ -2271,9 +2537,17 @@ function AiReviewResultsPanel({
   collaborators?: Array<{ name: string; avatar: string }>;
   npmUrl?: string;
   repositoryUrl?: string;
+  packageId?: Id<"packages">;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Same shared subscription the Messages buttons use.
+  const packagesWithDrafts = useQuery(
+    api.reviewMessages.listPackagesWithPendingDrafts,
+    packageId ? {} : "skip",
+  );
+  const hasDraft =
+    !!packageId && (packagesWithDrafts?.includes(packageId) ?? false);
 
   // Copy AI review results to clipboard in Notion-friendly format
   const handleCopyResults = () => {
@@ -2389,6 +2663,16 @@ ${aiReviewError ? `\n### Error\n${aiReviewError}` : ""}
           </span>
         </div>
       </button>
+
+      {/* Points admins at the prefilled message in User Messages */}
+      {hasDraft && (
+        <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-text-secondary">
+          <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+          {aiReviewStatus === "failed"
+            ? "Rejection message drafted from this review. Open Messages to edit and send."
+            : "Review message draft ready. Open Messages to edit and send."}
+        </p>
+      )}
 
       {/* Expanded content */}
       {isExpanded && (
@@ -6773,7 +7057,11 @@ function AdminSettingsPanel() {
       | "autoGenerateSeoOnPendingOrInReview"
       | "autoGenerateThumbnailOnSubmit"
       | "rotateThumbnailTemplatesOnSubmit"
-      | "showRelatedOnDetailPage",
+      | "showRelatedOnDetailPage"
+      | "autoSendRejectionMessage"
+      | "autoSendRejectionMessageToGithub"
+      | "autoSendApprovalMessage"
+      | "autoSendApprovalMessageToGithub",
     currentValue: boolean,
   ) => {
     try {
@@ -7115,6 +7403,94 @@ function AdminSettingsPanel() {
                 }`}
               />
             </button>
+          </div>
+
+          {/* Review messages: drafts are always created, sending is opt in */}
+          <div className="rounded-lg border border-border p-3 space-y-4">
+            <div>
+              <p className="text-sm font-medium text-text-primary">
+                Review messages
+              </p>
+              <p className="text-xs text-text-secondary mt-0.5">
+                A rejection draft is written from every failed AI review and an
+                approval draft on every approval. Drafts wait in User Messages
+                for you to edit and send. Turn these on to send them the moment
+                the status changes, whether an admin or an auto setting changed
+                it.
+              </p>
+            </div>
+            {(
+              [
+                {
+                  key: "autoSendRejectionMessage",
+                  githubKey: "autoSendRejectionMessageToGithub",
+                  label: "Auto-send rejection message",
+                  help: "Sends the rejection draft when a component moves to Rejected.",
+                  onColor: "bg-red-600",
+                },
+                {
+                  key: "autoSendApprovalMessage",
+                  githubKey: "autoSendApprovalMessageToGithub",
+                  label: "Auto-send approval message",
+                  help: "Sends the approval draft when a component moves to Approved.",
+                  onColor: "bg-green-600",
+                },
+              ] as const
+            ).map((row) => {
+              const enabled = settings[row.key];
+              const toGithub = settings[row.githubKey];
+              return (
+                <div key={row.key}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-sm font-medium text-text-primary">
+                        {row.label}
+                      </label>
+                      <p className="text-xs text-text-secondary mt-0.5">
+                        {row.help}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleToggle(row.key, enabled)}
+                      aria-pressed={enabled}
+                      aria-label={row.label}
+                      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                        enabled ? row.onColor : "bg-gray-300"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          enabled ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <label
+                    className={`mt-2 ml-1 flex items-start gap-2 select-none ${
+                      enabled ? "cursor-pointer" : "opacity-60 cursor-not-allowed"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={toGithub}
+                      disabled={!enabled}
+                      onChange={() => handleToggle(row.githubKey, toGithub)}
+                      className="mt-0.5 h-3.5 w-3.5 rounded border-border accent-button"
+                    />
+                    <span className="text-xs text-text-secondary leading-snug">
+                      <span className="inline-flex items-center gap-1 text-text-primary">
+                        <GithubLogo size={12} />
+                        Also post to GitHub
+                      </span>
+                      <span className="block text-[11px] text-text-secondary/80">
+                        Opens an issue on the submitter&apos;s repo, or replies on
+                        the open one. GitHub repos only.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              );
+            })}
           </div>
 
           {/* Auto-generate SEO on pending/in_review */}
@@ -12033,6 +12409,7 @@ function AdminDashboard({
                                 collaborators={pkg.collaborators}
                                 npmUrl={pkg.npmUrl}
                                 repositoryUrl={pkg.repositoryUrl}
+                                packageId={pkg._id}
                               />
 
                               <PackageComponentDetailsEditor

@@ -351,8 +351,9 @@ const applicationTables = {
     // Last known state of the issue this row owns; refreshed when an admin
     // follows up or when the poller sees a state_change notification.
     githubIssueState: v.optional(v.union(v.literal("open"), v.literal("closed"))),
-    // Set on rows created by githubReplySync when a submitter replied on GitHub.
-    source: v.optional(v.literal("github")),
+    // "github": created by githubReplySync when a submitter replied on GitHub.
+    // "system": review outcome message auto sent by the app (authorEmail "AI").
+    source: v.optional(v.union(v.literal("github"), v.literal("system"))),
     githubCommentId: v.optional(v.number()),
     githubCommentUrl: v.optional(v.string()),
     githubAuthorLogin: v.optional(v.string()),
@@ -362,6 +363,29 @@ const applicationTables = {
     .index("by_github_issue_key", ["githubIssueKey"])
     .index("by_github_comment_id", ["githubCommentId"])
     .index("by_github_broadcast", ["githubBroadcastId"]),
+
+  // Admin only drafts of the message sent to a submitter after a review
+  // outcome. Built from the failed AI review (rejected) or on approval.
+  // Never shown to submitters; sending inserts a packageComments row.
+  reviewMessageDrafts: defineTable({
+    packageId: v.id("packages"),
+    kind: v.union(v.literal("rejected"), v.literal("approved")),
+    content: v.string(),
+    status: v.union(
+      v.literal("draft"),
+      v.literal("sent"),
+      v.literal("dismissed"),
+    ),
+    // aiReviewedAt of the review run the rejection draft was built from
+    sourceAiReviewedAt: v.optional(v.number()),
+    editedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    sentAt: v.optional(v.number()),
+    sentBy: v.optional(v.string()), // admin email or "AI"
+    sentCommentId: v.optional(v.id("packageComments")),
+  })
+    .index("by_package_and_status", ["packageId", "status"])
+    .index("by_status", ["status"]),
 
   // One row per admin "send a GitHub issue to every submitter" run.
   // Counters are patched by the worker as items complete.

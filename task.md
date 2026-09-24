@@ -1,8 +1,13 @@
 # Task List
 
-Session updates complete on 2026-09-21 03:25 UTC. gitlab.com repositories are accepted everywhere GitHub ones are read: submit and edit validation, preflight, README fetch for content generation, issues list and counts, author avatar, markdown link rewriting, host icons and copy. GitHub write features (issue mirror, broadcast, reply sync) stay GitHub only. One backend file (`convex/aiReview.ts`) is blocked by a lint hook false positive; see the to do below.
+Session updates complete on 2026-09-24 01:46 UTC. Review outcome messages shipped to dev: failed AI reviews and approvals write editable drafts in User Messages, nothing sends unless an admin clicks Send or turns on an auto send setting (each with a GitHub option). Rejecting older components drafts on the spot; `reviewMessages:backfillRejectionDrafts` covers components already rejected in prod (see to do below).
+
+Previous session: 2026-09-21 03:25 UTC. gitlab.com repositories are accepted everywhere GitHub ones are read: submit and edit validation, preflight, README fetch for content generation, issues list and counts, author avatar, markdown link rewriting, host icons and copy. GitHub write features (issue mirror, broadcast, reply sync) stay GitHub only. One backend file (`convex/aiReview.ts`) is blocked by a lint hook false positive; see the to do below.
 
 ## to do
+
+- [ ] Review messages: run the prod backfill dry run, then the real run (`npx convex run --prod reviewMessages:backfillRejectionDrafts '{"dryRun":true}'`)
+- [ ] Review messages: swap `REVIEW_CRITERIA` in `convex/aiReview.ts` to import `shared/reviewCriteria.ts` (edit blocked by lint hook false positive)
 
 - [ ] GitLab: `convex/aiReview.ts` provider aware repo fetcher
   - Blocked: the `convex-lint` hook rule `"use node" with query/mutation` rejects every edit to this file because the literal text `query(` appears inside two prompt strings (lines 113 and 526). The file defines only actions. Until the hook is adjusted or the edit is applied by hand, a GitLab preflight or admin AI review returns status `error` with "Invalid GitHub repository URL" instead of reviewing the repo. The exact change is written out step by step in `prds/gitlab-repo-support.md` under Task completion log.
@@ -37,6 +42,15 @@ Session updates complete on 2026-09-21 03:25 UTC. gitlab.com repositories are ac
   - `src/components/CodeBlock.tsx:97` (`lineNumbers` not in shiki `FileOptions`), `src/pages/CategoryPage.tsx:128`, and `src/pages/ComponentDetail.tsx:1267-1268` (implicit `any`). Present before and after the 2026-08-14 security change and after a clean `_generated` rebuild. Likely fallout from the local `convex` package moving 1.32.0 to 1.44.0.
 
 ## completed
+
+- [x] Review outcome messages: rejection and approval drafts in User Messages (2026-09-24 01:33 UTC)
+  - PRD: `prds/review-outcome-messages.md`
+  - [x] `shared/reviewCriteria.ts` and `shared/reviewMessages.ts`: criteria list with critical flags, pure rejection and approval builders that point to the Component Preflight Check
+  - [x] `reviewMessageDrafts` table, `packageComments.source` accepts `"system"`, `convex/packageMessaging.ts` helpers, `addPackageComment` refactored onto `insertPackageComment`
+  - [x] Drafts built on failed AI review save and on every real transition to rejected or approved. Auto send only on the transition and only when the setting is on
+  - [x] Four admin settings (auto send rejection or approval, each with a GitHub toggle), `convex/reviewMessages.ts` admin API, `backfillRejectionDrafts` internal migration
+  - [x] Admin composer draft mode, amber draft dot on Messages, AI Review panel hint, Review messages settings group, Auto-sent pill
+  - [x] Verified: both typechecks, `convex dev --once`, `vite build`, convex-doctor 98/100, backfill dry run on dev
 
 - [x] GitLab repository support, read parity for gitlab.com (2026-09-21 03:25 UTC)
   - PRD: `prds/gitlab-repo-support.md`

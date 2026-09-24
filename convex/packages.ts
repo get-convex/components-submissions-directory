@@ -10,9 +10,16 @@ import {
   MutationCtx,
 } from "./_generated/server";
 import { getAdminIdentity, requireAdminIdentity } from "./auth";
-import { parseGitHubRepo as parseGitHubRepoForIssues } from "./githubIssues";
 import { fetchGitLabIssueCounts, fetchGitLabIssues } from "./gitlabApi";
 import { formatSlackNotification } from "./slack";
+import {
+  createApprovalDraft,
+  dismissPendingDrafts,
+  insertPackageComment,
+  isTeamComment,
+  maybeAutoSend,
+  upsertRejectionDraft,
+} from "./packageMessaging";
 import { api, internal } from "./_generated/api";
 import { Id, Doc } from "./_generated/dataModel";
 import { buildSkillMdFromContent } from "../shared/buildSkillMd";
@@ -2244,6 +2251,23 @@ async function updateReviewStatusHelper(ctx: any, args: ReviewStatusArgs) {
     reviewedAt,
   );
 
+  // Review outcome messages: draft on every real transition, auto send only
+  // when the matching admin setting is on.
+  if (existingPkg && previousStatus !== args.reviewStatus) {
+    const updatedPkg: Doc<"packages"> | null = await ctx.db.get(
+      "packages",
+      args.packageId,
+    );
+    if (updatedPkg && args.reviewStatus === "rejected") {
+      await upsertRejectionDraft(ctx, updatedPkg);
+      await maybeAutoSend(ctx, updatedPkg, "rejected");
+    } else if (updatedPkg && args.reviewStatus === "approved") {
+      await dismissPendingDrafts(ctx, args.packageId, "rejected");
+      await createApprovalDraft(ctx, updatedPkg);
+      await maybeAutoSend(ctx, updatedPkg, "approved");
+    }
+  }
+
   let shouldAutoGenerateSeo =
     args.reviewStatus === "approved" ||
     args.reviewStatus === "pending" ||
@@ -2814,7 +2838,7 @@ export const markCommentsAsReadForAdmin = mutation({
     const updates = comments
       .filter(
         (comment) =>
-          !comment.authorEmail.endsWith("@convex.dev") &&
+          !isTeamComment(comment) &&
           (comment.status === undefined || comment.status === "active") &&
           comment.adminHasRead !== true,
       )
@@ -2856,7 +2880,7 @@ export const getUnreadCommentsCount = query({
 
     return comments.filter(
       (comment) =>
-        !comment.authorEmail.endsWith("@convex.dev") &&
+        !isTeamComment(comment) &&
         (comment.status === undefined || comment.status === "active") &&
         comment.adminHasRead !== true,
     ).length;
@@ -3158,6 +3182,14 @@ export const _saveAiReviewResultAndRun = internalMutation({
       source: args.source,
       rawOutput: args.rawOutput,
     });
+    // Keep the rejection draft in step with the latest review. Never sends;
+    // auto send only happens on a real transition to rejected.
+    if (args.status === "failed") {
+      const pkg = await ctx.db.get("packages", args.packageId);
+      if (pkg) await upsertRejectionDraft(ctx, pkg);
+    } else if (args.status === "passed") {
+      await dismissPendingDrafts(ctx, args.packageId, "rejected");
+    }
     await sendReviewCompletionSlackIfReady(ctx, args.packageId);
     return null;
   },
@@ -3617,6 +3649,25 @@ async function getAdminSettingsHelper(ctx: QueryCtx) {
     .query("adminSettings")
     .withIndex("by_key", (q) => q.eq("key", "showListViewThumbnails"))
     .first();
+  // Review outcome messages: auto send toggles plus their GitHub sub toggles
+  const [
+    autoSendRejection,
+    autoSendRejectionToGithub,
+    autoSendApproval,
+    autoSendApprovalToGithub,
+  ] = await Promise.all(
+    [
+      "autoSendRejectionMessage",
+      "autoSendRejectionMessageToGithub",
+      "autoSendApprovalMessage",
+      "autoSendApprovalMessageToGithub",
+    ].map((key) =>
+      ctx.db
+        .query("adminSettings")
+        .withIndex("by_key", (q) => q.eq("key", key))
+        .first(),
+    ),
+  );
 
   return {
     autoAiReview: autoAiReview?.value || false,
@@ -3639,6 +3690,11 @@ async function getAdminSettingsHelper(ctx: QueryCtx) {
     showAllTimeDownloads: showAllTimeDownloads?.value ?? false,
     // Default off: list view ships thumbnail-free until enabled
     showListViewThumbnails: showListViewThumbnails?.value ?? false,
+    // Default off: drafts wait for a human; GitHub mirror on once enabled
+    autoSendRejectionMessage: autoSendRejection?.value ?? false,
+    autoSendRejectionMessageToGithub: autoSendRejectionToGithub?.value ?? true,
+    autoSendApprovalMessage: autoSendApproval?.value ?? false,
+    autoSendApprovalMessageToGithub: autoSendApprovalToGithub?.value ?? true,
   };
 }
 
@@ -3661,6 +3717,10 @@ const adminSettingsReturnValidator = v.object({
   showWeeklyDownloads: v.boolean(),
   showAllTimeDownloads: v.boolean(),
   showListViewThumbnails: v.boolean(),
+  autoSendRejectionMessage: v.boolean(),
+  autoSendRejectionMessageToGithub: v.boolean(),
+  autoSendApprovalMessage: v.boolean(),
+  autoSendApprovalMessageToGithub: v.boolean(),
 });
 
 export const getAdminSettings = query({
@@ -3742,6 +3802,10 @@ export const updateAdminSetting = mutation({
       v.literal("showWeeklyDownloads"),
       v.literal("showAllTimeDownloads"),
       v.literal("showListViewThumbnails"),
+      v.literal("autoSendRejectionMessage"),
+      v.literal("autoSendRejectionMessageToGithub"),
+      v.literal("autoSendApprovalMessage"),
+      v.literal("autoSendApprovalMessageToGithub"),
     ),
     value: v.boolean(),
   },
@@ -3873,7 +3937,7 @@ export const getPackageComments = query({
       githubIssueState: v.optional(
         v.union(v.literal("open"), v.literal("closed")),
       ),
-      source: v.optional(v.literal("github")),
+      source: v.optional(v.union(v.literal("github"), v.literal("system"))),
       githubCommentId: v.optional(v.number()),
       githubCommentUrl: v.optional(v.string()),
       githubAuthorLogin: v.optional(v.string()),
@@ -3976,46 +4040,15 @@ export const addPackageComment = mutation({
       throw new ConvexError("You can only message for your own submissions");
     }
 
-    // Only admins can mirror to GitHub, and only when the repo is on github.com.
-    const mirrorToGithub =
-      isAdmin &&
-      args.alsoCreateGithubIssue === true &&
-      parseGitHubRepoForIssues(pkg.repositoryUrl) !== null;
-
-    // Insert a private thread message with read state.
-    const commentId = await ctx.db.insert("packageComments", {
-      packageId: args.packageId,
+    // Insert with read state, optional GitHub mirror, and Slack notice.
+    return await insertPackageComment(ctx, {
+      pkg,
       content: args.content,
       authorEmail: userEmail,
       authorName: identity?.name ?? undefined,
-      createdAt: Date.now(),
-      adminHasRead: isAdmin,
-      userHasRead: !isAdmin,
-      status: "active",
-      githubIssueStatus: mirrorToGithub ? "pending" : undefined,
+      isAdmin,
+      alsoCreateGithubIssue: args.alsoCreateGithubIssue === true,
     });
-
-    if (mirrorToGithub) {
-      await ctx.scheduler.runAfter(
-        0,
-        internal.githubIssues.createIssueForComment,
-        { commentId },
-      );
-    }
-
-    // Notify via Slack when a private message is added.
-    const fromLabel = isAdmin
-      ? `Admin (${userEmail})`
-      : `Submitter (${userEmail})`;
-    const text = formatSlackNotification(
-      pkg,
-      "New private message on",
-      fromLabel,
-      args.content,
-    );
-    await ctx.scheduler.runAfter(0, internal.slack.sendMessage, { text });
-
-    return commentId;
   },
 });
 
@@ -4049,7 +4082,9 @@ export const deletePackageComment = mutation({
       );
     }
 
-    if (comment.authorEmail !== userEmail) {
+    // Admins may also remove auto sent review messages.
+    const isSystemRowForAdmin = isAdmin && comment.source === "system";
+    if (comment.authorEmail !== userEmail && !isSystemRowForAdmin) {
       throw new ConvexError("You can only delete your own messages");
     }
 
@@ -4093,7 +4128,9 @@ export const updatePackageCommentStatus = mutation({
       );
     }
 
-    if (comment.authorEmail !== userEmail) {
+    // Admins may also hide or archive auto sent review messages.
+    const isSystemRowForAdmin = isAdmin && comment.source === "system";
+    if (comment.authorEmail !== userEmail && !isSystemRowForAdmin) {
       throw new ConvexError("You can only update your own messages");
     }
 
@@ -5251,7 +5288,7 @@ export const getMySubmissions = query({
           .take(1000);
         const unreadCount = comments.filter(
           (c) =>
-            c.authorEmail.endsWith("@convex.dev") &&
+            isTeamComment(c) &&
             (c.status === undefined || c.status === "active") &&
             c.userHasRead === false,
         ).length;
@@ -5398,7 +5435,7 @@ export const getMyPackageNotes = query({
           v.literal("archived"),
         ),
       ),
-      source: v.optional(v.literal("github")),
+      source: v.optional(v.union(v.literal("github"), v.literal("system"))),
       githubCommentUrl: v.optional(v.string()),
       githubAuthorLogin: v.optional(v.string()),
       githubMirrorKind: v.optional(
@@ -5440,7 +5477,7 @@ export const getMyPackageNotes = query({
         comment.authorEmail === userEmail
           ? "You"
           : (comment.authorName ?? "Convex Team"),
-      isFromAdmin: comment.authorEmail.endsWith("@convex.dev"),
+      isFromAdmin: isTeamComment(comment),
       createdAt: comment.createdAt,
       isOwnMessage: comment.authorEmail === userEmail,
       userHasRead: comment.userHasRead,
@@ -5478,7 +5515,7 @@ export const getUnreadAdminReplyCount = query({
 
     return comments.filter(
       (comment) =>
-        comment.authorEmail.endsWith("@convex.dev") &&
+        isTeamComment(comment) &&
         (comment.status === undefined || comment.status === "active") &&
         comment.userHasRead === false,
     ).length;
@@ -5514,7 +5551,7 @@ export const markPackageNotesAsRead = mutation({
     const updates = comments
       .filter(
         (comment) =>
-          comment.authorEmail.endsWith("@convex.dev") &&
+          isTeamComment(comment) &&
           (comment.status === undefined || comment.status === "active") &&
           comment.userHasRead === false,
       )
@@ -6445,7 +6482,7 @@ export const getTotalUnreadAdminReplies = query({
         .take(1000);
       totalUnread += comments.filter(
         (comment) =>
-          comment.authorEmail.endsWith("@convex.dev") &&
+          isTeamComment(comment) &&
           (comment.status === undefined || comment.status === "active") &&
           comment.userHasRead === false,
       ).length;
@@ -6509,7 +6546,7 @@ async function computeUnreadAdminReplySummary(ctx: any, pkg: any) {
 
   const unread = comments.filter(
     (comment: any) =>
-      comment.authorEmail.endsWith("@convex.dev") &&
+      isTeamComment(comment) &&
       (comment.status === undefined || comment.status === "active") &&
       comment.userHasRead === false,
   );
