@@ -14,6 +14,8 @@ import {
   Package,
   ArrowLeft,
   Info,
+  UserCircle,
+  SignIn,
 } from "@phosphor-icons/react";
 import { RepoHostIcon } from "../components/RepoHostIcon";
 import { isSupportedRepoUrl } from "../../shared/repoUrl";
@@ -38,7 +40,14 @@ interface PreflightResult {
   cachedAt?: number;
   expiresAt?: number;
   remaining?: number;
+  guest?: boolean;
   error?: string;
+}
+
+// Send signed out visitors to login and bring them back to the checker
+function signInHere(signIn: () => Promise<void> | void) {
+  localStorage.setItem("authReturnPath", window.location.pathname);
+  void signIn();
 }
 
 // Critical criteria (indices 0-7) vs advisory (indices 8-11)
@@ -50,25 +59,24 @@ export default function SubmitCheck() {
   const { getAccessToken } = useConnectAuth();
   // Admins (@convex.dev) bypass the rate limit and cache on the backend
   const isAdmin = useQuery(api.auth.isAdmin) ?? false;
+  // Guest availability and limits (admin kill switch lives in AI Review Settings)
+  const access = useQuery(api.packages.getPreflightAccess);
+  const isGuest = !authLoading && !isAuthenticated;
   const [repoUrl, setRepoUrl] = useState("");
   const [npmPackageName, setNpmPackageName] = useState("");
+  // Honeypot: hidden from people, bots that fill every field get rejected
+  const [website, setWebsite] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<PreflightResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorNeedsSignIn, setErrorNeedsSignIn] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
-
-  // Auto-redirect to sign-in when unauthenticated
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      localStorage.setItem("authReturnPath", window.location.pathname);
-      signIn();
-    }
-  }, [authLoading, isAuthenticated, signIn]);
 
   // Validate inputs then open the usage warning modal
   const handleOpenWarning = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setErrorNeedsSignIn(false);
     setResult(null);
 
     if (!repoUrl.trim()) {
@@ -89,27 +97,30 @@ export default function SubmitCheck() {
   // Runs the preflight check after the user confirms the warning modal
   const runPreflightCheck = async () => {
     setError(null);
+    setErrorNeedsSignIn(false);
     setIsLoading(true);
 
     try {
-      // Get auth token for the request
-      const token = await getAccessToken();
-      if (!token) {
-        setError("Authentication required. Please sign in to use the preflight checker.");
-        return;
+      // Signed in users send their token; guests call without one
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (isAuthenticated) {
+        const token = await getAccessToken();
+        if (!token) {
+          setError("Authentication required. Please sign in to use the preflight checker.");
+          return;
+        }
+        headers.Authorization = `Bearer ${token}`;
       }
 
       const response = await fetch(
         `${import.meta.env.VITE_CONVEX_URL?.replace(".cloud", ".site")}/api/preflight`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers,
           body: JSON.stringify({
             repoUrl: repoUrl.trim(),
             npmUrl: npmPackageName.trim() ? buildNpmUrl(npmPackageName) : undefined,
+            ...(isAuthenticated ? {} : { website }),
           }),
         }
       );
@@ -117,6 +128,7 @@ export default function SubmitCheck() {
       const data = await response.json();
 
       if (!response.ok) {
+        setErrorNeedsSignIn(!isAuthenticated && data.requiresSignIn === true);
         if (response.status === 401) {
           setError("Authentication required. Please sign in to use the preflight checker.");
         } else if (response.status === 429) {
@@ -139,22 +151,25 @@ export default function SubmitCheck() {
   const handleRetry = () => {
     setResult(null);
     setError(null);
+    setErrorNeedsSignIn(false);
   };
 
-  // Show loading state while auth is being checked or user is being redirected
-  if (authLoading || !isAuthenticated) {
+  // Wait for auth, and for guests the access settings, so the form never flashes
+  if (authLoading || (isGuest && access === undefined)) {
     return (
       <div className="min-h-screen bg-bg-primary">
         <Header />
         <div className="max-w-3xl mx-auto px-4 py-8">
           <div className="flex items-center justify-center py-20">
             <Spinner size={24} className="animate-spin text-text-secondary" />
-            <span className="ml-3 text-text-secondary">Redirecting to sign in...</span>
+            <span className="ml-3 text-text-secondary">Loading...</span>
           </div>
         </div>
       </div>
     );
   }
+
+  const guestPaused = isGuest && access?.guestEnabled === false;
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -175,10 +190,63 @@ export default function SubmitCheck() {
           uses the same criteria as our review process.
         </p>
 
-        {/* Form or Results */}
-        {!result ? (
+        {/* Guest mode notice with sign in upgrade */}
+        {isGuest && !guestPaused && access && !result && (
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 px-4 py-3 rounded-lg border border-border bg-bg-card">
+            <UserCircle size={20} className="text-text-secondary shrink-0 hidden sm:block" />
+            <p className="flex-1 text-sm text-text-secondary">
+              <span className="font-medium text-text-primary">Testing as a guest.</span>{" "}
+              {access.guestLimitPerHour} checks per hour per network. Sign in for{" "}
+              {access.signedInLimitPerHour} per hour.
+            </p>
+            <button
+              type="button"
+              onClick={() => signInHere(signIn)}
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-normal border border-border text-text-primary hover:bg-bg-hover transition-colors shrink-0">
+              <SignIn size={14} />
+              Sign in
+            </button>
+          </div>
+        )}
+
+        {/* Form, paused guest notice, or Results */}
+        {guestPaused ? (
+          <div className="bg-white border border-border rounded-lg p-6 text-center">
+            <UserCircle size={32} className="mx-auto text-text-secondary" />
+            <h2 className="mt-3 text-base font-medium text-text-primary">
+              Sign in to run a preflight check
+            </h2>
+            <p className="mt-1 text-sm text-text-secondary">
+              Guest checks are paused right now. Signed in accounts get{" "}
+              {access?.signedInLimitPerHour ?? 10} checks per hour.
+            </p>
+            <button
+              type="button"
+              onClick={() => signInHere(signIn)}
+              className="mt-5 inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-full text-sm font-normal bg-button text-white hover:bg-button-hover transition-colors">
+              <SignIn size={16} />
+              Sign in
+            </button>
+          </div>
+        ) : !result ? (
           <div className="bg-white border border-border rounded-lg p-6">
-            <form onSubmit={handleOpenWarning} className="space-y-4">
+            <form onSubmit={handleOpenWarning} className="relative space-y-4">
+              {/* Honeypot field, off screen and skipped by keyboard and screen readers */}
+              {isGuest && (
+                <div aria-hidden="true" className="absolute -left-[9999px] top-0 h-px w-px overflow-hidden">
+                  <label>
+                    Website
+                    <input
+                      type="text"
+                      name="website"
+                      tabIndex={-1}
+                      autoComplete="off"
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
+                    />
+                  </label>
+                </div>
+              )}
               {/* Repository URL (GitHub or GitLab); the icon follows the host as you type */}
               <div>
                 <label className="block text-sm font-medium text-text-primary mb-1">
@@ -228,7 +296,18 @@ export default function SubmitCheck() {
               {error && (
                 <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 border border-red-200">
                   <XCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
-                  <p className="text-sm text-red-700">{error}</p>
+                  <div className="flex-1">
+                    <p className="text-sm text-red-700">{error}</p>
+                    {errorNeedsSignIn && (
+                      <button
+                        type="button"
+                        onClick={() => signInHere(signIn)}
+                        className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-red-700 underline underline-offset-2 hover:text-red-800">
+                        <SignIn size={14} />
+                        Sign in to keep going
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -283,9 +362,10 @@ export default function SubmitCheck() {
       {showWarning && (
         <PreflightWarningModal
           onClose={() => setShowWarning(false)}
-          onConfirm={runPreflightCheck}
+          onConfirm={() => void runPreflightCheck()}
           isLoading={isLoading}
           isAdmin={isAdmin}
+          guestLimitPerHour={isGuest ? access?.guestLimitPerHour : undefined}
         />
       )}
     </div>
@@ -298,11 +378,14 @@ function PreflightWarningModal({
   onConfirm,
   isLoading,
   isAdmin,
+  guestLimitPerHour,
 }: {
   onClose: () => void;
   onConfirm: () => void;
   isLoading: boolean;
   isAdmin: boolean;
+  // Set only for signed out visitors
+  guestLimitPerHour?: number;
 }) {
   // Close on ESC unless a request is in flight
   useEffect(() => {
@@ -338,7 +421,9 @@ function PreflightWarningModal({
               <p className="mt-1 text-sm text-text-secondary">
                 {isAdmin
                   ? "This analysis checks your repository against Convex component requirements. As an admin you have no rate limit and every run is fresh, bypassing the 30 minute cache."
-                  : "This analysis checks your repository against Convex component requirements. It is limited to 10 checks per hour per IP. Results for the same repository are cached for 30 minutes, so re-running within that window returns the cached result and does not count against your limit."}
+                  : guestLimitPerHour !== undefined
+                    ? `This analysis checks your repository against Convex component requirements. As a guest you get ${guestLimitPerHour} checks per hour per network, and one check at a time. Results for the same repository are cached for 30 minutes, so re-running within that window returns the cached result and does not count against your limit.`
+                    : "This analysis checks your repository against Convex component requirements. It is limited to 10 checks per hour per IP. Results for the same repository are cached for 30 minutes, so re-running within that window returns the cached result and does not count against your limit."}
               </p>
             </div>
             <div className="flex items-center gap-3">
@@ -509,7 +594,8 @@ function PreflightResults({
       {/* Rate limit info */}
       {result.remaining !== undefined && (
         <p className="text-xs text-text-tertiary text-center">
-          {result.remaining} preflight checks remaining this hour
+          {result.remaining} {result.guest ? "guest " : ""}preflight{" "}
+          {result.remaining === 1 ? "check" : "checks"} remaining this hour
         </p>
       )}
     </div>

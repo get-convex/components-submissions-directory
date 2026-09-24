@@ -123,9 +123,16 @@ The preflight checker API validates a GitHub or GitLab repository against review
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/preflight` | Run preflight check (requires auth token) |
+| POST | `/api/preflight` | Run preflight check (auth token optional) |
 
-Accepts `repoUrl` and optional `npmUrl`. Returns status, summary, and criteria results. Rate limited to 10 checks per hour per IP, with 30-minute result caching by normalized repo URL.
+Accepts `repoUrl` and optional `npmUrl`. Returns status, summary, criteria results, `cached`, and `remaining`. Results are cached for 30 minutes by normalized repo URL, and cached hits do not count against limits. Only one check runs at a time per IP.
+
+| Caller | Limit | Notes |
+|--------|-------|-------|
+| Signed in (`Authorization: Bearer <token>`) | 10 per hour per IP | Admins have no limit and skip the cache |
+| Guest (no token) | 3 per hour per IP, 30 per hour site wide | Browser origin must be the directory site. Responses include `guest: true` |
+
+Guest requests are rejected when the admin toggle is off, when the `Origin` is not the directory, or when the hidden `website` honeypot field is filled. Rejections that a sign in would fix include `requiresSignIn: true`. Limit responses return 429 with `retryAfterSeconds` and a `Retry-After` header. The client IP comes from Convex request metadata, so forwarded headers cannot be spoofed to reset limits.
 
 ## MCP endpoints
 

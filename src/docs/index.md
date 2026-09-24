@@ -54,6 +54,6 @@ The directory is built with:
 
 | Role | Access |
 |------|--------|
-| Public | Browse directory, view component details, use REST API (rate limited) |
+| Public | Browse directory, view component details, use REST API (rate limited), guest preflight check (3 per hour) |
 | Authenticated user | Submit components, manage profile, preflight check, generate API key |
 | Admin (@convex.dev email) | Full admin dashboard access, API access grants |

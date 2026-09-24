@@ -822,10 +822,13 @@ const applicationTables = {
       ),
     ),
     expiresAt: v.number(),
+    // True for signed out (guest) runs; drives the global guest hourly cap
+    isGuest: v.optional(v.boolean()),
   })
     .index("by_hashed_ip_and_created", ["hashedIp", "createdAt"])
     .index("by_hashed_ip_and_status", ["hashedIp", "status"])
-    .index("by_repo_and_expires", ["normalizedRepoUrl", "expiresAt"]),
+    .index("by_repo_and_expires", ["normalizedRepoUrl", "expiresAt"])
+    .index("by_is_guest_and_created", ["isGuest", "createdAt"]),
 
   contentGenerationRequests: defineTable({
     userKey: v.string(),

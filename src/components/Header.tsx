@@ -278,6 +278,12 @@ export default function Header({ viewMode, onViewModeChange }: HeaderProps) {
                 className="text-sm font-medium text-text-primary hover:text-text-secondary transition-colors">
                 Build
               </a>
+              {/* Component Preflight Check (open to guests with limits) */}
+              <a
+                href={`${basePath}/submit/check`}
+                className="text-sm font-medium text-text-primary hover:text-text-secondary transition-colors">
+                Test
+              </a>
               {isAdmin && (
                 <>
                   <a
@@ -498,6 +504,12 @@ export default function Header({ viewMode, onViewModeChange }: HeaderProps) {
               rel="noopener noreferrer"
               className="px-3 py-2 text-sm font-medium text-text-primary hover:bg-bg-hover rounded-lg transition-colors">
               Build
+            </a>
+            {/* Component Preflight Check (open to guests with limits) */}
+            <a
+              href={`${basePath}/submit/check`}
+              className="px-3 py-2 text-sm font-medium text-text-primary hover:bg-bg-hover rounded-lg transition-colors">
+              Test
             </a>
             {isAdmin && (
               <>

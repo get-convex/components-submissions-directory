@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Guest Component Preflight Check with a Test link in the header (2026-09-24 19:25 UTC)
+  - New `Test` link after Build (desktop and mobile) opens `/components/submit/check` for everyone. Signed out visitors now run the check instead of being redirected to sign in.
+  - Guest limits: 3 checks per hour per network, one at a time, 30 guest checks per hour site wide. Cached results (same repo within 30 minutes) are free. Signed in users keep 10 per hour, admins stay unlimited.
+  - Safeguards: directory origin only, hidden `website` honeypot, URL length caps, and one atomic `_reserveGuestCheck` mutation so parallel requests cannot slip past the limits. The client IP comes from Convex request metadata, so spoofed `x-forwarded-for` headers do not reset the count.
+  - Page shows a guest banner with the limits and a Sign in button, guest copy in the warning modal, a sign in link when a limit is hit, and a sign in card when guest checks are paused.
+  - Admin toggle "Allow guest preflight checks" in AI Review Settings (default on). Public `packages.getPreflightAccess` query exposes the toggle and limits to the page.
+  - API: POST `/api/preflight` accepts calls without a token. Denials that a sign in would fix return `requiresSignIn: true`; limit responses return 429 with `retryAfterSeconds` and `Retry-After`.
+  - Files: `convex/preflight.ts`, `convex/http.ts`, `convex/schema.ts` (`preflightChecks.isGuest`, `by_is_guest_and_created` index), `convex/packages.ts`, `src/components/Header.tsx`, `src/pages/SubmitCheck.tsx`, `src/pages/Admin.tsx`, `src/docs/*.md`, `prds/guest-preflight-check.md`
+
 - Review outcome messages: rejection and approval drafts in User Messages (2026-09-24 01:33 UTC)
   - A failed AI review writes a rejection draft that lists the blocking checks first, then advisory ones, and asks the submitter to run the Component Preflight Check (`https://www.convex.dev/components/submit/check`). Approving a component writes an approval draft with the listing link.
   - Drafts open prefilled in the User Messages composer with a banner (Rejection draft from AI review or Approval draft, Not sent yet). Edits autosave after 500ms. Regenerate, Discard (inline confirm), and Write a different message (keeps the draft for later). Cmd+Enter or Ctrl+Enter sends. The existing GitHub checkbox still decides the mirror.
@@ -41,6 +50,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Files: `src/components/Header.tsx`
 
 ### Fixed
+
+- Preflight check lockouts and cached failures (2026-09-24 19:25 UTC)
+  - A preflight run that crashed before finishing left its row at `pending`, which blocked that IP with "already running" until the row expired. Crashed runs are now marked `error`, and pending rows older than 10 minutes no longer count as in flight.
+  - Error results were cached for 30 minutes, so a transient AI or GitHub failure kept returning the same error for that repo. Error rows now expire immediately.
+  - Files: `convex/preflight.ts`, `convex/http.ts`
 
 - Resizable "drag box" textareas on the Edit Submission and Submit pages (2026-09-17 09:18 UTC)
   - The Component Directory Content block used `resize-y` textareas beside a fixed-height preview, so the two columns drifted out of sync and the grip handle let authors shrink the field into a scroll box. The block now uses `DocSectionEditor`: a `useLayoutEffect` sets the textarea height to `max(scrollHeight, minHeight, dragged height)` on every change, so the field grows with the content and never scrolls inside itself, and a manual drag only ever makes it taller. Verified: 161px at 3 bullets, 252px at 6 bullets; a 320px drag held at 320px after typing.

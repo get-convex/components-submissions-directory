@@ -14,12 +14,13 @@ Before submitting, you need:
 
 Before submitting, you can validate your repository at `/components/submit/check`. The preflight checker:
 
-- Requires authentication (auto-redirects to sign in if needed)
+- Works signed in or signed out. The **Test** link in the header opens it for everyone
+- Guests get 3 checks per hour per network, one at a time, with a site wide cap of 30 guest checks per hour. Admins can pause guest checks in Settings, which shows a sign in prompt instead
 - Analyzes your GitHub or GitLab repository against the same review criteria used by admins. The input icon switches to the matching host logo as you type
 - Shows 9 critical criteria that must pass for a valid component
 - Shows 5 advisory recommendations that do not block approval
-- Rate limited to 10 checks per hour per IP
-- Caches results for 30 minutes per repository URL
+- Signed in users get 10 checks per hour per IP
+- Caches results for 30 minutes per repository URL. Cached results do not count against either limit
 - Provides a "Continue to Submit" link when your repo passes
 
 ## Submission form

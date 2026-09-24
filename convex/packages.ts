@@ -20,6 +20,11 @@ import {
   maybeAutoSend,
   upsertRejectionDraft,
 } from "./packageMessaging";
+import {
+  GUEST_MAX_CHECKS_PER_HOUR,
+  GUEST_PREFLIGHT_SETTING_KEY,
+  SIGNED_IN_MAX_CHECKS_PER_HOUR,
+} from "./preflight";
 import { api, internal } from "./_generated/api";
 import { Id, Doc } from "./_generated/dataModel";
 import { buildSkillMdFromContent } from "../shared/buildSkillMd";
@@ -3668,6 +3673,11 @@ async function getAdminSettingsHelper(ctx: QueryCtx) {
         .first(),
     ),
   );
+  // Kill switch for signed out preflight runs
+  const guestPreflight = await ctx.db
+    .query("adminSettings")
+    .withIndex("by_key", (q) => q.eq("key", "guestPreflightEnabled"))
+    .first();
 
   return {
     autoAiReview: autoAiReview?.value || false,
@@ -3695,6 +3705,8 @@ async function getAdminSettingsHelper(ctx: QueryCtx) {
     autoSendRejectionMessageToGithub: autoSendRejectionToGithub?.value ?? true,
     autoSendApprovalMessage: autoSendApproval?.value ?? false,
     autoSendApprovalMessageToGithub: autoSendApprovalToGithub?.value ?? true,
+    // Default on: signed out visitors can run a limited number of checks
+    guestPreflightEnabled: guestPreflight?.value ?? true,
   };
 }
 
@@ -3721,6 +3733,7 @@ const adminSettingsReturnValidator = v.object({
   autoSendRejectionMessageToGithub: v.boolean(),
   autoSendApprovalMessage: v.boolean(),
   autoSendApprovalMessageToGithub: v.boolean(),
+  guestPreflightEnabled: v.boolean(),
 });
 
 export const getAdminSettings = query({
@@ -3782,6 +3795,28 @@ export const getListViewSettings = query({
   },
 });
 
+// Public query: whether signed out visitors can run the preflight checker and
+// the limits to show them. Limits mirror the constants enforced in preflight.ts.
+export const getPreflightAccess = query({
+  args: {},
+  returns: v.object({
+    guestEnabled: v.boolean(),
+    guestLimitPerHour: v.number(),
+    signedInLimitPerHour: v.number(),
+  }),
+  handler: async (ctx) => {
+    const guestPreflight = await ctx.db
+      .query("adminSettings")
+      .withIndex("by_key", (q) => q.eq("key", GUEST_PREFLIGHT_SETTING_KEY))
+      .first();
+    return {
+      guestEnabled: guestPreflight?.value ?? true,
+      guestLimitPerHour: GUEST_MAX_CHECKS_PER_HOUR,
+      signedInLimitPerHour: SIGNED_IN_MAX_CHECKS_PER_HOUR,
+    };
+  },
+});
+
 // Update admin setting (boolean)
 export const updateAdminSetting = mutation({
   args: {
@@ -3806,6 +3841,7 @@ export const updateAdminSetting = mutation({
       v.literal("autoSendRejectionMessageToGithub"),
       v.literal("autoSendApprovalMessage"),
       v.literal("autoSendApprovalMessageToGithub"),
+      v.literal("guestPreflightEnabled"),
     ),
     value: v.boolean(),
   },

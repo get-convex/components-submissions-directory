@@ -79,6 +79,7 @@ Controls the AI automation workflow.
 | Auto AI review | Queues eligible submissions for review, moves to "In Review" |
 | Auto-approve on pass | Approves automatically when all critical criteria pass (requires Auto AI review) |
 | Auto-reject on fail | Rejects automatically when critical criteria fail (requires Auto AI review) |
+| Allow guest preflight checks | Lets signed out visitors run the preflight check at 3 per hour per network, capped at 30 guest runs per hour site wide. Turn off to require sign in. Defaults to on |
 
 Auto AI review defaults to off. When enabled, it also queues current pending packages with repository URLs.
 

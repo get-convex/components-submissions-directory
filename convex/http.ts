@@ -1,6 +1,7 @@
 import { httpRouter } from "convex/server";
-import { httpAction } from "./_generated/server";
+import { httpAction, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 import { buildComponentUrls } from "../shared/componentUrls";
 import { normalizeMarkdown } from "../shared/normalizeMarkdown";
 import { isOfficialComponent } from "../shared/officialComponents";
@@ -1295,7 +1296,8 @@ http.route({
 
 // ============ PUBLIC PREFLIGHT CHECK ENDPOINT ============
 // Allows developers to test their repo against component review criteria before submission
-// Rate limited by hashed IP, results cached for 30 minutes
+// Rate limited by hashed IP, results cached for 30 minutes. Signed in users get
+// 10 per hour (admins unlimited); signed out guests get the stricter guest path.
 
 function preflightJsonHeaders(request?: Request): Record<string, string> {
   // Get the origin from the request, or default to allow all
@@ -1338,19 +1340,191 @@ function getClientIp(request: Request): string {
   return `ua-fallback-${userAgent.slice(0, 50)}`;
 }
 
+// Prefer the platform-provided client IP. Forwarding headers can be set by any
+// caller, so they are only a fallback for backends without request metadata.
+async function resolveClientIp(ctx: ActionCtx, request: Request): Promise<string> {
+  try {
+    const { ip } = await ctx.meta.getRequestMetadata();
+    if (ip) return ip;
+  } catch {
+    // Fall through to headers
+  }
+  return getClientIp(request);
+}
+
+// Guest runs must come from the directory site (or local/preview builds).
+// Origin is spoofable outside browsers; the per IP and global caps are the real bound.
+function isAllowedGuestOrigin(origin: string | null): boolean {
+  if (!origin) return false;
+  try {
+    const { hostname } = new URL(origin);
+    return (
+      hostname === "convex.dev" ||
+      hostname.endsWith(".convex.dev") ||
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname.endsWith(".netlify.app")
+    );
+  } catch {
+    return false;
+  }
+}
+
+const GUEST_MAX_REPO_URL_LENGTH = 500;
+const GUEST_MAX_NPM_URL_LENGTH = 300;
+
+function formatRetryWindow(seconds: number): string {
+  const minutes = Math.max(1, Math.ceil(seconds / 60));
+  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+}
+
+// Run the AI check and store the outcome. On a thrown error the pending row is
+// marked as an error so it never blocks that IP's in-flight gate.
+async function runAndStorePreflight(
+  ctx: ActionCtx,
+  checkId: Id<"preflightChecks">,
+  repoUrl: string,
+  npmUrl: string | undefined
+) {
+  try {
+    const result = await ctx.runAction(internal.aiReview.runPreflightCheck, {
+      repoUrl,
+      packageName: npmUrl ? extractPackageNameFromNpmUrl(npmUrl) : undefined,
+    });
+    await ctx.runMutation(internal.preflight._updatePreflightCheck, {
+      checkId,
+      status: result.status,
+      summary: result.summary,
+      criteria: result.criteria,
+    });
+    return result;
+  } catch (error) {
+    await ctx.runMutation(internal.preflight._updatePreflightCheck, {
+      checkId,
+      status: "error",
+      summary: "Preflight check failed before completing",
+    });
+    throw error;
+  }
+}
+
+// Signed out preflight run: origin, honeypot, and input checks here, then one
+// transactional reservation that applies the kill switch, cache, and limits.
+async function handleGuestPreflight(
+  ctx: ActionCtx,
+  request: Request,
+  corsHeaders: Record<string, string>
+): Promise<Response> {
+  const json = (status: number, body: Record<string, unknown>, extra?: Record<string, string>) =>
+    new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, ...extra } });
+
+  if (!isAllowedGuestOrigin(request.headers.get("Origin"))) {
+    return json(403, {
+      error: "Sign in to use the preflight checker from this client.",
+      requiresSignIn: true,
+    });
+  }
+
+  const raw: unknown = await request.json().catch(() => null);
+  if (typeof raw !== "object" || raw === null) {
+    return json(400, { error: "Invalid request body" });
+  }
+  const body = raw as Record<string, unknown>;
+
+  // Honeypot: the hidden "website" field is empty for real visitors
+  if (typeof body.website === "string" && body.website.trim() !== "") {
+    return json(400, { error: "Invalid request" });
+  }
+
+  const repoUrl = typeof body.repoUrl === "string" ? body.repoUrl.trim() : "";
+  const npmUrl =
+    typeof body.npmUrl === "string" && body.npmUrl.trim() !== "" ? body.npmUrl.trim() : undefined;
+
+  if (!repoUrl) {
+    return json(400, { error: "Missing repoUrl parameter" });
+  }
+  if (
+    repoUrl.length > GUEST_MAX_REPO_URL_LENGTH ||
+    (npmUrl !== undefined && npmUrl.length > GUEST_MAX_NPM_URL_LENGTH) ||
+    !isSupportedRepoUrl(repoUrl)
+  ) {
+    return json(400, {
+      error:
+        "Invalid repository URL. Expected https://github.com/owner/repo or https://gitlab.com/owner/repo",
+    });
+  }
+
+  const { hashIp, normalizeRepoUrl, GUEST_MAX_CHECKS_PER_HOUR, SIGNED_IN_MAX_CHECKS_PER_HOUR } =
+    await import("./preflight");
+  const hashedIp = await hashIp(await resolveClientIp(ctx, request));
+
+  const reservation = await ctx.runMutation(internal.preflight._reserveGuestCheck, {
+    hashedIp,
+    normalizedRepoUrl: normalizeRepoUrl(repoUrl),
+  });
+
+  if (reservation.kind === "cached") {
+    return json(200, { ...reservation.result, cached: true, guest: true });
+  }
+
+  if (reservation.kind === "denied") {
+    const retryAfter = reservation.retryAfterSeconds;
+    const retryHeaders = retryAfter ? { "Retry-After": String(retryAfter) } : undefined;
+    switch (reservation.reason) {
+      case "disabled":
+        return json(403, {
+          error: "Guest checks are paused right now. Sign in to run the preflight check.",
+          requiresSignIn: true,
+        });
+      case "in_flight":
+        return json(429, {
+          error: "A preflight check is already running from your network. Wait for it to finish.",
+        });
+      case "ip_limit":
+        return json(
+          429,
+          {
+            error: `Guest limit reached (${GUEST_MAX_CHECKS_PER_HOUR} checks per hour). Sign in for ${SIGNED_IN_MAX_CHECKS_PER_HOUR} per hour, or try again in ${formatRetryWindow(retryAfter ?? 3600)}.`,
+            requiresSignIn: true,
+            retryAfterSeconds: retryAfter,
+            remaining: 0,
+          },
+          retryHeaders
+        );
+      case "global_limit":
+        return json(
+          429,
+          {
+            error: `Guest checks are at capacity. Sign in to run it now, or try again in ${formatRetryWindow(retryAfter ?? 3600)}.`,
+            requiresSignIn: true,
+            retryAfterSeconds: retryAfter,
+          },
+          retryHeaders
+        );
+    }
+  }
+
+  const result = await runAndStorePreflight(ctx, reservation.checkId, repoUrl, npmUrl);
+  return json(200, {
+    status: result.status,
+    summary: result.summary,
+    criteria: result.criteria,
+    cached: false,
+    guest: true,
+    remaining: reservation.remaining,
+  });
+}
+
 http.route({
   path: "/api/preflight",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     const corsHeaders = preflightJsonHeaders(request);
     try {
-      // Require authentication
+      // Signed out visitors take the guest path with stricter safeguards
       const identity = await ctx.auth.getUserIdentity();
       if (!identity) {
-        return new Response(
-          JSON.stringify({ error: "Authentication required. Please sign in to use the preflight checker." }),
-          { status: 401, headers: corsHeaders }
-        );
+        return await handleGuestPreflight(ctx, request, corsHeaders);
       }
 
       // Admins (@convex.dev emails) bypass rate limiting and caching for unlimited fresh runs
@@ -1377,7 +1551,7 @@ http.route({
       }
 
       // Hash the client IP for rate limiting
-      const clientIp = getClientIp(request);
+      const clientIp = await resolveClientIp(ctx, request);
       const { hashIp, normalizeRepoUrl } = await import("./preflight");
       const hashedIp = await hashIp(clientIp);
       const normalizedUrl = normalizeRepoUrl(body.repoUrl);
@@ -1414,6 +1588,7 @@ http.route({
         ? false
         : await ctx.runQuery(internal.preflight._hasInFlightCheck, {
             hashedIp,
+            now: Date.now(),
           });
 
       if (hasInFlight) {
@@ -1454,19 +1629,8 @@ http.route({
         hashedIp,
       });
 
-      // Run the actual preflight check
-      const result = await ctx.runAction(internal.aiReview.runPreflightCheck, {
-        repoUrl: body.repoUrl,
-        packageName: body.npmUrl ? extractPackageNameFromNpmUrl(body.npmUrl) : undefined,
-      });
-
-      // Update the check record with the result
-      await ctx.runMutation(internal.preflight._updatePreflightCheck, {
-        checkId,
-        status: result.status,
-        summary: result.summary,
-        criteria: result.criteria,
-      });
+      // Run the actual preflight check and store the result
+      const result = await runAndStorePreflight(ctx, checkId, body.repoUrl, body.npmUrl);
 
       return new Response(
         JSON.stringify({

@@ -7061,7 +7061,8 @@ function AdminSettingsPanel() {
       | "autoSendRejectionMessage"
       | "autoSendRejectionMessageToGithub"
       | "autoSendApprovalMessage"
-      | "autoSendApprovalMessageToGithub",
+      | "autoSendApprovalMessageToGithub"
+      | "guestPreflightEnabled",
     currentValue: boolean,
   ) => {
     try {
@@ -7400,6 +7401,41 @@ function AdminSettingsPanel() {
               <span
                 className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                   settings.autoRejectOnFail ? "translate-x-6" : "translate-x-1"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Guest preflight kill switch */}
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium text-text-primary">
+                Allow guest preflight checks
+              </label>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Signed out visitors can run the Component Preflight Check at 3
+                per hour per network, capped at 30 guest runs per hour site
+                wide. Turn off to require sign in. Default is on.
+              </p>
+            </div>
+            <button
+              onClick={() =>
+                handleToggle(
+                  "guestPreflightEnabled",
+                  settings.guestPreflightEnabled,
+                )
+              }
+              aria-pressed={settings.guestPreflightEnabled}
+              aria-label="Allow guest preflight checks"
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                settings.guestPreflightEnabled ? "bg-green-600" : "bg-gray-300"
+              }`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  settings.guestPreflightEnabled
+                    ? "translate-x-6"
+                    : "translate-x-1"
                 }`}
               />
             </button>

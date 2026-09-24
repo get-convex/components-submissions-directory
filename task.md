@@ -1,10 +1,14 @@
 # Task List
 
-Session updates complete on 2026-09-24 01:46 UTC. Review outcome messages shipped to dev: failed AI reviews and approvals write editable drafts in User Messages, nothing sends unless an admin clicks Send or turns on an auto send setting (each with a GitHub option). Rejecting older components drafts on the spot; `reviewMessages:backfillRejectionDrafts` covers components already rejected in prod (see to do below).
+Session updates complete on 2026-09-24 20:15 UTC. Guest preflight check shipped to dev: a Test link next to Build opens the Component Preflight Check for signed out visitors at 3 checks per hour per network (30 per hour site wide), with an admin kill switch. Signed in flow unchanged.
+
+Earlier session: 2026-09-24 01:46 UTC. Review outcome messages shipped to dev: failed AI reviews and approvals write editable drafts in User Messages, nothing sends unless an admin clicks Send or turns on an auto send setting (each with a GitHub option). Rejecting older components drafts on the spot; `reviewMessages:backfillRejectionDrafts` covers components already rejected in prod (see to do below).
 
 Previous session: 2026-09-21 03:25 UTC. gitlab.com repositories are accepted everywhere GitHub ones are read: submit and edit validation, preflight, README fetch for content generation, issues list and counts, author avatar, markdown link rewriting, host icons and copy. GitHub write features (issue mirror, broadcast, reply sync) stay GitHub only. One backend file (`convex/aiReview.ts`) is blocked by a lint hook false positive; see the to do below.
 
 ## to do
+
+- [ ] Guest preflight check: deploy to prod (`npx convex deploy`) so the new `by_is_guest_and_created` index and guest path go live, then confirm the Test link and one guest run on www.convex.dev/components/submit/check
 
 - [ ] Review messages: run the prod backfill dry run, then the real run (`npx convex run --prod reviewMessages:backfillRejectionDrafts '{"dryRun":true}'`)
 - [ ] Review messages: swap `REVIEW_CRITERIA` in `convex/aiReview.ts` to import `shared/reviewCriteria.ts` (edit blocked by lint hook false positive)
@@ -42,6 +46,16 @@ Previous session: 2026-09-21 03:25 UTC. gitlab.com repositories are accepted eve
   - `src/components/CodeBlock.tsx:97` (`lineNumbers` not in shiki `FileOptions`), `src/pages/CategoryPage.tsx:128`, and `src/pages/ComponentDetail.tsx:1267-1268` (implicit `any`). Present before and after the 2026-08-14 security change and after a clean `_generated` rebuild. Likely fallout from the local `convex` package moving 1.32.0 to 1.44.0.
 
 ## completed
+
+- [x] Guest preflight check: Test link in header, signed out runs with safeguards (2026-09-24 19:25 UTC)
+  - PRD: `prds/guest-preflight-check.md`
+  - [x] `Test` link after Build in desktop and mobile header, shown to everyone, points at `/submit/check`
+  - [x] Signed out POST `/api/preflight` runs a guest path instead of 401: directory origin only, `website` honeypot, URL length caps, one atomic `_reserveGuestCheck` mutation (kill switch, cache, in flight, 3 per hour per IP, 30 per hour site wide)
+  - [x] Client IP now comes from `ctx.meta.getRequestMetadata()` with header fallback, so forwarded headers cannot reset limits
+  - [x] Fixed for everyone: crashed runs no longer leave a pending row that locks the IP out (marked error, plus a 10 minute stale window), and error results are no longer cached for 30 minutes
+  - [x] Admin toggle "Allow guest preflight checks" in AI Review Settings (default on), public `packages.getPreflightAccess` query for the page
+  - [x] `SubmitCheck.tsx`: no redirect, guest banner with Sign in, paused guest card, guest modal copy, sign in link on limit errors, guest remaining count
+  - [x] Verified: `tsc -p convex`, app typecheck (only pre-existing errors), eslint on touched lines, `convex dev` deployed the index, browser guest run passed with "2 guest preflight checks remaining", curl checks for bad origin (403), honeypot (400), bad URL (400), concurrent run (429), cached repeat (`cached: true`)
 
 - [x] Review outcome messages: rejection and approval drafts in User Messages (2026-09-24 01:33 UTC)
   - PRD: `prds/review-outcome-messages.md`
