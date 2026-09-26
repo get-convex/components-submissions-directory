@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- README badges now match the official shields.io flat badge (2026-09-26 07:13 UTC)
+  - The old badge guessed text width per character and drew 11px text with no `textLength`, so it looked bigger and padded out next to real shields badges. The new renderer measures text with the Verdana 11px width table shields uses, pads 5px per side, and draws text at 110 scaled by 0.1 with a fixed `textLength`. Output is byte identical to `badge-maker` flat style.
+  - Approved green changed from `#228909` to shields brightgreen `#4c1`. In Review, Changes Requested, Pending, Rejected, and Not Found keep their colors. Left box is `#555`.
+  - Every badge preview in the app (Profile, Submit, ComponentDetail, the details editor) picks this up automatically because they all load the same SVG.
+  - `badge-palette-preview.html` is now a single full width page with no cards, showing every status next to a shields reference and the old badge.
+  - Files: `convex/badgeSvg.ts` (new), `convex/http.ts`, `badge-palette-preview.html`, `src/docs/badges.md`, `src/docs/api-endpoints.md`, `prds/shields-style-badges.md`
+  - Follow up (2026-09-26 07:31 UTC): text now gets the soft blurred shadow live shields.io added in `badge-maker` v6 (`feGaussianBlur` at 0.8 opacity under the 0.3 shadow). This was the remaining "letters look off" gap. Text widths were already within half a pixel of real Verdana. Output is byte identical to `badge-maker@6`. The preview loads every badge through `<img>` and compares against live img.shields.io at 1x and 3x.
+
 ### Added
 
 - Guest Component Preflight Check with a Test link in the header (2026-09-24 19:25 UTC)

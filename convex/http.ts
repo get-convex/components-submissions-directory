@@ -7,6 +7,7 @@ import { normalizeMarkdown } from "../shared/normalizeMarkdown";
 import { isOfficialComponent } from "../shared/officialComponents";
 import { isSupportedRepoUrl, repoHostLabel } from "../shared/repoUrl";
 import { resolveApiCaller, rateLimitHeaders, type ApiCallerResult } from "./apiKeys";
+import { BADGE_COLORS, escapeXml, renderShieldsBadge } from "./badgeSvg";
 
 const http = httpRouter();
 const DIRECTORY_ORIGIN = "https://www.convex.dev";
@@ -656,7 +657,7 @@ http.route({
     const slug = url.searchParams.get("slug") || "";
 
     if (!slug) {
-      return new Response(generateBadgeSvg("unknown", "Not Found", "#6b6b6b"), {
+      return new Response(generateBadgeSvg("unknown", "Not Found", BADGE_COLORS.not_found), {
         status: 200,
         headers: svgHeaders(),
       });
@@ -667,24 +668,24 @@ http.route({
     });
 
     let statusLabel = "Not Found";
-    let statusColor = "#6b6b6b";
+    let statusColor: string = BADGE_COLORS.not_found;
 
     if (pkg) {
       if (pkg.reviewStatus === "approved") {
         statusLabel = "Approved";
-        statusColor = "#228909";
+        statusColor = BADGE_COLORS.approved;
       } else if (pkg.reviewStatus === "in_review") {
         statusLabel = "In Review";
-        statusColor = "#2563eb";
+        statusColor = BADGE_COLORS.in_review;
       } else if (pkg.reviewStatus === "changes_requested") {
         statusLabel = "Changes Requested";
-        statusColor = "#ea580c";
+        statusColor = BADGE_COLORS.changes_requested;
       } else if (pkg.reviewStatus === "rejected") {
         statusLabel = "Rejected";
-        statusColor = "#dc2626";
+        statusColor = BADGE_COLORS.rejected;
       } else {
         statusLabel = "Pending";
-        statusColor = "#ca8a04";
+        statusColor = BADGE_COLORS.pending;
       }
     }
 
@@ -704,46 +705,12 @@ http.route({
   }),
 });
 
-function generateBadgeSvg(
-  name: string,
-  status: string,
-  statusColor: string,
-): string {
-  const leftText = "Convex";
-  const rightText = `${status}: ${name}`;
-  const leftWidth = leftText.length * 7 + 14;
-  const rightWidth = rightText.length * 6.2 + 14;
-  const totalWidth = leftWidth + rightWidth;
-
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="20" role="img" aria-label="${leftText}: ${rightText}">
-  <title>${leftText}: ${rightText}</title>
-  <linearGradient id="s" x2="0" y2="100%">
-    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
-    <stop offset="1" stop-opacity=".1"/>
-  </linearGradient>
-  <clipPath id="r">
-    <rect width="${totalWidth}" height="20" rx="3" fill="#fff"/>
-  </clipPath>
-  <g clip-path="url(#r)">
-    <rect width="${leftWidth}" height="20" fill="#555555"/>
-    <rect x="${leftWidth}" width="${rightWidth}" height="20" fill="${statusColor}"/>
-    <rect width="${totalWidth}" height="20" fill="url(#s)"/>
-  </g>
-  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" text-rendering="geometricPrecision" font-size="11">
-    <text aria-hidden="true" x="${leftWidth / 2}" y="15" fill="#010101" fill-opacity=".3">${leftText}</text>
-    <text x="${leftWidth / 2}" y="14">${leftText}</text>
-    <text aria-hidden="true" x="${leftWidth + rightWidth / 2}" y="15" fill="#010101" fill-opacity=".3">${escapeXml(rightText)}</text>
-    <text x="${leftWidth + rightWidth / 2}" y="14">${escapeXml(rightText)}</text>
-  </g>
-</svg>`;
-}
-
-function escapeXml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+function generateBadgeSvg(name: string, status: string, statusColor: string): string {
+  return renderShieldsBadge({
+    label: "Convex",
+    message: `${status}: ${name}`,
+    color: statusColor,
+  });
 }
 
 function svgHeaders(): Record<string, string> {

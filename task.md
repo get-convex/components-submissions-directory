@@ -1,5 +1,7 @@
 # Task List
 
+Session updates complete on 2026-09-26 07:13 UTC. README badges now render in exact shields.io flat style with approved switched to `#4c1`. Needs a prod deploy to go live.
+
 Session updates complete on 2026-09-24 20:15 UTC. Guest preflight check shipped to dev: a Test link next to Build opens the Component Preflight Check for signed out visitors at 3 checks per hour per network (30 per hour site wide), with an admin kill switch. Signed in flow unchanged.
 
 Earlier session: 2026-09-24 01:46 UTC. Review outcome messages shipped to dev: failed AI reviews and approvals write editable drafts in User Messages, nothing sends unless an admin clicks Send or turns on an auto send setting (each with a GitHub option). Rejecting older components drafts on the spot; `reviewMessages:backfillRejectionDrafts` covers components already rejected in prod (see to do below).
@@ -7,6 +9,8 @@ Earlier session: 2026-09-24 01:46 UTC. Review outcome messages shipped to dev: f
 Previous session: 2026-09-21 03:25 UTC. gitlab.com repositories are accepted everywhere GitHub ones are read: submit and edit validation, preflight, README fetch for content generation, issues list and counts, author avatar, markdown link rewriting, host icons and copy. GitHub write features (issue mirror, broadcast, reply sync) stay GitHub only. One backend file (`convex/aiReview.ts`) is blocked by a lint hook false positive; see the to do below.
 
 ## to do
+
+- [ ] Shields style badges: deploy to prod (`npx convex deploy`) and load `https://www.convex.dev/components/badge/<approved-slug>` to confirm the `#4c1` badge. GitHub camo may keep old README images until its cache expires.
 
 - [ ] Guest preflight check: deploy to prod (`npx convex deploy`) so the new `by_is_guest_and_created` index and guest path go live, then confirm the Test link and one guest run on www.convex.dev/components/submit/check
 
@@ -46,6 +50,15 @@ Previous session: 2026-09-21 03:25 UTC. gitlab.com repositories are accepted eve
   - `src/components/CodeBlock.tsx:97` (`lineNumbers` not in shiki `FileOptions`), `src/pages/CategoryPage.tsx:128`, and `src/pages/ComponentDetail.tsx:1267-1268` (implicit `any`). Present before and after the 2026-08-14 security change and after a clean `_generated` rebuild. Likely fallout from the local `convex` package moving 1.32.0 to 1.44.0.
 
 ## completed
+
+- [x] Shields style README badges (2026-09-26 07:13 UTC)
+  - PRD: `prds/shields-style-badges.md`
+  - [x] New `convex/badgeSvg.ts` with the Verdana 11px width table, `renderShieldsBadge`, and `BADGE_COLORS` (approved `#4c1`, other statuses unchanged)
+  - [x] `convex/http.ts` `/api/badge` uses the helper. `convex/router.ts` left alone (not served by Convex)
+  - [x] `badge-palette-preview.html` rewritten as one full width page, no cards or borders
+  - [x] Docs: `src/docs/badges.md`, `src/docs/api-endpoints.md`
+  - [x] Verified: output byte identical to `badge-maker@4` flat for 6 cases (including `&` and `<` escaping), `npx tsc -p convex --noEmit` clean, preview checked in browser
+  - [x] Blurred text shadow from `badge-maker@6` added to match live shields.io, preview switched to `<img>` with live shields comparison and 3x zoom. 6 of 6 byte identical to v6 (2026-09-26 07:31 UTC)
 
 - [x] Guest preflight check: Test link in header, signed out runs with safeguards (2026-09-24 19:25 UTC)
   - PRD: `prds/guest-preflight-check.md`

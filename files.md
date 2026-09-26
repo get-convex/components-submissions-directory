@@ -348,11 +348,15 @@ HTTP router configuration. Defines:
 - `/api/markdown` endpoint serving raw markdown (`Content-Type: text/markdown`) for component data, enhanced with AI-generated SEO sections
 - `/api/llms.txt` endpoint serving a plain-text index of all approved components for AI agent discovery
 
+### `convex/badgeSvg.ts`
+
+Shields.io flat badge renderer used by `/api/badge`. Holds the Verdana 11px width table (from `anafanafo`), `measureText`, `renderShieldsBadge`, the `BADGE_COLORS` status map (approved `#4c1`), and the shared `escapeXml`. Output is byte identical to `badge-maker@6` flat style, including the blurred text shadow.
+
 ### `convex/http.ts`
 
 Main HTTP router with all API endpoints. Defines:
 - `/api/export-csv` endpoint for CSV export of all packages
-- `/api/badge` endpoint for dynamic SVG badge generation with shields.io styling (`#555555` left box, status colors aligned to frontend pills) and analytics tracking
+- `/api/badge` endpoint for dynamic SVG badge generation (rendered by `convex/badgeSvg.ts` in exact shields.io flat style) and analytics tracking
 - `/api/markdown?slug=<slug>` endpoint serving raw markdown for a single component
 - `/api/skill?slug=<slug>` endpoint serving the raw generated SKILL.md for a single component (404 for hidden/archived packages, missing skills, or `hideSeoAndSkillContentOnDetailPage`); backs the `/components/<slug>/SKILL.md` alias. Component markdown, llms.txt, and index outputs include skill links when a public skill exists
 - `/api/markdown-index` endpoint serving markdown listing of all approved components
@@ -824,15 +828,15 @@ Convex Components Challenge documentation.
 
 ### `badge-palette-preview.html`
 
-Local visual review page for badge and status colors. Shows badge SVG colors using shields.io styling (`#555555` left box) with status colors aligned to frontend pills:
-- Approved: `#228909` (Convex Verified green)
-- In Review: `#2563eb` (frontend blue pill)
-- Changes Requested: `#ea580c` (frontend orange pill)
-- Pending: `#ca8a04` (frontend yellow pill)
-- Rejected: `#dc2626` (frontend red pill)
-- Not Found: `#6b6b6b` (gray)
+Full width local review page for README badges. Renders every status through `<img>` with a JS copy of `convex/badgeSvg.ts` (keep the two in sync), next to live img.shields.io badges, the previous no blur pass, and the original badge, with a 3x zoom row and a dark README row. Colors:
+- Approved: `#4c1` (shields brightgreen)
+- In Review: `#2563eb`
+- Changes Requested: `#ea580c`
+- Pending: `#ca8a04`
+- Rejected: `#dc2626`
+- Not Found: `#6b6b6b`
 
-Also shows frontend status badge class mappings and site badge colors (Verified and Community). This file is intentionally ignored by git for local review only.
+This file is intentionally ignored by git for local review only.
 
 ### `mockups/components-header-mockups.html`
 

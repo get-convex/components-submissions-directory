@@ -26,11 +26,11 @@ Badge snippets with copy buttons and live previews are available on the Profile 
 
 ## Badge styles
 
-The badge uses shields.io styling with a `#555555` gray left box and a colored right box based on review status:
+The badge matches the shields.io flat style exactly: 20px tall, Verdana 11px text sized from measured character widths, 5px padding on each side, and a `#555` gray left box. The right box color follows your review status:
 
 | Status | Color | Hex |
 |--------|-------|-----|
-| Approved | Green | `#228909` |
+| Approved | Green (shields brightgreen) | `#4c1` |
 | In Review | Blue | `#2563eb` |
 | Changes Requested | Orange | `#ea580c` |
 | Pending | Yellow | `#ca8a04` |
