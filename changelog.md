@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Monorepo-aware component lookup for the preflight check and admin AI review (2026-09-26 08:14 UTC)
+  - A new locator reads the whole repo tree once (GitHub Trees API, GitLab recursive tree) instead of guessing folders. It respects `/tree/<branch>/<folder>` URLs, handles branch names with slashes, and picks the component whose `package.json` name matches the npm package when a repo has several.
+  - When a URL doesn't point at exactly one component, the check stops before any AI call and explains why, with fix links: `repo_not_found`, `branch_not_found`, `dir_has_no_component`, `multiple_components`.
+  - `/api/preflight` returns `422 { error, code, suggestions, status: "error" }` for these. For signed-in users these don't count against the limit; for guests they do. Success responses now include `reviewedPath` and `reviewedRef`.
+  - Preflight page: a live "Checking packages/x on branch main" hint under the URL field, monorepo help text, "Check this one" buttons on each suggestion, a "Reviewed X on Y" line in results, and Continue to Submit now carries the URL into the submit form (even through sign-in).
+  - Files: `convex/repoLocator.ts` (new), `convex/aiReview.ts`, `convex/gitlabApi.ts`, `convex/preflight.ts`, `convex/http.ts`, `convex/schema.ts` (optional `reviewedPath`, `reviewedRef` on `preflightChecks`), `src/pages/SubmitCheck.tsx`, `src/pages/SubmitForm.tsx`, `prds/monorepo-aware-preflight.md`
+- Folder URL tip for monorepo submissions (2026-09-26 08:32 UTC)
+  - Checking a monorepo root like `https://github.com/daytona/integrations` still works, and the results now suggest the package folder (`.../tree/main/packages/convex`) with a Use folder URL button. The directory reads the README from that folder, so the component page shows the component's own README instead of the monorepo's.
+  - `/api/preflight` success and cached responses include `suggestedRepoUrl` when the checked URL isn't the component's package folder (new optional `preflightChecks.suggestedRepoUrl`).
+  - Submit form: monorepo help line under Repository URL. A `?repoUrl=` from the preflight now replaces a saved draft's repo URL (other draft fields are kept) and is removed from the address bar after sign-in.
+
+### Fixed
+
+- Monorepo components like `https://github.com/daytona/integrations` failed preflight with "No convex.config.ts found" because branch and folder were dropped from the URL. They now pass (2026-09-26 08:14 UTC)
+- GitLab repositories now get a real preflight and admin AI review instead of an "Invalid GitHub repository URL" error
+- Two components in the same monorepo no longer share one cached preflight result
+- Admin AI review saves URL problems as `partial`, so auto reject no longer rejects a component only because the repo URL points at the wrong folder. A missing repo still counts as `failed`
+- The convex-lint hook no longer blocks edits to `convex/aiReview.ts`. The function names in two prompt strings are now in backticks
+
+### Security
+
+- `runAiReview` now requires an `@convex.dev` admin email. Before, any signed-in user could call it (2026-09-26 08:00 UTC)
+
 ### Changed
 
 - README badges now match the official shields.io flat badge (2026-09-26 07:13 UTC)
@@ -16,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `badge-palette-preview.html` is now a single full width page with no cards, showing every status next to a shields reference and the old badge.
   - Files: `convex/badgeSvg.ts` (new), `convex/http.ts`, `badge-palette-preview.html`, `src/docs/badges.md`, `src/docs/api-endpoints.md`, `prds/shields-style-badges.md`
   - Follow up (2026-09-26 07:31 UTC): text now gets the soft blurred shadow live shields.io added in `badge-maker` v6 (`feGaussianBlur` at 0.8 opacity under the 0.3 shadow). This was the remaining "letters look off" gap. Text widths were already within half a pixel of real Verdana. Output is byte identical to `badge-maker@6`. The preview loads every badge through `<img>` and compares against live img.shields.io at 1x and 3x.
+- `mockups/` is now ignored by git. The header mockup page and its screenshots were removed from the repo and stay local only (2026-09-26 07:40 UTC)
 
 ### Added
 

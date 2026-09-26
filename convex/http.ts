@@ -1347,22 +1347,33 @@ function formatRetryWindow(seconds: number): string {
 
 // Run the AI check and store the outcome. On a thrown error the pending row is
 // marked as an error so it never blocks that IP's in-flight gate.
+// A URL problem (missing repo, branch, folder, or several components) stops
+// before any AI call: signed-in rows are refunded, guest rows keep counting so
+// bad URLs can't be used to burn the GitHub token.
 async function runAndStorePreflight(
   ctx: ActionCtx,
   checkId: Id<"preflightChecks">,
   repoUrl: string,
-  npmUrl: string | undefined
+  npmUrl: string | undefined,
+  isGuest: boolean
 ) {
   try {
     const result = await ctx.runAction(internal.aiReview.runPreflightCheck, {
       repoUrl,
       packageName: npmUrl ? extractPackageNameFromNpmUrl(npmUrl) : undefined,
     });
+    if (result.problem && !isGuest) {
+      await ctx.runMutation(internal.preflight._deletePreflightCheck, { checkId });
+      return result;
+    }
     await ctx.runMutation(internal.preflight._updatePreflightCheck, {
       checkId,
-      status: result.status,
-      summary: result.summary,
-      criteria: result.criteria,
+      status: result.problem ? "error" : result.status,
+      summary: result.problem ? result.problem.message : result.summary,
+      criteria: result.problem ? undefined : result.criteria,
+      reviewedPath: result.reviewedPath,
+      reviewedRef: result.reviewedRef,
+      suggestedRepoUrl: result.suggestedRepoUrl,
     });
     return result;
   } catch (error) {
@@ -1421,13 +1432,13 @@ async function handleGuestPreflight(
     });
   }
 
-  const { hashIp, normalizeRepoUrl, GUEST_MAX_CHECKS_PER_HOUR, SIGNED_IN_MAX_CHECKS_PER_HOUR } =
+  const { hashIp, preflightCacheKey, GUEST_MAX_CHECKS_PER_HOUR, SIGNED_IN_MAX_CHECKS_PER_HOUR } =
     await import("./preflight");
   const hashedIp = await hashIp(await resolveClientIp(ctx, request));
 
   const reservation = await ctx.runMutation(internal.preflight._reserveGuestCheck, {
     hashedIp,
-    normalizedRepoUrl: normalizeRepoUrl(repoUrl),
+    normalizedRepoUrl: preflightCacheKey(repoUrl),
   });
 
   if (reservation.kind === "cached") {
@@ -1471,15 +1482,39 @@ async function handleGuestPreflight(
     }
   }
 
-  const result = await runAndStorePreflight(ctx, reservation.checkId, repoUrl, npmUrl);
+  const result = await runAndStorePreflight(ctx, reservation.checkId, repoUrl, npmUrl, true);
+  if (result.problem) {
+    return json(422, {
+      ...preflightProblemBody(result.problem),
+      guest: true,
+      remaining: reservation.remaining,
+    });
+  }
   return json(200, {
     status: result.status,
     summary: result.summary,
     criteria: result.criteria,
+    reviewedPath: result.reviewedPath,
+    reviewedRef: result.reviewedRef,
+    suggestedRepoUrl: result.suggestedRepoUrl,
     cached: false,
     guest: true,
     remaining: reservation.remaining,
   });
+}
+
+// 422 body for a URL the locator could not resolve to one component
+function preflightProblemBody(problem: {
+  code: string;
+  message: string;
+  suggestions: Array<{ label: string; url: string }>;
+}) {
+  return {
+    error: problem.message,
+    code: problem.code,
+    suggestions: problem.suggestions,
+    status: "error",
+  };
 }
 
 http.route({
@@ -1519,9 +1554,9 @@ http.route({
 
       // Hash the client IP for rate limiting
       const clientIp = await resolveClientIp(ctx, request);
-      const { hashIp, normalizeRepoUrl } = await import("./preflight");
+      const { hashIp, preflightCacheKey } = await import("./preflight");
       const hashedIp = await hashIp(clientIp);
-      const normalizedUrl = normalizeRepoUrl(body.repoUrl);
+      const normalizedUrl = preflightCacheKey(body.repoUrl);
 
       // Check rate limit
       const rateLimitCheck = await ctx.runQuery(internal.preflight._checkRateLimit, {
@@ -1581,6 +1616,9 @@ http.route({
             status: cachedResult.status,
             summary: cachedResult.summary,
             criteria: cachedResult.criteria,
+            reviewedPath: cachedResult.reviewedPath,
+            reviewedRef: cachedResult.reviewedRef,
+            suggestedRepoUrl: cachedResult.suggestedRepoUrl,
             cached: true,
             cachedAt: cachedResult.cachedAt,
             expiresAt: cachedResult.expiresAt,
@@ -1597,13 +1635,27 @@ http.route({
       });
 
       // Run the actual preflight check and store the result
-      const result = await runAndStorePreflight(ctx, checkId, body.repoUrl, body.npmUrl);
+      const result = await runAndStorePreflight(ctx, checkId, body.repoUrl, body.npmUrl, false);
+
+      // URL problems are refunded, so the remaining count is unchanged
+      if (result.problem) {
+        return new Response(
+          JSON.stringify({
+            ...preflightProblemBody(result.problem),
+            remaining: isAdmin ? undefined : rateLimitCheck.remaining,
+          }),
+          { status: 422, headers: corsHeaders }
+        );
+      }
 
       return new Response(
         JSON.stringify({
           status: result.status,
           summary: result.summary,
           criteria: result.criteria,
+          reviewedPath: result.reviewedPath,
+          reviewedRef: result.reviewedRef,
+          suggestedRepoUrl: result.suggestedRepoUrl,
           cached: false,
           // Admins have no limit, so omit the remaining count
           remaining: isAdmin ? undefined : rateLimitCheck.remaining - 1,

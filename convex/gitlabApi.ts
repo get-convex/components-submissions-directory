@@ -94,6 +94,52 @@ export async function fetchGitLabTree(
     }));
 }
 
+/** Default branch for a project, or null when the project is missing or private. */
+export async function fetchGitLabDefaultBranch(
+  parsed: ParsedRepoUrl,
+  token: string | undefined = gitlabToken()
+): Promise<string | null> {
+  const url = `${GITLAB_API}/projects/${gitlabProjectId(parsed)}`;
+  const response = await gitlabFetch(url, token);
+  if (!response.ok) return null;
+  const data = (await response.json()) as { default_branch?: string | null };
+  return data.default_branch || "HEAD";
+}
+
+/**
+ * Every blob path in the repo at a ref, or null when the ref does not exist.
+ * Capped at maxPages of 100 entries so huge repos stay bounded.
+ */
+export async function fetchGitLabRecursiveTree(
+  parsed: ParsedRepoUrl,
+  ref: string,
+  maxPages = 10,
+  token: string | undefined = gitlabToken()
+): Promise<string[] | null> {
+  const paths: string[] = [];
+  for (let page = 1; page <= maxPages; page++) {
+    const params = new URLSearchParams({
+      ref,
+      recursive: "true",
+      per_page: "100",
+      page: String(page),
+    });
+    const url = `${GITLAB_API}/projects/${gitlabProjectId(parsed)}/repository/tree?${params.toString()}`;
+    const response = await gitlabFetch(url, token);
+    if (!response.ok) {
+      return page === 1 ? null : paths;
+    }
+    const data = (await response.json()) as unknown;
+    if (!Array.isArray(data)) break;
+    for (const item of data as Array<{ path?: unknown; type?: unknown }>) {
+      if (item.type === "blob" && typeof item.path === "string") paths.push(item.path);
+    }
+    const nextPage = response.headers.get("x-next-page");
+    if (!nextPage || nextPage.trim() === "") break;
+  }
+  return paths;
+}
+
 // Same shape as githubIssueValidator in packages.ts so the detail page issues
 // tab renders either provider without changes.
 export type RepoIssue = {

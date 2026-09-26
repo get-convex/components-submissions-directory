@@ -69,6 +69,12 @@ function readDraft(): SubmitFormDraft {
   }
 }
 
+// Repo URL handed over by the preflight check's "Continue to Submit" link
+function readRepoUrlParam(): string {
+  const value = new URLSearchParams(window.location.search).get("repoUrl")?.trim() ?? "";
+  return value.length <= 500 && isSupportedRepoUrl(value) ? value : "";
+}
+
 function draftHasContent(draft: SubmitFormDraft): boolean {
   return Boolean(
     draft.componentName ||
@@ -202,12 +208,21 @@ export default function SubmitForm() {
   // Auto-redirect to sign-in when unauthenticated
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
-      // Store the current path so we return here after sign-in
-      localStorage.setItem("authReturnPath", window.location.pathname);
+      // Store the current path (and ?repoUrl= from the preflight) so we return here after sign-in
+      localStorage.setItem("authReturnPath", window.location.pathname + window.location.search);
       // Trigger the sign-in flow automatically
       signIn();
     }
   }, [authLoading, isAuthenticated, signIn]);
+
+  // Drop ?repoUrl= once signed in so a reload can't overwrite later edits (kept until then for the sign-in return path)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("repoUrl")) return;
+    url.searchParams.delete("repoUrl");
+    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+  }, [isAuthenticated]);
 
   // Restore any saved draft once (survives the WorkOS sign-in redirect)
   const [draft] = useState<SubmitFormDraft>(readDraft);
@@ -220,7 +235,8 @@ export default function SubmitForm() {
 
   // Form state
   const [componentName, setComponentName] = useState(draft.componentName ?? "");
-  const [repositoryUrl, setRepositoryUrl] = useState(draft.repositoryUrl ?? "");
+  // The preflight hand-off is an explicit pick, so it replaces only the draft's repo URL
+  const [repositoryUrl, setRepositoryUrl] = useState(() => readRepoUrlParam() || draft.repositoryUrl || "");
   const [npmPackageName, setNpmPackageName] = useState(draft.npmPackageName ?? "");
   const [demoUrl, setDemoUrl] = useState(draft.demoUrl ?? "");
   const [submitterName, setSubmitterName] = useState(draft.submitterName ?? "");
@@ -638,6 +654,10 @@ export default function SubmitForm() {
                   className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20"
                 />
               </div>
+              <p className="text-xs text-text-secondary mt-1">
+                Monorepo? Use the component folder URL, for example
+                https://github.com/owner/repo/tree/main/packages/your-component
+              </p>
             </div>
 
             {/* npm package name (we build the npm URL from it) */}

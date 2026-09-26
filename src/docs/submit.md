@@ -21,7 +21,11 @@ Before submitting, you can validate your repository at `/components/submit/check
 - Shows 5 advisory recommendations that do not block approval
 - Signed in users get 10 checks per hour per IP
 - Caches results for 30 minutes per repository URL. Cached results do not count against either limit
-- Provides a "Continue to Submit" link when your repo passes
+- Reads the whole repo, so monorepos work. Paste the repo root or the component folder URL (`https://github.com/owner/repo/tree/main/packages/your-component`). A hint under the field shows which folder and branch will be checked, and the results say which folder was reviewed
+- Best practice for monorepos: submit the component's folder URL, not the repo root. Use `https://github.com/daytona/integrations/tree/main/packages/convex`, not `https://github.com/daytona/integrations`. The directory reads the README from that folder, so your component page shows your component's README instead of the monorepo's. If you check a root URL, the results suggest the folder URL, and **Use folder URL** carries it to the submit form
+- Adding the npm package name picks the matching package when a repo has more than one component
+- If the URL points at a missing branch, an empty folder, or a repo with several components, you get a clear message with links to the right folders. Click **Check this one** to run the check on that folder. Signed in users are not charged for these
+- Provides a "Continue to Submit" link when your repo passes. The submit form opens with your repository URL filled in
 
 ## Submission form
 

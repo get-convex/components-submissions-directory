@@ -824,6 +824,11 @@ const applicationTables = {
     expiresAt: v.number(),
     // True for signed out (guest) runs; drives the global guest hourly cap
     isGuest: v.optional(v.boolean()),
+    // Component folder and branch the review actually read
+    reviewedPath: v.optional(v.string()),
+    reviewedRef: v.optional(v.string()),
+    // Package folder URL to submit instead of a monorepo root URL
+    suggestedRepoUrl: v.optional(v.string()),
   })
     .index("by_hashed_ip_and_created", ["hashedIp", "createdAt"])
     .index("by_hashed_ip_and_status", ["hashedIp", "status"])

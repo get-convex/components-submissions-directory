@@ -18,7 +18,7 @@ import {
   SignIn,
 } from "@phosphor-icons/react";
 import { RepoHostIcon } from "../components/RepoHostIcon";
-import { isSupportedRepoUrl } from "../../shared/repoUrl";
+import { isSupportedRepoUrl, parseRepoUrl } from "../../shared/repoUrl";
 
 // Get base path for links (always /components)
 function useBasePath() {
@@ -42,6 +42,21 @@ interface PreflightResult {
   remaining?: number;
   guest?: boolean;
   error?: string;
+  // Folder and branch the review read ("root" is the repo root)
+  reviewedPath?: string;
+  reviewedRef?: string;
+  // Package folder URL to submit instead, when a monorepo root URL was checked
+  suggestedRepoUrl?: string;
+}
+
+// Fix URLs returned with a 422 when the URL doesn't resolve to one component
+interface PreflightSuggestion {
+  label: string;
+  url: string;
+}
+
+function displayPath(path: string): string {
+  return path === "root" || path === "" ? "repo root" : path;
 }
 
 // Send signed out visitors to login and bring them back to the checker
@@ -70,13 +85,17 @@ export default function SubmitCheck() {
   const [result, setResult] = useState<PreflightResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorNeedsSignIn, setErrorNeedsSignIn] = useState(false);
+  const [suggestions, setSuggestions] = useState<PreflightSuggestion[]>([]);
   const [showWarning, setShowWarning] = useState(false);
+  // Local parse only, so the branch and folder hint updates as you type
+  const parsedRepo = parseRepoUrl(repoUrl.trim());
 
   // Validate inputs then open the usage warning modal
   const handleOpenWarning = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setErrorNeedsSignIn(false);
+    setSuggestions([]);
     setResult(null);
 
     if (!repoUrl.trim()) {
@@ -98,6 +117,7 @@ export default function SubmitCheck() {
   const runPreflightCheck = async () => {
     setError(null);
     setErrorNeedsSignIn(false);
+    setSuggestions([]);
     setIsLoading(true);
 
     try {
@@ -133,6 +153,10 @@ export default function SubmitCheck() {
           setError("Authentication required. Please sign in to use the preflight checker.");
         } else if (response.status === 429) {
           setError(data.error || "Rate limit exceeded. Please try again later.");
+        } else if (response.status === 422) {
+          // The URL didn't resolve to one component; offer the fix URLs
+          setError(data.error || "We couldn't find a Convex component at that URL.");
+          setSuggestions(Array.isArray(data.suggestions) ? data.suggestions : []);
         } else {
           setError(data.error || "An error occurred during the preflight check");
         }
@@ -152,6 +176,15 @@ export default function SubmitCheck() {
     setResult(null);
     setError(null);
     setErrorNeedsSignIn(false);
+    setSuggestions([]);
+  };
+
+  // Swap in a suggested folder URL and reopen the confirmation modal
+  const checkSuggestion = (url: string) => {
+    setRepoUrl(url);
+    setError(null);
+    setSuggestions([]);
+    setShowWarning(true);
   };
 
   // Wait for auth, and for guests the access settings, so the form never flashes
@@ -266,6 +299,22 @@ export default function SubmitCheck() {
                     className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-border bg-bg-primary text-text-primary text-sm outline-none transition-all disabled:opacity-50 focus:border-button focus:ring-2 focus:ring-button/20"
                   />
                 </div>
+                <p className="text-xs text-text-tertiary mt-1">
+                  {parsedRepo && (parsedRepo.ref || parsedRepo.dir) ? (
+                    <>
+                      Checking{" "}
+                      <code className="font-mono text-text-secondary">{displayPath(parsedRepo.dir)}</code>
+                      {parsedRepo.ref && (
+                        <>
+                          {" "}
+                          on branch <code className="font-mono text-text-secondary">{parsedRepo.ref}</code>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    "Monorepo? Paste the folder URL, for example https://github.com/owner/repo/tree/main/packages/your-component"
+                  )}
+                </p>
               </div>
 
               {/* npm package name (optional, URL is built from it) */}
@@ -288,7 +337,8 @@ export default function SubmitCheck() {
                   />
                 </div>
                 <p className="text-xs text-text-tertiary mt-1">
-                  Provide if your package is already published to include its name in the review.
+                  Provide if your package is already published to include its name in the review. In a
+                  monorepo it also picks the matching package.
                 </p>
               </div>
 
@@ -298,6 +348,30 @@ export default function SubmitCheck() {
                   <XCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <p className="text-sm text-red-700">{error}</p>
+                    {suggestions.length > 0 && (
+                      <ul className="mt-2 space-y-1.5">
+                        {suggestions.map((suggestion) => (
+                          <li
+                            key={suggestion.url}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white/70 border border-red-100 px-2.5 py-1.5">
+                            <a
+                              href={suggestion.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="min-w-0 break-all text-sm text-red-800 underline underline-offset-2 hover:text-red-900">
+                              {suggestion.label}
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => checkSuggestion(suggestion.url)}
+                              className="shrink-0 inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-button text-white hover:bg-button-hover transition-colors">
+                              Check this one
+                              <ArrowRight size={12} />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                     {errorNeedsSignIn && (
                       <button
                         type="button"
@@ -352,6 +426,7 @@ export default function SubmitCheck() {
           <PreflightResults
             result={result}
             repoUrl={repoUrl}
+            onUseRepoUrl={setRepoUrl}
             onRetry={handleRetry}
             basePath={basePath}
           />
@@ -460,14 +535,19 @@ function PreflightWarningModal({
 function PreflightResults({
   result,
   repoUrl,
+  onUseRepoUrl,
   onRetry,
   basePath,
 }: {
   result: PreflightResult;
   repoUrl: string;
+  onUseRepoUrl: (url: string) => void;
   onRetry: () => void;
   basePath: string;
 }) {
+  const suggestedUrl = result.suggestedRepoUrl;
+  const suggestedFolder = suggestedUrl ? parseRepoUrl(suggestedUrl)?.dir : undefined;
+  const usingSuggestedUrl = suggestedUrl !== undefined && repoUrl.trim() === suggestedUrl;
   const criticalCriteria = result.criteria.slice(0, CRITICAL_CRITERIA_COUNT);
   const advisoryCriteria = result.criteria.slice(CRITICAL_CRITERIA_COUNT);
 
@@ -520,6 +600,18 @@ function PreflightResults({
           <div className="flex-1">
             <h2 className={`text-lg font-medium ${config.color}`}>{config.label}</h2>
             <p className="text-sm text-text-secondary mt-1">{config.description}</p>
+            {result.reviewedPath && (
+              <p className="text-xs text-text-secondary mt-2">
+                Reviewed{" "}
+                <code className="font-mono text-text-primary">{displayPath(result.reviewedPath)}</code>
+                {result.reviewedRef && (
+                  <>
+                    {" "}
+                    on <code className="font-mono text-text-primary">{result.reviewedRef}</code>
+                  </>
+                )}
+              </p>
+            )}
             {result.cached && (
               <p className="text-xs text-text-tertiary mt-2">
                 Cached result from {new Date(result.cachedAt!).toLocaleTimeString()}
@@ -528,6 +620,49 @@ function PreflightResults({
           </div>
         </div>
       </div>
+
+      {/* Monorepo tip: submit the package folder, not the repo root */}
+      {suggestedUrl && (
+        <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+          <div className="flex items-start gap-2">
+            <Info size={18} className="text-blue-600 shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1 text-sm text-blue-800">
+              <p className="font-medium">
+                {usingSuggestedUrl ? "Submitting with the folder URL" : "Tip: submit the folder URL"}
+              </p>
+              <p className="mt-1 text-blue-700">
+                Your component lives in{" "}
+                <code className="font-mono">{suggestedFolder || "a subfolder"}</code>. Use the folder URL
+                when you submit so the directory shows your component's own README, and its links and
+                images resolve from the right folder.
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <a
+                  href={suggestedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="min-w-0 break-all font-mono text-xs text-blue-800 underline underline-offset-2 hover:text-blue-900">
+                  {suggestedUrl}
+                </a>
+                {usingSuggestedUrl ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700">
+                    <CheckCircle size={14} weight="fill" />
+                    Continue to Submit will use this URL
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onUseRepoUrl(suggestedUrl)}
+                    className="shrink-0 inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-button text-white hover:bg-button-hover transition-colors">
+                    Use folder URL
+                    <ArrowRight size={12} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Summary */}
       {result.summary && (
@@ -584,7 +719,7 @@ function PreflightResults({
           Check Another Repo
         </button>
         <a
-          href={`${basePath}/submit`}
+          href={`${basePath}/submit?repoUrl=${encodeURIComponent(repoUrl.trim())}`}
           className="flex-1 px-6 py-3 rounded-full font-normal bg-button text-white hover:bg-button-hover transition-colors text-sm flex items-center justify-center gap-2">
           Continue to Submit
           <ArrowRight size={18} />

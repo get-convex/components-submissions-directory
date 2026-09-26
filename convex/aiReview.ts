@@ -7,6 +7,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { buildProviderCandidates, executeWithProviderFallback, ProviderSettingsForFallback, AiProvider, AiProviderSource } from "./aiProviderFallback";
+import { locateComponent, type LocatorProblem } from "./repoLocator";
 export {
   AI_REVIEW_PROMPT_STATUS_LABEL as AI_REVIEW_PROMPT_STATUS,
   AI_REVIEW_PROMPT_UPDATED_AT,
@@ -110,7 +111,7 @@ export const REVIEW_CRITERIA = [
   {
     name: "Functions use object-style syntax",
     check:
-      "Check for query({ ... }), mutation({ ... }), action({ ... }), internalQuery({ ... }), internalMutation({ ... }), or internalAction({ ... }) object-style definitions",
+      "Check for `query`({ ... }), `mutation`({ ... }), `action`({ ... }), `internalQuery`({ ... }), `internalMutation`({ ... }), or `internalAction`({ ... }) object-style definitions",
     critical: true,
   },
   {
@@ -182,7 +183,8 @@ export interface ReviewResult {
   error?: string;
 }
 
-// Fetch repository contents from GitHub (for Convex components)
+// Legacy GitHub fetcher. Reviews now use locateComponent in repoLocator.ts;
+// this stays for one release as a rollback lever and for parity checks.
 export async function fetchGitHubRepo(repoUrl: string, githubToken?: string) {
   // Normalize the URL to handle various formats
   const normalizedUrl = repoUrl
@@ -523,7 +525,7 @@ KEY REQUIREMENTS FROM DOCS:
 1. Components must have convex.config.ts with defineComponent() export
 2. Published component packages should expose entry points in package.json, especially ./convex.config.js and ./_generated/component.js. ./test is strongly recommended for convex-test helpers.
 3. Component functions should import query/mutation/action/internal* builders from the component's own ./_generated/server
-4. Functions must use object-style syntax, e.g. query({ args: {}, returns: v.string(), handler: async (ctx, args) => {} })
+4. Functions must use object-style syntax, e.g. \`query\`({ args: {}, returns: v.string(), handler: async (ctx, args) => {} })
 5. Public component functions must have explicit args validators (security-critical)
 6. Functions returning nothing must use v.null() as the return validator, not undefined
 7. Components do NOT have access to ctx.auth. Authentication must be done in the app, with identifiers or tokens passed into the component.
@@ -694,6 +696,42 @@ export function parseReviewResponse(aiResponseText: string): ReviewResult {
   };
 }
 
+export type RepoReviewResult = ReviewResult & {
+  provider?: AiProvider;
+  model?: string;
+  source?: AiProviderSource;
+  rawOutput?: string;
+  /** Set when the URL could not be resolved to one component. No AI call was made. */
+  problem?: LocatorProblem;
+  reviewedPath?: string;
+  reviewedRef?: string;
+  /** Folder URL to submit instead, when the component sits in a monorepo subfolder. */
+  suggestedRepoUrl?: string;
+};
+
+// URL problems are "partial" so auto review never approves or rejects on them.
+// A missing repo stays "failed", matching the legacy "no convex.config.ts" outcome.
+function problemReviewResult(problem: LocatorProblem): RepoReviewResult {
+  const fixes = problem.suggestions.map((s) => `- ${s.label}: ${s.url}`).join("\n");
+  const summary = fixes
+    ? `Review not run: ${problem.message}\n\nSet the repository URL to one of:\n${fixes}`
+    : `Review not run: ${problem.message}`;
+  const repoMissing = problem.code === "repo_not_found";
+  return {
+    status: repoMissing ? "failed" : "partial",
+    summary,
+    criteria: REVIEW_CRITERIA.map((c) => ({
+      name: c.name,
+      passed: false,
+      notes:
+        repoMissing && c.name === "Has convex.config.ts with defineComponent()"
+          ? "Failed: Repository not found"
+          : "Unable to check: The component could not be located from the repository URL",
+    })),
+    problem,
+  };
+}
+
 // Shared helper for running the AI review on a repo
 // Used by both admin reviews and public preflight checks
 export async function runReviewOnRepo(
@@ -701,16 +739,23 @@ export async function runReviewOnRepo(
   packageName: string,
   version: string,
   providerSettings: ProviderSettingsForFallback[] | null,
-  customPromptContent?: string
-): Promise<ReviewResult & { provider?: AiProvider; model?: string; source?: AiProviderSource; rawOutput?: string }> {
-  const githubToken = process.env.GITHUB_TOKEN;
-  const repoData = await fetchGitHubRepo(repoUrl, githubToken);
+  customPromptContent?: string,
+  options: { matchPackageName?: string } = {}
+): Promise<RepoReviewResult> {
+  const located = await locateComponent(repoUrl, {
+    packageName: options.matchPackageName,
+    githubToken: process.env.GITHUB_TOKEN,
+  });
 
-  if (!repoData.exists) {
+  if (located.kind === "problem") {
+    return problemReviewResult(located.problem);
+  }
+
+  if (located.kind === "no_config") {
     return {
       status: "failed",
-      summary:
-        "Review failed: No convex.config.ts found in repository. This package is not a valid Convex component. Components must have convex.config.ts with defineComponent().",
+      summary: `Review failed: No convex.config.ts found in repository. This package is not a valid Convex component. Components must have convex.config.ts with defineComponent().\n\n${located.hint}`,
+      reviewedRef: located.ref,
       criteria: REVIEW_CRITERIA.map((c) => ({
         name: c.name,
         passed: false,
@@ -722,11 +767,11 @@ export async function runReviewOnRepo(
     };
   }
 
-  if (!repoData.isComponent) {
+  if (located.kind === "app_only") {
     return {
       status: "failed",
-      summary:
-        "Review failed: Found convex.config.ts files, but none define a Convex component with defineComponent(). This repository appears to contain only consuming app or example code, not a publishable Convex component source.",
+      summary: `Review failed: Found convex.config.ts files, but none define a Convex component with defineComponent(). This repository appears to contain only consuming app or example code, not a publishable Convex component source. Configs found: ${located.foundConfigPaths.join(", ")}.\n\n${located.hint}`,
+      reviewedRef: located.ref,
       criteria: REVIEW_CRITERIA.map((c) => ({
         name: c.name,
         passed: false,
@@ -738,13 +783,17 @@ export async function runReviewOnRepo(
     };
   }
 
+  console.log(
+    `Located component in ${repoUrl}: ${located.componentSourceDir} on ${located.ref} (${located.files.length} files)`
+  );
+
   const prompt = buildReviewPrompt(
-    repoData.files,
+    located.files,
     packageName,
     version,
     customPromptContent,
-    repoData.componentSourceDir,
-    repoData.foundConfigPaths
+    located.componentSourceDir,
+    located.foundConfigPaths
   );
 
   const candidates = buildProviderCandidates({
@@ -782,8 +831,22 @@ export async function runReviewOnRepo(
     model: usedModel,
     source: usedSource,
     rawOutput: aiResponseText,
+    reviewedPath: located.componentSourceDir,
+    reviewedRef: located.ref,
+    suggestedRepoUrl: located.suggestedRepoUrl,
   };
 }
+
+const locatorProblemValidator = v.object({
+  code: v.union(
+    v.literal("repo_not_found"),
+    v.literal("branch_not_found"),
+    v.literal("multiple_components"),
+    v.literal("dir_has_no_component"),
+  ),
+  message: v.string(),
+  suggestions: v.array(v.object({ label: v.string(), url: v.string() })),
+});
 
 // Internal action for public preflight checks
 // Does not persist to packages table, only returns result
@@ -808,20 +871,25 @@ export const runPreflightCheck = internalAction({
       }),
     ),
     error: v.optional(v.string()),
+    problem: v.optional(locatorProblemValidator),
+    reviewedPath: v.optional(v.string()),
+    reviewedRef: v.optional(v.string()),
+    suggestedRepoUrl: v.optional(v.string()),
   }),
   handler: async (ctx, args) => {
     try {
-      const providerSettings = await ctx.runQuery(
-        internal.aiSettings._getProviderSettingsForFallback
-      );
-      const customPromptContent = await ctx.runQuery(internal.aiSettings._getActivePromptContent);
+      const [providerSettings, customPromptContent] = await Promise.all([
+        ctx.runQuery(internal.aiSettings._getProviderSettingsForFallback),
+        ctx.runQuery(internal.aiSettings._getActivePromptContent),
+      ]);
 
       const result = await runReviewOnRepo(
         args.repoUrl,
         args.packageName || "Unknown Package",
         "0.0.0",
         providerSettings,
-        customPromptContent ?? undefined
+        customPromptContent ?? undefined,
+        { matchPackageName: args.packageName }
       );
 
       return {
@@ -829,6 +897,10 @@ export const runPreflightCheck = internalAction({
         summary: result.summary,
         criteria: result.criteria,
         error: result.error,
+        problem: result.problem,
+        reviewedPath: result.reviewedPath,
+        reviewedRef: result.reviewedRef,
+        suggestedRepoUrl: result.suggestedRepoUrl,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -900,7 +972,8 @@ async function runAiReviewHandler(ctx: any, args: { packageId: any }) {
         pkg.name,
         pkg.version,
         providerSettings,
-        customPromptContent ?? undefined
+        customPromptContent ?? undefined,
+        { matchPackageName: pkg.name }
       );
 
       // Store review results (batched into single transaction)
@@ -965,6 +1038,10 @@ export const runAiReview = action({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new ConvexError("Authentication required");
+    }
+    // Same rule as requireAdminIdentity; AI reviews cost tokens and can auto approve or reject
+    if (!identity.email?.endsWith("@convex.dev")) {
+      throw new ConvexError("Admin access requires @convex.dev email");
     }
     return runAiReviewHandler(ctx, args);
   },

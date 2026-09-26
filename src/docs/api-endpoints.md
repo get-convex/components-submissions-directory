@@ -125,7 +125,27 @@ The preflight checker API validates a GitHub or GitLab repository against review
 |--------|------|-------------|
 | POST | `/api/preflight` | Run preflight check (auth token optional) |
 
-Accepts `repoUrl` and optional `npmUrl`. Returns status, summary, criteria results, `cached`, and `remaining`. Results are cached for 30 minutes by normalized repo URL, and cached hits do not count against limits. Only one check runs at a time per IP.
+Accepts `repoUrl` and optional `npmUrl`. Returns status, summary, criteria results, `cached`, `remaining`, and `reviewedPath` / `reviewedRef` (the folder and branch that were reviewed; `root` means the repo root). When the component's package lives in a folder the URL didn't point at (for example a monorepo root URL), the response also has `suggestedRepoUrl`, the package folder URL to submit instead. Branch and folder URLs (`/tree/<branch>/<folder>`, `/-/tree/<branch>/<folder>`) are honored. Results are cached for 30 minutes by repo URL plus branch and folder, and cached hits do not count against limits. Only one check runs at a time per IP.
+
+When the URL doesn't point at exactly one component, the check stops before the AI review and returns 422:
+
+```json
+{
+  "error": "This repository has 2 Convex components. Pick the one you want checked.",
+  "code": "multiple_components",
+  "suggestions": [{ "label": "rate-limiter (packages/rate-limiter)", "url": "https://github.com/owner/repo/tree/main/packages/rate-limiter" }],
+  "status": "error"
+}
+```
+
+| `code` | Meaning |
+|--------|---------|
+| `repo_not_found` | Repo is missing or private |
+| `branch_not_found` | Branch in the URL doesn't exist; suggestions point at the default branch |
+| `dir_has_no_component` | Folder in the URL is missing or has no component |
+| `multiple_components` | Repo has several components; pass `npmUrl` or pick a suggestion |
+
+A 422 does not count against the signed in limit. It does count for guests.
 
 | Caller | Limit | Notes |
 |--------|-------|-------|

@@ -667,7 +667,7 @@ KEY REQUIREMENTS FROM DOCS:
 1. Components must have convex.config.ts with defineComponent() export
 2. Published component packages should expose entry points in package.json, especially ./convex.config.js and ./_generated/component.js. ./test is strongly recommended for convex-test helpers.
 3. Component functions should import query/mutation/action/internal* builders from the component's own ./_generated/server
-4. Functions must use object-style syntax, e.g. query({ args: {}, returns: v.string(), handler: async (ctx, args) => {} })
+4. Functions must use object-style syntax, e.g. \`query\`({ args: {}, returns: v.string(), handler: async (ctx, args) => {} })
 5. Public component functions must have explicit args validators (security-critical)
 6. Functions returning nothing must use v.null() as the return validator, not undefined
 7. Components do NOT have access to ctx.auth. Authentication must be done in the app, with identifiers or tokens passed into the component.

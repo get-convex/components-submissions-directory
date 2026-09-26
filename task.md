@@ -1,5 +1,7 @@
 # Task List
 
+Session updates complete on 2026-09-26 08:14 UTC. Monorepo-aware component lookup shipped to dev: preflight and admin AI review now read the repo tree, honor branch and folder URLs, and return fix URLs when a URL doesn't point at one component. The daytona monorepo root now passes. Needs a prod deploy.
+
 Session updates complete on 2026-09-26 07:13 UTC. README badges now render in exact shields.io flat style with approved switched to `#4c1`. Needs a prod deploy to go live.
 
 Session updates complete on 2026-09-24 20:15 UTC. Guest preflight check shipped to dev: a Test link next to Build opens the Component Preflight Check for signed out visitors at 3 checks per hour per network (30 per hour site wide), with an admin kill switch. Signed in flow unchanged.
@@ -10,15 +12,18 @@ Previous session: 2026-09-21 03:25 UTC. gitlab.com repositories are accepted eve
 
 ## to do
 
+- [ ] Monorepo-aware lookup: deploy to prod (`npx convex deploy`), then run the guest check on www.convex.dev/components/submit/check with `https://github.com/daytona/integrations`. Expect a pass with "Reviewed packages/convex/src/component on main".
+
+- [ ] Monorepo-aware lookup: as a signed-in non-admin, confirm a 422 doesn't use up one of the 10 hourly checks. The signed-in results view and the prefilled submit form were verified on 2026-09-26 08:32 UTC with an admin session.
+
+- [ ] Monorepo-aware lookup: delete the legacy `fetchGitHubRepo` in `convex/aiReview.ts` after one week in prod with no locator regressions (earliest 2026-10-03).
+
 - [ ] Shields style badges: deploy to prod (`npx convex deploy`) and load `https://www.convex.dev/components/badge/<approved-slug>` to confirm the `#4c1` badge. GitHub camo may keep old README images until its cache expires.
 
 - [ ] Guest preflight check: deploy to prod (`npx convex deploy`) so the new `by_is_guest_and_created` index and guest path go live, then confirm the Test link and one guest run on www.convex.dev/components/submit/check
 
 - [ ] Review messages: run the prod backfill dry run, then the real run (`npx convex run --prod reviewMessages:backfillRejectionDrafts '{"dryRun":true}'`)
-- [ ] Review messages: swap `REVIEW_CRITERIA` in `convex/aiReview.ts` to import `shared/reviewCriteria.ts` (edit blocked by lint hook false positive)
-
-- [ ] GitLab: `convex/aiReview.ts` provider aware repo fetcher
-  - Blocked: the `convex-lint` hook rule `"use node" with query/mutation` rejects every edit to this file because the literal text `query(` appears inside two prompt strings (lines 113 and 526). The file defines only actions. Until the hook is adjusted or the edit is applied by hand, a GitLab preflight or admin AI review returns status `error` with "Invalid GitHub repository URL" instead of reviewing the repo. The exact change is written out step by step in `prds/gitlab-repo-support.md` under Task completion log.
+- [ ] Review messages: swap `REVIEW_CRITERIA` in `convex/aiReview.ts` to import `shared/reviewCriteria.ts` (the lint hook no longer blocks edits to this file as of 2026-09-26)
 
 - [ ] GitLab: signed-in browser pass
   - `/components/submit/check` and `/components/submit` need a WorkOS session. Confirm: typing `https://gitlab.com/gitlab-org/cli` shows the GitLab logo in the input with no error, switching to a github.com URL flips the icon, `https://gitlab.com.evil.com/a/b` and `https://bitbucket.org/a/b` are rejected with copy naming GitHub and GitLab, and a preflight run against the GitLab URL completes (expect the AI review step to report the aiReview.ts error above until that file is updated). Then submit one GitLab test component and check the detail page: GitLab icon on View Repo, README relative images resolve to `gitlab.com/.../-/raw/...`, author avatar fills in a few seconds after submit, Contact author CTA links to `/-/issues`. Admin Comments panel on that package shows "Issue mirroring is available for GitHub repositories only." instead of the mirror checkbox.
@@ -50,6 +55,24 @@ Previous session: 2026-09-21 03:25 UTC. gitlab.com repositories are accepted eve
   - `src/components/CodeBlock.tsx:97` (`lineNumbers` not in shiki `FileOptions`), `src/pages/CategoryPage.tsx:128`, and `src/pages/ComponentDetail.tsx:1267-1268` (implicit `any`). Present before and after the 2026-08-14 security change and after a clean `_generated` rebuild. Likely fallout from the local `convex` package moving 1.32.0 to 1.44.0.
 
 ## completed
+
+- [x] Monorepo folder URL tip (2026-09-26 08:32 UTC)
+  - PRD: `prds/monorepo-aware-preflight.md` (follow-up entry)
+  - [x] Locator returns `suggestedRepoUrl` when the component package is in a folder the URL didn't point at. It is stored on `preflightChecks` and returned by `/api/preflight`, including cached results
+  - [x] Preflight results show "Tip: submit the folder URL" with a Use folder URL button that updates Continue to Submit
+  - [x] Submit form: monorepo help line under Repository URL. `?repoUrl=` now replaces only the draft's repo URL and is removed from the address bar once signed in
+  - [x] Verified on dev with `convex run` (daytona root suggests, folder URL and rate-limiter don't) and a signed-in browser pass
+
+- [x] Monorepo-aware component lookup for preflight and admin AI review (2026-09-26 08:14 UTC)
+  - PRD: `prds/monorepo-aware-preflight.md`
+  - [x] New `convex/repoLocator.ts` reads the full repo tree (GitHub Trees API, GitLab recursive tree), respects `/tree/<branch>/<folder>`, groups component configs by package, and matches the npm package name
+  - [x] URL problems return a code and fix URLs: `repo_not_found`, `branch_not_found`, `dir_has_no_component`, `multiple_components`
+  - [x] Preflight returns 422 with suggestions. Signed-in 422s don't count against the limit. Results include `reviewedPath` and `reviewedRef`. The cache key includes branch and folder
+  - [x] Admin AI review uses the same locator. URL problems save as `partial` so auto approve and auto reject skip them. `runAiReview` now requires an `@convex.dev` email
+  - [x] GitLab repos now work in the preflight and admin review (closes the old "provider aware repo fetcher" to do)
+  - [x] Lint hook false positive fixed by backticking function names in the two prompt strings
+  - [x] UI: live branch and folder hint, monorepo help text, "Check this one" buttons, "Reviewed X on Y" line, Continue to Submit prefills the Repository URL (survives sign-in)
+  - [x] Parity check: 169 of 173 approved repos resolve to the same folder, and the 4 differences are improvements. Verified on dev with curl, `convex run`, and a guest browser pass (see PRD log)
 
 - [x] Shields style README badges (2026-09-26 07:13 UTC)
   - PRD: `prds/shields-style-badges.md`

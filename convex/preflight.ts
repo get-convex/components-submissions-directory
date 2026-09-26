@@ -1,5 +1,6 @@
 import { v, type Infer } from "convex/values";
 import { internalQuery, internalMutation, type QueryCtx } from "./_generated/server";
+import { parseRepoUrl } from "../shared/repoUrl";
 
 // Rate limit config
 const MAX_CHECKS_PER_HOUR = 10;
@@ -37,6 +38,16 @@ export function normalizeRepoUrl(url: string): string {
     .replace(/\/blob\/[^/]+.*$/, "")
     .replace(/#.*$/, "")
     .toLowerCase();
+}
+
+// Cache key for a preflight run. Root URLs keep the exact normalizeRepoUrl key
+// so existing cache rows still hit; /tree and /blob URLs add "@ref:dir" so two
+// components in one monorepo never share a cached result.
+export function preflightCacheKey(url: string): string {
+  const base = normalizeRepoUrl(url);
+  const parsed = parseRepoUrl(url);
+  if (!parsed || (!parsed.ref && !parsed.dir)) return base;
+  return `${base}@${parsed.ref ?? ""}:${parsed.dir}`.toLowerCase();
 }
 
 // Check if IP is rate limited (internal query for HTTP action)
@@ -94,6 +105,9 @@ const cachedResultValidator = v.object({
   ),
   cachedAt: v.number(),
   expiresAt: v.number(),
+  reviewedPath: v.optional(v.string()),
+  reviewedRef: v.optional(v.string()),
+  suggestedRepoUrl: v.optional(v.string()),
 });
 
 type CachedResult = Infer<typeof cachedResultValidator>;
@@ -122,6 +136,9 @@ async function findCachedResult(
     criteria: cached.criteria,
     cachedAt: cached.createdAt,
     expiresAt: cached.expiresAt,
+    reviewedPath: cached.reviewedPath,
+    reviewedRef: cached.reviewedRef,
+    suggestedRepoUrl: cached.suggestedRepoUrl,
   };
 }
 
@@ -173,6 +190,9 @@ export const _updatePreflightCheck = internalMutation({
         })
       )
     ),
+    reviewedPath: v.optional(v.string()),
+    reviewedRef: v.optional(v.string()),
+    suggestedRepoUrl: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -180,9 +200,25 @@ export const _updatePreflightCheck = internalMutation({
       status: args.status,
       summary: args.summary,
       criteria: args.criteria,
+      reviewedPath: args.reviewedPath,
+      reviewedRef: args.reviewedRef,
+      suggestedRepoUrl: args.suggestedRepoUrl,
       // Errors expire immediately so the next visitor gets a fresh run, not a cached error
       ...(args.status === "error" ? { expiresAt: Date.now() } : {}),
     });
+    return null;
+  },
+});
+
+// Refund a signed-in run that stopped on a URL problem, so a typo in the URL
+// doesn't use up the hourly limit. Guest rows are never deleted.
+export const _deletePreflightCheck = internalMutation({
+  args: { checkId: v.id("preflightChecks") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const check = await ctx.db.get("preflightChecks", args.checkId);
+    if (!check || check.isGuest) return null;
+    await ctx.db.delete("preflightChecks", args.checkId);
     return null;
   },
 });

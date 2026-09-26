@@ -83,6 +83,8 @@ Controls the AI automation workflow.
 
 Auto AI review defaults to off. When enabled, it also queues current pending packages with repository URLs.
 
+The AI review reads the repo tree and follows the branch and folder in the repository URL. If the URL points at a missing branch, an empty folder, or a repo with several components, the review is saved as `partial` with links to the right folders, and auto approve and auto reject skip it. Fix the repository URL and run the review again. A repo that doesn't exist or is private is saved as `failed`. Only `@convex.dev` admins can start a review.
+
 Help text matches the v6 review model, including repo-wide `defineComponent()` source detection, the critical `package.json` entry point check, 9 critical plus 5 advisory criteria split, and the shared status label.
 
 ### AI Prompt Settings
