@@ -1,5 +1,6 @@
 // Sidebar for filtering components by category
 // Reads from admin-managed categories table via listCategories query
+import { navigate } from "../lib/router";
 
 interface CategorySidebarProps {
   categories: Array<{
@@ -32,9 +33,9 @@ export function CategorySidebar({
   const handleCategoryClick = (category: string | null) => {
     if (linkMode) {
       if (category === null) {
-        window.location.href = DIRECTORY_ROOT_HREF;
+        navigate(DIRECTORY_ROOT_HREF);
       } else {
-        window.location.href = `/components/categories/${category}`;
+        navigate(`/components/categories/${category}`);
       }
     } else {
       onSelectCategory(category);

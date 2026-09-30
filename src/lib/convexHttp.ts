@@ -27,25 +27,73 @@ const httpClient = new ConvexHttpClient(
   import.meta.env.VITE_CONVEX_URL as string,
 );
 
+type ComponentBySlug = FunctionReturnType<
+  typeof api.packages.getComponentBySlug
+>;
+
+// One-shot HTTP results for component pages, keyed by slug. Filled when a
+// link is hovered or touched (prefetchComponent) and when a page opens, so
+// in-app navigation can render straight away while the live query catches up.
+// Reused for this long, so a component opened again later (or the only copy
+// there is when the websocket can't connect) gets fresh data
+const COMPONENT_REQUEST_TTL_MS = 60_000;
+
+const componentRequests = new Map<
+  string,
+  { request: Promise<ComponentBySlug | undefined>; startedAt: number }
+>();
+const componentResults = new Map<
+  string,
+  { value: ComponentBySlug; loadedAt: number }
+>();
+
+function freshResult(slug: string) {
+  const result = componentResults.get(slug);
+  return result && Date.now() - result.loadedAt < COMPONENT_REQUEST_TTL_MS
+    ? result.value
+    : undefined;
+}
+
+function requestComponent(slug: string) {
+  const existing = componentRequests.get(slug);
+  if (existing && Date.now() - existing.startedAt < COMPONENT_REQUEST_TTL_MS) {
+    return existing.request;
+  }
+  const request = httpClient
+    .query(api.packages.getComponentBySlug, { slug })
+    .then((value) => {
+      componentResults.set(slug, { value, loadedAt: Date.now() });
+      return value;
+    })
+    .catch(() => {
+      // Allow a retry later; the live subscription remains the source of truth
+      componentRequests.delete(slug);
+      return undefined;
+    });
+  componentRequests.set(slug, { request, startedAt: Date.now() });
+  return request;
+}
+
+export function prefetchComponent(slug: string) {
+  void requestComponent(slug);
+}
+
 export function useComponentBySlug(slug: string) {
   // Reactive value: drives live updates once the websocket connects.
   const live = useQuery(api.packages.getComponentBySlug, { slug });
 
   // One-shot HTTP fallback: resolves even when the websocket cannot connect.
-  const [http, setHttp] = useState<typeof live>(undefined);
+  const [http, setHttp] = useState<ComponentBySlug | undefined>(() =>
+    freshResult(slug),
+  );
 
   useEffect(() => {
     let cancelled = false;
-    // Reset so a slug change does not briefly show the previous component.
-    setHttp(undefined);
-    httpClient
-      .query(api.packages.getComponentBySlug, { slug })
-      .then((result) => {
-        if (!cancelled) setHttp(result);
-      })
-      .catch(() => {
-        // Ignore: the live subscription remains the source of truth.
-      });
+    // Show a recent prefetched result straight away, never the previous slug's
+    setHttp(freshResult(slug));
+    void requestComponent(slug).then((result) => {
+      if (!cancelled && result !== undefined) setHttp(result);
+    });
     return () => {
       cancelled = true;
     };
@@ -101,6 +149,24 @@ async function readDirectoryPage(
     typeof data.downloadsDisplay === "object" &&
     data.downloadsDisplay !== null;
   return isValid ? (data as DirectoryPageData) : null;
+}
+
+// How long a loaded catalog counts as fresh before focus, tab switches or
+// revisits refetch it
+export const CATALOG_REFRESH_AFTER_MS = 60_000;
+
+// Last successful catalog response per URL, so going Back to the directory
+// or a category renders straight away instead of showing a skeleton.
+const directoryPageCache = new Map<
+  string,
+  { data: DirectoryPageData; loadedAt: number }
+>();
+
+export function getCachedDirectoryPage(
+  sortBy: DirectorySort,
+  category?: string,
+) {
+  return directoryPageCache.get(directoryPageUrl(sortBy, category));
 }
 
 // Must build the exact same URL as the inline script in index.html.
@@ -161,6 +227,10 @@ export function fetchDirectoryPage(
         (data) => {
           if (settled) return;
           finish();
+          directoryPageCache.set(directoryPageUrl(sortBy, category), {
+            data,
+            loadedAt: Date.now(),
+          });
           resolve(data);
         },
         (error) => {

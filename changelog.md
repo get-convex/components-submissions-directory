@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Moving around the directory no longer reloads the page (2026-09-30)
+  - Links to directory pages now update the URL in place instead of doing a full page load, so the JS, the Convex websocket (about 900ms to open from Australia) and loaded data stay alive between pages. Files, API routes, the OAuth callback, other sites and modified clicks (new tab, etc.) still load normally.
+  - Back restores the directory's search, sort, "load more" progress and scroll position, and renders from the session's cached catalog instead of a skeleton. Category pages are cached the same way.
+  - Resting the pointer on a component link (or touching it) prefetches its data and the README renderer, so the page usually renders straight away when opened.
+  - The canonical link follows the current page and the title, description and social tags reset between pages. Redirects (bare `/components/categories`, the submissions gate, admin and dashboard access) no longer reload.
+  - Category pages restore their page, search and sort on Back too. Page state is saved when a history entry is left rather than on every change (Safari rate-limits history writes), and a refused history write falls back to a normal page load.
+  - Files: `src/lib/router.ts` (new), `src/main.tsx`, `src/lib/convexHttp.ts`, `src/pages/Directory.tsx`, `src/pages/CategoryPage.tsx`, `src/pages/NotFound.tsx`, `src/pages/Profile.tsx`, `src/pages/Dashboard.tsx`, `src/pages/Admin.tsx`, `src/components/HeaderSearch.tsx`, `src/components/CategorySidebar.tsx`
+
 - Analytics load after the page instead of before it (2026-09-30)
   - posthog-js (~180 KB minified, 53 KB brotli) came in through the shared analytics provider wrapped around the app, so every visitor downloaded and parsed it before the first render. `DeferredWebAnalytics` now renders the provider next to the app and loads it once the page has loaded and the browser is idle. Nothing in the app reads its consent context.
   - Entry bundle: 1,093 KB to 907 KB minified (266 KB to 213 KB brotli).

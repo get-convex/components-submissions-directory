@@ -27,6 +27,14 @@ import DeferredWebAnalytics from "./components/DeferredWebAnalytics";
 import Footer from "./components/Footer";
 import { isReservedRoute, parseSlugFromPath } from "./lib/slugs";
 import { ConnectAuthProvider, useConnectAuth } from "./lib/connectAuth";
+import {
+  installNavigation,
+  navigate,
+  useLocation,
+  useScrollOnNavigate,
+} from "./lib/router";
+import { prefetchComponent } from "./lib/convexHttp";
+import { preloadMarkdown } from "./lib/markdownChunk";
 
 class PageErrorBoundary extends Component<
   { children: ReactNode; fallback?: ReactNode },
@@ -74,8 +82,51 @@ const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 // Route mapping for the components directory
 // Production: Netlify at components-directory.netlify.app/components/*
 // Local dev: localhost:5173/components/*
+// Top-level routes that are never component slugs
+const NON_SLUG_ROUTES = new Set([
+  "callback",
+  "submissions",
+  "submit",
+  "profile",
+  "documentation",
+  "dashboard",
+  "badge",
+  "categories",
+]);
+
+// The component slug a /components path points at, or null for other pages
+function slugFromPathname(pathname: string): string | null {
+  const segments = pathname
+    .slice("/components".length)
+    .split("/")
+    .filter((s) => s.length > 0);
+  if (
+    segments.length === 0 ||
+    segments.length > 2 ||
+    NON_SLUG_ROUTES.has(segments[0]) ||
+    isReservedRoute(segments[0])
+  ) {
+    return null;
+  }
+  return parseSlugFromPath(segments) || null;
+}
+
 function Router() {
-  const path = window.location.pathname;
+  const { pathname: path } = useLocation();
+  useScrollOnNavigate();
+
+  // Category URLs need exactly one slug; anything else (bare or with extra
+  // segments) goes to the directory
+  const categorySegments = path.startsWith("/components/categories")
+    ? path.slice("/components/".length).split("/").filter(Boolean)
+    : [];
+  const isMalformedCategoryPath =
+    categorySegments[0] === "categories" && categorySegments.length !== 2;
+  useEffect(() => {
+    if (isMalformedCategoryPath) {
+      navigate(DIRECTORY_ROOT_HREF, { replace: true });
+    }
+  }, [isMalformedCategoryPath]);
 
   // Always use /components as base path (both local and production)
   const basePath = "/components";
@@ -151,10 +202,10 @@ function Router() {
   // Category pages: /components/categories/:slug
   if (segments[0] === "categories") {
     if (segments.length === 2) {
-      return <CategoryPage categorySlug={segments[1]} />;
+      // Keyed so moving between categories starts fresh (or from cache)
+      return <CategoryPage key={segments[1]} categorySlug={segments[1]} />;
     }
-    // /components/categories without a slug redirects to directory
-    window.location.replace(DIRECTORY_ROOT_HREF);
+    // Malformed category paths are redirected by the effect above
     return null;
   }
 
@@ -162,8 +213,9 @@ function Router() {
   if (segments.length <= 2 && !isReservedRoute(segments[0])) {
     const slug = parseSlugFromPath(segments);
     if (slug) {
+      // Keyed so an error on one component resets when moving to another
       return (
-        <PageErrorBoundary>
+        <PageErrorBoundary key={slug}>
           <ComponentDetail slug={slug} />
         </PageErrorBoundary>
       );
@@ -186,7 +238,7 @@ function SubmissionsGate() {
 
   useEffect(() => {
     if (shouldRedirect) {
-      window.location.replace(DIRECTORY_ROOT_HREF);
+      navigate(DIRECTORY_ROOT_HREF, { replace: true });
     }
   }, [shouldRedirect]);
 
@@ -268,6 +320,16 @@ function AuthCallback() {
 // Prevent browser from restoring previous scroll position on full-page navigations
 history.scrollRestoration = "manual";
 window.scrollTo(0, 0);
+
+// In-app navigation for links to directory pages. Hovering or touching a
+// component link starts loading its data and the README renderer.
+installNavigation((pathname) => {
+  const slug = slugFromPathname(pathname);
+  if (slug) {
+    prefetchComponent(slug);
+    preloadMarkdown();
+  }
+});
 
 createRoot(document.getElementById("root")!).render(
   <>

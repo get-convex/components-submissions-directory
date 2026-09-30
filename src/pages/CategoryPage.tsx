@@ -5,7 +5,18 @@ import { CategorySidebar } from "../components/CategorySidebar";
 import { SearchBar } from "../components/SearchBar";
 import Header from "../components/Header";
 import { setPageTitle, setPageDescription } from "../lib/seo";
-import { fetchDirectoryPage } from "../lib/convexHttp";
+import {
+  CATALOG_REFRESH_AFTER_MS,
+  fetchDirectoryPage,
+  getCachedDirectoryPage,
+  type DirectoryPageData,
+} from "../lib/convexHttp";
+import {
+  navigate,
+  readEntryState,
+  useEntryState,
+  useLocation,
+} from "../lib/router";
 import {
   CaretSortIcon,
   ChevronDownIcon,
@@ -30,12 +41,25 @@ const getGridColumnCount = (): number => {
 
 const ITEMS_PER_PAGE = 24;
 
+// Search, sort and page saved with the history entry, so Back to a category
+// shows the same cards before its scroll position is restored
+interface CategoryHistoryState {
+  searchTerm: string;
+  sortBy: SortBy;
+  currentPage: number;
+}
+const CATEGORY_HISTORY_KEY = "category";
+
 export default function CategoryPage({ categorySlug }: CategoryPageProps) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<SortBy>("downloads");
+  const [restored] = useState(() =>
+    readEntryState<CategoryHistoryState>(CATEGORY_HISTORY_KEY),
+  );
+  const [searchTerm, setSearchTerm] = useState(restored?.searchTerm ?? "");
+  const [sortBy, setSortBy] = useState<SortBy>(restored?.sortBy ?? "downloads");
   const [sortOpen, setSortOpen] = useState(false);
   const [gridColumns, setGridColumns] = useState<number>(getGridColumnCount);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(restored?.currentPage ?? 1);
+  useEntryState(CATEGORY_HISTORY_KEY, { searchTerm, sortBy, currentPage });
   const desktopSortRef = useRef<HTMLDivElement>(null);
   const mobileSortRef = useRef<HTMLDivElement>(null);
 
@@ -60,22 +84,72 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Reset page when search or sort changes
+  // Reset page when search or sort changes, but not for the values just
+  // restored on mount, so a restored page survives Back
+  const restoredControls = useRef<{
+    searchTerm: string;
+    sortBy: SortBy;
+  } | null>({ searchTerm, sortBy });
   useEffect(() => {
+    const restoredNow =
+      restoredControls.current?.searchTerm === searchTerm &&
+      restoredControls.current?.sortBy === sortBy;
+    restoredControls.current = null;
+    if (restoredNow) return;
     setCurrentPage(1);
     if (searchTerm) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [searchTerm, sortBy]);
 
-  // One-shot fetches for public catalog data (no reactive subscription overhead)
-  const [categoryData, setCategoryData] = useState<any | undefined>(undefined);
-  const [categories, setCategories] = useState<any[] | undefined>(undefined);
-  const [components, setComponents] = useState<any[] | undefined>(undefined);
+  // Moving to another history entry while this category stays mounted (a
+  // link to the page you're on starts it over, and Back/Forward past an
+  // in-page #anchor): restore that entry's saved controls, or the defaults
+  const { entryKey } = useLocation();
+  const lastEntryKey = useRef(entryKey);
+  useEffect(() => {
+    if (entryKey === lastEntryKey.current) return;
+    lastEntryKey.current = entryKey;
+    const saved = readEntryState<CategoryHistoryState>(CATEGORY_HISTORY_KEY);
+    const nextSearchTerm = saved?.searchTerm ?? "";
+    const nextSortBy = saved?.sortBy ?? "downloads";
+    restoredControls.current = {
+      searchTerm: nextSearchTerm,
+      sortBy: nextSortBy,
+    };
+    setSearchTerm(nextSearchTerm);
+    setSortBy(nextSortBy);
+    setCurrentPage(saved?.currentPage ?? 1);
+  }, [entryKey]);
+
+  // One-shot fetches for public catalog data (no reactive subscription
+  // overhead). A catalog loaded earlier in this session renders straight away.
+  const [cached] = useState(() => getCachedDirectoryPage(sortBy, categorySlug));
+  const [categoryData, setCategoryData] = useState<any | undefined>(
+    cached ? cached.data.categoryData : undefined,
+  );
+  const [categories, setCategories] = useState<any[] | undefined>(
+    cached?.data.categories,
+  );
+  const [components, setComponents] = useState<any[] | undefined>(
+    cached?.data.components,
+  );
   const [downloadsDisplay, setDownloadsDisplay] = useState<{
     showWeeklyDownloads: boolean;
     showAllTimeDownloads: boolean;
-  }>({ showWeeklyDownloads: true, showAllTimeDownloads: false });
+  }>(
+    cached?.data.downloadsDisplay ?? {
+      showWeeklyDownloads: true,
+      showAllTimeDownloads: false,
+    },
+  );
+
+  const applyData = useCallback((data: DirectoryPageData) => {
+    setCategoryData(data.categoryData);
+    setCategories(data.categories);
+    setComponents(data.components);
+    setDownloadsDisplay(data.downloadsDisplay);
+  }, []);
 
   const fetchGeneration = useRef(0);
   // Aborted when a newer load starts, so a superseded one stops retrying
@@ -92,19 +166,25 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
         controller.signal,
       );
       if (gen !== fetchGeneration.current) return;
-      setCategoryData(data.categoryData);
-      setCategories(data.categories);
-      setComponents(data.components);
-      setDownloadsDisplay(data.downloadsDisplay);
+      applyData(data);
     } catch (error) {
       if (controller.signal.aborted) return;
       console.error("[CategoryPage] Failed to load components", error);
     }
-  }, [categorySlug, sortBy]);
+  }, [categorySlug, sortBy, applyData]);
 
   useEffect(() => {
+    // Use this sort's cached catalog straight away and only refetch when it's
+    // missing or stale. Bumping the generation drops older requests.
+    const cachedPage = getCachedDirectoryPage(sortBy, categorySlug);
+    if (cachedPage) {
+      fetchGeneration.current += 1;
+      loadController.current?.abort();
+      applyData(cachedPage.data);
+      if (Date.now() - cachedPage.loadedAt < CATALOG_REFRESH_AFTER_MS) return;
+    }
     void fetchData();
-  }, [fetchData]);
+  }, [fetchData, sortBy, categorySlug, applyData]);
 
   useEffect(() => () => loadController.current?.abort(), []);
 
@@ -137,12 +217,14 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
     );
   }, [components, searchTerm]);
 
-  // Pagination
+  // Pagination. A restored page (or the one you were on when the catalog
+  // refreshed) can be past the end if the category shrank, so clamp it.
   const totalPages = Math.ceil(filteredComponents.length / ITEMS_PER_PAGE);
+  const page = Math.min(currentPage, Math.max(1, totalPages));
   const paginatedComponents = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const startIndex = (page - 1) * ITEMS_PER_PAGE;
     return filteredComponents.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredComponents, currentPage]);
+  }, [filteredComponents, page]);
 
   const directoryCardHoverClass =
     "hover:bg-[rgb(246_238_219/var(--tw-bg-opacity,1))]";
@@ -312,9 +394,9 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
                     selectedCategory={categorySlug}
                     onSelectCategory={(cat) => {
                       if (cat === null) {
-                        window.location.href = DIRECTORY_ROOT_HREF;
+                        navigate(DIRECTORY_ROOT_HREF);
                       } else {
-                        window.location.href = `/components/categories/${cat}`;
+                        navigate(`/components/categories/${cat}`);
                       }
                     }}
                     linkMode={true}
@@ -487,20 +569,20 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
                 {totalPages > 1 && (
                   <div className="mt-8 flex items-center justify-center gap-2">
                     <button
-                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(Math.max(1, page - 1))}
+                      disabled={page === 1}
                       className="px-3 py-1.5 text-sm rounded-md border border-border bg-white text-text-primary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bg-secondary transition-colors"
                     >
                       Previous
                     </button>
                     <span className="text-sm text-text-secondary px-3">
-                      Page {currentPage} of {totalPages}
+                      Page {page} of {totalPages}
                     </span>
                     <button
                       onClick={() =>
-                        setCurrentPage((p) => Math.min(totalPages, p + 1))
+                        setCurrentPage(Math.min(totalPages, page + 1))
                       }
-                      disabled={currentPage === totalPages}
+                      disabled={page === totalPages}
                       className="px-3 py-1.5 text-sm rounded-md border border-border bg-white text-text-primary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bg-secondary transition-colors"
                     >
                       Next

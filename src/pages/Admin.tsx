@@ -83,6 +83,7 @@ import AiLoadingDots from "../components/AiLoadingDots";
 import DownloadsGrowthTab from "../components/DownloadsGrowthTab";
 import { AI_REVIEW_PROMPT_STATUS_LABEL } from "../../shared/aiReviewPromptMeta";
 import { parseRepoUrl, repoHostLabel } from "../../shared/repoUrl";
+import { navigate } from "../lib/router";
 
 // Review status type
 type ReviewStatus =
@@ -198,7 +199,7 @@ function scrollToAdminSettingsSection(sectionId: string) {
 
   section.scrollIntoView({ behavior: "smooth", block: "start" });
   window.history.replaceState(
-    null,
+    window.history.state,
     "",
     `${window.location.pathname}${window.location.search}#${sectionId}`,
   );
@@ -303,7 +304,7 @@ function RedirectToProfile() {
   const basePath = useBasePath();
 
   useEffect(() => {
-    window.location.replace(`${basePath}/profile`);
+    navigate(`${basePath}/profile`, { replace: true });
   }, [basePath]);
 
   return (
@@ -11788,7 +11789,7 @@ function AdminDashboard({
       if (window.location.hash === "#settings-github-broadcast") {
         setActiveFilter("broadcast");
         window.history.replaceState(
-          null,
+          window.history.state,
           "",
           `${window.location.pathname}${window.location.search}`,
         );

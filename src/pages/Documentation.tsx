@@ -38,6 +38,7 @@ import mcpDoc from "../docs/mcp.md?raw";
 import apiEndpointsDoc from "../docs/api-endpoints.md?raw";
 import badgesDoc from "../docs/badges.md?raw";
 import updatingDocsDoc from "../docs/updating-docs.md?raw";
+import { navigate } from "../lib/router";
 
 type DocSection = {
   id: string;
@@ -102,55 +103,28 @@ function getSectionPath(basePath: string, sectionId: string) {
     : `${basePath}/documentation/${sectionId}`;
 }
 
-function parseSectionFromPath(pathname: string, basePath: string): string {
-  const docsPrefix = `${basePath}/documentation`;
-  if (!pathname.startsWith(docsPrefix)) {
-    return "index";
-  }
-
-  const remainder = pathname.slice(docsPrefix.length);
-  if (!remainder || remainder === "/") {
-    return "index";
-  }
-
-  return remainder.replace(/^\//, "");
-}
-
 export default function Documentation({ section }: DocumentationProps) {
   const basePath = useBasePath();
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const isAdmin = useQuery(api.auth.isAdmin);
   const [copied, setCopied] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const [currentSection, setCurrentSection] = useState(section ?? "index");
-
-  // Keep local section in sync if router-level prop changes.
-  useEffect(() => {
-    setCurrentSection(section ?? "index");
-  }, [section]);
-
-  // Keep docs section in sync with browser back/forward navigation.
-  useEffect(() => {
-    const handlePopState = () => {
-      const nextSection = parseSectionFromPath(window.location.pathname, basePath);
-      setCurrentSection(nextSection);
-    };
-
-    window.addEventListener("popstate", handlePopState);
-    return () => window.removeEventListener("popstate", handlePopState);
-  }, [basePath]);
+  // Straight from the URL (the router re-renders on every navigation), so a
+  // link into another section renders it before scrolling to its #hash
+  const currentSection = section ?? "index";
 
   const handleSectionChange = (sectionId: string) => {
     if (sectionId === currentSection) {
       return;
     }
 
-    setCurrentSection(sectionId);
     setCopied(false);
 
     const nextPath = getSectionPath(basePath, sectionId);
     if (window.location.pathname !== nextPath) {
-      window.history.pushState({}, "", nextPath);
+      // Through the router so the entry gets an id for Back/Forward; the
+      // section switch keeps its scroll position like before
+      navigate(nextPath, { scroll: false });
     }
   };
 
