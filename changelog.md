@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Analytics load after the page instead of before it (2026-09-30)
+  - posthog-js (~180 KB minified, 53 KB brotli) came in through the shared analytics provider wrapped around the app, so every visitor downloaded and parsed it before the first render. `DeferredWebAnalytics` now renders the provider next to the app and loads it once the page has loaded and the browser is idle. Nothing in the app reads its consent context.
+  - Entry bundle: 1,093 KB to 907 KB minified (266 KB to 213 KB brotli).
+  - Files: `src/components/DeferredWebAnalytics.tsx` (new), `src/main.tsx`
+
 ### Fixed
 
 - Netlify now applies our header and redirect rules (2026-09-30)
