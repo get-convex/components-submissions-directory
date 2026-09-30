@@ -81,19 +81,11 @@ export type DirectoryPageData = {
   > | null;
 };
 
-// A stalled request should still reach the fallback instead of leaving the
-// page on its loading skeleton.
+// How long the bootstrap endpoint gets before the individual queries also
+// start. It keeps running after that and can still win.
 const DIRECTORY_PAGE_TIMEOUT_MS = 8000;
-// The fallback runs several queries, so it gets a little longer
-const DIRECTORY_FALLBACK_TIMEOUT_MS = 15_000;
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const timeout = new Promise<null>((resolve) => {
-    timer = setTimeout(() => resolve(null), ms);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-}
+// How long an attempt can stay pending before another starts alongside it
+const ATTEMPT_PATIENCE_MS = 20_000;
 
 // Returns null for anything that isn't a usable page payload, so a bad
 // response falls back instead of rendering an empty directory.
@@ -133,47 +125,72 @@ function directoryPageUrl(sortBy: DirectorySort, category?: string) {
 // still downloading, so the first call usually resolves straight away. Falls
 // back to the individual queries if the endpoint fails, stalls or returns
 // something unexpected.
-export async function fetchDirectoryPage(
+export function fetchDirectoryPage(
   sortBy: DirectorySort,
   category?: string,
   signal?: AbortSignal,
 ): Promise<DirectoryPageData> {
   // Like the websocket client this replaced, keep trying through a dropped
-  // connection instead of failing and leaving the page on its skeleton: back
-  // off between attempts, and go again as soon as the browser is back online.
-  // Aborting the signal (a newer request replaced this one) stops retrying.
-  for (let attempt = 0; ; attempt += 1) {
-    stopIfAborted(signal);
-    try {
-      return await loadDirectoryPage(sortBy, category);
-    } catch (error) {
-      stopIfAborted(signal);
-      console.warn("[fetchDirectoryPage] Retrying after error", error);
-      await waitToRetry(attempt, signal);
-    }
-  }
-}
+  // connection instead of failing and leaving the page on its skeleton. A
+  // failed attempt is retried with backoff (and straight away when the
+  // browser comes back online). A slow one keeps running, since a late
+  // success still counts, but after a while another starts alongside it.
+  // Aborting the signal (a newer request replaced this one) stops it all.
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let attempts = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
-// AbortSignal.throwIfAborted needs Safari 15.4+, so check by hand
-function stopIfAborted(signal?: AbortSignal) {
-  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
-}
-
-function waitToRetry(attempt: number, signal?: AbortSignal) {
-  return new Promise<void>((resolve) => {
-    const retry = () => {
-      clearTimeout(timer);
-      window.removeEventListener("online", retry);
-      signal?.removeEventListener("abort", retry);
-      resolve();
+    const finish = () => {
+      settled = true;
+      clearTimeout(retryTimer);
+      window.removeEventListener("online", startAttempt);
+      signal?.removeEventListener("abort", abort);
     };
-    const timer = setTimeout(retry, Math.min(30_000, 1_000 * 2 ** attempt));
-    window.addEventListener("online", retry);
-    signal?.addEventListener("abort", retry);
+    const abort = () => {
+      if (settled) return;
+      finish();
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+    function startAttempt() {
+      if (settled) return;
+      const attempt = attempts++;
+      clearTimeout(retryTimer);
+      retryTimer = setTimeout(startAttempt, ATTEMPT_PATIENCE_MS);
+      loadDirectoryPage(sortBy, category).then(
+        (data) => {
+          if (settled) return;
+          finish();
+          resolve(data);
+        },
+        (error) => {
+          // Only the newest attempt decides when to try again
+          if (settled || attempt !== attempts - 1) return;
+          console.warn("[fetchDirectoryPage] Retrying after error", error);
+          clearTimeout(retryTimer);
+          retryTimer = setTimeout(
+            startAttempt,
+            Math.min(30_000, 1_000 * 2 ** attempt),
+          );
+        },
+      );
+    }
+
+    if (signal?.aborted) {
+      reject(new DOMException("Aborted", "AbortError"));
+      return;
+    }
+    signal?.addEventListener("abort", abort);
+    window.addEventListener("online", startAttempt);
+    startAttempt();
   });
 }
 
-async function loadDirectoryPage(
+// One attempt: the bootstrap endpoint, then the individual queries alongside
+// it once it has had DIRECTORY_PAGE_TIMEOUT_MS (or as soon as it fails).
+// Whichever returns usable data first wins, so a slow response that turns up
+// late is still used. Rejects only when both have failed.
+function loadDirectoryPage(
   sortBy: DirectorySort,
   category?: string,
 ): Promise<DirectoryPageData> {
@@ -186,32 +203,37 @@ async function loadDirectoryPage(
   } else {
     request = fetch(url);
   }
-  const data = await withTimeout(
-    readDirectoryPage(request),
-    DIRECTORY_PAGE_TIMEOUT_MS,
-  ).catch(() => null);
-  if (data) return data;
 
-  // Bounded too, so a stalled query still reaches the retry loop above
-  const fallback = await withTimeout(
-    Promise.all([
-      httpClient.query(api.packages.listApprovedComponents, {
-        category,
-        sortBy,
-      }),
-      httpClient.query(api.packages.listCategories, {}),
-      category
-        ? null
-        : httpClient.query(api.packages.getFeaturedComponents, {}),
-      httpClient.query(api.packages.getDownloadsDisplaySettings, {}),
-      category ? null : httpClient.query(api.packages.getListViewSettings, {}),
-      category
-        ? httpClient.query(api.packages.getCategoryBySlug, { slug: category })
-        : null,
-    ]),
-    DIRECTORY_FALLBACK_TIMEOUT_MS,
-  );
-  if (!fallback) throw new Error("Directory queries timed out");
+  return new Promise((resolve, reject) => {
+    let failures = 0;
+    let fallbackStarted = false;
+    const succeed = (data: DirectoryPageData) => {
+      clearTimeout(fallbackTimer);
+      resolve(data);
+    };
+    const fail = () => {
+      failures += 1;
+      if (!fallbackStarted) startFallback();
+      else if (failures >= 2)
+        reject(new Error("Directory data failed to load"));
+    };
+    const startFallback = () => {
+      if (fallbackStarted) return;
+      fallbackStarted = true;
+      loadDirectoryQueries(sortBy, category).then(succeed, fail);
+    };
+    const fallbackTimer = setTimeout(startFallback, DIRECTORY_PAGE_TIMEOUT_MS);
+    readDirectoryPage(request).then(
+      (data) => (data ? succeed(data) : fail()),
+      fail,
+    );
+  });
+}
+
+async function loadDirectoryQueries(
+  sortBy: DirectorySort,
+  category?: string,
+): Promise<DirectoryPageData> {
   const [
     components,
     categories,
@@ -219,7 +241,16 @@ async function loadDirectoryPage(
     downloadsDisplay,
     listViewSettings,
     categoryData,
-  ] = fallback;
+  ] = await Promise.all([
+    httpClient.query(api.packages.listApprovedComponents, { category, sortBy }),
+    httpClient.query(api.packages.listCategories, {}),
+    category ? null : httpClient.query(api.packages.getFeaturedComponents, {}),
+    httpClient.query(api.packages.getDownloadsDisplaySettings, {}),
+    category ? null : httpClient.query(api.packages.getListViewSettings, {}),
+    category
+      ? httpClient.query(api.packages.getCategoryBySlug, { slug: category })
+      : null,
+  ]);
   return {
     components,
     categories,
