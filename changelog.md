@@ -88,6 +88,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - convex's `package.json` says `"sideEffects": false`, but Vite only applies that to bare imports like `convex/values`. Relative imports inside convex read `convex/dist/esm/package.json`, which has no `sideEffects` field, and Rollup keeps the flag from whichever import of a file resolves first. When an internal import of `convex/dist/esm/values/index.js` won that race, a leftover from convex's `compare_utf8.js` (`arr(); arr();`) moved from the Admin chunk into the entry chunk, which renamed the entry chunk and every chunk that imports from it.
   - `vite.config.ts` now marks every convex file as side effect free with `build.rollupOptions.treeshake.moduleSideEffects`. Repeated builds are byte-identical, the leftover is dropped (Admin is 52 bytes smaller) and the entry chunk is the same size. This can go once convex writes `"sideEffects": false` into its nested `dist/esm/package.json`.
   - Files: `vite.config.ts`
+- `vite build --outDir <dir>` no longer fails with ENOENT after building the bundle (2026-09-30 22:02 UTC)
+  - The `netlifyRootFiles` plugin copied `_headers` and `_redirects` into the repo's `dist/` wherever the build went, so a custom `--outDir` failed when `dist/` didn't exist and wrote into the repo's `dist/` when it did. It now copies them to the folder above the resolved `outDir`: still `dist/` for the default build (the output is byte-identical), and `<dir>` for `--outDir <dir>/components`, which gives the same layout as `dist/`.
+  - The copy is skipped when the build fails. Rollup calls `closeBundle` on failed builds too, so with no `dist/` yet (a fresh clone) a real build error was reported as the plugin's ENOENT instead.
+  - Files: `vite.config.ts`
 
 ### Security
 

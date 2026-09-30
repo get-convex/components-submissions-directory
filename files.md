@@ -20,7 +20,7 @@ TypeScript configuration files for different parts of the project. `tsconfig.app
 
 ### `vite.config.ts`
 
-Vite build configuration. Sets up React plugin, path aliases, base path `/components/` and output directory `dist/components`. The `netlifyRootFiles` plugin copies `netlify/_headers` and `netlify/_redirects` into `dist/` after the build, since Netlify reads them from the publish root. `build.rollupOptions.treeshake.moduleSideEffects` marks every `convex` module as side effect free, matching convex's own `"sideEffects": false`, so building the same code twice gives the same chunk names.
+Vite build configuration. Sets up React plugin, path aliases, base path `/components/` and output directory `dist/components`. The `netlifyRootFiles` plugin copies `netlify/_headers` and `netlify/_redirects` into the folder above `outDir` after the build (`dist/` by default, or the parent of a custom `--outDir`), since Netlify reads them from the publish root. `build.rollupOptions.treeshake.moduleSideEffects` marks every `convex` module as side effect free, matching convex's own `"sideEffects": false`, so building the same code twice gives the same chunk names.
 
 ### `tailwind.config.js`
 
