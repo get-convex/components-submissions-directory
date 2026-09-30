@@ -26,6 +26,16 @@ export default defineConfig({
   base: "/components/",
   build: {
     outDir: "dist/components",
+    rollupOptions: {
+      // convex's package.json says "sideEffects": false, but Vite only applies
+      // that to bare imports like "convex/values". Relative imports inside
+      // convex read convex/dist/esm/package.json, which has no sideEffects
+      // field. Rollup keeps whichever import of a file resolves first, so
+      // chunk contents and hashes changed between builds of the same code.
+      treeshake: {
+        moduleSideEffects: (id) => !id.includes("/node_modules/convex/"),
+      },
+    },
   },
   plugins: [react(), netlifyRootFiles()],
   resolve: {

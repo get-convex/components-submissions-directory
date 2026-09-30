@@ -60,6 +60,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Files: `package.json`, `bun.lockb`, `src/components/CodeBlock.tsx`, `src/pages/CategoryPage.tsx`
 - Public queries in `convex/packages.ts` now give the client real types instead of `any`. Convex types a query's result from what the handler returns, not from the `returns` validator, so `toPublicPackage(pkg: any)` and its sibling helpers made every field `any` and TypeScript checked none of the field reads on the component detail page. The helpers now take `Doc<"packages">` and return the validator's type, which fixes 14 public queries with no runtime change (2026-09-30 08:14 UTC)
   - Files: `convex/packages.ts`
+- Building the same code twice could give different JS file names, so a deploy with no frontend change could still make returning visitors download the entry chunk again (2026-09-30 08:27 UTC)
+  - convex's `package.json` says `"sideEffects": false`, but Vite only applies that to bare imports like `convex/values`. Relative imports inside convex read `convex/dist/esm/package.json`, which has no `sideEffects` field, and Rollup keeps the flag from whichever import of a file resolves first. When an internal import of `convex/dist/esm/values/index.js` won that race, a leftover from convex's `compare_utf8.js` (`arr(); arr();`) moved from the Admin chunk into the entry chunk, which renamed the entry chunk and every chunk that imports from it.
+  - `vite.config.ts` now marks every convex file as side effect free with `build.rollupOptions.treeshake.moduleSideEffects`. Repeated builds are byte-identical, the leftover is dropped (Admin is 52 bytes smaller) and the entry chunk is the same size. This can go once convex writes `"sideEffects": false` into its nested `dist/esm/package.json`.
+  - Files: `vite.config.ts`
 
 ### Security
 
