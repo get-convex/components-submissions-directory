@@ -54,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Two components in the same monorepo no longer share one cached preflight result
 - Admin AI review saves URL problems as `partial`, so auto reject no longer rejects a component only because the repo URL points at the wrong folder. A missing repo still counts as `failed`
 - The convex-lint hook no longer blocks edits to `convex/aiReview.ts`. The function names in two prompt strings are now in backticks
+- Public queries in `convex/packages.ts` now give the client real types instead of `any`. Convex types a query's result from what the handler returns, not from the `returns` validator, so `toPublicPackage(pkg: any)` and its sibling helpers made every field `any` and TypeScript checked none of the field reads on the component detail page. The helpers now take `Doc<"packages">` and return the validator's type, which fixes 14 public queries with no runtime change (2026-09-30 08:14 UTC)
+  - Files: `convex/packages.ts`
 
 ### Security
 
