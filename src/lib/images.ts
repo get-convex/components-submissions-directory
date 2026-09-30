@@ -42,10 +42,12 @@ export const DETAIL_THUMBNAIL: ThumbnailSizing = {
   sizes: "(min-width: 1024px) 240px, 100vw",
 };
 
-// If the CDN variant fails for any reason, show the original image instead
+// If the CDN variant fails for any reason, show the original image instead.
+// The guard records which URL fell back, because React reuses the element
+// when a thumbnail changes and the new one needs its own fallback.
 function fallBackToOriginal(img: HTMLImageElement, originalUrl: string) {
-  if (img.dataset.originalFallback) return;
-  img.dataset.originalFallback = "true";
+  if (img.dataset.originalFallback === originalUrl) return;
+  img.dataset.originalFallback = originalUrl;
   img.removeAttribute("srcset");
   img.removeAttribute("sizes");
   img.src = originalUrl;
