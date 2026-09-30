@@ -14,6 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Entry bundle: 1,093 KB to 907 KB minified (266 KB to 213 KB brotli).
   - Files: `src/components/DeferredWebAnalytics.tsx` (new), `src/main.tsx`
 
+### Fixed
+
+- Netlify now applies our header and redirect rules (2026-09-30)
+  - Netlify ignores `[[headers]]` and `[[redirects]]` in netlify.toml on this site, so hashed JS/CSS and fonts were served with `max-age=0` and every visit re-checked them. The `/api/components/*` proxy and the `/components/images/*` 404 rule never applied either. The rules now live in `netlify/_headers` and `netlify/_redirects`, which `vite.config.ts` copies to the publish root.
+  - Component page HTML is cached at Netlify's edge (`cache = "manual"` on og-meta), so repeat requests skip the Convex lookup. Cached responses are purged on each deploy.
+  - Stopped tracking the stale `.netlify/` build folder.
+  - Files: `netlify.toml`, `netlify/_headers` (new), `netlify/_redirects` (new), `vite.config.ts`, `.gitignore`
+
 ### Added
 
 - Monorepo-aware component lookup for the preflight check and admin AI review (2026-09-26 08:14 UTC)
@@ -29,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- README code blocks tagged `txt`, `plaintext` or `plain`, or with a language Shiki doesn't bundle, now render as plain text. Before, `@pierre/diffs` threw uncaught `resolveLanguage: "txt" not found in bundled or custom languages` errors and left the block empty, so the four Axiom queries on /components/workpool collapsed to a thin empty line (2026-09-30 06:46 UTC)
+  - `CodeBlock` sends plain text tags, and any language missing from Shiki's `bundledLanguages` (except `ansi`, which Shiki handles itself), to its existing `<pre>` path. `shiki` is now listed in `package.json`; it was already installed through `@pierre/diffs`.
+  - Files: `src/components/CodeBlock.tsx`, `package.json`
 - Monorepo components like `https://github.com/daytona/integrations` failed preflight with "No convex.config.ts found" because branch and folder were dropped from the URL. They now pass (2026-09-26 08:14 UTC)
 - GitLab repositories now get a real preflight and admin AI review instead of an "Invalid GitHub repository URL" error
 - Two components in the same monorepo no longer share one cached preflight result

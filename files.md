@@ -19,7 +19,7 @@ TypeScript configuration files for different parts of the project. `tsconfig.jso
 
 ### `vite.config.ts`
 
-Vite build configuration. Sets up React plugin, path aliases, and base path `/` for Netlify hosting. Assets are served from root, SPA routing is handled by Netlify redirects.
+Vite build configuration. Sets up React plugin, path aliases, base path `/components/` and output directory `dist/components`. The `netlifyRootFiles` plugin copies `netlify/_headers` and `netlify/_redirects` into `dist/` after the build, since Netlify reads them from the publish root.
 
 ### `tailwind.config.js`
 
@@ -51,25 +51,18 @@ Git ignore patterns for node_modules, dist, build artifacts, and editor files. I
 
 ### `netlify.toml`
 
-Netlify deployment configuration. Sets build command (`npm run build`), publish directory (`dist`), Node version (20), custom headers, and redirects. The `[[headers]]` blocks replace the old `public/_headers` file (which never applied in production because it landed at `dist/components/_headers` while Netlify publishes `dist`): immutable one-year `Cache-Control` for hashed `/components/assets/*` files and `X-Robots-Tag: noindex, nofollow` for admin, callback, profile, and dashboard routes. Redirects:
-- Root `/` redirects to `/components` (301)
-- Main LLMs.txt and Markdown proxies to Convex HTTP endpoints:
-  - `/components/llms.txt` -> `/api/llms.txt`
-  - `/components/get-convex-llms.txt` -> `/api/get-convex-llms.txt` (official Convex team components only)
-  - `/components/get-convex.md` -> `/api/get-convex-markdown` (official Convex team components only)
-  - `/components.md` -> `/api/markdown-index`
-  - `/components/components.md` -> `/api/markdown-index`
-  - `/components/*/llms.txt` -> `/api/component-llms?slug=:splat` (single and scoped slugs)
-  - Note: the exact `/components/components.md`, `/components/get-convex-llms.txt`, and `/components/get-convex.md` routes are also handled inside `og-meta.ts` because redirects do not fire once the `/components/*` edge function runs
-- MCP and badge proxies to production Convex deployment (`https://giant-grouse-674.convex.site`):
-  - `/components/api/mcp/*` -> `https://giant-grouse-674.convex.site/api/mcp/:splat`
-  - `/api/mcp/*` -> `https://giant-grouse-674.convex.site/api/mcp/:splat`
-  - `/components/badge/*` -> `https://giant-grouse-674.convex.site/api/badge?slug=:splat`
-- `/components` and `/components/*` fall back to `/index.html` for SPA routing (200)
-- Edge Function mapping:
+Netlify deployment configuration: build command (`npm run build`), publish directory (`dist`), Node version (20) and edge function mappings. Header and redirect rules are NOT in this file: on this site Netlify ignores `[[headers]]` and `[[redirects]]` in netlify.toml (every deploy reported "No header rules processed", and a new `[[redirects]]` rule 404'd on a deploy preview while the same rule in `_redirects` worked), so they live in `netlify/_headers` and `netlify/_redirects`. Edge function settings here are applied:
   - `/components/badge/*` -> `netlify/edge-functions/component-badge.ts` (proxies badge SVG by slug to Convex HTTP badge endpoint)
-  - `/components/*` -> `netlify/edge-functions/og-meta.ts` (injects component-specific OG meta tags and directly proxies sitemap/llms.txt/components.md routes that cannot rely on redirects after edge functions); `excludedPath` keeps `/components/assets/*` and `/components/fonts/*` out of the edge function so the `[[headers]]` cache rules apply and the Vercel proxy edge can cache static files
+  - `/components/*` -> `netlify/edge-functions/og-meta.ts` (injects component-specific OG meta tags and directly proxies sitemap/llms.txt/components.md/get-convex routes that cannot rely on redirects after edge functions); `excludedPath` keeps `/components/assets/*` and `/components/fonts/*` out of the edge function so the `_headers` cache rules apply; `cache = "manual"` lets Netlify's edge cache og-meta responses that send cache headers (component pages), purged on every deploy
   - `/components/*/*.md` -> `netlify/edge-functions/component-markdown.ts` (keeps Netlify URL, proxies markdown by slug)
+
+### `netlify/_headers`
+
+Response header rules, copied to `dist/_headers` by the `netlifyRootFiles` plugin in `vite.config.ts` (Netlify reads it from the publish root). Immutable one-year `Cache-Control` for hashed `/components/assets/*`, one week plus stale-while-revalidate for `/components/fonts/*`, and `X-Robots-Tag: noindex, nofollow` for admin, callback, profile, and dashboard routes (og-meta also sets these for its HTML responses).
+
+### `netlify/_redirects`
+
+Redirect and rewrite rules, copied to `dist/_redirects` by `vite.config.ts`. Root `/` to `/components` (301), `/components.md` proxy to the Convex markdown index, `/api/components/*` proxy to the Convex REST API, a 404 for `/components/images/*`, and the SPA fallbacks for `/components` and `/components/*`. The llms.txt, markdown and badge routes under `/components/*` are handled by the edge functions instead.
 
 Session note (2026-03-06): Live endpoint checks showed `www.convex.dev/components/api/mcp/protocol` still returning SPA HTML while direct Convex MCP endpoint `https://giant-grouse-674.convex.site/api/mcp/protocol` returns valid JSON-RPC responses.
 
@@ -705,7 +698,7 @@ Shared `react-markdown` component overrides used across submit preview, detail p
 
 ### `src/components/CodeBlock.tsx`
 
-Shared markdown code block renderer built on `@pierre/diffs/react`. Normalizes README and generated-content fenced code blocks into Pierre `FileContents`, adds syntax highlighting plus line numbers, passes the correct `name` field so markdown rendering does not crash on migrated detail pages, and includes a built-in copy button. Plain text code blocks (no language tag detected) now render as a simple `<pre>` element instead of PierreFile to prevent potential syntax highlighter hangs on non-code content like Unicode box-drawing diagrams.
+Shared markdown code block renderer built on `@pierre/diffs/react`. Normalizes README and generated-content fenced code blocks into Pierre `FileContents`, adds syntax highlighting plus line numbers, passes the correct `name` field so markdown rendering does not crash on migrated detail pages, and includes a built-in copy button. Plain text code blocks (no language tag, or `text`, `txt`, `plaintext`, `plain`) render as a simple `<pre>` element instead of PierreFile to prevent potential syntax highlighter hangs on non-code content like Unicode box-drawing diagrams. Languages missing from Shiki's `bundledLanguages` use the same `<pre>`, because `@pierre/diffs` throws an uncaught rejection and renders an empty block for them.
 
 ### `src/components/CodeBlockLazy.tsx`
 
