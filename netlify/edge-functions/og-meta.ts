@@ -30,12 +30,16 @@ function extractSlug(pathname: string): string | null {
     "dashboard",
     "badge",
     "categories",
+    "_img",
+    "_src",
   ];
   if (
     reserved.includes(slug) ||
     slug.startsWith("submit/") ||
     slug.startsWith("submissions/") ||
     slug.startsWith("badge/") ||
+    slug.startsWith("_img/") ||
+    slug.startsWith("_src/") ||
     slug.startsWith("callback/") ||
     slug.startsWith("categories/") ||
     slug.startsWith("dashboard/") ||

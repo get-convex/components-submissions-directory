@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Analytics load after the page instead of before it (2026-09-30)
+  - posthog-js (~180 KB minified, 53 KB brotli) came in through the shared analytics provider wrapped around the app, so every visitor downloaded and parsed it before the first render. `DeferredWebAnalytics` now renders the provider next to the app and loads it once the page has loaded and the browser is idle. Nothing in the app reads its consent context.
+  - Entry bundle: 1,093 KB to 907 KB minified (266 KB to 213 KB brotli).
+  - Files: `src/components/DeferredWebAnalytics.tsx` (new), `src/main.tsx`
+
+### Fixed
+
+- Netlify now applies our header and redirect rules (2026-09-30)
+  - Netlify ignores `[[headers]]` and `[[redirects]]` in netlify.toml on this site, so hashed JS/CSS and fonts were served with `max-age=0` and every visit re-checked them. The `/api/components/*` proxy and the `/components/images/*` 404 rule never applied either. The rules now live in `netlify/_headers` and `netlify/_redirects`, which `vite.config.ts` copies to the publish root.
+  - Component page HTML is cached at Netlify's edge (`cache = "manual"` on og-meta), so repeat requests skip the Convex lookup. Cached responses are purged on each deploy.
+  - Stopped tracking the stale `.netlify/` build folder.
+  - Files: `netlify.toml`, `netlify/_headers` (new), `netlify/_redirects` (new), `vite.config.ts`, `.gitignore`
+
+### Changed
+
+- Thumbnails, avatars and fonts load far fewer bytes (2026-09-30)
+  - Component thumbnails are stored as full-size PNGs (median 2.4 MB, 111 MB across 72, some 3840x2160) but render ~360px wide. Public pages now request resized WebP/AVIF variants through Netlify Image CDN (`/components/_img/<width>/<storageId>`, with storage proxied under `/components/_src` so it counts as a local source), with `srcset`/`sizes` per layout and a fallback to the original image if a variant fails.
+  - The first row of Featured cards loads its thumbnails eagerly with `fetchpriority="high"`, since one of them is usually the page's largest paint.
+  - GitHub avatars request `?size=64` instead of the ~460px original (about 1.7 KB instead of 61 KB).
+  - Dropped the Publico Headline font preload. No public page uses Publico, so it was a wasted 52 KB on every load.
+  - Files: `src/lib/images.ts` (new), `src/components/ComponentCard.tsx`, `src/components/ComponentListRow.tsx`, `src/pages/ComponentDetail.tsx`, `src/pages/Directory.tsx`, `netlify.toml`, `netlify/_redirects`, `netlify/edge-functions/og-meta.ts`, `index.html`
+
 - Directory and category pages load much faster, especially far from the deployment (2026-09-30)
   - Catalog data now comes from one plain GET (`/api/directory-page`) that `index.html` starts while the JS bundle downloads. The endpoint reads everything in one internal query, so the list, counts and featured row share a snapshot. Before, the page waited for the bundle, then opened the Convex websocket (~900ms to open from Australia), then ran five queries (~560ms more). Locally with prod data, cards appear in ~0.9s instead of ~1.5s, and the real site also stops paying the bundle download before the data request starts.
   - The markdown renderer (react-markdown, rehype-raw/parse5, micromark) moved to a lazy chunk. Entry bundle is 757 KB instead of 1,096 KB minified (181 KB instead of 266 KB brotli). Component pages preload it on mount.
@@ -30,6 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Submit form: monorepo help line under Repository URL. A `?repoUrl=` from the preflight now replaces a saved draft's repo URL (other draft fields are kept) and is removed from the address bar after sign-in.
 
 ### Fixed
+
+- README code blocks tagged `txt`, `plaintext` or `plain`, or with a language Shiki doesn't bundle, now render as plain text. Before, `@pierre/diffs` threw uncaught `resolveLanguage: "txt" not found in bundled or custom languages` errors and left the block empty, so the four Axiom queries on /components/workpool collapsed to a thin empty line (2026-09-30 06:46 UTC)
+  - `CodeBlock` sends plain text tags, and any language missing from Shiki's `bundledLanguages` (except `ansi`, which Shiki handles itself), to its existing `<pre>` path. `shiki` is now listed in `package.json`; it was already installed through `@pierre/diffs`.
+  - Files: `src/components/CodeBlock.tsx`, `package.json`
 
 - The directory loaded its whole catalog twice on most visits: the `pageshow` refetch fired at the end of every normal load. Refetches on focus, tab switch and back/forward restore now skip while a request is in flight and when the data is under a minute old (2026-09-30)
 - Monorepo components like `https://github.com/daytona/integrations` failed preflight with "No convex.config.ts found" because branch and folder were dropped from the URL. They now pass (2026-09-26 08:14 UTC)

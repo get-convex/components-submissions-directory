@@ -1,0 +1,37 @@
+# Redirects and rewrites for the Netlify deploy. vite.config.ts copies this
+# file to the publish root (dist/_redirects), which is where Netlify reads it.
+#
+# Keep rules here, not in netlify.toml: on this site Netlify ignores
+# [[redirects]] (and [[headers]]) in netlify.toml. A new toml rule 404'd on a
+# deploy preview while the same rule in this file worked.
+#
+# The llms.txt, markdown and badge proxies under /components/* are not listed
+# because the og-meta, component-markdown and component-badge edge functions
+# handle those paths (redirect proxies don't fire after an edge function).
+#
+# Rules are matched top to bottom; "!" forces a rule even if a file exists.
+
+# Root to the directory
+/                       /components                                                   301!
+
+# Directory markdown index at the site root
+/components.md          https://giant-grouse-674.convex.site/api/markdown-index        200!
+
+# Components REST API
+/api/components/*       https://giant-grouse-674.convex.site/api/components/:splat     200!
+
+# Image URLs referenced in component descriptions don't exist as files;
+# without this rule the SPA fallback serves index.html as duplicate pages
+/components/images/*    /404.html                                                     404
+
+# Resized thumbnails through Netlify Image CDN (see src/lib/images.ts).
+# Convex storage is proxied under /components/_src so the Image CDN can treat
+# it as a local source: remote sources need an [images] allowlist, which
+# Netlify ignores in netlify.toml on this site. Only this deployment's storage
+# is reachable. Must come before the SPA fallback
+/components/_src/:id         https://giant-grouse-674.convex.cloud/api/storage/:id    200!
+/components/_img/:width/:id  /.netlify/images?url=/components/_src/:id&w=:width       200!
+
+# SPA: the directory root, then every client-side route
+/components             /components/index.html                                        200!
+/components/*           /components/index.html                                        200

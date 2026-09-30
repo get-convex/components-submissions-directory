@@ -11,6 +11,7 @@ import { setPageTitle, setPageDescription } from "../lib/seo";
 import { fetchDirectoryPage } from "../lib/convexHttp";
 import { CaretSortIcon, ChevronDownIcon } from "@radix-ui/react-icons";
 import { Robot, FileText, ArrowSquareOut } from "@phosphor-icons/react";
+import { FEATURED_THUMBNAIL } from "../lib/images";
 
 type SortBy = "newest" | "downloads" | "updated" | "rating" | "verified";
 
@@ -521,6 +522,8 @@ export default function Directory() {
                       npmUrl={comp.npmUrl}
                       repositoryUrl={comp.repositoryUrl}
                       className={directoryCardHoverClass}
+                      priority
+                      thumbnailSizing={FEATURED_THUMBNAIL}
                     />
                   ))}
                 </div>

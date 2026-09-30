@@ -33,3 +33,7 @@ package-lock.json
 badge-palette-preview.html
 component-report.html
 mockups/
+
+# Netlify CLI build output and local state. Never commit it: a stale copy with
+# another machine's paths was checked in by accident.
+.netlify

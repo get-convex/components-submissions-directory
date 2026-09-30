@@ -19,7 +19,7 @@ TypeScript configuration files for different parts of the project. `tsconfig.jso
 
 ### `vite.config.ts`
 
-Vite build configuration. Sets up React plugin, path aliases, and base path `/` for Netlify hosting. Assets are served from root, SPA routing is handled by Netlify redirects.
+Vite build configuration. Sets up React plugin, path aliases, base path `/components/` and output directory `dist/components`. The `netlifyRootFiles` plugin copies `netlify/_headers` and `netlify/_redirects` into `dist/` after the build, since Netlify reads them from the publish root.
 
 ### `tailwind.config.js`
 
@@ -51,25 +51,18 @@ Git ignore patterns for node_modules, dist, build artifacts, and editor files. I
 
 ### `netlify.toml`
 
-Netlify deployment configuration. Sets build command (`npm run build`), publish directory (`dist`), Node version (20), custom headers, and redirects. The `[[headers]]` blocks replace the old `public/_headers` file (which never applied in production because it landed at `dist/components/_headers` while Netlify publishes `dist`): immutable one-year `Cache-Control` for hashed `/components/assets/*` files and `X-Robots-Tag: noindex, nofollow` for admin, callback, profile, and dashboard routes. Redirects:
-- Root `/` redirects to `/components` (301)
-- Main LLMs.txt and Markdown proxies to Convex HTTP endpoints:
-  - `/components/llms.txt` -> `/api/llms.txt`
-  - `/components/get-convex-llms.txt` -> `/api/get-convex-llms.txt` (official Convex team components only)
-  - `/components/get-convex.md` -> `/api/get-convex-markdown` (official Convex team components only)
-  - `/components.md` -> `/api/markdown-index`
-  - `/components/components.md` -> `/api/markdown-index`
-  - `/components/*/llms.txt` -> `/api/component-llms?slug=:splat` (single and scoped slugs)
-  - Note: the exact `/components/components.md`, `/components/get-convex-llms.txt`, and `/components/get-convex.md` routes are also handled inside `og-meta.ts` because redirects do not fire once the `/components/*` edge function runs
-- MCP and badge proxies to production Convex deployment (`https://giant-grouse-674.convex.site`):
-  - `/components/api/mcp/*` -> `https://giant-grouse-674.convex.site/api/mcp/:splat`
-  - `/api/mcp/*` -> `https://giant-grouse-674.convex.site/api/mcp/:splat`
-  - `/components/badge/*` -> `https://giant-grouse-674.convex.site/api/badge?slug=:splat`
-- `/components` and `/components/*` fall back to `/index.html` for SPA routing (200)
-- Edge Function mapping:
+Netlify deployment configuration: build command (`npm run build`), publish directory (`dist`), Node version (20) and edge function mappings. Header and redirect rules are NOT in this file: on this site Netlify ignores `[[headers]]` and `[[redirects]]` in netlify.toml (every deploy reported "No header rules processed", and a new `[[redirects]]` rule 404'd on a deploy preview while the same rule in `_redirects` worked), so they live in `netlify/_headers` and `netlify/_redirects`. Edge function settings here are applied:
   - `/components/badge/*` -> `netlify/edge-functions/component-badge.ts` (proxies badge SVG by slug to Convex HTTP badge endpoint)
-  - `/components/*` -> `netlify/edge-functions/og-meta.ts` (injects component-specific OG meta tags and directly proxies sitemap/llms.txt/components.md routes that cannot rely on redirects after edge functions); `excludedPath` keeps `/components/assets/*` and `/components/fonts/*` out of the edge function so the `[[headers]]` cache rules apply and the Vercel proxy edge can cache static files
+  - `/components/*` -> `netlify/edge-functions/og-meta.ts` (injects component-specific OG meta tags and directly proxies sitemap/llms.txt/components.md/get-convex routes that cannot rely on redirects after edge functions); `excludedPath` keeps `/components/assets/*`, `/components/fonts/*` and the `/components/_img/*` and `/components/_src/*` image routes out of the edge function; `cache = "manual"` lets Netlify's edge cache og-meta responses that send cache headers (component pages), purged on every deploy
   - `/components/*/*.md` -> `netlify/edge-functions/component-markdown.ts` (keeps Netlify URL, proxies markdown by slug)
+
+### `netlify/_headers`
+
+Response header rules, copied to `dist/_headers` by the `netlifyRootFiles` plugin in `vite.config.ts` (Netlify reads it from the publish root). Immutable one-year `Cache-Control` for hashed `/components/assets/*`, one week plus stale-while-revalidate for `/components/fonts/*`, and `X-Robots-Tag: noindex, nofollow` for admin, callback, profile, and dashboard routes (og-meta also sets these for its HTML responses).
+
+### `netlify/_redirects`
+
+Redirect and rewrite rules, copied to `dist/_redirects` by `vite.config.ts`. Root `/` to `/components` (301), `/components.md` proxy to the Convex markdown index, `/api/components/*` proxy to the Convex REST API, a 404 for `/components/images/*`, the `/components/_img/:width/:id` rewrite to Netlify Image CDN (resized thumbnails) with its `/components/_src/:id` storage proxy (a local source needs no `[images]` allowlist, which Netlify ignores in netlify.toml here), and the SPA fallbacks for `/components` and `/components/*`. The llms.txt, markdown and badge routes under `/components/*` are handled by the edge functions instead.
 
 Session note (2026-03-06): Live endpoint checks showed `www.convex.dev/components/api/mcp/protocol` still returning SPA HTML while direct Convex MCP endpoint `https://giant-grouse-674.convex.site/api/mcp/protocol` returns valid JSON-RPC responses.
 
@@ -404,7 +397,7 @@ Auto-generated files by Convex: `api.d.ts`, `api.js`, `dataModel.d.ts`, `server.
 
 ### `src/main.tsx`
 
-Application entry point. Sets up Convex React client with a custom Connect OAuth provider (`ConnectAuthProvider`) and `ConvexProviderWithAuthKit` token bridge. Wraps the tree in `WebAnalyticsProvider` from `@convex-internal/web-analytics/react` (shared `allowsCookies` consent and PostHog). No extra env vars. Includes a `PageErrorBoundary` class component that catches rendering errors (including `useQuery` failures) and shows a reload prompt instead of killing the entire React tree. The `ComponentDetail` route is wrapped in this boundary so backend query errors or markdown rendering crashes degrade gracefully. Disables browser scroll restoration (`history.scrollRestoration = "manual"`) and scrolls to top on init so every full-page navigation starts at the top. Includes global Footer component with 50px top padding. All routes live under `/components/*` and root redirects now normalize back to `/components/` for Vite base-path safety:
+Application entry point. Sets up Convex React client with a custom Connect OAuth provider (`ConnectAuthProvider`) and `ConvexProviderWithAuthKit` token bridge. Renders `DeferredWebAnalytics` next to the app, which loads `WebAnalyticsProvider` from `@convex-internal/web-analytics/react` (shared `allowsCookies` consent and PostHog) after the page has loaded. No extra env vars. Includes a `PageErrorBoundary` class component that catches rendering errors (including `useQuery` failures) and shows a reload prompt instead of killing the entire React tree. The `ComponentDetail` route is wrapped in this boundary so backend query errors or markdown rendering crashes degrade gracefully. Disables browser scroll restoration (`history.scrollRestoration = "manual"`) and scrolls to top on init so every full-page navigation starts at the top. Includes global Footer component with 50px top padding. All routes live under `/components/*` and root redirects now normalize back to `/components/` for Vite base-path safety:
 - `/components/` = Directory (approved components, public)
 - `/components/categories/:slug` = CategoryPage (category landing page with pagination, public)
 - `/components/submissions` = Submit.tsx via `SubmissionsGate` (admin only, requires @convex.dev email; everyone else is redirected to `/components`)
@@ -459,6 +452,10 @@ Reusable FAQ section component displayed on the Directory and SubmitForm pages. 
 - How do I report a component? (takedown process, contact Convex)
 - Who decides if a component gets removed? (Convex team, submitter notified)
 - What is the review flow? (pending > AI review > manual review > approved)
+
+### `src/components/DeferredWebAnalytics.tsx`
+
+Loads the shared `WebAnalyticsProvider` (PostHog init plus the consent banner) as a lazy chunk once the page's `load` event has fired and the browser is idle, instead of wrapping the app. posthog-js is ~180 KB minified, so this keeps it out of the entry bundle. Safe because nothing in the app reads the provider's consent context; if something ever needs `useConsent`, wrap the app in the provider again.
 
 ### `src/components/Footer.tsx`
 
@@ -670,7 +667,7 @@ Compact horizontal row for the directory list view. Same data props as `Componen
 
 ### `src/components/ComponentCard.tsx`
 
-Component card for directory listing. Shows thumbnail, name, description, downloads, version, verified badge, and community badge. Accepts `allTimeDownloads` plus `showWeeklyDownloads` / `showAllTimeDownloads` display flags (driven by the admin Downloads Display toggles) and renders `X/wk`, `Y total`, or both side by side; the compact formatter supports k/M/B tiers and the all-time figure is hidden (never 0) when a package has no stored value. Supports `showThumbnail` prop to conditionally hide thumbnails (used for hiding thumbnails in category listings while showing them in Featured section). Badge placement behavior: when a component has only Community, it uses the same right-side badge position as Verified; when both badges are present, Community appears before Verified. The Community pill is text-only (no person icon); Verified keeps its check icon. Curated category badge images (from the `curatedBadges` prop) render inline in the title, right before the first letter of the component name, with the category label as tooltip; badge-less curated memberships render nothing.
+Component card for directory listing. Shows thumbnail, name, description, downloads, version, verified badge, and community badge. Accepts `allTimeDownloads` plus `showWeeklyDownloads` / `showAllTimeDownloads` display flags (driven by the admin Downloads Display toggles) and renders `X/wk`, `Y total`, or both side by side; the compact formatter supports k/M/B tiers and the all-time figure is hidden (never 0) when a package has no stored value. Thumbnails use `thumbnailImageProps` from `src/lib/images.ts` (resized srcset with a fallback to the original) and avatars use `avatarUrl`; the `priority` prop loads the thumbnail eagerly with `fetchpriority="high"` (used for the above-the-fold Featured row). Supports `showThumbnail` prop to conditionally hide thumbnails (used for hiding thumbnails in category listings while showing them in Featured section). Badge placement behavior: when a component has only Community, it uses the same right-side badge position as Verified; when both badges are present, Community appears before Verified. The Community pill is text-only (no person icon); Verified keeps its check icon. Curated category badge images (from the `curatedBadges` prop) render inline in the title, right before the first letter of the component name, with the category label as tooltip; badge-less curated memberships render nothing.
 
 ### `src/components/CategorySidebar.tsx`
 
@@ -706,7 +703,7 @@ Shared `react-markdown` component overrides used across submit preview, detail p
 
 ### `src/components/CodeBlock.tsx`
 
-Shared markdown code block renderer built on `@pierre/diffs/react`. Normalizes README and generated-content fenced code blocks into Pierre `FileContents`, adds syntax highlighting plus line numbers, passes the correct `name` field so markdown rendering does not crash on migrated detail pages, and includes a built-in copy button. Plain text code blocks (no language tag detected) now render as a simple `<pre>` element instead of PierreFile to prevent potential syntax highlighter hangs on non-code content like Unicode box-drawing diagrams.
+Shared markdown code block renderer built on `@pierre/diffs/react`. Normalizes README and generated-content fenced code blocks into Pierre `FileContents`, adds syntax highlighting plus line numbers, passes the correct `name` field so markdown rendering does not crash on migrated detail pages, and includes a built-in copy button. Plain text code blocks (no language tag, or `text`, `txt`, `plaintext`, `plain`) render as a simple `<pre>` element instead of PierreFile to prevent potential syntax highlighter hangs on non-code content like Unicode box-drawing diagrams. Languages missing from Shiki's `bundledLanguages` use the same `<pre>`, because `@pierre/diffs` throws an uncaught rejection and renders an empty block for them.
 
 ### `src/components/CodeBlockLazy.tsx`
 
@@ -743,6 +740,10 @@ Admin editor for directory-specific fields: slug, category, tags, descriptions, 
 ### `src/lib/convexHttp.ts`
 
 Module-level `ConvexHttpClient`, `fetchDirectoryPage(sortBy, category?)`, and the `useComponentBySlug(slug)` hook. `fetchDirectoryPage` loads the directory and category pages' data from the `/api/directory-page` HTTP action (using the request `index.html` already started when the URL matches), falling back to the individual public queries over `/api/query` if the endpoint fails, stalls past 8s, or returns an unexpected shape. It replaced websocket `convex.query` calls that took ~1.5s from Australia before any cards could render. The hook reads component data through the reactive `useQuery` websocket subscription and, in parallel, issues a one-shot HTTP query to the same public `packages:getComponentBySlug` function (the `/api/query` endpoint). It returns the live value once the websocket connects and the HTTP result otherwise, preserving the `undefined` (loading) / `null` (not found) / document contract. This lets search engine renderers (e.g. Googlebot), which often cannot complete the Convex websocket within their render budget, still receive content so `ComponentDetail.tsx` renders a crawlable page.
+
+### `src/lib/images.ts`
+
+Image URL helpers for public pages. `thumbnailImageProps(url, sizing)` turns a Convex storage thumbnail URL into `src`/`srcSet`/`sizes` pointing at the `/components/_img/<width>/<storageId>` Netlify Image CDN rewrite (production builds only), with an `onError` that falls back to the original URL. Sizing presets: `CARD_THUMBNAIL`, `LIST_ROW_THUMBNAIL`, `DETAIL_THUMBNAIL`. `avatarUrl(url)` adds `?size=64` to `https://github.com/<name>.png` avatars (the direct `avatars.githubusercontent.com/<name>` form is avoided because it returns a placeholder for organisations).
 
 ### `src/lib/categories.ts`
 

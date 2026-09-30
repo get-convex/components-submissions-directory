@@ -5,153 +5,13 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# ============ Custom Headers ============
-# NOTE: custom headers only apply to files Netlify serves directly from
-# its own store. They are IGNORED for any URL handled by an edge function
-# (per Netlify docs, headers Limitations). The og-meta edge function below
-# therefore uses excludedPath for /components/assets/* and /components/fonts/*
-# so these cache rules actually fire, and og-meta.ts sets X-Robots-Tag itself
-# for the noindex HTML routes.
-
-# Hashed build assets are content-addressed, safe to cache forever.
-[[headers]]
-  for = "/components/assets/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-# Fonts are NOT content-hashed, so cache one week with a revalidation
-# grace instead of immutable; an in-place font swap propagates within a week.
-[[headers]]
-  for = "/components/fonts/*"
-  [headers.values]
-    Cache-Control = "public, max-age=604800, stale-while-revalidate=86400"
-
-# Noindex for admin, auth, and internal routes. Defense in depth only:
-# these routes are HTML served through the og-meta edge function, so the
-# authoritative X-Robots-Tag is set inside og-meta.ts. These rules would
-# take over if the edge function were ever removed.
-[[headers]]
-  for = "/components/submissions"
-  [headers.values]
-    X-Robots-Tag = "noindex, nofollow"
-
-[[headers]]
-  for = "/components/submissions/admin"
-  [headers.values]
-    X-Robots-Tag = "noindex, nofollow"
-
-[[headers]]
-  for = "/components/callback"
-  [headers.values]
-    X-Robots-Tag = "noindex, nofollow"
-
-[[headers]]
-  for = "/components/profile"
-  [headers.values]
-    X-Robots-Tag = "noindex, nofollow"
-
-[[headers]]
-  for = "/components/profile/*"
-  [headers.values]
-    X-Robots-Tag = "noindex, nofollow"
-
-[[headers]]
-  for = "/components/dashboard"
-  [headers.values]
-    X-Robots-Tag = "noindex, nofollow"
-
-# Redirect root to /components
-[[redirects]]
-  from = "/"
-  to = "/components"
-  status = 301
-  force = true
-
-# ============ LLMs.txt + Markdown Proxies ============
-# Use splat patterns with explicit suffixes so only true .md/llms.txt
-# paths are proxied and SPA routes stay untouched.
-
-# Main directory llms.txt
-[[redirects]]
-  from = "/components/llms.txt"
-  to = "https://giant-grouse-674.convex.site/api/llms.txt"
-  status = 200
-  force = true
-
-# Official get-convex components llms.txt
-[[redirects]]
-  from = "/components/get-convex-llms.txt"
-  to = "https://giant-grouse-674.convex.site/api/get-convex-llms.txt"
-  status = 200
-  force = true
-
-# Official get-convex components markdown
-[[redirects]]
-  from = "/components/get-convex.md"
-  to = "https://giant-grouse-674.convex.site/api/get-convex-markdown"
-  status = 200
-  force = true
-
-# Main directory markdown (both paths supported)
-[[redirects]]
-  from = "/components.md"
-  to = "https://giant-grouse-674.convex.site/api/markdown-index"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/components/components.md"
-  to = "https://giant-grouse-674.convex.site/api/markdown-index"
-  status = 200
-  force = true
-
-# Per-component llms.txt (supports single and scoped slugs)
-[[redirects]]
-  from = "/components/*/llms.txt"
-  to = "https://giant-grouse-674.convex.site/api/component-llms?slug=:splat"
-  status = 200
-
-# ============ Components REST API Proxies ============
-# Proxy /api/components/* to Convex HTTP actions (must be before SPA fallback)
-
-[[redirects]]
-  from = "/api/components/*"
-  to = "https://giant-grouse-674.convex.site/api/components/:splat"
-  status = 200
-  force = true
-  headers = {Access-Control-Allow-Origin = "*"}
-
-# ============ Badge API Proxy ============
-# Proxy badge SVG endpoint to Convex HTTP actions
-
-[[redirects]]
-  from = "/components/badge/*"
-  to = "https://giant-grouse-674.convex.site/api/badge?slug=:splat"
-  status = 200
-
-# ============ Non-page paths (prevent SPA fallback from serving HTML) ============
-# Image URLs referenced in component descriptions don't exist as files;
-# without this rule the SPA fallback serves index.html, creating duplicate pages.
-[[redirects]]
-  from = "/components/images/*"
-  to = "/404.html"
-  status = 404
-
-# ============ SPA Routes ============
-
-# Serve index.html for /components root
-[[redirects]]
-  from = "/components"
-  to = "/components/index.html"
-  status = 200
-  force = true
-
-# SPA fallback for ALL client-side routes
-# This catches everything under /components/* and serves the React app
-[[redirects]]
-  from = "/components/*"
-  to = "/components/index.html"
-  status = 200
+# ============ Headers and redirects ============
+# Header and redirect rules live in netlify/_headers and netlify/_redirects,
+# which vite.config.ts copies to the publish root. Netlify ignores [[headers]]
+# and [[redirects]] in this file on this site: every deploy reported "No
+# header rules processed", and a new [[redirects]] rule 404'd on a deploy
+# preview while the same rule in _redirects worked. Edge function settings
+# below (including excludedPath and cache) are applied.
 
 # ============ Edge Functions ============
 
@@ -162,12 +22,16 @@
 
 # OG meta tags for social crawlers (must be before SPA fallback).
 # excludedPath keeps static files out of the edge function so the
-# [[headers]] cache rules above apply and Vercel's proxy edge can cache
-# them; og-meta was a pure passthrough for these paths anyway.
+# netlify/_headers cache rules apply; og-meta was a pure passthrough for
+# these paths anyway. cache = "manual" lets Netlify's edge cache og-meta
+# responses that send cache headers (component pages, see og-meta.ts), so
+# repeat requests skip the Convex lookup. Cached responses are purged on
+# every deploy.
 [[edge_functions]]
   path = "/components/*"
-  excludedPath = ["/components/assets/*", "/components/fonts/*"]
+  excludedPath = ["/components/assets/*", "/components/fonts/*", "/components/_img/*", "/components/_src/*"]
   function = "og-meta"
+  cache = "manual"
 
 [[edge_functions]]
   path = "/components/*/*.md"
