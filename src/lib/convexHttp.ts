@@ -191,8 +191,10 @@ function readStoredPage():
     const stored = JSON.parse(raw) as { data: JSONValue; loadedAt: number };
     const data = jsonToConvex(stored.data);
     const tooOld = !(Date.now() - stored.loadedAt < STORED_PAGE_MAX_AGE_MS);
+    // loadedAt 0 marks it stale, so a new page load still revalidates it
+    // (using the request index.html started) however recently it was saved
     return !tooOld && isDirectoryPageData(data)
-      ? { data, loadedAt: stored.loadedAt }
+      ? { data, loadedAt: 0 }
       : undefined;
   } catch {
     return undefined;
