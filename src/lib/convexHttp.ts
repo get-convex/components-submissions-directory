@@ -135,6 +135,35 @@ export async function fetchDirectoryPage(
   sortBy: DirectorySort,
   category?: string,
 ): Promise<DirectoryPageData> {
+  // Like the websocket client this replaced, keep trying through a dropped
+  // connection instead of failing and leaving the page on its skeleton: back
+  // off between attempts, and go again as soon as the browser is back online.
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await loadDirectoryPage(sortBy, category);
+    } catch (error) {
+      console.warn("[fetchDirectoryPage] Retrying after error", error);
+      await waitToRetry(attempt);
+    }
+  }
+}
+
+function waitToRetry(attempt: number) {
+  return new Promise<void>((resolve) => {
+    const retry = () => {
+      clearTimeout(timer);
+      window.removeEventListener("online", retry);
+      resolve();
+    };
+    const timer = setTimeout(retry, Math.min(30_000, 1_000 * 2 ** attempt));
+    window.addEventListener("online", retry);
+  });
+}
+
+async function loadDirectoryPage(
+  sortBy: DirectorySort,
+  category?: string,
+): Promise<DirectoryPageData> {
   const url = directoryPageUrl(sortBy, category);
   const prefetch = window.__directoryPrefetch;
   let request: Promise<Response | null>;
