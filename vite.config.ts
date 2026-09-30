@@ -5,16 +5,27 @@ import fs from "fs";
 
 // Netlify reads _headers and _redirects from the publish root (dist/), but
 // Vite builds into dist/components and would copy public/ files there, where
-// Netlify never sees them. Copy the rules files from netlify/ after the build.
+// Netlify never sees them. Copy the rules files from netlify/ after the build
+// into the folder above outDir: dist/ by default, or the parent of a custom
+// --outDir.
 function netlifyRootFiles(): Plugin {
+  let publishRoot = "";
   return {
     name: "netlify-root-files",
     apply: "build",
-    closeBundle() {
+    configResolved(config) {
+      publishRoot = path.dirname(
+        path.resolve(config.root, config.build.outDir),
+      );
+    },
+    closeBundle(error) {
+      // Rollup calls this when the build fails too, and a copy error thrown
+      // here would be reported instead of the real one
+      if (error) return;
       for (const file of ["_headers", "_redirects"]) {
         fs.copyFileSync(
           path.resolve(__dirname, "netlify", file),
-          path.resolve(__dirname, "dist", file),
+          path.resolve(publishRoot, file),
         );
       }
     },
