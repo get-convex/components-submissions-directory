@@ -701,7 +701,7 @@ Shared `react-markdown` component overrides used across submit preview, detail p
 
 ### `src/components/CodeBlock.tsx`
 
-Shared markdown code block renderer built on `@pierre/diffs/react`. Normalizes README and generated-content fenced code blocks into Pierre `FileContents`, adds syntax highlighting plus line numbers, passes the correct `name` field so markdown rendering does not crash on migrated detail pages, and includes a built-in copy button. Plain text code blocks (no language tag detected) now render as a simple `<pre>` element instead of PierreFile to prevent potential syntax highlighter hangs on non-code content like Unicode box-drawing diagrams.
+Shared markdown code block renderer built on `@pierre/diffs/react`. Normalizes README and generated-content fenced code blocks into Pierre `FileContents`, adds syntax highlighting plus line numbers, passes the correct `name` field so markdown rendering does not crash on migrated detail pages, and includes a built-in copy button. Plain text code blocks (no language tag, or `text`, `txt`, `plaintext`, `plain`) render as a simple `<pre>` element instead of PierreFile to prevent potential syntax highlighter hangs on non-code content like Unicode box-drawing diagrams. Languages missing from Shiki's `bundledLanguages` use the same `<pre>`, because `@pierre/diffs` throws an uncaught rejection and renders an empty block for them.
 
 ### `src/components/CodeBlockLazy.tsx`
 

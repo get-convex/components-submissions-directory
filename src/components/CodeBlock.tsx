@@ -2,6 +2,7 @@ import { File as PierreFile } from "@pierre/diffs/react";
 import type { FileContents } from "@pierre/diffs";
 import { Check, Copy } from "@phosphor-icons/react";
 import { useState } from "react";
+import { bundledLanguages } from "shiki";
 
 // Language detection from fenced code block info string or filename hint
 const LANG_MAP: Record<string, string> = {
@@ -31,10 +32,24 @@ const LANG_MAP: Record<string, string> = {
   env: "shell",
 };
 
+// Shiki treats all of these as plain text, but @pierre/diffs only knows "text"
+const PLAIN_TEXT_LANGS = new Set(["text", "txt", "plaintext", "plain"]);
+
+// @pierre/diffs looks every language up in Shiki's bundle and, when it isn't
+// there, throws an uncaught rejection and renders an empty block. So anything
+// Shiki can't load falls back to plain text. "ansi" is built into Shiki.
+function isHighlightable(lang: string): boolean {
+  return (
+    lang === "ansi" ||
+    Object.prototype.hasOwnProperty.call(bundledLanguages, lang)
+  );
+}
+
 function detectLanguage(langHint?: string | null): string {
-  if (!langHint) return "text";
-  const lower = langHint.toLowerCase().trim();
-  return LANG_MAP[lower] || lower || "text";
+  const lower = langHint?.toLowerCase().trim();
+  if (!lower || PLAIN_TEXT_LANGS.has(lower)) return "text";
+  const lang = LANG_MAP[lower] || lower;
+  return isHighlightable(lang) ? lang : "text";
 }
 
 interface CodeBlockProps {
@@ -70,7 +85,7 @@ export default function CodeBlock({ code, language, filename }: CodeBlockProps) 
     </button>
   );
 
-  // Plain text / no language: use a simple <pre> to avoid syntax highlighter issues
+  // Plain text / no language / unsupported language: use a simple <pre> to avoid syntax highlighter issues
   if (lang === "text") {
     return (
       <div className="relative rounded-lg overflow-hidden my-3 border border-border">
