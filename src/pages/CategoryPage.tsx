@@ -11,7 +11,12 @@ import {
   getCachedDirectoryPage,
   type DirectoryPageData,
 } from "../lib/convexHttp";
-import { navigate, readEntryState, useEntryState } from "../lib/router";
+import {
+  navigate,
+  readEntryState,
+  useEntryState,
+  useLocation,
+} from "../lib/router";
 import {
   CaretSortIcon,
   ChevronDownIcon,
@@ -96,6 +101,26 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [searchTerm, sortBy]);
+
+  // Moving to another history entry while this category stays mounted (a
+  // link to the page you're on starts it over, and Back/Forward past an
+  // in-page #anchor): restore that entry's saved controls, or the defaults
+  const { entryKey } = useLocation();
+  const lastEntryKey = useRef(entryKey);
+  useEffect(() => {
+    if (entryKey === lastEntryKey.current) return;
+    lastEntryKey.current = entryKey;
+    const saved = readEntryState<CategoryHistoryState>(CATEGORY_HISTORY_KEY);
+    const nextSearchTerm = saved?.searchTerm ?? "";
+    const nextSortBy = saved?.sortBy ?? "downloads";
+    restoredControls.current = {
+      searchTerm: nextSearchTerm,
+      sortBy: nextSortBy,
+    };
+    setSearchTerm(nextSearchTerm);
+    setSortBy(nextSortBy);
+    setCurrentPage(saved?.currentPage ?? 1);
+  }, [entryKey]);
 
   // One-shot fetches for public catalog data (no reactive subscription
   // overhead). A catalog loaded earlier in this session renders straight away.
