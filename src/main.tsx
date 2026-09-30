@@ -115,11 +115,18 @@ function Router() {
   const { pathname: path } = useLocation();
   useScrollOnNavigate();
 
-  // /components/categories without a slug goes to the directory
-  const isBareCategories = /^\/components\/categories\/?$/.test(path);
+  // Category URLs need exactly one slug; anything else (bare or with extra
+  // segments) goes to the directory
+  const categorySegments = path.startsWith("/components/categories")
+    ? path.slice("/components/".length).split("/").filter(Boolean)
+    : [];
+  const isMalformedCategoryPath =
+    categorySegments[0] === "categories" && categorySegments.length !== 2;
   useEffect(() => {
-    if (isBareCategories) navigate(DIRECTORY_ROOT_HREF, { replace: true });
-  }, [isBareCategories]);
+    if (isMalformedCategoryPath) {
+      navigate(DIRECTORY_ROOT_HREF, { replace: true });
+    }
+  }, [isMalformedCategoryPath]);
 
   // Always use /components as base path (both local and production)
   const basePath = "/components";
@@ -198,7 +205,7 @@ function Router() {
       // Keyed so moving between categories starts fresh (or from cache)
       return <CategoryPage key={segments[1]} categorySlug={segments[1]} />;
     }
-    // /components/categories without a slug: redirected by the effect above
+    // Malformed category paths are redirected by the effect above
     return null;
   }
 

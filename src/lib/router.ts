@@ -147,13 +147,14 @@ export function useEntryState(name: string, value: unknown) {
 // Where to scroll once the next page has rendered: the top (or a #hash) for
 // a new page, or the saved position when going Back/Forward. Applied by
 // useScrollOnNavigate after React commits, so it never scrolls the old page.
-let pendingScroll: (() => number) | null = null;
+let pendingScroll: (() => number | null) | null = null;
 
-function hashTarget(hash: string): number {
-  const element = hash
-    ? document.getElementById(decodeURIComponent(hash.slice(1)))
-    : null;
-  return element ? element.getBoundingClientRect().top + window.scrollY : 0;
+// Where a #hash points, 0 without one, or null while its element hasn't
+// rendered yet (a page can still be showing its previous content)
+function hashTarget(hash: string): number | null {
+  if (!hash) return 0;
+  const element = document.getElementById(decodeURIComponent(hash.slice(1)));
+  return element ? element.getBoundingClientRect().top + window.scrollY : null;
 }
 
 // Bumped by every scroll a navigation starts, so retries left over from an
@@ -161,17 +162,19 @@ function hashTarget(hash: string): number {
 let scrollGeneration = 0;
 
 // Pages restored from cache are tall enough straight away; give slower
-// content up to ~1.5s to grow before settling for the closest position
+// content (or a #hash target that hasn't rendered yet) up to ~1.5s before
+// settling for the closest position
 function scrollWhenReady(
-  getTarget: () => number,
+  getTarget: () => number | null,
   generation = ++scrollGeneration,
   attempt = 0,
 ) {
   if (generation !== scrollGeneration) return;
   const target = getTarget();
   const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-  if (target <= maxScroll || attempt >= 30) {
-    window.scrollTo(0, Math.min(target, Math.max(maxScroll, 0)));
+  const ready = target !== null && target <= maxScroll;
+  if (ready || attempt >= 30) {
+    window.scrollTo(0, Math.min(target ?? 0, Math.max(maxScroll, 0)));
     return;
   }
   setTimeout(() => scrollWhenReady(getTarget, generation, attempt + 1), 50);
