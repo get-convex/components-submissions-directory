@@ -14,11 +14,7 @@ import {
   getCachedDirectoryPage,
   type DirectoryPageData,
 } from "../lib/convexHttp";
-import {
-  readHistoryState,
-  updateHistoryState,
-  useLocation,
-} from "../lib/router";
+import { readEntryState, useEntryState, useLocation } from "../lib/router";
 import { CaretSortIcon, ChevronDownIcon } from "@radix-ui/react-icons";
 import { Robot, FileText, ArrowSquareOut } from "@phosphor-icons/react";
 import { FEATURED_THUMBNAIL } from "../lib/images";
@@ -65,7 +61,7 @@ const getInitialViewMode = (): DirectoryViewMode => {
 
 export default function Directory() {
   const [restored] = useState(() =>
-    readHistoryState<DirectoryHistoryState>(DIRECTORY_HISTORY_KEY),
+    readEntryState<DirectoryHistoryState>(DIRECTORY_HISTORY_KEY),
   );
   const [searchTerm, setSearchTerm] = useState(
     () => restored?.searchTerm ?? getInitialSearchTerm(),
@@ -127,24 +123,22 @@ export default function Directory() {
     }
   }, [searchTerm, sortBy, gridColumns]);
 
-  // Save search, sort and paging on this history entry for Back
-  useEffect(() => {
-    updateHistoryState({
-      [DIRECTORY_HISTORY_KEY]: { searchTerm, sortBy, visibleBySection },
-    });
-  }, [searchTerm, sortBy, visibleBySection]);
+  // Save search, sort and paging with this history entry for Back
+  useEntryState(DIRECTORY_HISTORY_KEY, {
+    searchTerm,
+    sortBy,
+    visibleBySection,
+  });
 
   // Moving between directory history entries while it stays mounted (the
   // header search or the All link push a new entry, then Back/Forward):
   // restore that entry's saved controls, or start from its ?q= if it has none
-  const { search, entryKey } = useLocation();
+  const { pathname, search, entryKey } = useLocation();
   const lastEntryKey = useRef(entryKey);
   useEffect(() => {
     if (entryKey === lastEntryKey.current) return;
     lastEntryKey.current = entryKey;
-    const saved = readHistoryState<DirectoryHistoryState>(
-      DIRECTORY_HISTORY_KEY,
-    );
+    const saved = readEntryState<DirectoryHistoryState>(DIRECTORY_HISTORY_KEY);
     const nextSearchTerm =
       saved?.searchTerm ?? new URLSearchParams(search).get("q") ?? "";
     const nextSortBy = saved?.sortBy ?? "downloads";
@@ -271,13 +265,13 @@ export default function Directory() {
 
   const categoryItems = categories ?? [];
 
-  // Set page SEO
+  // Set page SEO (again after the router resets it for a new URL)
   useEffect(() => {
     setPageTitle();
     setPageDescription(
       "Browse open-source Convex components: AI agents, auth, database tools, workflows, and more. Install with npm and start building.",
     );
-  }, []);
+  }, [pathname]);
 
   // Client-side search filtering
   const filteredComponents = useMemo(() => {

@@ -72,6 +72,28 @@ export function setTwitterTags(opts: {
   }
 }
 
+// Site defaults, matching index.html
+const DEFAULT_DESCRIPTION =
+  "Discover and submit npm packages built with Convex. A curated directory of components, libraries, and tools for the Convex ecosystem.";
+const DEFAULT_OG_IMAGE =
+  "https://www.convex.dev/api/og?title=Convex%20Components";
+
+// Put the title, description and social tags back to the site defaults. The
+// router calls this when moving to another page, before that page sets its
+// own, so pages without tags of their own don't keep the previous page's.
+export function resetPageMetadata(url: string) {
+  setPageTitle();
+  setPageDescription(DEFAULT_DESCRIPTION);
+  const defaults = {
+    title: SITE_NAME,
+    description: DEFAULT_DESCRIPTION,
+    url,
+    image: DEFAULT_OG_IMAGE,
+  };
+  setOgTags(defaults);
+  setTwitterTags(defaults);
+}
+
 // Set canonical URL to prevent duplicate content issues
 export function setCanonicalUrl(url: string) {
   let link = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;

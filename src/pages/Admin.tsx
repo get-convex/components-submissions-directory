@@ -199,7 +199,7 @@ function scrollToAdminSettingsSection(sectionId: string) {
 
   section.scrollIntoView({ behavior: "smooth", block: "start" });
   window.history.replaceState(
-    null,
+    window.history.state,
     "",
     `${window.location.pathname}${window.location.search}#${sectionId}`,
   );
@@ -11789,7 +11789,7 @@ function AdminDashboard({
       if (window.location.hash === "#settings-github-broadcast") {
         setActiveFilter("broadcast");
         window.history.replaceState(
-          null,
+          window.history.state,
           "",
           `${window.location.pathname}${window.location.search}`,
         );

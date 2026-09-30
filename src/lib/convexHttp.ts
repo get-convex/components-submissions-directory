@@ -34,28 +34,43 @@ type ComponentBySlug = FunctionReturnType<
 // One-shot HTTP results for component pages, keyed by slug. Filled when a
 // link is hovered or touched (prefetchComponent) and when a page opens, so
 // in-app navigation can render straight away while the live query catches up.
+// Reused for this long, so a component opened again later (or the only copy
+// there is when the websocket can't connect) gets fresh data
+const COMPONENT_REQUEST_TTL_MS = 60_000;
+
 const componentRequests = new Map<
   string,
-  Promise<ComponentBySlug | undefined>
+  { request: Promise<ComponentBySlug | undefined>; startedAt: number }
 >();
-const componentResults = new Map<string, ComponentBySlug>();
+const componentResults = new Map<
+  string,
+  { value: ComponentBySlug; loadedAt: number }
+>();
+
+function freshResult(slug: string) {
+  const result = componentResults.get(slug);
+  return result && Date.now() - result.loadedAt < COMPONENT_REQUEST_TTL_MS
+    ? result.value
+    : undefined;
+}
 
 function requestComponent(slug: string) {
-  let request = componentRequests.get(slug);
-  if (!request) {
-    request = httpClient
-      .query(api.packages.getComponentBySlug, { slug })
-      .then((result) => {
-        componentResults.set(slug, result);
-        return result;
-      })
-      .catch(() => {
-        // Allow a retry later; the live subscription remains the source of truth
-        componentRequests.delete(slug);
-        return undefined;
-      });
-    componentRequests.set(slug, request);
+  const existing = componentRequests.get(slug);
+  if (existing && Date.now() - existing.startedAt < COMPONENT_REQUEST_TTL_MS) {
+    return existing.request;
   }
+  const request = httpClient
+    .query(api.packages.getComponentBySlug, { slug })
+    .then((value) => {
+      componentResults.set(slug, { value, loadedAt: Date.now() });
+      return value;
+    })
+    .catch(() => {
+      // Allow a retry later; the live subscription remains the source of truth
+      componentRequests.delete(slug);
+      return undefined;
+    });
+  componentRequests.set(slug, { request, startedAt: Date.now() });
   return request;
 }
 
@@ -69,13 +84,13 @@ export function useComponentBySlug(slug: string) {
 
   // One-shot HTTP fallback: resolves even when the websocket cannot connect.
   const [http, setHttp] = useState<ComponentBySlug | undefined>(() =>
-    componentResults.get(slug),
+    freshResult(slug),
   );
 
   useEffect(() => {
     let cancelled = false;
-    // Show a prefetched result straight away, and never the previous slug's.
-    setHttp(componentResults.get(slug));
+    // Show a recent prefetched result straight away, never the previous slug's
+    setHttp(freshResult(slug));
     void requestComponent(slug).then((result) => {
       if (!cancelled && result !== undefined) setHttp(result);
     });

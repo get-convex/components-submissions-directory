@@ -8,8 +8,13 @@
 //
 // Anything that isn't an app page (files, API routes, the OAuth callback,
 // other sites, the Next.js convex.dev pages) still does a normal full load.
-import { useLayoutEffect, useSyncExternalStore } from "react";
-import { setCanonicalUrl } from "./seo";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useSyncExternalStore,
+} from "react";
+import { resetPageMetadata, setCanonicalUrl } from "./seo";
 
 const NAVIGATE_EVENT = "directory:navigate";
 const APP_ROOT = "/components";
@@ -76,43 +81,69 @@ export function useLocation() {
   };
 }
 
-// Merge values into the current history entry's state (scroll position,
-// directory filters) so Back can restore them
-export function updateHistoryState(values: Record<string, unknown>) {
-  const current = (window.history.state ?? {}) as Record<string, unknown>;
+// History writes can throw: Safari refuses them when they come too fast
+function writeHistory(write: () => void): boolean {
   try {
-    window.history.replaceState({ ...current, ...values }, "");
+    write();
+    return true;
   } catch {
-    // Safari throttles replaceState (e.g. while typing a search); losing one
-    // update only means Back restores slightly older state
+    return false;
   }
 }
 
-export function readHistoryState<T>(key: string): T | undefined {
-  const state = window.history.state as Record<string, unknown> | null;
-  return state?.[key] as T | undefined;
+function historyState(): Record<string, unknown> {
+  return (window.history.state ?? {}) as Record<string, unknown>;
 }
 
-function updateCanonical(pathname: string) {
-  setCanonicalUrl(`${SITE_ORIGIN}${pathname.replace(/\/+$/, "") || APP_ROOT}`);
+function readHistoryState<T>(name: string): T | undefined {
+  return historyState()[name] as T | undefined;
 }
 
-// Scroll position per history entry, keyed by an id kept in history.state.
-// It's recorded whenever an entry is left, by a link or by Back/Forward (the
-// browser hasn't scrolled yet when popstate fires, since scroll restoration is
-// manual), so returning to any entry restores exactly where it was left.
-// scrollY in history.state covers entries from before a reload.
-const scrollPositions = new Map<string, number>();
+// ---- Per-entry state ----
+// Each history entry gets an id in history.state. When an entry is left, by a
+// link or by Back/Forward, its scroll position and any page state registered
+// with useEntryState are recorded under that id, so returning to the entry
+// restores them. Nothing is written while a page is in use (Safari limits
+// how often history can be written); values are also copied into the entry
+// itself when a link is followed, so they survive a reload.
 let currentEntryKey = "";
+const entryStates = new Map<string, Record<string, unknown>>();
+const stateReaders = new Map<string, () => unknown>();
 
 function newEntryKey() {
   return Math.random().toString(36).slice(2);
 }
 
-function rememberScroll() {
-  scrollPositions.set(currentEntryKey, window.scrollY);
+function collectEntryState() {
+  const state: Record<string, unknown> = { scrollY: window.scrollY };
+  for (const [name, read] of stateReaders) state[name] = read();
+  entryStates.set(currentEntryKey, state);
+  return state;
 }
 
+// State saved for the current history entry, if any
+export function readEntryState<T>(name: string): T | undefined {
+  const saved = entryStates.get(currentEntryKey);
+  return saved && name in saved
+    ? (saved[name] as T)
+    : readHistoryState<T>(name);
+}
+
+// Save this page state with the history entry whenever it's left
+export function useEntryState(name: string, value: unknown) {
+  const latest = useRef(value);
+  useLayoutEffect(() => {
+    latest.current = value;
+  });
+  useEffect(() => {
+    stateReaders.set(name, () => latest.current);
+    return () => {
+      stateReaders.delete(name);
+    };
+  }, [name]);
+}
+
+// ---- Scrolling ----
 // Where to scroll once the next page has rendered: the top (or a #hash) for
 // a new page, or the saved position when going Back/Forward. Applied by
 // useScrollOnNavigate after React commits, so it never scrolls the old page.
@@ -157,7 +188,28 @@ export function useScrollOnNavigate() {
   }, [snapshot]);
 }
 
-export function navigate(to: string, options: { replace?: boolean } = {}) {
+// ---- Navigating ----
+// The page the app last showed, to tell a new page from an in-page change
+let shownPathname = "";
+let shownSearch = "";
+
+// Keep head tags in step with the page: the canonical link always, and the
+// rest reset to the site defaults when the page changes, before the new page
+// sets its own. Pages without their own tags then don't keep the last one's.
+function onLocationChange() {
+  const canonical = `${SITE_ORIGIN}${
+    window.location.pathname.replace(/\/+$/, "") || APP_ROOT
+  }`;
+  if (window.location.pathname !== shownPathname) resetPageMetadata(canonical);
+  setCanonicalUrl(canonical);
+  shownPathname = window.location.pathname;
+  shownSearch = window.location.search;
+}
+
+export function navigate(
+  to: string,
+  options: { replace?: boolean; scroll?: boolean } = {},
+) {
   const url = new URL(to, window.location.href);
   if (url.origin !== window.location.origin || !isAppPath(url.pathname)) {
     if (options.replace) window.location.replace(url.href);
@@ -168,20 +220,36 @@ export function navigate(to: string, options: { replace?: boolean } = {}) {
   if (path === currentPath()) {
     // Same page: like a normal link to the current URL, no new history
     // entry, and nothing re-renders, so scroll straight away
-    scrollWhenReady(() => hashTarget(url.hash));
+    if (options.scroll !== false) scrollWhenReady(() => hashTarget(url.hash));
     return;
   }
   if (options.replace) {
-    window.history.replaceState({ key: currentEntryKey }, "", path);
+    // The entry now shows another page, so drop what was saved for it
+    entryStates.delete(currentEntryKey);
+    if (
+      !writeHistory(() =>
+        window.history.replaceState({ key: currentEntryKey }, "", path),
+      )
+    ) {
+      window.location.replace(url.href);
+      return;
+    }
   } else {
-    // Remember where we were so Back returns to the same spot
-    rememberScroll();
-    updateHistoryState({ scrollY: window.scrollY });
-    currentEntryKey = newEntryKey();
-    window.history.pushState({ key: currentEntryKey }, "", path);
+    // Remember where we were (and the page's state) so Back returns there
+    const leaving = collectEntryState();
+    writeHistory(() =>
+      window.history.replaceState({ ...historyState(), ...leaving }, ""),
+    );
+    const key = newEntryKey();
+    if (!writeHistory(() => window.history.pushState({ key }, "", path))) {
+      // Rather than lose the click, fall back to a normal page load
+      window.location.assign(url.href);
+      return;
+    }
+    currentEntryKey = key;
   }
-  updateCanonical(url.pathname);
-  pendingScroll = () => hashTarget(url.hash);
+  onLocationChange();
+  pendingScroll = options.scroll === false ? null : () => hashTarget(url.hash);
   window.dispatchEvent(new Event(NAVIGATE_EVENT));
 }
 
@@ -238,8 +306,8 @@ function closestAnchor(target: EventTarget | null) {
     : null;
 }
 
-// Wire up link interception, Back/Forward scroll restoration and prefetch on
-// hover or touch. Call once before rendering the app.
+// Wire up link interception, Back/Forward restoration and prefetch on hover
+// or touch. Call once before rendering the app.
 export function installNavigation(
   onIntent: (pathname: string) => void = () => {},
 ) {
@@ -254,31 +322,53 @@ export function installNavigation(
       // The browser follows in-page #anchor links itself (and fires
       // hashchange, which some pages listen for). Save the position first,
       // since it has already scrolled to the anchor by the time popstate fires
-      rememberScroll();
+      collectEntryState();
     }
   });
 
   currentEntryKey = readHistoryState<string>("key") ?? newEntryKey();
-  updateHistoryState({ key: currentEntryKey });
+  writeHistory(() =>
+    window.history.replaceState(
+      { ...historyState(), key: currentEntryKey },
+      "",
+    ),
+  );
+  shownPathname = window.location.pathname;
+  shownSearch = window.location.search;
 
   // Registered before React subscribes, so this runs before the re-render,
   // while the page being left is still on screen
   window.addEventListener("popstate", () => {
-    updateCanonical(window.location.pathname);
     const existingKey = readHistoryState<string>("key");
-    if (!existingKey) {
+    const samePage =
+      window.location.pathname === shownPathname &&
+      window.location.search === shownSearch;
+    if (!existingKey && samePage) {
       // A brand-new entry: the browser just followed an in-page #anchor link
       // and has already scrolled to it, and the click handler saved where we
       // were. Give the entry an id so Back/Forward can find it later.
       currentEntryKey = newEntryKey();
-      updateHistoryState({ key: currentEntryKey });
+      writeHistory(() =>
+        window.history.replaceState(
+          { ...historyState(), key: currentEntryKey },
+          "",
+        ),
+      );
       pendingScroll = null;
       return;
     }
-    rememberScroll();
-    currentEntryKey = existingKey;
+    collectEntryState();
+    const key = existingKey ?? newEntryKey();
+    currentEntryKey = key;
+    if (!existingKey) {
+      // An entry written by other code: adopt it
+      writeHistory(() =>
+        window.history.replaceState({ ...historyState(), key }, ""),
+      );
+    }
+    onLocationChange();
     pendingScroll = () =>
-      scrollPositions.get(existingKey) ??
+      (entryStates.get(key)?.scrollY as number | undefined) ??
       readHistoryState<number>("scrollY") ??
       0;
   });

@@ -11,7 +11,7 @@ import {
   getCachedDirectoryPage,
   type DirectoryPageData,
 } from "../lib/convexHttp";
-import { navigate } from "../lib/router";
+import { navigate, readEntryState, useEntryState } from "../lib/router";
 import {
   CaretSortIcon,
   ChevronDownIcon,
@@ -36,12 +36,25 @@ const getGridColumnCount = (): number => {
 
 const ITEMS_PER_PAGE = 24;
 
+// Search, sort and page saved with the history entry, so Back to a category
+// shows the same cards before its scroll position is restored
+interface CategoryHistoryState {
+  searchTerm: string;
+  sortBy: SortBy;
+  currentPage: number;
+}
+const CATEGORY_HISTORY_KEY = "category";
+
 export default function CategoryPage({ categorySlug }: CategoryPageProps) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<SortBy>("downloads");
+  const [restored] = useState(() =>
+    readEntryState<CategoryHistoryState>(CATEGORY_HISTORY_KEY),
+  );
+  const [searchTerm, setSearchTerm] = useState(restored?.searchTerm ?? "");
+  const [sortBy, setSortBy] = useState<SortBy>(restored?.sortBy ?? "downloads");
   const [sortOpen, setSortOpen] = useState(false);
   const [gridColumns, setGridColumns] = useState<number>(getGridColumnCount);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(restored?.currentPage ?? 1);
+  useEntryState(CATEGORY_HISTORY_KEY, { searchTerm, sortBy, currentPage });
   const desktopSortRef = useRef<HTMLDivElement>(null);
   const mobileSortRef = useRef<HTMLDivElement>(null);
 
@@ -66,8 +79,18 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Reset page when search or sort changes
+  // Reset page when search or sort changes, but not for the values just
+  // restored on mount, so a restored page survives Back
+  const restoredControls = useRef<{
+    searchTerm: string;
+    sortBy: SortBy;
+  } | null>({ searchTerm, sortBy });
   useEffect(() => {
+    const restoredNow =
+      restoredControls.current?.searchTerm === searchTerm &&
+      restoredControls.current?.sortBy === sortBy;
+    restoredControls.current = null;
+    if (restoredNow) return;
     setCurrentPage(1);
     if (searchTerm) {
       window.scrollTo({ top: 0, behavior: "smooth" });

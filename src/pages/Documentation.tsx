@@ -38,6 +38,7 @@ import mcpDoc from "../docs/mcp.md?raw";
 import apiEndpointsDoc from "../docs/api-endpoints.md?raw";
 import badgesDoc from "../docs/badges.md?raw";
 import updatingDocsDoc from "../docs/updating-docs.md?raw";
+import { navigate } from "../lib/router";
 
 type DocSection = {
   id: string;
@@ -150,7 +151,9 @@ export default function Documentation({ section }: DocumentationProps) {
 
     const nextPath = getSectionPath(basePath, sectionId);
     if (window.location.pathname !== nextPath) {
-      window.history.pushState({}, "", nextPath);
+      // Through the router so the entry gets an id for Back/Forward; the
+      // section switch keeps its scroll position like before
+      navigate(nextPath, { scroll: false });
     }
   };
 
