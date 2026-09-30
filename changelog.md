@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Netlify now applies our header and redirect rules (2026-09-30)
+  - Netlify ignores `[[headers]]` and `[[redirects]]` in netlify.toml on this site, so hashed JS/CSS and fonts were served with `max-age=0` and every visit re-checked them. The `/api/components/*` proxy and the `/components/images/*` 404 rule never applied either. The rules now live in `netlify/_headers` and `netlify/_redirects`, which `vite.config.ts` copies to the publish root.
+  - Component page HTML is cached at Netlify's edge (`cache = "manual"` on og-meta), so repeat requests skip the Convex lookup. Cached responses are purged on each deploy.
+  - Stopped tracking the stale `.netlify/` build folder.
+  - Files: `netlify.toml`, `netlify/_headers` (new), `netlify/_redirects` (new), `vite.config.ts`, `.gitignore`
+
 ### Added
 
 - Monorepo-aware component lookup for the preflight check and admin AI review (2026-09-26 08:14 UTC)
