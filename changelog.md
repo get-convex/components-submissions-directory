@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Returning visitors see the directory's cards straight away (2026-09-30)
+  - The default directory view is saved to localStorage after each load and shown as soon as the JS runs on the next visit, while the request `index.html` already starts refreshes it in the background. Locally, cards appeared at ~190ms on a return visit instead of ~890ms.
+  - Versioned key, shape check, a 7-day limit, and silent fallback when storage is unavailable or full.
+  - Files: `src/lib/convexHttp.ts`
+
+### Changed
+
 - Moving around the directory no longer reloads the page (2026-09-30)
   - Links to directory pages now update the URL in place instead of doing a full page load, so the JS, the Convex websocket (about 900ms to open from Australia) and loaded data stay alive between pages. Files, API routes, the OAuth callback, other sites and modified clicks (new tab, etc.) still load normally.
   - Back restores the directory's search, sort, "load more" progress and scroll position, and renders from the session's cached catalog instead of a skeleton. Category pages are cached the same way.
