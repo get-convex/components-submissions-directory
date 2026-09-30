@@ -109,14 +109,18 @@ export default function Directory() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Reset section paging when major directory controls change. Skipped on
-  // mount so a restored "load more" position survives Back.
-  const pagingResetReady = useRef(false);
+  // Reset section paging when major directory controls change, except when
+  // they were just restored from history (on mount or Back/Forward), so a
+  // restored "load more" position survives.
+  const restoredControls = useRef<{ searchTerm: string; sortBy: SortBy } | null>(
+    { searchTerm, sortBy },
+  );
   useEffect(() => {
-    if (!pagingResetReady.current) {
-      pagingResetReady.current = true;
-      return;
-    }
+    const restoredNow =
+      restoredControls.current?.searchTerm === searchTerm &&
+      restoredControls.current?.sortBy === sortBy;
+    restoredControls.current = null;
+    if (restoredNow) return;
     setVisibleBySection({});
     if (searchTerm) {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -130,17 +134,28 @@ export default function Directory() {
     });
   }, [searchTerm, sortBy, visibleBySection]);
 
-  // The header search navigates to /components/?q=...; follow it while the
-  // directory is already open
+  // Moving between directory history entries while it stays mounted (the
+  // header search pushes /components/?q=..., then Back/Forward): restore that
+  // entry's saved controls, or start from its ?q= if it has none yet
   const { search } = useLocation();
-  const urlQuery = new URLSearchParams(search).get("q");
-  const lastUrlQuery = useRef(urlQuery);
+  const lastSearch = useRef(search);
   useEffect(() => {
-    if (urlQuery !== lastUrlQuery.current) {
-      lastUrlQuery.current = urlQuery;
-      setSearchTerm(urlQuery ?? "");
-    }
-  }, [urlQuery]);
+    if (search === lastSearch.current) return;
+    lastSearch.current = search;
+    const saved = readHistoryState<DirectoryHistoryState>(
+      DIRECTORY_HISTORY_KEY,
+    );
+    const nextSearchTerm =
+      saved?.searchTerm ?? new URLSearchParams(search).get("q") ?? "";
+    const nextSortBy = saved?.sortBy ?? "downloads";
+    restoredControls.current = {
+      searchTerm: nextSearchTerm,
+      sortBy: nextSortBy,
+    };
+    setSearchTerm(nextSearchTerm);
+    setSortBy(nextSortBy);
+    setVisibleBySection(saved?.visibleBySection ?? {});
+  }, [search]);
 
   // One-shot fetches for public catalog data (no reactive subscription
   // overhead). A catalog loaded earlier in this session renders straight away.

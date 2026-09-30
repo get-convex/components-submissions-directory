@@ -87,6 +87,22 @@ function updateCanonical(pathname: string) {
   setCanonicalUrl(`${SITE_ORIGIN}${pathname.replace(/\/+$/, "") || APP_ROOT}`);
 }
 
+// Scroll position per history entry, keyed by an id kept in history.state.
+// It's recorded whenever an entry is left, by a link or by Back/Forward (the
+// browser hasn't scrolled yet when popstate fires, since scroll restoration is
+// manual), so returning to any entry restores exactly where it was left.
+// scrollY in history.state covers entries from before a reload.
+const scrollPositions = new Map<string, number>();
+let currentEntryKey = "";
+
+function newEntryKey() {
+  return Math.random().toString(36).slice(2);
+}
+
+function rememberScroll() {
+  scrollPositions.set(currentEntryKey, window.scrollY);
+}
+
 // Where to scroll once the next page has rendered: the top (or a #hash) for
 // a new page, or the saved position when going Back/Forward. Applied by
 // useScrollOnNavigate after React commits, so it never scrolls the old page.
@@ -136,11 +152,13 @@ export function navigate(to: string, options: { replace?: boolean } = {}) {
     return;
   }
   if (options.replace) {
-    window.history.replaceState(null, "", path);
+    window.history.replaceState({ key: currentEntryKey }, "", path);
   } else {
     // Remember where we were so Back returns to the same spot
+    rememberScroll();
     updateHistoryState({ scrollY: window.scrollY });
-    window.history.pushState(null, "", path);
+    currentEntryKey = newEntryKey();
+    window.history.pushState({ key: currentEntryKey }, "", path);
   }
   updateCanonical(url.pathname);
   pendingScroll = () => hashTarget(url.hash);
@@ -191,10 +209,19 @@ export function installNavigation(
     navigate(url.pathname + url.search + url.hash);
   });
 
-  // Registered before React subscribes, so this runs before the re-render
+  currentEntryKey = readHistoryState<string>("key") ?? newEntryKey();
+  updateHistoryState({ key: currentEntryKey });
+
+  // Registered before React subscribes, so this runs before the re-render,
+  // while the page being left is still on screen
   window.addEventListener("popstate", () => {
+    rememberScroll();
+    const key = readHistoryState<string>("key") ?? newEntryKey();
+    currentEntryKey = key;
+    updateHistoryState({ key });
     updateCanonical(window.location.pathname);
-    pendingScroll = () => readHistoryState<number>("scrollY") ?? 0;
+    pendingScroll = () =>
+      scrollPositions.get(key) ?? readHistoryState<number>("scrollY") ?? 0;
   });
 
   // Start loading a page's data as soon as someone shows intent to open it:

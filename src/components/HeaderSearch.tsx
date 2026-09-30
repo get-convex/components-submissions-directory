@@ -77,6 +77,9 @@ export function HeaderSearch() {
 
   const goToDirectory = () => {
     if (!term.trim()) return;
+    // Close first: when the directory is already open this component stays
+    // mounted, so nothing else would close the dropdown
+    setOpen(false);
     navigate(directoryHref);
   };
 
