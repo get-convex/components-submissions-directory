@@ -1,4 +1,4 @@
-import { v, ConvexError } from "convex/values";
+import { v, ConvexError, type Infer } from "convex/values";
 import {
   action,
   mutation,
@@ -696,7 +696,9 @@ async function getVisibleSubmitPackages(ctx: QueryCtx) {
 
 // Helper function to strip sensitive fields from a package
 // SECURITY: Removes submitter info and AI review details
-function toPublicPackage(pkg: any) {
+function toPublicPackage(
+  pkg: Doc<"packages">,
+): Infer<typeof publicPackageValidator> {
   return {
     _id: pkg._id,
     _creationTime: pkg._creationTime,
@@ -768,7 +770,9 @@ function toPublicPackage(pkg: any) {
 
 // Helper function to normalize admin package data with default values
 // Ensures older documents with missing fields don't break validators
-function toAdminPackage(pkg: any) {
+function toAdminPackage(
+  pkg: Doc<"packages">,
+): Infer<typeof adminPackageValidator> {
   return {
     _id: pkg._id,
     _creationTime: pkg._creationTime,
@@ -1809,7 +1813,7 @@ export const searchPackages = query({
   },
 });
 
-async function getDefaultVisiblePackages(ctx: any) {
+async function getDefaultVisiblePackages(ctx: QueryCtx) {
   const allPackages = await ctx.db.query("packages").take(1000);
   return allPackages
     .filter(isVisiblePackage)
@@ -3449,13 +3453,18 @@ export const getLatestSecurityScan = query({
       .order("desc")
       .first();
 
-    return formatLatestSecurityScan(pkg, latestRun);
+    return formatLatestSecurityScan(pkg, pkg.securityScanStatus, latestRun);
   },
 });
 
 // Build the public-safe security scan payload from a package row and its
-// most recent `securityScanRuns` entry.
-function formatLatestSecurityScan(pkg: any, latestRun: any) {
+// most recent `securityScanRuns` entry. `status` is the package's scan status,
+// passed separately so the caller's check that it is set carries over.
+function formatLatestSecurityScan(
+  pkg: Doc<"packages">,
+  status: NonNullable<Doc<"packages">["securityScanStatus"]>,
+  latestRun: Doc<"securityScanRuns"> | null,
+) {
   const providerCount = [
     pkg.socketScanStatus,
     pkg.snykScanStatus,
@@ -3463,12 +3472,12 @@ function formatLatestSecurityScan(pkg: any, latestRun: any) {
   ].filter(Boolean).length;
 
   return {
-    status: pkg.securityScanStatus,
+    status,
     summary: pkg.securityScanSummary,
     findingCount: latestRun?.findings?.length ?? 0,
     providerCount,
     lastScannedAt: pkg.securityScanUpdatedAt,
-    findings: (latestRun?.findings ?? []).map((f: any) => ({
+    findings: (latestRun?.findings ?? []).map((f) => ({
       severity: f.severity,
       title: f.title,
       description: f.description,
@@ -5007,7 +5016,9 @@ function sortPackages(
   }
 }
 
-function toDirectoryCard(pkg: any) {
+function toDirectoryCard(
+  pkg: Doc<"packages">,
+): Infer<typeof directoryCardValidator> {
   return {
     _id: pkg._id,
     _creationTime: pkg._creationTime,
@@ -5157,7 +5168,11 @@ const relatedCardValidator = v.object({
 
 // Public query: Get up to 3 related components for a detail page
 // Matching strategy: same category > shared tags > highest downloads
-function scoreAndRankRelated(pkg: any, candidates: any[], limit: number) {
+function scoreAndRankRelated(
+  pkg: Doc<"packages">,
+  candidates: Array<Doc<"packages">>,
+  limit: number,
+): Array<Infer<typeof relatedCardValidator>> {
   const pkgTags = new Set((pkg.tags ?? []).map((t: string) => t.toLowerCase()));
   const scored = candidates.map((c) => {
     let score = 0;
@@ -5267,7 +5282,10 @@ function mergeAndDedupePackages(primary: any[], additional: any[]) {
   return merged;
 }
 
-function toSubmissionCard(pkg: any, unreadCount: number) {
+function toSubmissionCard(
+  pkg: Doc<"packages">,
+  unreadCount: number,
+): Infer<typeof userSubmissionValidator> {
   return {
     _id: pkg._id,
     _creationTime: pkg._creationTime,
@@ -7348,7 +7366,7 @@ export const searchDirectoryComponents = query({
 
     // Name matches rank first, then description matches; dedupe by id
     const seen = new Set<string>();
-    const packages: any[] = [];
+    const packages: Array<Doc<"packages">> = [];
     for (const pkg of [
       ...nameHits,
       ...compNameHits,
@@ -7360,7 +7378,7 @@ export const searchDirectoryComponents = query({
       packages.push(pkg);
     }
 
-    return packages.slice(0, 10).map((pkg: any) => ({
+    return packages.slice(0, 10).map((pkg) => ({
       slug: pkg.slug || "",
       displayName: pkg.componentName || pkg.name,
       packageName: pkg.name,

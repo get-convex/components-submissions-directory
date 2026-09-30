@@ -109,7 +109,6 @@ export default function CodeBlock({ code, language, filename }: CodeBlockProps) 
       <PierreFile
         file={file}
         options={{
-          lineNumbers: true,
           theme: "pierre-dark",
         }}
       />

@@ -131,7 +131,8 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
         c.description.toLowerCase().includes(term) ||
         (c.shortDescription &&
           c.shortDescription.toLowerCase().includes(term)) ||
-        (c.tags && c.tags.some((t) => t.toLowerCase().includes(term))) ||
+        (c.tags &&
+          c.tags.some((t: string) => t.toLowerCase().includes(term))) ||
         (c.authorUsername && c.authorUsername.toLowerCase().includes(term)),
     );
   }, [components, searchTerm]);
