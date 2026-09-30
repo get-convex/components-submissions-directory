@@ -80,7 +80,7 @@ Environment variables must be set in Convex Dashboard:
 
 ### `index.html`
 
-Main HTML entry point. Loads the React app and CSS. Includes Open Graph meta tags for social sharing.
+Main HTML entry point. Loads the React app and CSS. Includes Open Graph meta tags for social sharing. Preconnects to the Convex deployment, and on `/components` and `/components/categories/:slug` an inline script starts the `/api/directory-page` GET while the JS bundle downloads (stored on `window.__directoryPrefetch`, consumed by `fetchDirectoryPage` in `src/lib/convexHttp.ts`; the URL format must match in both places).
 
 ## Convex Backend Files
 
@@ -356,6 +356,10 @@ HTTP router configuration. Defines:
 
 Shields.io flat badge renderer used by `/api/badge`. Holds the Verdana 11px width table (from `anafanafo`), `measureText`, `renderShieldsBadge`, the `BADGE_COLORS` status map (approved `#4c1`), and the shared `escapeXml`. Output is byte identical to `badge-maker@6` flat style, including the blurred text shadow.
 
+### `convex/directoryPage.ts`
+
+`_getDirectoryPageData` internal query behind the `/api/directory-page` HTTP action. Runs the public directory queries (`listApprovedComponents`, `listCategories`, `getFeaturedComponents`, `getDownloadsDisplaySettings`, `getListViewSettings`, `getCategoryBySlug`) as nested `ctx.runQuery` calls in one transaction, so the list, counts and featured row share a snapshot. Category requests skip the featured and list-view queries. Also exports `DIRECTORY_SORTS`, the accepted `sortBy` values.
+
 ### `convex/http.ts`
 
 Main HTTP router with all API endpoints. Defines:
@@ -375,6 +379,7 @@ MCP endpoints temporarily disabled (commented out) while public host routing is 
 - Code preserved for easy re-enablement when routing is fixed
 
 Preflight check endpoint (auth token optional):
+- `/api/directory-page` (GET): `?sortBy=` and optional `?category=`. Returns the directory or category page's catalog data in one response (`components`, `categories`, `featured`, `downloadsDisplay`, `listViewSettings`, `categoryData`), read in a single transaction by `directoryPage._getDirectoryPageData` and encoded with `convexToJson`. A plain GET skips the CORS preflight that `/api/query` needs, so `index.html` can start it before the app loads.
 - `/api/preflight` (POST): Accepts `repoUrl` and optional `npmUrl`, validates repo against review criteria, returns status, summary, criteria, the `reviewedPath`/`reviewedRef` the review read, and `suggestedRepoUrl` when the component package sits in a folder the URL didn't point at. When the URL doesn't resolve to one component it returns 422 `{ error, code, suggestions, status: "error" }` (`preflightProblemBody`); signed-in 422 rows are deleted so they don't count, guest rows keep counting. Cache keys come from `preflightCacheKey`, so each branch and folder caches separately. Signed in callers get IP-based rate limiting (10 checks/hour), in-flight limits (1 concurrent check per IP), and 30-minute result caching by normalized repo URL. Admins with an `@convex.dev` email bypass all three gates and always get a fresh run (their runs still refresh the cache for others). Callers without a token go through `handleGuestPreflight`: directory origin check (`isAllowedGuestOrigin`), `website` honeypot, URL length caps, then `preflight._reserveGuestCheck` (3 per hour per IP, 30 per hour site wide, admin kill switch). Guest denials that sign in would fix include `requiresSignIn: true`; limit hits return 429 with `retryAfterSeconds` and `Retry-After`. `resolveClientIp` reads the IP from `ctx.meta.getRequestMetadata()` with a header fallback, and `runAndStorePreflight` marks the row `error` if the review action throws so the IP is not locked out. The route now awaits the async `hashIp()` helper after the move from Node.js `crypto` to Web Crypto in the default Convex runtime.
 
 ### `convex/convex.config.ts`
@@ -703,7 +708,15 @@ Shared markdown code block renderer built on `@pierre/diffs/react`. Normalizes R
 
 ### `src/components/CodeBlockLazy.tsx`
 
-Lazy-loading wrapper around `CodeBlock` with the same props. Uses `React.lazy` so the `@pierre/diffs` and Shiki highlighter chunk (about 325 KB) stays out of the initial bundle, with a plain `<pre>` Suspense fallback matching CodeBlock's text branch so code paints at the correct size before syntax colors arrive. Imported in place of `CodeBlock` by `ComponentDetail.tsx`, `Markdown.tsx`, and `AgentInstallSection.tsx`.
+Lazy-loading wrapper around `CodeBlock` with the same props. Uses `React.lazy` so the `@pierre/diffs` and Shiki highlighter chunk (about 325 KB) stays out of the initial bundle, with a plain `<pre>` Suspense fallback matching CodeBlock's text branch so code paints at the correct size before syntax colors arrive. Imported in place of `CodeBlock` by `ComponentDetail.tsx`, `MarkdownRenderer.tsx`, and `AgentInstallSection.tsx`.
+
+### `src/components/Markdown.tsx`
+
+Lazy-loading wrapper that exports `Markdown` (same props as the renderer), loading the chunk through `src/lib/markdownChunk.ts`. Keeps react-markdown, rehype-raw (parse5) and the remark/micromark stack (about 290 KB minified) out of the initial bundle so the directory and category pages don't pay for it. `ComponentDetail.tsx` calls `preloadMarkdown()` (from `src/lib/markdownChunk.ts`) on mount so the chunk downloads alongside the component data.
+
+### `src/components/MarkdownRenderer.tsx`
+
+The actual markdown renderer (react-markdown with GFM, GitHub alerts, raw HTML, repo-relative links and images, lazy code blocks). Loaded on demand through `Markdown.tsx`; import that instead of this file.
 
 ### `src/components/ReadmePreviewNotice.tsx`
 
@@ -727,7 +740,7 @@ Admin editor for directory-specific fields: slug, category, tags, descriptions, 
 
 ### `src/lib/convexHttp.ts`
 
-Module-level `ConvexHttpClient` plus the `useComponentBySlug(slug)` hook. The hook reads component data through the reactive `useQuery` websocket subscription and, in parallel, issues a one-shot HTTP query to the same public `packages:getComponentBySlug` function (the `/api/query` endpoint). It returns the live value once the websocket connects and the HTTP result otherwise, preserving the `undefined` (loading) / `null` (not found) / document contract. This lets search engine renderers (e.g. Googlebot), which often cannot complete the Convex websocket within their render budget, still receive content so `ComponentDetail.tsx` renders a crawlable page.
+Module-level `ConvexHttpClient`, `fetchDirectoryPage(sortBy, category?)`, and the `useComponentBySlug(slug)` hook. `fetchDirectoryPage` loads the directory and category pages' data from the `/api/directory-page` HTTP action (using the request `index.html` already started when the URL matches), falling back to the individual public queries over `/api/query` if the endpoint fails, stalls past 8s, or returns an unexpected shape. It replaced websocket `convex.query` calls that took ~1.5s from Australia before any cards could render. The hook reads component data through the reactive `useQuery` websocket subscription and, in parallel, issues a one-shot HTTP query to the same public `packages:getComponentBySlug` function (the `/api/query` endpoint). It returns the live value once the websocket connects and the HTTP result otherwise, preserving the `undefined` (loading) / `null` (not found) / document contract. This lets search engine renderers (e.g. Googlebot), which often cannot complete the Convex websocket within their render budget, still receive content so `ComponentDetail.tsx` renders a crawlable page.
 
 ### `src/lib/images.ts`
 

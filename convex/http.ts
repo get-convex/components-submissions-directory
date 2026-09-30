@@ -1,6 +1,8 @@
 import { httpRouter } from "convex/server";
 import { httpAction, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { convexToJson, type Value } from "convex/values";
+import { DIRECTORY_SORTS, type DirectorySort } from "./directoryPage";
 import type { Id } from "./_generated/dataModel";
 import { buildComponentUrls } from "../shared/componentUrls";
 import { normalizeMarkdown } from "../shared/normalizeMarkdown";
@@ -1516,6 +1518,38 @@ function preflightProblemBody(problem: {
     status: "error",
   };
 }
+
+// ============ DIRECTORY PAGE BOOTSTRAP ============
+// Everything the directory and category pages need in one plain GET.
+// index.html starts this request while the JS bundle downloads. A simple GET
+// skips the CORS preflight that /api/query POSTs need, and one request beats
+// five, which matters a lot far from the deployment (Australia pays ~330ms per
+// round trip). Keep the response shape in sync with src/lib/convexHttp.ts.
+http.route({
+  path: "/api/directory-page",
+  method: "GET",
+  handler: httpAction(async (ctx, request) => {
+    const params = new URL(request.url).searchParams;
+    const sortBy = params.get("sortBy") ?? "downloads";
+    const category = params.get("category") || undefined;
+    if (!DIRECTORY_SORTS.includes(sortBy as DirectorySort)) {
+      return new Response("Invalid sortBy", { status: 400 });
+    }
+
+    const data = await ctx.runQuery(
+      internal.directoryPage._getDirectoryPageData,
+      { sortBy: sortBy as DirectorySort, category },
+    );
+    return new Response(JSON.stringify(convexToJson(data as Value)), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json; charset=utf-8",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-cache",
+      },
+    });
+  }),
+});
 
 http.route({
   path: "/api/preflight",

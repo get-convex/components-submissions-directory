@@ -31,6 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Dropped the Publico Headline font preload. No public page uses Publico, so it was a wasted 52 KB on every load.
   - Files: `src/lib/images.ts` (new), `src/components/ComponentCard.tsx`, `src/components/ComponentListRow.tsx`, `src/pages/ComponentDetail.tsx`, `src/pages/Directory.tsx`, `netlify.toml`, `netlify/_redirects`, `netlify/edge-functions/og-meta.ts`, `index.html`
 
+- Directory and category pages load much faster, especially far from the deployment (2026-09-30)
+  - Catalog data now comes from one plain GET (`/api/directory-page`) that `index.html` starts while the JS bundle downloads. The endpoint reads everything in one internal query, so the list, counts and featured row share a snapshot. Before, the page waited for the bundle, then opened the Convex websocket (~900ms to open from Australia), then ran five queries (~560ms more). Locally with prod data, cards appear in ~0.9s instead of ~1.5s, and the real site also stops paying the bundle download before the data request starts.
+  - The markdown renderer (react-markdown, rehype-raw/parse5, micromark) moved to a lazy chunk. Entry bundle is 757 KB instead of 1,096 KB minified (181 KB instead of 266 KB brotli). Component pages preload it on mount.
+  - Preconnect to the Convex deployment for the detail page's HTTP query and the websocket.
+  - If the endpoint fails, stalls for 8s or returns something unexpected, the pages fall back to the individual public queries. Load failures are caught and logged instead of leaving an unhandled rejection.
+  - Files: `index.html`, `convex/http.ts`, `convex/directoryPage.ts` (new), `src/lib/convexHttp.ts`, `src/pages/Directory.tsx`, `src/pages/CategoryPage.tsx`, `src/pages/ComponentDetail.tsx`, `src/components/Markdown.tsx`, `src/components/MarkdownRenderer.tsx` (new), `src/lib/markdownChunk.ts` (new)
+
 ### Added
 
 - Monorepo-aware component lookup for the preflight check and admin AI review (2026-09-26 08:14 UTC)
@@ -49,6 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - README code blocks tagged `txt`, `plaintext` or `plain`, or with a language Shiki doesn't bundle, now render as plain text. Before, `@pierre/diffs` threw uncaught `resolveLanguage: "txt" not found in bundled or custom languages` errors and left the block empty, so the four Axiom queries on /components/workpool collapsed to a thin empty line (2026-09-30 06:46 UTC)
   - `CodeBlock` sends plain text tags, and any language missing from Shiki's `bundledLanguages` (except `ansi`, which Shiki handles itself), to its existing `<pre>` path. `shiki` is now listed in `package.json`; it was already installed through `@pierre/diffs`.
   - Files: `src/components/CodeBlock.tsx`, `package.json`
+
+- The directory loaded its whole catalog twice on most visits: the `pageshow` refetch fired at the end of every normal load. Refetches on focus, tab switch and back/forward restore now skip while a request is in flight and when the data is under a minute old (2026-09-30)
 - Monorepo components like `https://github.com/daytona/integrations` failed preflight with "No convex.config.ts found" because branch and folder were dropped from the URL. They now pass (2026-09-26 08:14 UTC)
 - GitLab repositories now get a real preflight and admin AI review instead of an "Invalid GitHub repository URL" error
 - Two components in the same monorepo no longer share one cached preflight result
