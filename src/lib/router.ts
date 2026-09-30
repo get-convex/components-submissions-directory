@@ -153,13 +153,33 @@ let pendingScroll: (() => number | null) | null = null;
 // rendered yet (a page can still be showing its previous content)
 function hashTarget(hash: string): number | null {
   if (!hash) return 0;
-  const element = document.getElementById(decodeURIComponent(hash.slice(1)));
-  return element ? element.getBoundingClientRect().top + window.scrollY : null;
+  let id = hash.slice(1);
+  try {
+    id = decodeURIComponent(id);
+  } catch {
+    // A malformed escape like #%: look for the id as written
+  }
+  const element = document.getElementById(id);
+  if (!element) return null;
+  // Leave the gap the page asks for (like scroll-mt-24 below the sticky
+  // header), the way the browser does when it follows an #anchor
+  const margin = parseFloat(getComputedStyle(element).scrollMarginTop) || 0;
+  return Math.max(
+    0,
+    element.getBoundingClientRect().top + window.scrollY - margin,
+  );
 }
 
-// Bumped by every scroll a navigation starts, so retries left over from an
-// earlier navigation stop instead of scrolling the page that replaced it
+// Bumped by every navigation and every scroll it starts, so retries left
+// over from an earlier navigation stop instead of scrolling the page that
+// replaced it
 let scrollGeneration = 0;
+
+// Set where the next page scrolls, or null to leave the scroll alone
+function setPendingScroll(getTarget: (() => number | null) | null) {
+  scrollGeneration++;
+  pendingScroll = getTarget;
+}
 
 // Pages restored from cache are tall enough straight away; give slower
 // content (or a #hash target that hasn't rendered yet) up to ~1.5s before
@@ -199,11 +219,15 @@ let shownSearch = "";
 // Keep head tags in step with the page: the canonical link always, and the
 // rest reset to the site defaults when the page changes, before the new page
 // sets its own. Pages without their own tags then don't keep the last one's.
+// /components/x and /components/x/ are the same page
+function pagePath(pathname: string) {
+  return pathname.replace(/\/+$/, "") || APP_ROOT;
+}
+
 function onLocationChange() {
-  const canonical = `${SITE_ORIGIN}${
-    window.location.pathname.replace(/\/+$/, "") || APP_ROOT
-  }`;
-  if (window.location.pathname !== shownPathname) resetPageMetadata(canonical);
+  const page = pagePath(window.location.pathname);
+  const canonical = `${SITE_ORIGIN}${page}`;
+  if (page !== pagePath(shownPathname)) resetPageMetadata(canonical);
   setCanonicalUrl(canonical);
   shownPathname = window.location.pathname;
   shownSearch = window.location.search;
@@ -220,23 +244,28 @@ export function navigate(
     return;
   }
   const path = url.pathname + url.search + url.hash;
-  if (path === currentPath()) {
-    // Same page: like a normal link to the current URL, no new history
-    // entry, and nothing re-renders, so scroll straight away
-    if (options.scroll !== false) scrollWhenReady(() => hashTarget(url.hash));
+  const samePath = path === currentPath();
+  if (samePath && (options.replace || url.hash)) {
+    // Already there: a redirect has nothing to do, and a #hash link to the
+    // current URL only scrolls, like it does in the browser
+    if (!options.replace && options.scroll !== false) {
+      scrollWhenReady(() => hashTarget(url.hash));
+    }
     return;
   }
-  if (options.replace) {
-    // The entry now shows another page, so drop what was saved for it
+  // A link to the current URL starts the page over in the same history
+  // entry, like the full load it used to be, so the directory's search and
+  // filters reset
+  if (options.replace || samePath) {
+    // The entry now shows a new page, so it gets a new id and drops what
+    // was saved for the old one
     entryStates.delete(currentEntryKey);
-    if (
-      !writeHistory(() =>
-        window.history.replaceState({ key: currentEntryKey }, "", path),
-      )
-    ) {
+    const key = newEntryKey();
+    if (!writeHistory(() => window.history.replaceState({ key }, "", path))) {
       window.location.replace(url.href);
       return;
     }
+    currentEntryKey = key;
   } else {
     // Remember where we were (and the page's state) so Back returns there
     const leaving = collectEntryState();
@@ -252,7 +281,9 @@ export function navigate(
     currentEntryKey = key;
   }
   onLocationChange();
-  pendingScroll = options.scroll === false ? null : () => hashTarget(url.hash);
+  setPendingScroll(
+    options.scroll === false ? null : () => hashTarget(url.hash),
+  );
   window.dispatchEvent(new Event(NAVIGATE_EVENT));
 }
 
@@ -357,7 +388,7 @@ export function installNavigation(
           "",
         ),
       );
-      pendingScroll = null;
+      setPendingScroll(null);
       return;
     }
     collectEntryState();
@@ -370,10 +401,12 @@ export function installNavigation(
       );
     }
     onLocationChange();
-    pendingScroll = () =>
-      (entryStates.get(key)?.scrollY as number | undefined) ??
-      readHistoryState<number>("scrollY") ??
-      0;
+    setPendingScroll(
+      () =>
+        (entryStates.get(key)?.scrollY as number | undefined) ??
+        readHistoryState<number>("scrollY") ??
+        0,
+    );
   });
 
   // Start loading a page's data as soon as someone shows intent to open it:
