@@ -3,17 +3,20 @@ import type { SyntheticEvent } from "react";
 // Component thumbnails live in Convex storage as full-size PNGs (median
 // 2.4 MB, some 3840x2160) but render at most ~360px wide in the directory.
 // In production they go through Netlify Image CDN via the
-// /components/_img/<width>/<storageId> rewrite in netlify.toml, which
+// /components/_img/<width>/<storageId> rewrite in netlify/_redirects, which
 // resizes them, converts to WebP/AVIF and caches the result at the edge.
-// Anything else (dev builds, non-storage URLs) keeps the original URL.
-const STORAGE_URL_PREFIX = `${import.meta.env.VITE_CONVEX_URL as string}/api/storage/`;
+// That rewrite proxies this one deployment's storage, so only its URLs are
+// converted; anything else (dev builds, other deployments, non-storage URLs)
+// keeps the original URL.
+const IMAGE_CDN_STORAGE_PREFIX =
+  "https://giant-grouse-674.convex.cloud/api/storage/";
 const STORAGE_ID_RE = /^[\w-]+$/;
 
 function storageIdFromUrl(url: string): string | undefined {
-  if (!import.meta.env.PROD || !url.startsWith(STORAGE_URL_PREFIX)) {
+  if (!import.meta.env.PROD || !url.startsWith(IMAGE_CDN_STORAGE_PREFIX)) {
     return undefined;
   }
-  const id = url.slice(STORAGE_URL_PREFIX.length);
+  const id = url.slice(IMAGE_CDN_STORAGE_PREFIX.length);
   return STORAGE_ID_RE.test(id) ? id : undefined;
 }
 
@@ -28,6 +31,13 @@ export interface ThumbnailSizing {
 export const CARD_THUMBNAIL: ThumbnailSizing = {
   widths: [400, 720, 1080],
   sizes: "(min-width: 1024px) 360px, (min-width: 640px) 50vw, 100vw",
+};
+
+// Featured row on the directory: one column below md, two until xl, then
+// three (~330px). It stays one column longer than the card grid does.
+export const FEATURED_THUMBNAIL: ThumbnailSizing = {
+  widths: [400, 720, 1080],
+  sizes: "(min-width: 1280px) 330px, (min-width: 768px) 50vw, 100vw",
 };
 
 // List view rows show a fixed 112-128px thumbnail
