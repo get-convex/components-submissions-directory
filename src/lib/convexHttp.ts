@@ -11,7 +11,12 @@ import { useEffect, useState } from "react";
 import { useQuery } from "convex/react";
 import { ConvexHttpClient } from "convex/browser";
 import type { FunctionReturnType } from "convex/server";
-import { jsonToConvex } from "convex/values";
+import {
+  convexToJson,
+  jsonToConvex,
+  type JSONValue,
+  type Value,
+} from "convex/values";
 import { api } from "../../convex/_generated/api";
 
 declare global {
@@ -135,6 +140,16 @@ const DIRECTORY_PAGE_TIMEOUT_MS = 8000;
 // How long an attempt can stay pending before another starts alongside it
 const ATTEMPT_PATIENCE_MS = 20_000;
 
+function isDirectoryPageData(value: unknown): value is DirectoryPageData {
+  const data = value as Partial<DirectoryPageData> | null;
+  return (
+    Array.isArray(data?.components) &&
+    Array.isArray(data.categories) &&
+    typeof data.downloadsDisplay === "object" &&
+    data.downloadsDisplay !== null
+  );
+}
+
 // Returns null for anything that isn't a usable page payload, so a bad
 // response falls back instead of rendering an empty directory.
 async function readDirectoryPage(
@@ -142,13 +157,8 @@ async function readDirectoryPage(
 ): Promise<DirectoryPageData | null> {
   const res = await response;
   if (!res?.ok) return null;
-  const data = jsonToConvex(await res.json()) as Partial<DirectoryPageData>;
-  const isValid =
-    Array.isArray(data?.components) &&
-    Array.isArray(data.categories) &&
-    typeof data.downloadsDisplay === "object" &&
-    data.downloadsDisplay !== null;
-  return isValid ? (data as DirectoryPageData) : null;
+  const data = jsonToConvex(await res.json());
+  return isDirectoryPageData(data) ? data : null;
 }
 
 // How long a loaded catalog counts as fresh before focus, tab switches or
@@ -162,11 +172,63 @@ const directoryPageCache = new Map<
   { data: DirectoryPageData; loadedAt: number }
 >();
 
+// The default directory view is also saved to localStorage, so a returning
+// visitor sees cards as soon as the JS runs instead of waiting on the network.
+// The request index.html starts refreshes it straight away.
+const STORED_PAGE_KEY = "directoryPage:v1";
+const STORED_PAGE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+function isStoredPage(url: string) {
+  return url === directoryPageUrl("downloads");
+}
+
+function readStoredPage():
+  | { data: DirectoryPageData; loadedAt: number }
+  | undefined {
+  try {
+    const raw = localStorage.getItem(STORED_PAGE_KEY);
+    if (!raw) return undefined;
+    const stored = JSON.parse(raw) as { data: JSONValue; loadedAt: number };
+    const data = jsonToConvex(stored.data);
+    const tooOld = !(Date.now() - stored.loadedAt < STORED_PAGE_MAX_AGE_MS);
+    // loadedAt 0 marks it stale, so a new page load still revalidates it
+    // (using the request index.html started) however recently it was saved
+    return !tooOld && isDirectoryPageData(data)
+      ? { data, loadedAt: 0 }
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function saveCachedPage(url: string, data: DirectoryPageData) {
+  const entry = { data, loadedAt: Date.now() };
+  directoryPageCache.set(url, entry);
+  if (!isStoredPage(url)) return;
+  try {
+    localStorage.setItem(
+      STORED_PAGE_KEY,
+      JSON.stringify({
+        data: convexToJson(data as unknown as Value),
+        loadedAt: entry.loadedAt,
+      }),
+    );
+  } catch {
+    // Storage full or unavailable (private mode): the memory cache still works
+  }
+}
+
 export function getCachedDirectoryPage(
   sortBy: DirectorySort,
   category?: string,
 ) {
-  return directoryPageCache.get(directoryPageUrl(sortBy, category));
+  const url = directoryPageUrl(sortBy, category);
+  let entry = directoryPageCache.get(url);
+  if (!entry && isStoredPage(url)) {
+    entry = readStoredPage();
+    if (entry) directoryPageCache.set(url, entry);
+  }
+  return entry;
 }
 
 // Must build the exact same URL as the inline script in index.html.
@@ -227,10 +289,7 @@ export function fetchDirectoryPage(
         (data) => {
           if (settled) return;
           finish();
-          directoryPageCache.set(directoryPageUrl(sortBy, category), {
-            data,
-            loadedAt: Date.now(),
-          });
+          saveCachedPage(directoryPageUrl(sortBy, category), data);
           resolve(data);
         },
         (error) => {
