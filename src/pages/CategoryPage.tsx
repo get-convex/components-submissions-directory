@@ -1,12 +1,11 @@
 // Category landing page at /components/categories/:slug
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { useConvex } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { ComponentCard } from "../components/ComponentCard";
 import { CategorySidebar } from "../components/CategorySidebar";
 import { SearchBar } from "../components/SearchBar";
 import Header from "../components/Header";
 import { setPageTitle, setPageDescription } from "../lib/seo";
+import { fetchDirectoryPage } from "../lib/convexHttp";
 import {
   CaretSortIcon,
   ChevronDownIcon,
@@ -70,7 +69,6 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
   }, [searchTerm, sortBy]);
 
   // One-shot fetches for public catalog data (no reactive subscription overhead)
-  const convex = useConvex();
   const [categoryData, setCategoryData] = useState<any | undefined>(undefined);
   const [categories, setCategories] = useState<any[] | undefined>(undefined);
   const [components, setComponents] = useState<any[] | undefined>(undefined);
@@ -82,24 +80,20 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
   const fetchGeneration = useRef(0);
   const fetchData = useCallback(async () => {
     const gen = ++fetchGeneration.current;
-    const [catData, cats, comp, dlDisplay] = await Promise.all([
-      convex.query(api.packages.getCategoryBySlug, { slug: categorySlug }),
-      convex.query(api.packages.listCategories, {}),
-      convex.query(api.packages.listApprovedComponents, {
-        category: categorySlug,
-        sortBy,
-      }),
-      convex.query(api.packages.getDownloadsDisplaySettings, {}),
-    ]);
-    if (gen !== fetchGeneration.current) return;
-    setCategoryData(catData);
-    setCategories(cats);
-    setComponents(comp);
-    setDownloadsDisplay(dlDisplay);
-  }, [convex, categorySlug, sortBy]);
+    try {
+      const data = await fetchDirectoryPage(sortBy, categorySlug);
+      if (gen !== fetchGeneration.current) return;
+      setCategoryData(data.categoryData);
+      setCategories(data.categories);
+      setComponents(data.components);
+      setDownloadsDisplay(data.downloadsDisplay);
+    } catch (error) {
+      console.error("[CategoryPage] Failed to load components", error);
+    }
+  }, [categorySlug, sortBy]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   // Set page SEO based on category

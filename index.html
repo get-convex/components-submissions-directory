@@ -25,6 +25,35 @@
 
     <link rel="stylesheet" href="/src/index.css" />
 
+    <!-- Warm the Convex connection used by HTTP queries and the websocket -->
+    <link rel="preconnect" href="%VITE_CONVEX_URL%" crossorigin />
+
+    <!-- Start the directory's catalog request while the JS bundle downloads.
+         fetchDirectoryPage() in src/lib/convexHttp.ts picks it up by URL, so
+         keep the URL here in sync with directoryPageUrl() there. A mismatch
+         just means a normal fetch later. -->
+    <script>
+      (function () {
+        var cloudUrl = "%VITE_CONVEX_URL%";
+        var siteUrl = "%VITE_CONVEX_SITE_URL%";
+        var match = location.pathname.match(
+          /^\/components(?:\/categories\/([^/]+))?\/?$/
+        );
+        if (!match || cloudUrl.charAt(0) === "%" || !window.fetch) return;
+        if (!siteUrl || siteUrl.charAt(0) === "%") {
+          siteUrl = cloudUrl.replace(".convex.cloud", ".convex.site");
+        }
+        var url = siteUrl + "/api/directory-page?sortBy=downloads";
+        if (match[1]) url += "&category=" + encodeURIComponent(match[1]);
+        window.__directoryPrefetch = {
+          url: url,
+          response: fetch(url).catch(function () {
+            return null;
+          }),
+        };
+      })();
+    </script>
+
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico" />

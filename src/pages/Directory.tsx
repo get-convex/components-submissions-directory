@@ -1,7 +1,5 @@
 // Main directory listing page at /components
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { useConvex } from "convex/react";
-import { api } from "../../convex/_generated/api";
 import { ComponentCard } from "../components/ComponentCard";
 import { ComponentListRow } from "../components/ComponentListRow";
 import { CategorySidebar } from "../components/CategorySidebar";
@@ -10,12 +8,16 @@ import Header, { type DirectoryViewMode } from "../components/Header";
 import { FAQSection } from "../components/FAQSection";
 import { AuthoringBanner } from "../components/AuthoringBanner";
 import { setPageTitle, setPageDescription } from "../lib/seo";
+import { fetchDirectoryPage } from "../lib/convexHttp";
 import { CaretSortIcon, ChevronDownIcon } from "@radix-ui/react-icons";
 import { Robot, FileText, ArrowSquareOut } from "@phosphor-icons/react";
 
 type SortBy = "newest" | "downloads" | "updated" | "rating" | "verified";
 
 const DIRECTORY_ROOT_HREF = "/components/";
+
+// Minimum data age before a focus or tab switch refetches the catalog
+const REFRESH_AFTER_MS = 60_000;
 
 const getGridColumnCount = (): number => {
   if (typeof window === "undefined") return 4;
@@ -92,7 +94,6 @@ export default function Directory() {
   }, [searchTerm, sortBy, gridColumns]);
 
   // One-shot fetches for public catalog data (no reactive subscription overhead)
-  const convex = useConvex();
   const [components, setComponents] = useState<any[] | undefined>(undefined);
   const [categories, setCategories] = useState<any[] | undefined>(undefined);
   const [featured, setFeatured] = useState<any[] | undefined>(undefined);
@@ -106,48 +107,62 @@ export default function Directory() {
   }>({ showListViewThumbnails: false });
 
   const fetchGeneration = useRef(0);
+  const fetchInFlight = useRef(false);
+  const lastLoadedAt = useRef(0);
   const fetchData = useCallback(async () => {
     const gen = ++fetchGeneration.current;
-    const [comp, cats, feat, dlDisplay, listSettings] = await Promise.all([
-      convex.query(api.packages.listApprovedComponents, { sortBy }),
-      convex.query(api.packages.listCategories, {}),
-      convex.query(api.packages.getFeaturedComponents, {}),
-      convex.query(api.packages.getDownloadsDisplaySettings, {}),
-      convex.query(api.packages.getListViewSettings, {}),
-    ]);
-    if (gen !== fetchGeneration.current) return;
-    setComponents(comp);
-    setCategories(cats);
-    setFeatured(feat);
-    setDownloadsDisplay(dlDisplay);
-    setListViewSettings(listSettings);
-  }, [convex, sortBy]);
+    fetchInFlight.current = true;
+    try {
+      const data = await fetchDirectoryPage(sortBy);
+      if (gen !== fetchGeneration.current) return;
+      lastLoadedAt.current = Date.now();
+      setComponents(data.components);
+      setCategories(data.categories);
+      setFeatured(data.featured ?? []);
+      setDownloadsDisplay(data.downloadsDisplay);
+      setListViewSettings(
+        data.listViewSettings ?? { showListViewThumbnails: false },
+      );
+    } catch (error) {
+      // Keep whatever is on screen; the next focus or visibility change retries
+      console.error("[Directory] Failed to load components", error);
+    } finally {
+      if (gen === fetchGeneration.current) fetchInFlight.current = false;
+    }
+  }, [sortBy]);
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
   }, [fetchData]);
 
   useEffect(() => {
-    // Keep one-shot fetches lightweight, but refetch when the page becomes active again
-    // so recently refreshed npm counts show up without restoring a live subscription.
-    const handleFocus = () => {
+    // Refetch when the page becomes active again so recently refreshed npm
+    // counts show up without a live subscription. Skip while a request is in
+    // flight (a new one would throw away the prefetched response) and while
+    // the data is under a minute old. pageshow also fires on every normal
+    // load, so only react to back/forward cache restores.
+    const refreshIfStale = () => {
+      if (fetchInFlight.current) return;
+      if (Date.now() - lastLoadedAt.current < REFRESH_AFTER_MS) return;
       void fetchData();
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        void fetchData();
+        refreshIfStale();
       }
     };
-    const handlePageShow = () => {
-      void fetchData();
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        refreshIfStale();
+      }
     };
 
-    window.addEventListener("focus", handleFocus);
+    window.addEventListener("focus", refreshIfStale);
     window.addEventListener("pageshow", handlePageShow);
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("focus", refreshIfStale);
       window.removeEventListener("pageshow", handlePageShow);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };

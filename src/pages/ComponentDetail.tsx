@@ -19,6 +19,7 @@ import { CommunityBadge } from "../components/CommunityBadge";
 import Header from "../components/Header";
 import CodeBlock from "../components/CodeBlockLazy";
 import { Markdown } from "../components/Markdown";
+import { preloadMarkdown } from "../lib/markdownChunk";
 import { useDirectoryCategories } from "../lib/categories";
 import { useComponentBySlug } from "../lib/convexHttp";
 import { buildComponentClientUrls } from "../../shared/componentUrls";
@@ -840,6 +841,10 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
   // Loads over websocket (reactive) with a one-shot HTTP fallback so search
   // engine renderers that cannot complete the websocket still get content.
   const component = useComponentBySlug(slug);
+  // Fetch the markdown renderer chunk alongside the component data
+  useEffect(() => {
+    preloadMarkdown();
+  }, []);
   const relatedComponents = useQuery(
     api.packages.getRelatedComponents,
     component ? { packageId: component._id } : "skip"
