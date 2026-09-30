@@ -9,13 +9,14 @@ This document provides a brief description of each file in the codebase and how 
 Defines project dependencies, scripts, and metadata. Includes React, Convex, Vite, TypeScript, WorkOS Connect integration utilities, and development tools. Key scripts:
 - `dev`: Parallel dev server (frontend + backend)
 - `build`: Production build for Netlify
+- `lint`: Type-checks `convex/` and the app (`tsc -b`), then runs `convex dev --once` and `vite build`
 - `deploy:backend`: Deploy Convex backend only (`npx convex deploy`)
 
 Key auth dependencies: `@convex-dev/workos` for Convex auth bridging with a custom Connect OAuth provider.
 
 ### `tsconfig.json`, `tsconfig.app.json`, `tsconfig.node.json`
 
-TypeScript configuration files for different parts of the project. `tsconfig.json` is the base config, `tsconfig.app.json` is for the React app, and `tsconfig.node.json` is for Node.js tooling.
+TypeScript configuration files for different parts of the project. `tsconfig.app.json` is for the React app and `tsconfig.node.json` is for Node.js tooling (`vite.config.ts`). `tsconfig.json` has no files of its own, only references to those two, so type-check them with `tsc -b`; `tsc -p .` checks nothing.
 
 ### `vite.config.ts`
 

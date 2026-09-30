@@ -54,6 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Two components in the same monorepo no longer share one cached preflight result
 - Admin AI review saves URL problems as `partial`, so auto reject no longer rejects a component only because the repo URL points at the wrong folder. A missing repo still counts as `failed`
 - The convex-lint hook no longer blocks edits to `convex/aiReview.ts`. The function names in two prompt strings are now in backticks
+- `npm run lint` now type-checks the app. `tsc -p .` checked nothing because the root tsconfig only has project references, so the script runs `tsc -b` instead. That turned up four type errors: the ones in `CodeBlock.tsx` and `CategoryPage.tsx` are fixed without changing behaviour, and the two in `ComponentDetail.tsx` went away once the `convex/packages.ts` helpers were typed (2026-09-30 08:06 UTC)
+  - `convex` goes from 1.32.0 to ^1.46.0. `convex/http.ts` calls `ctx.meta.getRequestMetadata()`, which only exists from 1.38, so on the old lockfile the convex type check failed and `convex dev` and `convex deploy` refused to push.
+  - `bun.lockb` also catches up with `package.json`: it adds `@convex-internal/web-analytics` and the direct `shiki` entry, and drops `react-cookie`, which `package.json` no longer lists.
+  - Files: `package.json`, `bun.lockb`, `src/components/CodeBlock.tsx`, `src/pages/CategoryPage.tsx`
 - Public queries in `convex/packages.ts` now give the client real types instead of `any`. Convex types a query's result from what the handler returns, not from the `returns` validator, so `toPublicPackage(pkg: any)` and its sibling helpers made every field `any` and TypeScript checked none of the field reads on the component detail page. The helpers now take `Doc<"packages">` and return the validator's type, which fixes 14 public queries with no runtime change (2026-09-30 08:14 UTC)
   - Files: `convex/packages.ts`
 
