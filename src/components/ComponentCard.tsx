@@ -1,5 +1,6 @@
 // Card component for the directory grid listing
 import { DownloadIcon, CheckCircledIcon } from "@radix-ui/react-icons";
+import { CARD_THUMBNAIL, avatarUrl, thumbnailImageProps } from "../lib/images";
 
 // Badge from a curated category membership; only entries with a badgeUrl render
 export interface CuratedBadge {
@@ -32,6 +33,8 @@ interface ComponentCardProps {
   npmUrl: string;
   repositoryUrl?: string;
   className?: string;
+  // Above-the-fold cards load their thumbnail eagerly at high priority
+  priority?: boolean;
 }
 
 export function ComponentCard({
@@ -54,6 +57,7 @@ export function ComponentCard({
   featured,
   npmUrl,
   className,
+  priority = false,
 }: ComponentCardProps) {
   // Only curated badges with an uploaded image render; badge-less curated
   // categories leave the card unchanged.
@@ -105,12 +109,13 @@ export function ComponentCard({
       {shouldShowThumbnail && (
         <div className="aspect-video w-full overflow-hidden rounded-t-lg bg-bg-secondary">
           <img
-            src={thumbnailUrl}
+            {...thumbnailImageProps(thumbnailUrl, CARD_THUMBNAIL)}
             alt={displayName}
             width={1536}
             height={864}
             className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-200"
-            loading="lazy"
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : undefined}
           />
         </div>
       )}
@@ -151,7 +156,7 @@ export function ComponentCard({
               <div className="flex items-center gap-2.5">
                 {authorAvatar ? (
                   <img
-                    src={authorAvatar}
+                    src={avatarUrl(authorAvatar)}
                     alt={authorUsername}
                     width={24}
                     height={24}

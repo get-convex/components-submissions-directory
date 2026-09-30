@@ -498,6 +498,7 @@ export default function Directory() {
                       npmUrl={comp.npmUrl}
                       repositoryUrl={comp.repositoryUrl}
                       className={directoryCardHoverClass}
+                      priority
                     />
                   ))}
                 </div>

@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Stopped tracking the stale `.netlify/` build folder.
   - Files: `netlify.toml`, `netlify/_headers` (new), `netlify/_redirects` (new), `vite.config.ts`, `.gitignore`
 
+### Changed
+
+- Thumbnails, avatars and fonts load far fewer bytes (2026-09-30)
+  - Component thumbnails are stored as full-size PNGs (median 2.4 MB, 111 MB across 72, some 3840x2160) but render ~360px wide. Public pages now request resized WebP/AVIF variants through Netlify Image CDN (`/components/_img/<width>/<storageId>`, with storage proxied under `/components/_src` so it counts as a local source), with `srcset`/`sizes` per layout and a fallback to the original image if a variant fails.
+  - The first row of Featured cards loads its thumbnails eagerly with `fetchpriority="high"`, since one of them is usually the page's largest paint.
+  - GitHub avatars request `?size=64` instead of the ~460px original (about 1.7 KB instead of 61 KB).
+  - Dropped the Publico Headline font preload. No public page uses Publico, so it was a wasted 52 KB on every load.
+  - Files: `src/lib/images.ts` (new), `src/components/ComponentCard.tsx`, `src/components/ComponentListRow.tsx`, `src/pages/ComponentDetail.tsx`, `src/pages/Directory.tsx`, `netlify.toml`, `netlify/_redirects`, `netlify/edge-functions/og-meta.ts`, `index.html`
+
 ### Added
 
 - Monorepo-aware component lookup for the preflight check and admin AI review (2026-09-26 08:14 UTC)
