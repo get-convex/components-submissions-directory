@@ -109,11 +109,16 @@ export default function Directory() {
   const fetchGeneration = useRef(0);
   const fetchInFlight = useRef(false);
   const lastLoadedAt = useRef(0);
+  // Aborted when a newer load starts, so a superseded one stops retrying
+  const loadController = useRef<AbortController | null>(null);
   const fetchData = useCallback(async () => {
     const gen = ++fetchGeneration.current;
     fetchInFlight.current = true;
+    loadController.current?.abort();
+    const controller = new AbortController();
+    loadController.current = controller;
     try {
-      const data = await fetchDirectoryPage(sortBy);
+      const data = await fetchDirectoryPage(sortBy, undefined, controller.signal);
       if (gen !== fetchGeneration.current) return;
       lastLoadedAt.current = Date.now();
       setComponents(data.components);
@@ -124,6 +129,7 @@ export default function Directory() {
         data.listViewSettings ?? { showListViewThumbnails: false },
       );
     } catch (error) {
+      if (controller.signal.aborted) return;
       // Keep whatever is on screen; the next focus or visibility change retries
       console.error("[Directory] Failed to load components", error);
     } finally {
@@ -134,6 +140,8 @@ export default function Directory() {
   useEffect(() => {
     void fetchData();
   }, [fetchData]);
+
+  useEffect(() => () => loadController.current?.abort(), []);
 
   useEffect(() => {
     // Refetch when the page becomes active again so recently refreshed npm

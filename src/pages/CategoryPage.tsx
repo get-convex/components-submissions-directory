@@ -78,16 +78,26 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
   }>({ showWeeklyDownloads: true, showAllTimeDownloads: false });
 
   const fetchGeneration = useRef(0);
+  // Aborted when a newer load starts, so a superseded one stops retrying
+  const loadController = useRef<AbortController | null>(null);
   const fetchData = useCallback(async () => {
     const gen = ++fetchGeneration.current;
+    loadController.current?.abort();
+    const controller = new AbortController();
+    loadController.current = controller;
     try {
-      const data = await fetchDirectoryPage(sortBy, categorySlug);
+      const data = await fetchDirectoryPage(
+        sortBy,
+        categorySlug,
+        controller.signal,
+      );
       if (gen !== fetchGeneration.current) return;
       setCategoryData(data.categoryData);
       setCategories(data.categories);
       setComponents(data.components);
       setDownloadsDisplay(data.downloadsDisplay);
     } catch (error) {
+      if (controller.signal.aborted) return;
       console.error("[CategoryPage] Failed to load components", error);
     }
   }, [categorySlug, sortBy]);
@@ -95,6 +105,8 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
   useEffect(() => {
     void fetchData();
   }, [fetchData]);
+
+  useEffect(() => () => loadController.current?.abort(), []);
 
   // Set page SEO based on category
   useEffect(() => {

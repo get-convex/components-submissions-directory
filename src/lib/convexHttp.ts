@@ -84,6 +84,8 @@ export type DirectoryPageData = {
 // A stalled request should still reach the fallback instead of leaving the
 // page on its loading skeleton.
 const DIRECTORY_PAGE_TIMEOUT_MS = 8000;
+// The fallback runs several queries, so it gets a little longer
+const DIRECTORY_FALLBACK_TIMEOUT_MS = 15_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -134,29 +136,40 @@ function directoryPageUrl(sortBy: DirectorySort, category?: string) {
 export async function fetchDirectoryPage(
   sortBy: DirectorySort,
   category?: string,
+  signal?: AbortSignal,
 ): Promise<DirectoryPageData> {
   // Like the websocket client this replaced, keep trying through a dropped
   // connection instead of failing and leaving the page on its skeleton: back
   // off between attempts, and go again as soon as the browser is back online.
+  // Aborting the signal (a newer request replaced this one) stops retrying.
   for (let attempt = 0; ; attempt += 1) {
+    stopIfAborted(signal);
     try {
       return await loadDirectoryPage(sortBy, category);
     } catch (error) {
+      stopIfAborted(signal);
       console.warn("[fetchDirectoryPage] Retrying after error", error);
-      await waitToRetry(attempt);
+      await waitToRetry(attempt, signal);
     }
   }
 }
 
-function waitToRetry(attempt: number) {
+// AbortSignal.throwIfAborted needs Safari 15.4+, so check by hand
+function stopIfAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+}
+
+function waitToRetry(attempt: number, signal?: AbortSignal) {
   return new Promise<void>((resolve) => {
     const retry = () => {
       clearTimeout(timer);
       window.removeEventListener("online", retry);
+      signal?.removeEventListener("abort", retry);
       resolve();
     };
     const timer = setTimeout(retry, Math.min(30_000, 1_000 * 2 ** attempt));
     window.addEventListener("online", retry);
+    signal?.addEventListener("abort", retry);
   });
 }
 
@@ -179,6 +192,26 @@ async function loadDirectoryPage(
   ).catch(() => null);
   if (data) return data;
 
+  // Bounded too, so a stalled query still reaches the retry loop above
+  const fallback = await withTimeout(
+    Promise.all([
+      httpClient.query(api.packages.listApprovedComponents, {
+        category,
+        sortBy,
+      }),
+      httpClient.query(api.packages.listCategories, {}),
+      category
+        ? null
+        : httpClient.query(api.packages.getFeaturedComponents, {}),
+      httpClient.query(api.packages.getDownloadsDisplaySettings, {}),
+      category ? null : httpClient.query(api.packages.getListViewSettings, {}),
+      category
+        ? httpClient.query(api.packages.getCategoryBySlug, { slug: category })
+        : null,
+    ]),
+    DIRECTORY_FALLBACK_TIMEOUT_MS,
+  );
+  if (!fallback) throw new Error("Directory queries timed out");
   const [
     components,
     categories,
@@ -186,16 +219,7 @@ async function loadDirectoryPage(
     downloadsDisplay,
     listViewSettings,
     categoryData,
-  ] = await Promise.all([
-    httpClient.query(api.packages.listApprovedComponents, { category, sortBy }),
-    httpClient.query(api.packages.listCategories, {}),
-    category ? null : httpClient.query(api.packages.getFeaturedComponents, {}),
-    httpClient.query(api.packages.getDownloadsDisplaySettings, {}),
-    category ? null : httpClient.query(api.packages.getListViewSettings, {}),
-    category
-      ? httpClient.query(api.packages.getCategoryBySlug, { slug: category })
-      : null,
-  ]);
+  ] = fallback;
   return {
     components,
     categories,
