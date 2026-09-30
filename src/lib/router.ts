@@ -153,8 +153,21 @@ let pendingScroll: (() => number | null) | null = null;
 // rendered yet (a page can still be showing its previous content)
 function hashTarget(hash: string): number | null {
   if (!hash) return 0;
-  const element = document.getElementById(decodeURIComponent(hash.slice(1)));
-  return element ? element.getBoundingClientRect().top + window.scrollY : null;
+  let id = hash.slice(1);
+  try {
+    id = decodeURIComponent(id);
+  } catch {
+    // A malformed escape like #%: look for the id as written
+  }
+  const element = document.getElementById(id);
+  if (!element) return null;
+  // Leave the gap the page asks for (like scroll-mt-24 below the sticky
+  // header), the way the browser does when it follows an #anchor
+  const margin = parseFloat(getComputedStyle(element).scrollMarginTop) || 0;
+  return Math.max(
+    0,
+    element.getBoundingClientRect().top + window.scrollY - margin,
+  );
 }
 
 // Bumped by every navigation and every scroll it starts, so retries left
@@ -206,11 +219,15 @@ let shownSearch = "";
 // Keep head tags in step with the page: the canonical link always, and the
 // rest reset to the site defaults when the page changes, before the new page
 // sets its own. Pages without their own tags then don't keep the last one's.
+// /components/x and /components/x/ are the same page
+function pagePath(pathname: string) {
+  return pathname.replace(/\/+$/, "") || APP_ROOT;
+}
+
 function onLocationChange() {
-  const canonical = `${SITE_ORIGIN}${
-    window.location.pathname.replace(/\/+$/, "") || APP_ROOT
-  }`;
-  if (window.location.pathname !== shownPathname) resetPageMetadata(canonical);
+  const page = pagePath(window.location.pathname);
+  const canonical = `${SITE_ORIGIN}${page}`;
+  if (page !== pagePath(shownPathname)) resetPageMetadata(canonical);
   setCanonicalUrl(canonical);
   shownPathname = window.location.pathname;
   shownSearch = window.location.search;
