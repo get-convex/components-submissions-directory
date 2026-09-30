@@ -50,20 +50,30 @@ function subscribe(onChange: () => void) {
   };
 }
 
-function getLocationSnapshot() {
-  return window.location.pathname + window.location.search;
+function currentPath() {
+  return (
+    window.location.pathname + window.location.search + window.location.hash
+  );
 }
 
-// Current pathname and search, re-rendering on navigate() and Back/Forward
+// The URL plus the history entry's id, so moving between two entries with the
+// same URL, or only a different #hash, still re-renders and scrolls
+function getLocationSnapshot() {
+  return `${currentPath()}\n${currentEntryKey}`;
+}
+
+// Current location, re-rendering on navigate() and Back/Forward. entryKey
+// identifies the history entry, for state that belongs to one entry.
 export function useLocation() {
   const snapshot = useSyncExternalStore(subscribe, getLocationSnapshot);
-  const queryStart = snapshot.indexOf("?");
-  return queryStart === -1
-    ? { pathname: snapshot, search: "" }
-    : {
-        pathname: snapshot.slice(0, queryStart),
-        search: snapshot.slice(queryStart),
-      };
+  const [path, entryKey] = snapshot.split("\n");
+  const url = new URL(path, window.location.origin);
+  return {
+    pathname: url.pathname,
+    search: url.search,
+    hash: url.hash,
+    entryKey,
+  };
 }
 
 // Merge values into the current history entry's state (scroll position,
@@ -115,26 +125,36 @@ function hashTarget(hash: string): number {
   return element ? element.getBoundingClientRect().top + window.scrollY : 0;
 }
 
+// Bumped by every scroll a navigation starts, so retries left over from an
+// earlier navigation stop instead of scrolling the page that replaced it
+let scrollGeneration = 0;
+
 // Pages restored from cache are tall enough straight away; give slower
 // content up to ~1.5s to grow before settling for the closest position
-function scrollWhenReady(getTarget: () => number, attempt = 0) {
+function scrollWhenReady(
+  getTarget: () => number,
+  generation = ++scrollGeneration,
+  attempt = 0,
+) {
+  if (generation !== scrollGeneration) return;
   const target = getTarget();
   const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
   if (target <= maxScroll || attempt >= 30) {
     window.scrollTo(0, Math.min(target, Math.max(maxScroll, 0)));
     return;
   }
-  setTimeout(() => scrollWhenReady(getTarget, attempt + 1), 50);
+  setTimeout(() => scrollWhenReady(getTarget, generation, attempt + 1), 50);
 }
 
-// Call from the Router with the current location so each navigation scrolls
-// after its page is in the DOM but before the browser paints it
-export function useScrollOnNavigate(locationKey: string) {
+// Call once from the Router so each navigation scrolls after its page is in
+// the DOM but before the browser paints it
+export function useScrollOnNavigate() {
+  const snapshot = useSyncExternalStore(subscribe, getLocationSnapshot);
   useLayoutEffect(() => {
     const getTarget = pendingScroll;
     pendingScroll = null;
     if (getTarget) scrollWhenReady(getTarget);
-  }, [locationKey]);
+  }, [snapshot]);
 }
 
 export function navigate(to: string, options: { replace?: boolean } = {}) {
@@ -145,10 +165,10 @@ export function navigate(to: string, options: { replace?: boolean } = {}) {
     return;
   }
   const path = url.pathname + url.search + url.hash;
-  if (path === getLocationSnapshot() + window.location.hash) {
+  if (path === currentPath()) {
     // Same page: like a normal link to the current URL, no new history
     // entry, and nothing re-renders, so scroll straight away
-    window.scrollTo(0, hashTarget(url.hash));
+    scrollWhenReady(() => hashTarget(url.hash));
     return;
   }
   if (options.replace) {
@@ -190,6 +210,28 @@ function shouldHandleClick(event: MouseEvent, anchor: HTMLAnchorElement) {
   return !(samePage && url.hash);
 }
 
+// A plain click on a #anchor link within the current page
+function isInPageHashLink(event: MouseEvent, anchor: HTMLAnchorElement) {
+  if (
+    event.defaultPrevented ||
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey ||
+    (anchor.target && anchor.target !== "_self")
+  ) {
+    return false;
+  }
+  const url = new URL(anchor.href);
+  return (
+    url.origin === window.location.origin &&
+    url.pathname === window.location.pathname &&
+    url.search === window.location.search &&
+    url.hash !== ""
+  );
+}
+
 function closestAnchor(target: EventTarget | null) {
   return target instanceof Element
     ? target.closest<HTMLAnchorElement>("a[href]")
@@ -203,10 +245,17 @@ export function installNavigation(
 ) {
   document.addEventListener("click", (event) => {
     const anchor = closestAnchor(event.target);
-    if (!anchor || !shouldHandleClick(event, anchor)) return;
-    event.preventDefault();
-    const url = new URL(anchor.href);
-    navigate(url.pathname + url.search + url.hash);
+    if (!anchor) return;
+    if (shouldHandleClick(event, anchor)) {
+      event.preventDefault();
+      const url = new URL(anchor.href);
+      navigate(url.pathname + url.search + url.hash);
+    } else if (isInPageHashLink(event, anchor)) {
+      // The browser follows in-page #anchor links itself (and fires
+      // hashchange, which some pages listen for). Save the position first,
+      // since it has already scrolled to the anchor by the time popstate fires
+      rememberScroll();
+    }
   });
 
   currentEntryKey = readHistoryState<string>("key") ?? newEntryKey();
@@ -215,13 +264,23 @@ export function installNavigation(
   // Registered before React subscribes, so this runs before the re-render,
   // while the page being left is still on screen
   window.addEventListener("popstate", () => {
-    rememberScroll();
-    const key = readHistoryState<string>("key") ?? newEntryKey();
-    currentEntryKey = key;
-    updateHistoryState({ key });
     updateCanonical(window.location.pathname);
+    const existingKey = readHistoryState<string>("key");
+    if (!existingKey) {
+      // A brand-new entry: the browser just followed an in-page #anchor link
+      // and has already scrolled to it, and the click handler saved where we
+      // were. Give the entry an id so Back/Forward can find it later.
+      currentEntryKey = newEntryKey();
+      updateHistoryState({ key: currentEntryKey });
+      pendingScroll = null;
+      return;
+    }
+    rememberScroll();
+    currentEntryKey = existingKey;
     pendingScroll = () =>
-      scrollPositions.get(key) ?? readHistoryState<number>("scrollY") ?? 0;
+      scrollPositions.get(existingKey) ??
+      readHistoryState<number>("scrollY") ??
+      0;
   });
 
   // Start loading a page's data as soon as someone shows intent to open it:

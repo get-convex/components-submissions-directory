@@ -135,13 +135,13 @@ export default function Directory() {
   }, [searchTerm, sortBy, visibleBySection]);
 
   // Moving between directory history entries while it stays mounted (the
-  // header search pushes /components/?q=..., then Back/Forward): restore that
-  // entry's saved controls, or start from its ?q= if it has none yet
-  const { search } = useLocation();
-  const lastSearch = useRef(search);
+  // header search or the All link push a new entry, then Back/Forward):
+  // restore that entry's saved controls, or start from its ?q= if it has none
+  const { search, entryKey } = useLocation();
+  const lastEntryKey = useRef(entryKey);
   useEffect(() => {
-    if (search === lastSearch.current) return;
-    lastSearch.current = search;
+    if (entryKey === lastEntryKey.current) return;
+    lastEntryKey.current = entryKey;
     const saved = readHistoryState<DirectoryHistoryState>(
       DIRECTORY_HISTORY_KEY,
     );
@@ -155,7 +155,7 @@ export default function Directory() {
     setSearchTerm(nextSearchTerm);
     setSortBy(nextSortBy);
     setVisibleBySection(saved?.visibleBySection ?? {});
-  }, [search]);
+  }, [entryKey, search]);
 
   // One-shot fetches for public catalog data (no reactive subscription
   // overhead). A catalog loaded earlier in this session renders straight away.
@@ -220,12 +220,13 @@ export default function Directory() {
 
   useEffect(() => {
     // Show this sort's cached catalog straight away and only refetch when it's
-    // missing or over a minute old. Bumping the generation drops any older
-    // request still in flight for a different sort.
+    // missing or over a minute old. Bumping the generation (and aborting)
+    // drops any older request still in flight for a different sort.
     const cachedPage = getCachedDirectoryPage(sortBy);
     if (cachedPage) {
       fetchGeneration.current += 1;
       fetchInFlight.current = false;
+      loadController.current?.abort();
       applyData(cachedPage.data);
       lastLoadedAt.current = cachedPage.loadedAt;
       if (Date.now() - cachedPage.loadedAt < CATALOG_REFRESH_AFTER_MS) return;

@@ -131,6 +131,7 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
     const cachedPage = getCachedDirectoryPage(sortBy, categorySlug);
     if (cachedPage) {
       fetchGeneration.current += 1;
+      loadController.current?.abort();
       applyData(cachedPage.data);
       if (Date.now() - cachedPage.loadedAt < CATALOG_REFRESH_AFTER_MS) return;
     }

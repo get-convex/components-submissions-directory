@@ -112,8 +112,8 @@ function slugFromPathname(pathname: string): string | null {
 }
 
 function Router() {
-  const { pathname: path, search } = useLocation();
-  useScrollOnNavigate(path + search);
+  const { pathname: path } = useLocation();
+  useScrollOnNavigate();
 
   // /components/categories without a slug goes to the directory
   const isBareCategories = /^\/components\/categories\/?$/.test(path);
