@@ -25,6 +25,7 @@ import {
   Export,
   FilePdf,
 } from "@phosphor-icons/react";
+import { navigate } from "../lib/router";
 
 function useBasePath() {
   return "/components";
@@ -420,7 +421,7 @@ function NpmSyncCell({
 function RedirectToProfile() {
   const basePath = useBasePath();
   useEffect(() => {
-    window.location.replace(`${basePath}/profile`);
+    navigate(`${basePath}/profile`, { replace: true });
   }, [basePath]);
   return (
     <div className="flex justify-center items-center py-12">

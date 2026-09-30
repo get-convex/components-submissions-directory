@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { MagnifyingGlass, ArrowRight } from "@phosphor-icons/react";
 import { CheckCircledIcon } from "@radix-ui/react-icons";
+import { navigate } from "../lib/router";
 
 const BASE_PATH = "/components";
 const MIN_CHARS = 2;
@@ -76,7 +77,7 @@ export function HeaderSearch() {
 
   const goToDirectory = () => {
     if (!term.trim()) return;
-    window.location.href = directoryHref;
+    navigate(directoryHref);
   };
 
   // Reset keyboard highlight whenever the result set changes
@@ -107,7 +108,7 @@ export function HeaderSearch() {
       if (activeIndex >= 0 && results && results[activeIndex]) {
         const item = results[activeIndex];
         setOpen(false);
-        window.location.href = item.slug ? `${BASE_PATH}/${item.slug}` : directoryHref;
+        navigate(item.slug ? `${BASE_PATH}/${item.slug}` : directoryHref);
       } else {
         goToDirectory();
       }

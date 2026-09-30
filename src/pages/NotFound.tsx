@@ -1,10 +1,11 @@
 // 404 Not Found page with isometric computer illustration
 import Header from "../components/Header";
+import { navigate } from "../lib/router";
 
 export default function NotFound() {
   const handleGoHome = () => {
     // Navigate to directory root (always /components)
-    window.location.href = "/components";
+    navigate("/components");
   };
 
   return (

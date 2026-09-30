@@ -8,7 +8,17 @@ import Header, { type DirectoryViewMode } from "../components/Header";
 import { FAQSection } from "../components/FAQSection";
 import { AuthoringBanner } from "../components/AuthoringBanner";
 import { setPageTitle, setPageDescription } from "../lib/seo";
-import { fetchDirectoryPage } from "../lib/convexHttp";
+import {
+  CATALOG_REFRESH_AFTER_MS,
+  fetchDirectoryPage,
+  getCachedDirectoryPage,
+  type DirectoryPageData,
+} from "../lib/convexHttp";
+import {
+  readHistoryState,
+  updateHistoryState,
+  useLocation,
+} from "../lib/router";
 import { CaretSortIcon, ChevronDownIcon } from "@radix-ui/react-icons";
 import { Robot, FileText, ArrowSquareOut } from "@phosphor-icons/react";
 import { FEATURED_THUMBNAIL } from "../lib/images";
@@ -16,9 +26,6 @@ import { FEATURED_THUMBNAIL } from "../lib/images";
 type SortBy = "newest" | "downloads" | "updated" | "rating" | "verified";
 
 const DIRECTORY_ROOT_HREF = "/components/";
-
-// Minimum data age before a focus or tab switch refetches the catalog
-const REFRESH_AFTER_MS = 60_000;
 
 const getGridColumnCount = (): number => {
   if (typeof window === "undefined") return 4;
@@ -34,6 +41,15 @@ const getInitialSearchTerm = (): string => {
   return new URLSearchParams(window.location.search).get("q") ?? "";
 };
 
+// Search, sort and "load more" progress saved on the history entry, so Back
+// to the directory restores them along with the scroll position
+interface DirectoryHistoryState {
+  searchTerm: string;
+  sortBy: SortBy;
+  visibleBySection: Record<string, number>;
+}
+const DIRECTORY_HISTORY_KEY = "directory";
+
 // Restore the last chosen grid/list view (grid is the default)
 const VIEW_MODE_STORAGE_KEY = "directoryViewMode";
 const getInitialViewMode = (): DirectoryViewMode => {
@@ -48,15 +64,22 @@ const getInitialViewMode = (): DirectoryViewMode => {
 };
 
 export default function Directory() {
-  const [searchTerm, setSearchTerm] = useState(getInitialSearchTerm);
-  const [sortBy, setSortBy] = useState<SortBy>("downloads");
+  const [restored] = useState(() =>
+    readHistoryState<DirectoryHistoryState>(DIRECTORY_HISTORY_KEY),
+  );
+  const [searchTerm, setSearchTerm] = useState(
+    () => restored?.searchTerm ?? getInitialSearchTerm(),
+  );
+  const [sortBy, setSortBy] = useState<SortBy>(
+    () => restored?.sortBy ?? "downloads",
+  );
   const [viewMode, setViewMode] =
     useState<DirectoryViewMode>(getInitialViewMode);
   const [sortOpen, setSortOpen] = useState(false);
   const [gridColumns, setGridColumns] = useState<number>(getGridColumnCount);
   const [visibleBySection, setVisibleBySection] = useState<
     Record<string, number>
-  >({});
+  >(() => restored?.visibleBySection ?? {});
   const desktopSortRef = useRef<HTMLDivElement>(null);
   const mobileSortRef = useRef<HTMLDivElement>(null);
   const groupedCardsPerLoad = 12;
@@ -86,30 +109,78 @@ export default function Directory() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Reset section paging when major directory controls change.
+  // Reset section paging when major directory controls change. Skipped on
+  // mount so a restored "load more" position survives Back.
+  const pagingResetReady = useRef(false);
   useEffect(() => {
+    if (!pagingResetReady.current) {
+      pagingResetReady.current = true;
+      return;
+    }
     setVisibleBySection({});
     if (searchTerm) {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [searchTerm, sortBy, gridColumns]);
 
-  // One-shot fetches for public catalog data (no reactive subscription overhead)
-  const [components, setComponents] = useState<any[] | undefined>(undefined);
-  const [categories, setCategories] = useState<any[] | undefined>(undefined);
-  const [featured, setFeatured] = useState<any[] | undefined>(undefined);
+  // Save search, sort and paging on this history entry for Back
+  useEffect(() => {
+    updateHistoryState({
+      [DIRECTORY_HISTORY_KEY]: { searchTerm, sortBy, visibleBySection },
+    });
+  }, [searchTerm, sortBy, visibleBySection]);
+
+  // The header search navigates to /components/?q=...; follow it while the
+  // directory is already open
+  const { search } = useLocation();
+  const urlQuery = new URLSearchParams(search).get("q");
+  const lastUrlQuery = useRef(urlQuery);
+  useEffect(() => {
+    if (urlQuery !== lastUrlQuery.current) {
+      lastUrlQuery.current = urlQuery;
+      setSearchTerm(urlQuery ?? "");
+    }
+  }, [urlQuery]);
+
+  // One-shot fetches for public catalog data (no reactive subscription
+  // overhead). A catalog loaded earlier in this session renders straight away.
+  const [cached] = useState(() => getCachedDirectoryPage(sortBy));
+  const [components, setComponents] = useState<any[] | undefined>(
+    cached?.data.components,
+  );
+  const [categories, setCategories] = useState<any[] | undefined>(
+    cached?.data.categories,
+  );
+  const [featured, setFeatured] = useState<any[] | undefined>(
+    cached ? (cached.data.featured ?? []) : undefined,
+  );
   const [downloadsDisplay, setDownloadsDisplay] = useState<{
     showWeeklyDownloads: boolean;
     showAllTimeDownloads: boolean;
-  }>({ showWeeklyDownloads: true, showAllTimeDownloads: false });
+  }>(
+    cached?.data.downloadsDisplay ?? {
+      showWeeklyDownloads: true,
+      showAllTimeDownloads: false,
+    },
+  );
   // Global admin toggle: show thumbnails on list-view rows (default off)
   const [listViewSettings, setListViewSettings] = useState<{
     showListViewThumbnails: boolean;
-  }>({ showListViewThumbnails: false });
+  }>(cached?.data.listViewSettings ?? { showListViewThumbnails: false });
+
+  const applyData = useCallback((data: DirectoryPageData) => {
+    setComponents(data.components);
+    setCategories(data.categories);
+    setFeatured(data.featured ?? []);
+    setDownloadsDisplay(data.downloadsDisplay);
+    setListViewSettings(
+      data.listViewSettings ?? { showListViewThumbnails: false },
+    );
+  }, []);
 
   const fetchGeneration = useRef(0);
   const fetchInFlight = useRef(false);
-  const lastLoadedAt = useRef(0);
+  const lastLoadedAt = useRef(cached?.loadedAt ?? 0);
   // Aborted when a newer load starts, so a superseded one stops retrying
   const loadController = useRef<AbortController | null>(null);
   const fetchData = useCallback(async () => {
@@ -122,13 +193,7 @@ export default function Directory() {
       const data = await fetchDirectoryPage(sortBy, undefined, controller.signal);
       if (gen !== fetchGeneration.current) return;
       lastLoadedAt.current = Date.now();
-      setComponents(data.components);
-      setCategories(data.categories);
-      setFeatured(data.featured ?? []);
-      setDownloadsDisplay(data.downloadsDisplay);
-      setListViewSettings(
-        data.listViewSettings ?? { showListViewThumbnails: false },
-      );
+      applyData(data);
     } catch (error) {
       if (controller.signal.aborted) return;
       // Keep whatever is on screen; the next focus or visibility change retries
@@ -136,11 +201,22 @@ export default function Directory() {
     } finally {
       if (gen === fetchGeneration.current) fetchInFlight.current = false;
     }
-  }, [sortBy]);
+  }, [sortBy, applyData]);
 
   useEffect(() => {
+    // Show this sort's cached catalog straight away and only refetch when it's
+    // missing or over a minute old. Bumping the generation drops any older
+    // request still in flight for a different sort.
+    const cachedPage = getCachedDirectoryPage(sortBy);
+    if (cachedPage) {
+      fetchGeneration.current += 1;
+      fetchInFlight.current = false;
+      applyData(cachedPage.data);
+      lastLoadedAt.current = cachedPage.loadedAt;
+      if (Date.now() - cachedPage.loadedAt < CATALOG_REFRESH_AFTER_MS) return;
+    }
     void fetchData();
-  }, [fetchData]);
+  }, [fetchData, sortBy, applyData]);
 
   useEffect(() => () => loadController.current?.abort(), []);
 
@@ -152,7 +228,7 @@ export default function Directory() {
     // load, so only react to back/forward cache restores.
     const refreshIfStale = () => {
       if (fetchInFlight.current) return;
-      if (Date.now() - lastLoadedAt.current < REFRESH_AFTER_MS) return;
+      if (Date.now() - lastLoadedAt.current < CATALOG_REFRESH_AFTER_MS) return;
       void fetchData();
     };
     const handleVisibilityChange = () => {

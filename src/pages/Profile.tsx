@@ -35,6 +35,7 @@ import {
   ArrowsClockwise,
   GithubLogo,
 } from "@phosphor-icons/react";
+import { navigate } from "../lib/router";
 
 // Get base path for links (always /components)
 function useBasePath() {
@@ -1928,7 +1929,7 @@ export default function Profile() {
                     setNotesModal({ packageId: id, packageName: name })
                   }
                   onEdit={(id) => {
-                    window.location.href = `${basePath}/profile/edit/${id}`;
+                    navigate(`${basePath}/profile/edit/${id}`);
                   }}
                 />
               ))}

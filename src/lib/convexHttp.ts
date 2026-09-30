@@ -27,25 +27,58 @@ const httpClient = new ConvexHttpClient(
   import.meta.env.VITE_CONVEX_URL as string,
 );
 
+type ComponentBySlug = FunctionReturnType<
+  typeof api.packages.getComponentBySlug
+>;
+
+// One-shot HTTP results for component pages, keyed by slug. Filled when a
+// link is hovered or touched (prefetchComponent) and when a page opens, so
+// in-app navigation can render straight away while the live query catches up.
+const componentRequests = new Map<
+  string,
+  Promise<ComponentBySlug | undefined>
+>();
+const componentResults = new Map<string, ComponentBySlug>();
+
+function requestComponent(slug: string) {
+  let request = componentRequests.get(slug);
+  if (!request) {
+    request = httpClient
+      .query(api.packages.getComponentBySlug, { slug })
+      .then((result) => {
+        componentResults.set(slug, result);
+        return result;
+      })
+      .catch(() => {
+        // Allow a retry later; the live subscription remains the source of truth
+        componentRequests.delete(slug);
+        return undefined;
+      });
+    componentRequests.set(slug, request);
+  }
+  return request;
+}
+
+export function prefetchComponent(slug: string) {
+  void requestComponent(slug);
+}
+
 export function useComponentBySlug(slug: string) {
   // Reactive value: drives live updates once the websocket connects.
   const live = useQuery(api.packages.getComponentBySlug, { slug });
 
   // One-shot HTTP fallback: resolves even when the websocket cannot connect.
-  const [http, setHttp] = useState<typeof live>(undefined);
+  const [http, setHttp] = useState<ComponentBySlug | undefined>(() =>
+    componentResults.get(slug),
+  );
 
   useEffect(() => {
     let cancelled = false;
-    // Reset so a slug change does not briefly show the previous component.
-    setHttp(undefined);
-    httpClient
-      .query(api.packages.getComponentBySlug, { slug })
-      .then((result) => {
-        if (!cancelled) setHttp(result);
-      })
-      .catch(() => {
-        // Ignore: the live subscription remains the source of truth.
-      });
+    // Show a prefetched result straight away, and never the previous slug's.
+    setHttp(componentResults.get(slug));
+    void requestComponent(slug).then((result) => {
+      if (!cancelled && result !== undefined) setHttp(result);
+    });
     return () => {
       cancelled = true;
     };
@@ -101,6 +134,24 @@ async function readDirectoryPage(
     typeof data.downloadsDisplay === "object" &&
     data.downloadsDisplay !== null;
   return isValid ? (data as DirectoryPageData) : null;
+}
+
+// How long a loaded catalog counts as fresh before focus, tab switches or
+// revisits refetch it
+export const CATALOG_REFRESH_AFTER_MS = 60_000;
+
+// Last successful catalog response per URL, so going Back to the directory
+// or a category renders straight away instead of showing a skeleton.
+const directoryPageCache = new Map<
+  string,
+  { data: DirectoryPageData; loadedAt: number }
+>();
+
+export function getCachedDirectoryPage(
+  sortBy: DirectorySort,
+  category?: string,
+) {
+  return directoryPageCache.get(directoryPageUrl(sortBy, category));
 }
 
 // Must build the exact same URL as the inline script in index.html.
@@ -161,6 +212,10 @@ export function fetchDirectoryPage(
         (data) => {
           if (settled) return;
           finish();
+          directoryPageCache.set(directoryPageUrl(sortBy, category), {
+            data,
+            loadedAt: Date.now(),
+          });
           resolve(data);
         },
         (error) => {

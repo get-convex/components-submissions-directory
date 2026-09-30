@@ -5,7 +5,13 @@ import { CategorySidebar } from "../components/CategorySidebar";
 import { SearchBar } from "../components/SearchBar";
 import Header from "../components/Header";
 import { setPageTitle, setPageDescription } from "../lib/seo";
-import { fetchDirectoryPage } from "../lib/convexHttp";
+import {
+  CATALOG_REFRESH_AFTER_MS,
+  fetchDirectoryPage,
+  getCachedDirectoryPage,
+  type DirectoryPageData,
+} from "../lib/convexHttp";
+import { navigate } from "../lib/router";
 import {
   CaretSortIcon,
   ChevronDownIcon,
@@ -68,14 +74,34 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
     }
   }, [searchTerm, sortBy]);
 
-  // One-shot fetches for public catalog data (no reactive subscription overhead)
-  const [categoryData, setCategoryData] = useState<any | undefined>(undefined);
-  const [categories, setCategories] = useState<any[] | undefined>(undefined);
-  const [components, setComponents] = useState<any[] | undefined>(undefined);
+  // One-shot fetches for public catalog data (no reactive subscription
+  // overhead). A catalog loaded earlier in this session renders straight away.
+  const [cached] = useState(() => getCachedDirectoryPage(sortBy, categorySlug));
+  const [categoryData, setCategoryData] = useState<any | undefined>(
+    cached ? cached.data.categoryData : undefined,
+  );
+  const [categories, setCategories] = useState<any[] | undefined>(
+    cached?.data.categories,
+  );
+  const [components, setComponents] = useState<any[] | undefined>(
+    cached?.data.components,
+  );
   const [downloadsDisplay, setDownloadsDisplay] = useState<{
     showWeeklyDownloads: boolean;
     showAllTimeDownloads: boolean;
-  }>({ showWeeklyDownloads: true, showAllTimeDownloads: false });
+  }>(
+    cached?.data.downloadsDisplay ?? {
+      showWeeklyDownloads: true,
+      showAllTimeDownloads: false,
+    },
+  );
+
+  const applyData = useCallback((data: DirectoryPageData) => {
+    setCategoryData(data.categoryData);
+    setCategories(data.categories);
+    setComponents(data.components);
+    setDownloadsDisplay(data.downloadsDisplay);
+  }, []);
 
   const fetchGeneration = useRef(0);
   // Aborted when a newer load starts, so a superseded one stops retrying
@@ -92,19 +118,24 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
         controller.signal,
       );
       if (gen !== fetchGeneration.current) return;
-      setCategoryData(data.categoryData);
-      setCategories(data.categories);
-      setComponents(data.components);
-      setDownloadsDisplay(data.downloadsDisplay);
+      applyData(data);
     } catch (error) {
       if (controller.signal.aborted) return;
       console.error("[CategoryPage] Failed to load components", error);
     }
-  }, [categorySlug, sortBy]);
+  }, [categorySlug, sortBy, applyData]);
 
   useEffect(() => {
+    // Use this sort's cached catalog straight away and only refetch when it's
+    // missing or stale. Bumping the generation drops older requests.
+    const cachedPage = getCachedDirectoryPage(sortBy, categorySlug);
+    if (cachedPage) {
+      fetchGeneration.current += 1;
+      applyData(cachedPage.data);
+      if (Date.now() - cachedPage.loadedAt < CATALOG_REFRESH_AFTER_MS) return;
+    }
     void fetchData();
-  }, [fetchData]);
+  }, [fetchData, sortBy, categorySlug, applyData]);
 
   useEffect(() => () => loadController.current?.abort(), []);
 
@@ -311,9 +342,9 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
                     selectedCategory={categorySlug}
                     onSelectCategory={(cat) => {
                       if (cat === null) {
-                        window.location.href = DIRECTORY_ROOT_HREF;
+                        navigate(DIRECTORY_ROOT_HREF);
                       } else {
-                        window.location.href = `/components/categories/${cat}`;
+                        navigate(`/components/categories/${cat}`);
                       }
                     }}
                     linkMode={true}
