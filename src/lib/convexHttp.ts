@@ -157,7 +157,7 @@ export function fetchDirectoryPage(
       const attempt = attempts++;
       clearTimeout(retryTimer);
       retryTimer = setTimeout(startAttempt, ATTEMPT_PATIENCE_MS);
-      loadDirectoryPage(sortBy, category).then(
+      loadDirectoryPage(sortBy, category, signal).then(
         (data) => {
           if (settled) return;
           finish();
@@ -192,7 +192,8 @@ export function fetchDirectoryPage(
 // late is still used. Rejects only when both have failed.
 function loadDirectoryPage(
   sortBy: DirectorySort,
-  category?: string,
+  category: string | undefined,
+  signal: AbortSignal | undefined,
 ): Promise<DirectoryPageData> {
   const url = directoryPageUrl(sortBy, category);
   const prefetch = window.__directoryPrefetch;
@@ -201,28 +202,41 @@ function loadDirectoryPage(
     window.__directoryPrefetch = undefined;
     request = prefetch.response;
   } else {
-    request = fetch(url);
+    request = fetch(url, { signal });
   }
 
   return new Promise((resolve, reject) => {
     let failures = 0;
     let fallbackStarted = false;
-    const succeed = (data: DirectoryPageData) => {
+    const stop = () => {
       clearTimeout(fallbackTimer);
+      signal?.removeEventListener("abort", onAbort);
+    };
+    // A newer load replaced this one: don't start the queries at all
+    const onAbort = () => {
+      stop();
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+    const succeed = (data: DirectoryPageData) => {
+      stop();
       resolve(data);
     };
     const fail = () => {
       failures += 1;
-      if (!fallbackStarted) startFallback();
-      else if (failures >= 2)
+      if (!fallbackStarted) {
+        startFallback();
+      } else if (failures >= 2) {
+        stop();
         reject(new Error("Directory data failed to load"));
+      }
     };
     const startFallback = () => {
-      if (fallbackStarted) return;
+      if (fallbackStarted || signal?.aborted) return;
       fallbackStarted = true;
       loadDirectoryQueries(sortBy, category).then(succeed, fail);
     };
     const fallbackTimer = setTimeout(startFallback, DIRECTORY_PAGE_TIMEOUT_MS);
+    signal?.addEventListener("abort", onAbort);
     readDirectoryPage(request).then(
       (data) => (data ? succeed(data) : fail()),
       fail,
