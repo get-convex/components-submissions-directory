@@ -52,9 +52,12 @@ Previous session: 2026-09-21 03:25 UTC. gitlab.com repositories are accepted eve
 - [ ] Enforcement by construction for public function auth
   - Add a `convex/access.ts` exporting `adminQuery` and `adminMutation` built on `customQuery`/`customMutation` from `convex-helpers`, then move admin functions onto them so the gate is structural instead of remembered per function. `packages.ts` alone has over 100 public functions, which is why the per-function pattern keeps slipping (three separate security fixes now: 2026-08-06, 2026-08-13, 2026-08-14).
 - [ ] Pre-existing app typecheck errors, unrelated to any recent change
-  - `src/components/CodeBlock.tsx:97` (`lineNumbers` not in shiki `FileOptions`), `src/pages/CategoryPage.tsx:128`, and `src/pages/ComponentDetail.tsx:1267-1268` (implicit `any`). Present before and after the 2026-08-14 security change and after a clean `_generated` rebuild. Likely fallout from the local `convex` package moving 1.32.0 to 1.44.0.
+  - `src/components/CodeBlock.tsx:112` (`lineNumbers` not in shiki `FileOptions`), `src/pages/CategoryPage.tsx:128`, and `src/pages/ComponentDetail.tsx:1267-1268` (implicit `any`). Present before and after the 2026-08-14 security change and after a clean `_generated` rebuild. Likely fallout from the local `convex` package moving 1.32.0 to 1.44.0.
 
 ## completed
+
+- [x] Render `txt` and unknown code fence languages as plain text (2026-09-30 06:46 UTC)
+  - `txt` fences on /components/workpool threw uncaught `resolveLanguage: "txt" not found` errors from `@pierre/diffs` and rendered empty. `CodeBlock` now sends empty, `text`, `txt`, `plaintext`, `plain`, and any language missing from Shiki's bundle to its `<pre>` path. Local production build: all 15 README code blocks on /components/workpool render (the 4 Axiom queries as plain text) with no console errors, and agent, workflow, rate-limiter and aggregate still highlight. Typecheck and eslint show only the pre-existing errors.
 
 - [x] Monorepo folder URL tip (2026-09-26 08:32 UTC)
   - PRD: `prds/monorepo-aware-preflight.md` (follow-up entry)

@@ -392,7 +392,7 @@ Auto-generated files by Convex: `api.d.ts`, `api.js`, `dataModel.d.ts`, `server.
 
 ### `src/main.tsx`
 
-Application entry point. Sets up Convex React client with a custom Connect OAuth provider (`ConnectAuthProvider`) and `ConvexProviderWithAuthKit` token bridge. Wraps the tree in `WebAnalyticsProvider` from `@convex-internal/web-analytics/react` (shared `allowsCookies` consent and PostHog). No extra env vars. Includes a `PageErrorBoundary` class component that catches rendering errors (including `useQuery` failures) and shows a reload prompt instead of killing the entire React tree. The `ComponentDetail` route is wrapped in this boundary so backend query errors or markdown rendering crashes degrade gracefully. Disables browser scroll restoration (`history.scrollRestoration = "manual"`) and scrolls to top on init so every full-page navigation starts at the top. Includes global Footer component with 50px top padding. All routes live under `/components/*` and root redirects now normalize back to `/components/` for Vite base-path safety:
+Application entry point. Sets up Convex React client with a custom Connect OAuth provider (`ConnectAuthProvider`) and `ConvexProviderWithAuthKit` token bridge. Renders `DeferredWebAnalytics` next to the app, which loads `WebAnalyticsProvider` from `@convex-internal/web-analytics/react` (shared `allowsCookies` consent and PostHog) after the page has loaded. No extra env vars. Includes a `PageErrorBoundary` class component that catches rendering errors (including `useQuery` failures) and shows a reload prompt instead of killing the entire React tree. The `ComponentDetail` route is wrapped in this boundary so backend query errors or markdown rendering crashes degrade gracefully. Disables browser scroll restoration (`history.scrollRestoration = "manual"`) and scrolls to top on init so every full-page navigation starts at the top. Includes global Footer component with 50px top padding. All routes live under `/components/*` and root redirects now normalize back to `/components/` for Vite base-path safety:
 - `/components/` = Directory (approved components, public)
 - `/components/categories/:slug` = CategoryPage (category landing page with pagination, public)
 - `/components/submissions` = Submit.tsx via `SubmissionsGate` (admin only, requires @convex.dev email; everyone else is redirected to `/components`)
@@ -447,6 +447,10 @@ Reusable FAQ section component displayed on the Directory and SubmitForm pages. 
 - How do I report a component? (takedown process, contact Convex)
 - Who decides if a component gets removed? (Convex team, submitter notified)
 - What is the review flow? (pending > AI review > manual review > approved)
+
+### `src/components/DeferredWebAnalytics.tsx`
+
+Loads the shared `WebAnalyticsProvider` (PostHog init plus the consent banner) as a lazy chunk once the page's `load` event has fired and the browser is idle, instead of wrapping the app. posthog-js is ~180 KB minified, so this keeps it out of the entry bundle. Safe because nothing in the app reads the provider's consent context; if something ever needs `useConsent`, wrap the app in the provider again.
 
 ### `src/components/Footer.tsx`
 
@@ -694,7 +698,7 @@ Shared `react-markdown` component overrides used across submit preview, detail p
 
 ### `src/components/CodeBlock.tsx`
 
-Shared markdown code block renderer built on `@pierre/diffs/react`. Normalizes README and generated-content fenced code blocks into Pierre `FileContents`, adds syntax highlighting plus line numbers, passes the correct `name` field so markdown rendering does not crash on migrated detail pages, and includes a built-in copy button. Plain text code blocks (no language tag detected) now render as a simple `<pre>` element instead of PierreFile to prevent potential syntax highlighter hangs on non-code content like Unicode box-drawing diagrams.
+Shared markdown code block renderer built on `@pierre/diffs/react`. Normalizes README and generated-content fenced code blocks into Pierre `FileContents`, adds syntax highlighting plus line numbers, passes the correct `name` field so markdown rendering does not crash on migrated detail pages, and includes a built-in copy button. Plain text code blocks (no language tag, or `text`, `txt`, `plaintext`, `plain`) render as a simple `<pre>` element instead of PierreFile to prevent potential syntax highlighter hangs on non-code content like Unicode box-drawing diagrams. Languages missing from Shiki's `bundledLanguages` use the same `<pre>`, because `@pierre/diffs` throws an uncaught rejection and renders an empty block for them.
 
 ### `src/components/CodeBlockLazy.tsx`
 

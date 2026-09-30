@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Analytics load after the page instead of before it (2026-09-30)
+  - posthog-js (~180 KB minified, 53 KB brotli) came in through the shared analytics provider wrapped around the app, so every visitor downloaded and parsed it before the first render. `DeferredWebAnalytics` now renders the provider next to the app and loads it once the page has loaded and the browser is idle. Nothing in the app reads its consent context.
+  - Entry bundle: 1,093 KB to 907 KB minified (266 KB to 213 KB brotli).
+  - Files: `src/components/DeferredWebAnalytics.tsx` (new), `src/main.tsx`
+
 ### Fixed
 
 - Netlify now applies our header and redirect rules (2026-09-30)
@@ -39,6 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- README code blocks tagged `txt`, `plaintext` or `plain`, or with a language Shiki doesn't bundle, now render as plain text. Before, `@pierre/diffs` threw uncaught `resolveLanguage: "txt" not found in bundled or custom languages` errors and left the block empty, so the four Axiom queries on /components/workpool collapsed to a thin empty line (2026-09-30 06:46 UTC)
+  - `CodeBlock` sends plain text tags, and any language missing from Shiki's `bundledLanguages` (except `ansi`, which Shiki handles itself), to its existing `<pre>` path. `shiki` is now listed in `package.json`; it was already installed through `@pierre/diffs`.
+  - Files: `src/components/CodeBlock.tsx`, `package.json`
 - Monorepo components like `https://github.com/daytona/integrations` failed preflight with "No convex.config.ts found" because branch and folder were dropped from the URL. They now pass (2026-09-26 08:14 UTC)
 - GitLab repositories now get a real preflight and admin AI review instead of an "Invalid GitHub repository URL" error
 - Two components in the same monorepo no longer share one cached preflight result
