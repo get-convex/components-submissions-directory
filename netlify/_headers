@@ -1,0 +1,38 @@
+# Response headers for the Netlify deploy. vite.config.ts copies this file to
+# the publish root (dist/_headers), which is where Netlify reads it from.
+#
+# Keep header rules here, not in netlify.toml: on this site Netlify ignores
+# [[headers]] (and [[redirects]]) in netlify.toml. Every deploy reported "No
+# header rules processed" and hashed assets were served with max-age=0.
+#
+# Headers only apply to files Netlify serves from its own store, not to
+# responses from an edge function, so og-meta excludes assets and fonts.
+
+# Hashed build assets are content-addressed, safe to cache forever
+/components/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Fonts are not content-hashed: cache for a week and revalidate in the
+# background, so an in-place font swap propagates within a week
+/components/fonts/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+# Noindex for admin, auth and internal routes. Defence in depth only: these
+# are HTML routes served through og-meta, which sets X-Robots-Tag itself
+/components/submissions
+  X-Robots-Tag: noindex, nofollow
+
+/components/submissions/admin
+  X-Robots-Tag: noindex, nofollow
+
+/components/callback
+  X-Robots-Tag: noindex, nofollow
+
+/components/profile
+  X-Robots-Tag: noindex, nofollow
+
+/components/profile/*
+  X-Robots-Tag: noindex, nofollow
+
+/components/dashboard
+  X-Robots-Tag: noindex, nofollow
