@@ -217,12 +217,14 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
     );
   }, [components, searchTerm]);
 
-  // Pagination
+  // Pagination. A restored page (or the one you were on when the catalog
+  // refreshed) can be past the end if the category shrank, so clamp it.
   const totalPages = Math.ceil(filteredComponents.length / ITEMS_PER_PAGE);
+  const page = Math.min(currentPage, Math.max(1, totalPages));
   const paginatedComponents = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const startIndex = (page - 1) * ITEMS_PER_PAGE;
     return filteredComponents.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredComponents, currentPage]);
+  }, [filteredComponents, page]);
 
   const directoryCardHoverClass =
     "hover:bg-[rgb(246_238_219/var(--tw-bg-opacity,1))]";
@@ -567,20 +569,20 @@ export default function CategoryPage({ categorySlug }: CategoryPageProps) {
                 {totalPages > 1 && (
                   <div className="mt-8 flex items-center justify-center gap-2">
                     <button
-                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(Math.max(1, page - 1))}
+                      disabled={page === 1}
                       className="px-3 py-1.5 text-sm rounded-md border border-border bg-white text-text-primary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bg-secondary transition-colors"
                     >
                       Previous
                     </button>
                     <span className="text-sm text-text-secondary px-3">
-                      Page {currentPage} of {totalPages}
+                      Page {page} of {totalPages}
                     </span>
                     <button
                       onClick={() =>
-                        setCurrentPage((p) => Math.min(totalPages, p + 1))
+                        setCurrentPage(Math.min(totalPages, page + 1))
                       }
-                      disabled={currentPage === totalPages}
+                      disabled={page === totalPages}
                       className="px-3 py-1.5 text-sm rounded-md border border-border bg-white text-text-primary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bg-secondary transition-colors"
                     >
                       Next
