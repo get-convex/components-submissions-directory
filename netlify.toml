@@ -29,7 +29,7 @@
 # every deploy.
 [[edge_functions]]
   path = "/components/*"
-  excludedPath = ["/components/assets/*", "/components/fonts/*"]
+  excludedPath = ["/components/assets/*", "/components/fonts/*", "/components/_img/*", "/components/_src/*"]
   function = "og-meta"
   cache = "manual"
 

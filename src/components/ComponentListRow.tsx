@@ -2,6 +2,11 @@
 // shape as ComponentCard; thumbnail (when enabled) renders on the right.
 import { DownloadIcon, CheckCircledIcon } from "@radix-ui/react-icons";
 import type { CuratedBadge } from "./ComponentCard";
+import {
+  LIST_ROW_THUMBNAIL,
+  avatarUrl,
+  thumbnailImageProps,
+} from "../lib/images";
 
 interface ComponentListRowProps {
   name: string;
@@ -132,7 +137,7 @@ export function ComponentListRow({
             <span className="flex min-w-0 items-center gap-1.5">
               {authorAvatar ? (
                 <img
-                  src={authorAvatar}
+                  src={avatarUrl(authorAvatar)}
                   alt={authorUsername}
                   width={16}
                   height={16}
@@ -155,10 +160,10 @@ export function ComponentListRow({
       </div>
 
       {/* Right: optional thumbnail (fixed size so rows never shift) */}
-      {shouldShowThumbnail && (
+      {shouldShowThumbnail && thumbnailUrl && (
         <div className="aspect-video w-28 shrink-0 overflow-hidden rounded-lg border border-border bg-bg-secondary sm:w-32">
           <img
-            src={thumbnailUrl}
+            {...thumbnailImageProps(thumbnailUrl, LIST_ROW_THUMBNAIL)}
             alt={displayName}
             width={1536}
             height={864}

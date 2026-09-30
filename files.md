@@ -53,7 +53,7 @@ Git ignore patterns for node_modules, dist, build artifacts, and editor files. I
 
 Netlify deployment configuration: build command (`npm run build`), publish directory (`dist`), Node version (20) and edge function mappings. Header and redirect rules are NOT in this file: on this site Netlify ignores `[[headers]]` and `[[redirects]]` in netlify.toml (every deploy reported "No header rules processed", and a new `[[redirects]]` rule 404'd on a deploy preview while the same rule in `_redirects` worked), so they live in `netlify/_headers` and `netlify/_redirects`. Edge function settings here are applied:
   - `/components/badge/*` -> `netlify/edge-functions/component-badge.ts` (proxies badge SVG by slug to Convex HTTP badge endpoint)
-  - `/components/*` -> `netlify/edge-functions/og-meta.ts` (injects component-specific OG meta tags and directly proxies sitemap/llms.txt/components.md/get-convex routes that cannot rely on redirects after edge functions); `excludedPath` keeps `/components/assets/*` and `/components/fonts/*` out of the edge function so the `_headers` cache rules apply; `cache = "manual"` lets Netlify's edge cache og-meta responses that send cache headers (component pages), purged on every deploy
+  - `/components/*` -> `netlify/edge-functions/og-meta.ts` (injects component-specific OG meta tags and directly proxies sitemap/llms.txt/components.md/get-convex routes that cannot rely on redirects after edge functions); `excludedPath` keeps `/components/assets/*`, `/components/fonts/*` and the `/components/_img/*` and `/components/_src/*` image routes out of the edge function; `cache = "manual"` lets Netlify's edge cache og-meta responses that send cache headers (component pages), purged on every deploy
   - `/components/*/*.md` -> `netlify/edge-functions/component-markdown.ts` (keeps Netlify URL, proxies markdown by slug)
 
 ### `netlify/_headers`
@@ -62,7 +62,7 @@ Response header rules, copied to `dist/_headers` by the `netlifyRootFiles` plugi
 
 ### `netlify/_redirects`
 
-Redirect and rewrite rules, copied to `dist/_redirects` by `vite.config.ts`. Root `/` to `/components` (301), `/components.md` proxy to the Convex markdown index, `/api/components/*` proxy to the Convex REST API, a 404 for `/components/images/*`, and the SPA fallbacks for `/components` and `/components/*`. The llms.txt, markdown and badge routes under `/components/*` are handled by the edge functions instead.
+Redirect and rewrite rules, copied to `dist/_redirects` by `vite.config.ts`. Root `/` to `/components` (301), `/components.md` proxy to the Convex markdown index, `/api/components/*` proxy to the Convex REST API, a 404 for `/components/images/*`, the `/components/_img/:width/:id` rewrite to Netlify Image CDN (resized thumbnails) with its `/components/_src/:id` storage proxy (a local source needs no `[images]` allowlist, which Netlify ignores in netlify.toml here), and the SPA fallbacks for `/components` and `/components/*`. The llms.txt, markdown and badge routes under `/components/*` are handled by the edge functions instead.
 
 Session note (2026-03-06): Live endpoint checks showed `www.convex.dev/components/api/mcp/protocol` still returning SPA HTML while direct Convex MCP endpoint `https://giant-grouse-674.convex.site/api/mcp/protocol` returns valid JSON-RPC responses.
 
@@ -662,7 +662,7 @@ Compact horizontal row for the directory list view. Same data props as `Componen
 
 ### `src/components/ComponentCard.tsx`
 
-Component card for directory listing. Shows thumbnail, name, description, downloads, version, verified badge, and community badge. Accepts `allTimeDownloads` plus `showWeeklyDownloads` / `showAllTimeDownloads` display flags (driven by the admin Downloads Display toggles) and renders `X/wk`, `Y total`, or both side by side; the compact formatter supports k/M/B tiers and the all-time figure is hidden (never 0) when a package has no stored value. Supports `showThumbnail` prop to conditionally hide thumbnails (used for hiding thumbnails in category listings while showing them in Featured section). Badge placement behavior: when a component has only Community, it uses the same right-side badge position as Verified; when both badges are present, Community appears before Verified. The Community pill is text-only (no person icon); Verified keeps its check icon. Curated category badge images (from the `curatedBadges` prop) render inline in the title, right before the first letter of the component name, with the category label as tooltip; badge-less curated memberships render nothing.
+Component card for directory listing. Shows thumbnail, name, description, downloads, version, verified badge, and community badge. Accepts `allTimeDownloads` plus `showWeeklyDownloads` / `showAllTimeDownloads` display flags (driven by the admin Downloads Display toggles) and renders `X/wk`, `Y total`, or both side by side; the compact formatter supports k/M/B tiers and the all-time figure is hidden (never 0) when a package has no stored value. Thumbnails use `thumbnailImageProps` from `src/lib/images.ts` (resized srcset with a fallback to the original) and avatars use `avatarUrl`; the `priority` prop loads the thumbnail eagerly with `fetchpriority="high"` (used for the above-the-fold Featured row). Supports `showThumbnail` prop to conditionally hide thumbnails (used for hiding thumbnails in category listings while showing them in Featured section). Badge placement behavior: when a component has only Community, it uses the same right-side badge position as Verified; when both badges are present, Community appears before Verified. The Community pill is text-only (no person icon); Verified keeps its check icon. Curated category badge images (from the `curatedBadges` prop) render inline in the title, right before the first letter of the component name, with the category label as tooltip; badge-less curated memberships render nothing.
 
 ### `src/components/CategorySidebar.tsx`
 
@@ -727,6 +727,10 @@ Admin editor for directory-specific fields: slug, category, tags, descriptions, 
 ### `src/lib/convexHttp.ts`
 
 Module-level `ConvexHttpClient` plus the `useComponentBySlug(slug)` hook. The hook reads component data through the reactive `useQuery` websocket subscription and, in parallel, issues a one-shot HTTP query to the same public `packages:getComponentBySlug` function (the `/api/query` endpoint). It returns the live value once the websocket connects and the HTTP result otherwise, preserving the `undefined` (loading) / `null` (not found) / document contract. This lets search engine renderers (e.g. Googlebot), which often cannot complete the Convex websocket within their render budget, still receive content so `ComponentDetail.tsx` renders a crawlable page.
+
+### `src/lib/images.ts`
+
+Image URL helpers for public pages. `thumbnailImageProps(url, sizing)` turns a Convex storage thumbnail URL into `src`/`srcSet`/`sizes` pointing at the `/components/_img/<width>/<storageId>` Netlify Image CDN rewrite (production builds only), with an `onError` that falls back to the original URL. Sizing presets: `CARD_THUMBNAIL`, `LIST_ROW_THUMBNAIL`, `DETAIL_THUMBNAIL`. `avatarUrl(url)` adds `?size=64` to `https://github.com/<name>.png` avatars (the direct `avatars.githubusercontent.com/<name>` form is avoided because it returns a placeholder for organisations).
 
 ### `src/lib/categories.ts`
 

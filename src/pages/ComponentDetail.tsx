@@ -50,6 +50,11 @@ import {
   Share1Icon,
 } from "@radix-ui/react-icons";
 import { AgentInstallSection } from "../components/AgentInstallSection";
+import {
+  DETAIL_THUMBNAIL,
+  avatarUrl,
+  thumbnailImageProps,
+} from "../lib/images";
 import { FileArrowDown, ClipboardText, DiscordLogo } from "@phosphor-icons/react";
 
 class MarkdownErrorBoundary extends Component<
@@ -1148,7 +1153,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                       <div className="flex items-center gap-2 mb-1">
                         {rel.authorAvatar && (
                           <img
-                            src={rel.authorAvatar}
+                            src={avatarUrl(rel.authorAvatar)}
                             alt={rel.authorUsername}
                             className="w-5 h-5 rounded-full"
                             loading="lazy"
@@ -1247,7 +1252,10 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
             {component.thumbnailUrl && (
               <div className="rounded-lg overflow-hidden">
                 <img
-                  src={component.thumbnailUrl}
+                  {...thumbnailImageProps(
+                    component.thumbnailUrl,
+                    DETAIL_THUMBNAIL,
+                  )}
                   alt={component.name}
                   className="w-full aspect-video object-cover"
                 />
@@ -1453,7 +1461,7 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
                     className="inline-flex items-center gap-2 group">
                     {component.authorAvatar && (
                       <img
-                        src={component.authorAvatar}
+                        src={avatarUrl(component.authorAvatar)}
                         alt={component.authorUsername}
                         className="w-7 h-7 rounded-full"
                       />
