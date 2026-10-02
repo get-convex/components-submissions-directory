@@ -5177,6 +5177,7 @@ function CategoryEditForm({
   sortOrder,
   enabled,
   hideThumbnails,
+  showAllThumbnails,
   curated,
   saving,
   slugLocked = false,
@@ -5186,6 +5187,7 @@ function CategoryEditForm({
   onSortOrderChange,
   onEnabledChange,
   onHideThumbnailsChange,
+  onShowAllThumbnailsChange,
   onCuratedChange,
   onSave,
   onCancel,
@@ -5197,6 +5199,7 @@ function CategoryEditForm({
   sortOrder: number;
   enabled: boolean;
   hideThumbnails: boolean;
+  showAllThumbnails: boolean;
   curated: boolean;
   saving: boolean;
   slugLocked?: boolean;
@@ -5206,6 +5209,7 @@ function CategoryEditForm({
   onSortOrderChange: (v: number) => void;
   onEnabledChange: (v: boolean) => void;
   onHideThumbnailsChange: (v: boolean) => void;
+  onShowAllThumbnailsChange: (v: boolean) => void;
   onCuratedChange: (v: boolean) => void;
   onSave: () => void;
   onCancel: () => void;
@@ -5287,19 +5291,45 @@ function CategoryEditForm({
         </div>
         {/* Hides every thumbnail in this category, for grids that look uneven
             when only a few components have an image */}
-        <div className="sm:col-span-2 flex items-center gap-2">
+        <div className="sm:col-span-2 flex items-start gap-2">
           <input
             type="checkbox"
             id={`cat-hide-thumbs-${formId}`}
             checked={hideThumbnails}
             onChange={(e) => onHideThumbnailsChange(e.target.checked)}
-            className="rounded"
+            className="rounded mt-0.5"
           />
           <label
             htmlFor={`cat-hide-thumbs-${formId}`}
             className="text-xs text-text-primary"
           >
             Hide all thumbnails in this category
+            <span className="block text-[10px] text-text-secondary">
+              Applies to the category page and this category's section on the
+              Directory. Featured is not affected.
+            </span>
+          </label>
+        </div>
+        {/* Category page only: overrides each component's "Hide thumbnail in
+            category listings" flag without touching the Directory */}
+        <div className="sm:col-span-2 flex items-start gap-2">
+          <input
+            type="checkbox"
+            id={`cat-show-thumbs-${formId}`}
+            checked={showAllThumbnails}
+            onChange={(e) => onShowAllThumbnailsChange(e.target.checked)}
+            className="rounded mt-0.5"
+          />
+          <label
+            htmlFor={`cat-show-thumbs-${formId}`}
+            className="text-xs text-text-primary"
+          >
+            Show all thumbnails on the category page
+            <span className="block text-[10px] text-text-secondary">
+              Shows every component's thumbnail on this category's page, even
+              ones hidden in category listings. The Directory view keeps its
+              current settings. Cannot be combined with Hide all.
+            </span>
           </label>
         </div>
         {/* Curated type is chosen at creation and fixed afterwards, so the
@@ -5384,6 +5414,7 @@ function CategoryManagementPanel() {
   const [editSortOrder, setEditSortOrder] = useState(0);
   const [editEnabled, setEditEnabled] = useState(true);
   const [editHideThumbnails, setEditHideThumbnails] = useState(false);
+  const [editShowAllThumbnails, setEditShowAllThumbnails] = useState(false);
   const [editCurated, setEditCurated] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -5418,6 +5449,7 @@ function CategoryManagementPanel() {
     sortOrder: number;
     enabled: boolean;
     hideThumbnails?: boolean;
+    showAllThumbnails?: boolean;
     kind?: "curated";
   }) => {
     setEditingId(cat._id);
@@ -5427,6 +5459,7 @@ function CategoryManagementPanel() {
     setEditSortOrder(cat.sortOrder);
     setEditEnabled(cat.enabled);
     setEditHideThumbnails(cat.hideThumbnails ?? false);
+    setEditShowAllThumbnails(cat.showAllThumbnails ?? false);
     setEditCurated(cat.kind === "curated");
     setShowAddForm(false);
   };
@@ -5440,8 +5473,19 @@ function CategoryManagementPanel() {
     setEditSortOrder(allCategories ? allCategories.length : 0);
     setEditEnabled(true);
     setEditHideThumbnails(false);
+    setEditShowAllThumbnails(false);
     setEditCurated(false);
     setShowAddForm(true);
+  };
+
+  // Hide all and Show all are mutually exclusive: checking one clears the other
+  const handleHideThumbnailsChange = (checked: boolean) => {
+    setEditHideThumbnails(checked);
+    if (checked) setEditShowAllThumbnails(false);
+  };
+  const handleShowAllThumbnailsChange = (checked: boolean) => {
+    setEditShowAllThumbnails(checked);
+    if (checked) setEditHideThumbnails(false);
   };
 
   // Save (create or update)
@@ -5460,6 +5504,7 @@ function CategoryManagementPanel() {
         sortOrder: editSortOrder,
         enabled: editEnabled,
         hideThumbnails: editHideThumbnails,
+        showAllThumbnails: editShowAllThumbnails,
         // kind is create-only; the backend ignores it on update
         kind: !editingId && editCurated ? ("curated" as const) : undefined,
       });
@@ -5703,6 +5748,7 @@ function CategoryManagementPanel() {
             sortOrder={editSortOrder}
             enabled={editEnabled}
             hideThumbnails={editHideThumbnails}
+            showAllThumbnails={editShowAllThumbnails}
             curated={editCurated}
             saving={saving}
             onSlugChange={setEditSlug}
@@ -5710,7 +5756,8 @@ function CategoryManagementPanel() {
             onDescriptionChange={setEditDescription}
             onSortOrderChange={setEditSortOrder}
             onEnabledChange={setEditEnabled}
-            onHideThumbnailsChange={setEditHideThumbnails}
+            onHideThumbnailsChange={handleHideThumbnailsChange}
+            onShowAllThumbnailsChange={handleShowAllThumbnailsChange}
             onCuratedChange={setEditCurated}
             onSave={handleSave}
             onCancel={cancelEdit}
@@ -5737,6 +5784,7 @@ function CategoryManagementPanel() {
                 sortOrder={editSortOrder}
                 enabled={editEnabled}
                 hideThumbnails={editHideThumbnails}
+                showAllThumbnails={editShowAllThumbnails}
                 curated={editCurated}
                 saving={saving}
                 slugLocked={cat.derivedFrom !== undefined}
@@ -5745,7 +5793,8 @@ function CategoryManagementPanel() {
                 onDescriptionChange={setEditDescription}
                 onSortOrderChange={setEditSortOrder}
                 onEnabledChange={setEditEnabled}
-                onHideThumbnailsChange={setEditHideThumbnails}
+                onHideThumbnailsChange={handleHideThumbnailsChange}
+                onShowAllThumbnailsChange={handleShowAllThumbnailsChange}
                 onCuratedChange={setEditCurated}
                 onSave={handleSave}
                 onCancel={cancelEdit}
@@ -5805,6 +5854,11 @@ function CategoryManagementPanel() {
                     {cat.hideThumbnails && (
                       <span className="text-[10px] text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded border border-border">
                         thumbnails hidden
+                      </span>
+                    )}
+                    {cat.showAllThumbnails && !cat.hideThumbnails && (
+                      <span className="text-[10px] text-text-secondary bg-bg-secondary px-1.5 py-0.5 rounded border border-border">
+                        thumbnails shown on page
                       </span>
                     )}
                     {!cat.enabled && (

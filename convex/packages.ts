@@ -6746,6 +6746,7 @@ export const getCategoryBySlug = query({
       count: v.number(),
       verifiedCount: v.number(),
       hideThumbnails: v.boolean(),
+      showAllThumbnails: v.boolean(),
     }),
   ),
   handler: async (ctx, args) => {
@@ -6788,6 +6789,7 @@ export const getCategoryBySlug = query({
       count: visible.length,
       verifiedCount,
       hideThumbnails: category.hideThumbnails ?? false,
+      showAllThumbnails: category.showAllThumbnails ?? false,
     };
   },
 });
@@ -7656,6 +7658,7 @@ export const listEnabledDirectoryCategories = query({
       badgeStorageId: v.optional(v.id("_storage")),
       badgeUrl: v.optional(v.string()),
       hideThumbnails: v.optional(v.boolean()),
+      showAllThumbnails: v.optional(v.boolean()),
     }),
   ),
   handler: async (ctx) => {
@@ -7685,6 +7688,7 @@ export const listDirectoryCategories = query({
       badgeStorageId: v.optional(v.id("_storage")),
       badgeUrl: v.optional(v.string()),
       hideThumbnails: v.optional(v.boolean()),
+      showAllThumbnails: v.optional(v.boolean()),
     }),
   ),
   handler: async (ctx) => {
@@ -7714,6 +7718,7 @@ export const listAllDirectoryCategories = query({
       badgeStorageId: v.optional(v.id("_storage")),
       badgeUrl: v.optional(v.string()),
       hideThumbnails: v.optional(v.boolean()),
+      showAllThumbnails: v.optional(v.boolean()),
       packageCount: v.optional(v.number()),
       verifiedCount: v.optional(v.number()),
     }),
@@ -7739,6 +7744,7 @@ async function updateExistingCategory(
     sortOrder: number;
     enabled: boolean;
     hideThumbnails: boolean;
+    showAllThumbnails: boolean;
   },
 ): Promise<Id<"categories">> {
   const existing = await ctx.db.get(id);
@@ -7784,6 +7790,7 @@ export const upsertCategory = mutation({
     sortOrder: v.number(),
     enabled: v.boolean(),
     hideThumbnails: v.optional(v.boolean()),
+    showAllThumbnails: v.optional(v.boolean()),
     // Only honored on create: a category's kind is fixed after creation so
     // existing primary-category assignments can never be orphaned by a switch.
     kind: v.optional(v.literal("curated")),
@@ -7801,12 +7808,15 @@ export const upsertCategory = mutation({
         `Category slug "${normalizedSlug}" is already in use.`,
       );
     }
+    const hideThumbnails = args.hideThumbnails ?? false;
     const data = {
       label: args.label,
       description: args.description,
       sortOrder: args.sortOrder,
       enabled: args.enabled,
-      hideThumbnails: args.hideThumbnails ?? false,
+      hideThumbnails,
+      // Hide all wins: the two flags are mutually exclusive
+      showAllThumbnails: !hideThumbnails && (args.showAllThumbnails ?? false),
     };
     if (args.id) {
       return await updateExistingCategory(ctx, args.id, normalizedSlug, data);

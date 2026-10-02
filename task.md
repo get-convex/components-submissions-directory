@@ -1,5 +1,9 @@
 # Task List
 
+Session updates complete on 2026-10-02 16:52 UTC. Added "Show all thumbnails on the category page" to Settings > Category Management. It overrides per-component thumbnail hiding on the category landing page only, and the Directory homepage is unchanged. On dev, needs a prod deploy.
+
+Session updates complete on 2026-10-01 19:19 UTC. Pulled Mike's perf pass (`61c15ed..bdc12a4`), synced `node_modules` to convex 1.46.0, confirmed both typechecks and `vite build` pass. Wrote `prds/directory-load-performance-retro.md` and the `directory-load-performance` skill. No app code changed.
+
 Session updates complete on 2026-09-26 08:14 UTC. Monorepo-aware component lookup shipped to dev: preflight and admin AI review now read the repo tree, honor branch and folder URLs, and return fix URLs when a URL doesn't point at one component. The daytona monorepo root now passes. Needs a prod deploy.
 
 Session updates complete on 2026-09-26 07:13 UTC. README badges now render in exact shields.io flat style with approved switched to `#4c1`. Needs a prod deploy to go live.
@@ -11,6 +15,8 @@ Earlier session: 2026-09-24 01:46 UTC. Review outcome messages shipped to dev: f
 Previous session: 2026-09-21 03:25 UTC. gitlab.com repositories are accepted everywhere GitHub ones are read: submit and edit validation, preflight, README fetch for content generation, issues list and counts, author avatar, markdown link rewriting, host icons and copy. GitHub write features (issue mirror, broadcast, reply sync) stay GitHub only. One backend file (`convex/aiReview.ts`) is blocked by a lint hook false positive; see the to do below.
 
 ## to do
+
+- [ ] Show all thumbnails toggle: deploy to prod (`npx convex deploy`), then in prod admin turn it on for Official Convex Components and confirm `/components/categories/get-convex` shows every available thumbnail while the Directory homepage is unchanged
 
 - [ ] Monorepo-aware lookup: deploy to prod (`npx convex deploy`), then run the guest check on www.convex.dev/components/submit/check with `https://github.com/daytona/integrations`. Expect a pass with "Reviewed packages/convex/src/component on main".
 
@@ -51,10 +57,31 @@ Previous session: 2026-09-21 03:25 UTC. gitlab.com repositories are accepted eve
 
 - [ ] Enforcement by construction for public function auth
   - Add a `convex/access.ts` exporting `adminQuery` and `adminMutation` built on `customQuery`/`customMutation` from `convex-helpers`, then move admin functions onto them so the gate is structural instead of remembered per function. `packages.ts` alone has over 100 public functions, which is why the per-function pattern keeps slipping (three separate security fixes now: 2026-08-06, 2026-08-13, 2026-08-14).
-- [ ] Pre-existing app typecheck errors, unrelated to any recent change
-  - `src/components/CodeBlock.tsx:112` (`lineNumbers` not in shiki `FileOptions`), `src/pages/CategoryPage.tsx:128`, and `src/pages/ComponentDetail.tsx:1267-1268` (implicit `any`). Present before and after the 2026-08-14 security change and after a clean `_generated` rebuild. Likely fallout from the local `convex` package moving 1.32.0 to 1.44.0.
+- [ ] Perf follow ups from `prds/directory-load-performance-retro.md`
+  - Replace the `ctx.runQuery` calls in `convex/directoryPage.ts` with shared TypeScript helpers (small, speculative win)
+  - Add an entry chunk size budget to CI
+  - Add a post deploy check that `curl -I` on a hashed asset returns `immutable`
+- [ ] Upgrade local bun past 1.1.30 so `bun install` keeps the `bun.lockb` format the team uses
 
 ## completed
+
+- [x] Per-category "Show all thumbnails on the category page" toggle (2026-10-02 16:52 UTC)
+  - PRD: `prds/category-show-all-thumbnails.md`
+  - [x] New optional `showAllThumbnails` on `categories`. Only the category landing page reads it, where it overrides each component's `hideThumbnailInCategory`. The Directory homepage (grouped sections, Featured, Other, list view) ignores it, so its thumbnail settings don't change.
+  - [x] Mutually exclusive with "Hide all": the admin form unchecks the other box, and `upsertCategory` saves `showAllThumbnails: false` whenever `hideThumbnails` is true
+  - [x] Admin form: second checkbox with helper text under both thumbnail options, plus a "thumbnails shown on page" row badge
+  - [x] Files: `convex/schema.ts`, `convex/packages.ts`, `src/pages/Admin.tsx`, `src/pages/CategoryPage.tsx`
+  - [x] Verification: `tsc -p convex` and `tsc -b` pass, lints clean, `npx convex dev --once` deployed, and `getCategoryBySlug` for `get-convex` returns `showAllThumbnails: false`. Flipping it in the admin needs a WorkOS admin session, so that click-through is left to the running app.
+
+- [x] Load performance retro and skill (2026-10-01 19:19 UTC)
+  - PRD: `prds/directory-load-performance-retro.md`
+  - [x] `git pull --ff-only` from a clean tree, `bun install` for convex 1.46.0 (pulled `bun.lockb` kept; local bun 1.1.30 rewrites it in an older format)
+  - [x] `tsc -p convex`, `tsc -b` and `vite build` pass; `dist/_headers` and `dist/_redirects` are written
+  - [x] Skill at `.cursor/skills/directory-load-performance/SKILL.md`, mirrored to `.claude/skills/` and `.codex/skills/`
+  - [x] Lessons added to `prds/lessons.md`
+
+- [x] Pre-existing app typecheck errors (resolved upstream 2026-09-30, confirmed 2026-10-01 19:19 UTC)
+  - Fixed in `c092982` and `e4b768e`: lint now runs `tsc -b`, `CodeBlock.tsx` and `CategoryPage.tsx` errors fixed, `ComponentDetail.tsx` errors gone once `convex/packages.ts` helpers were typed. `tsc -b` passes locally.
 
 - [x] Render `txt` and unknown code fence languages as plain text (2026-09-30 06:46 UTC)
   - `txt` fences on /components/workpool threw uncaught `resolveLanguage: "txt" not found` errors from `@pierre/diffs` and rendered empty. `CodeBlock` now sends empty, `text`, `txt`, `plaintext`, `plain`, and any language missing from Shiki's bundle to its `<pre>` path. Local production build: all 15 README code blocks on /components/workpool render (the 4 Axiom queries as plain text) with no console errors, and agent, workflow, rate-limiter and aggregate still highlight. Typecheck and eslint show only the pre-existing errors.

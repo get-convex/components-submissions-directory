@@ -641,6 +641,10 @@ const applicationTables = {
     // Hide every thumbnail on this category's page and grouped directory section,
     // for categories where only a few components have images and the grid looks uneven.
     hideThumbnails: v.optional(v.boolean()),
+    // Show every available thumbnail on this category's landing page only, overriding
+    // per-component hideThumbnailInCategory. The directory homepage ignores it.
+    // Never true together with hideThumbnails (upsertCategory normalizes).
+    showAllThumbnails: v.optional(v.boolean()),
     // Denormalized counts (updated on approval/visibility changes)
     packageCount: v.optional(v.number()),
     verifiedCount: v.optional(v.number()),

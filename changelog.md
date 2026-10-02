@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Show all thumbnails on a category page (2026-10-02 16:52 UTC)
+  - New "Show all thumbnails on the category page" checkbox in the category edit form under Settings > Category Management. It shows every available thumbnail on that category's landing page, including components marked "Hide thumbnail in category listings".
+  - The Directory homepage is unaffected: grouped sections, Featured, Other, and list view keep their current thumbnail rules, so you can keep the homepage grid even and still show a full image grid on a page like Official Convex Components.
+  - It can't be on at the same time as "Hide all thumbnails in this category". Checking one clears the other, and the backend enforces the same rule. Both options now have one line of helper text explaining where they apply, and categories with the new option on show a "thumbnails shown on page" badge.
+  - Backed by a new optional `showAllThumbnails` field on `categories`. Existing rows default to off.
+  - PRD: `prds/category-show-all-thumbnails.md`
+
+- Load performance retro and agent skill (2026-10-01 19:19 UTC)
+  - `prds/directory-load-performance-retro.md` documents the 2026-09-30 perf pass (PRs #34 to #42): what changed, the before and after numbers, why it didn't ship from the start, and follow ups.
+  - New `directory-load-performance` skill in `.cursor/skills/`, `.claude/skills/` and `.codex/skills/` so agents apply the same patterns to new public pages: bootstrap GET from `index.html`, localStorage cache, client navigation, lazy analytics and markdown, sized thumbnails, Netlify `_headers`/`_redirects`, and a pre ship checklist.
+  - Three new entries in `prds/lessons.md`: verify live headers with `curl -I`, measure from a distant region, and prove the lint script catches a known error.
+
 ### Changed
 
 - Returning visitors see the directory's cards straight away (2026-09-30)
