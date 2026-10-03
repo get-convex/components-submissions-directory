@@ -323,6 +323,7 @@ function PackageComponentDetailsEditor({
   shortDescription,
   longDescription,
   videoUrl,
+  videoPosition,
   demoUrl,
   thumbnailUrl,
   hideThumbnailInCategory,
@@ -367,6 +368,7 @@ function PackageComponentDetailsEditor({
   shortDescription?: string;
   longDescription?: string;
   videoUrl?: string;
+  videoPosition?: "top" | "bottom";
   demoUrl?: string;
   thumbnailUrl?: string;
   hideThumbnailInCategory?: boolean;
@@ -450,6 +452,7 @@ function PackageComponentDetailsEditor({
           shortDescription={shortDescription}
           longDescription={longDescription}
           videoUrl={videoUrl}
+          videoPosition={videoPosition}
           demoUrl={demoUrl}
           thumbnailUrl={thumbnailUrl}
           hideThumbnailInCategory={hideThumbnailInCategory}
@@ -12512,6 +12515,7 @@ function AdminDashboard({
                                 shortDescription={pkg.shortDescription}
                                 longDescription={pkg.longDescription}
                                 videoUrl={pkg.videoUrl}
+                                videoPosition={pkg.videoPosition}
                                 demoUrl={pkg.demoUrl}
                                 thumbnailUrl={pkg.thumbnailUrl}
                                 hideThumbnailInCategory={

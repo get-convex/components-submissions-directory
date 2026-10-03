@@ -1,5 +1,7 @@
 # Task List
 
+Session updates complete on 2026-10-03 00:42 UTC. Component videos now default to the top of the detail page (below the install command), with a per-component "Video Position on Component Page" select in the admin Component Details editor to move one back to the bottom. Needs a prod deploy.
+
 Session updates complete on 2026-10-02 16:52 UTC. Added "Show all thumbnails on the category page" to Settings > Category Management. It overrides per-component thumbnail hiding on the category landing page only, and the Directory homepage is unchanged. On dev, needs a prod deploy.
 
 Session updates complete on 2026-10-01 19:19 UTC. Pulled Mike's perf pass (`61c15ed..bdc12a4`), synced `node_modules` to convex 1.46.0, confirmed both typechecks and `vite build` pass. Wrote `prds/directory-load-performance-retro.md` and the `directory-load-performance` skill. No app code changed.
@@ -15,6 +17,8 @@ Earlier session: 2026-09-24 01:46 UTC. Review outcome messages shipped to dev: f
 Previous session: 2026-09-21 03:25 UTC. gitlab.com repositories are accepted everywhere GitHub ones are read: submit and edit validation, preflight, README fetch for content generation, issues list and counts, author avatar, markdown link rewriting, host icons and copy. GitHub write features (issue mirror, broadcast, reply sync) stay GitHub only. One backend file (`convex/aiReview.ts`) is blocked by a lint hook false positive; see the to do below.
 
 ## to do
+
+- [ ] Video position: deploy to prod (`npx convex deploy`) before or with the frontend, then open a component with a video and confirm it sits under the install command. Set one to Bottom in admin and confirm it moves below the README.
 
 - [ ] Show all thumbnails toggle: deploy to prod (`npx convex deploy`), then in prod admin turn it on for Official Convex Components and confirm `/components/categories/get-convex` shows every available thumbnail while the Directory homepage is unchanged
 

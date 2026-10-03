@@ -31,6 +31,7 @@ interface ComponentDetailsEditorProps {
   shortDescription?: string;
   longDescription?: string;
   videoUrl?: string;
+  videoPosition?: "top" | "bottom";
   demoUrl?: string;
   thumbnailUrl?: string;
   thumbnailUploadedByUser?: boolean;
@@ -83,6 +84,7 @@ export function ComponentDetailsEditor({
   shortDescription: initialShortDesc,
   longDescription: initialLongDesc,
   videoUrl: initialVideoUrl,
+  videoPosition: initialVideoPosition,
   demoUrl: initialDemoUrl,
   thumbnailUrl: initialThumbUrl,
   thumbnailUploadedByUser: initialThumbnailUploadedByUser,
@@ -134,6 +136,9 @@ export function ComponentDetailsEditor({
   );
   const [longDescription, setLongDescription] = useState(initialLongDesc || "");
   const [videoUrl, setVideoUrl] = useState(initialVideoUrl || "");
+  const [videoPosition, setVideoPosition] = useState<"top" | "bottom">(
+    initialVideoPosition ?? "top",
+  );
   const [demoUrl, setDemoUrl] = useState(initialDemoUrl || "");
   const [thumbnailUrl, setThumbnailUrl] = useState(initialThumbUrl || "");
   const [savedThumbnailUrl, setSavedThumbnailUrl] = useState(
@@ -209,6 +214,10 @@ export function ComponentDetailsEditor({
   useEffect(() => {
     setVideoUrl(initialVideoUrl || "");
   }, [initialVideoUrl]);
+
+  useEffect(() => {
+    setVideoPosition(initialVideoPosition ?? "top");
+  }, [initialVideoPosition]);
 
   useEffect(() => {
     setDemoUrl(initialDemoUrl || "");
@@ -289,6 +298,7 @@ export function ComponentDetailsEditor({
         shortDescription?: string;
         longDescription?: string;
         videoUrl?: string;
+        videoPosition?: "top" | "bottom";
         demoUrl?: string;
         thumbnailUrl?: string;
         clearThumbnail?: boolean;
@@ -318,6 +328,7 @@ export function ComponentDetailsEditor({
         payload.convexVerified = convexVerified;
         payload.communitySubmitted = communitySubmitted;
         payload.hideThumbnailInCategory = hideThumbnailInCategory;
+        payload.videoPosition = videoPosition;
         payload.authorUsername = authorUsername || undefined;
         payload.authorAvatar = authorAvatar || undefined;
       }
@@ -657,6 +668,29 @@ export function ComponentDetailsEditor({
             className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
           />
         </div>
+
+        {/* Video position on the detail page (admin only) */}
+        {!isSubmissionMode && (
+          <div className="sm:col-span-2">
+            <label
+              htmlFor={`video-position-${packageId}`}
+              className="text-[10px] uppercase tracking-wider text-text-secondary mb-0.5 block"
+            >
+              Video Position on Component Page
+            </label>
+            <select
+              id={`video-position-${packageId}`}
+              value={videoPosition}
+              onChange={(e) =>
+                setVideoPosition(e.target.value as "top" | "bottom")
+              }
+              className="w-full text-xs px-2 py-1.5 rounded bg-bg-primary text-text-primary outline-none focus:ring-1 focus:ring-button"
+            >
+              <option value="top">Top (below install command)</option>
+              <option value="bottom">Bottom (after the README)</option>
+            </select>
+          </div>
+        )}
 
         {/* Live Demo URL */}
         <div className="sm:col-span-2">

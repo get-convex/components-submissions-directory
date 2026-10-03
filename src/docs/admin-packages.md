@@ -126,6 +126,7 @@ The expanded view includes a full Component Details editor for:
 
 - Slug, category, tags, descriptions
 - Video URL, Live Demo URL
+- Video position on the component page: Top (default, below the install command) or Bottom (after the README)
 - Verified badge, Community badge, Featured status
 - Thumbnail upload with preview and clear option
 - Logo upload, download, and clear

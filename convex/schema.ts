@@ -105,6 +105,8 @@ const applicationTables = {
     longDescription: v.optional(v.string()),
     // Video demo URL (YouTube, Loom, etc.)
     videoUrl: v.optional(v.string()),
+    // Where the video embed sits on the detail page. Unset means "top".
+    videoPosition: v.optional(v.union(v.literal("top"), v.literal("bottom"))),
     // Thumbnail image URL (external URL or resolved from storage)
     thumbnailUrl: v.optional(v.string()),
     // Convex file storage ID for uploaded thumbnail (16:9, max 3MB)
