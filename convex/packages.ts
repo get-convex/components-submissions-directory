@@ -314,6 +314,9 @@ async function requirePackageOwnerOrAdmin(
 // Sensitive fields like submitterEmail, submitterName, submitterDiscord,
 // and AI review details are excluded from public queries
 
+// Where the video embed sits on the detail page. Unset means "top".
+const videoPositionValidator = v.union(v.literal("top"), v.literal("bottom"));
+
 // Badge entry denormalized from curated category memberships.
 // badgeUrl is optional: categories without a badge image contribute no visual.
 const curatedBadgeValidator = v.object({
@@ -381,6 +384,7 @@ const publicPackageValidator = v.object({
   shortDescription: v.optional(v.string()),
   longDescription: v.optional(v.string()),
   videoUrl: v.optional(v.string()),
+  videoPosition: v.optional(videoPositionValidator),
   thumbnailUrl: v.optional(v.string()),
   convexVerified: v.optional(v.boolean()),
   communitySubmitted: v.optional(v.boolean()),
@@ -526,6 +530,7 @@ const adminPackageValidator = v.object({
   shortDescription: v.optional(v.string()),
   longDescription: v.optional(v.string()),
   videoUrl: v.optional(v.string()),
+  videoPosition: v.optional(videoPositionValidator),
   thumbnailUrl: v.optional(v.string()),
   // Logo fields (admin-only display)
   logoStorageId: v.optional(v.id("_storage")),
@@ -733,6 +738,7 @@ function toPublicPackage(
     shortDescription: pkg.shortDescription,
     longDescription: pkg.longDescription,
     videoUrl: pkg.videoUrl,
+    videoPosition: pkg.videoPosition,
     thumbnailUrl: pkg.thumbnailUrl,
     convexVerified: pkg.convexVerified,
     communitySubmitted: pkg.communitySubmitted,
@@ -824,6 +830,7 @@ function toAdminPackage(
     shortDescription: pkg.shortDescription,
     longDescription: pkg.longDescription,
     videoUrl: pkg.videoUrl,
+    videoPosition: pkg.videoPosition,
     thumbnailUrl: pkg.thumbnailUrl,
     // Logo fields (admin-only)
     logoStorageId: pkg.logoStorageId,
@@ -7072,6 +7079,7 @@ export const updateComponentDetails = mutation({
     shortDescription: v.optional(v.string()),
     longDescription: v.optional(v.string()),
     videoUrl: v.optional(v.string()),
+    videoPosition: v.optional(videoPositionValidator),
     demoUrl: v.optional(v.string()),
     thumbnailUrl: v.optional(v.string()),
     clearThumbnail: v.optional(v.boolean()),

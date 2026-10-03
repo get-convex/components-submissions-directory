@@ -27,10 +27,11 @@ The detail page has two columns:
 - **Author row** - Package name, author info, Markdown dropdown, conditional Download Skill button
 - **Title** - Large component name
 - **Install command** - Copy-to-clipboard npm install command
+- **Video** - Embedded video if available, shown here by default
 - **AI-generated content** - Description, Use cases, How it works sections (v2 content model)
 - **Long description** - Rendered markdown with GitHub-style typography
 - **From the README** - Imported README content with separator heading
-- **Video** - Embedded video if available
+- **Video (bottom)** - The video shows here instead when an admin sets its position to Bottom
 - **For Agents** - Agent-friendly section (when visible)
 - **Agent install section** - Copy prompt for AI assistants
 - **SKILL.md** - AI agent integration content block

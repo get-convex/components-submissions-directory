@@ -1245,6 +1245,22 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
     );
   }
 
+  // Rendered at the top or bottom of the main column, per component.videoPosition
+  const videoEmbed = component.videoUrl ? (
+    <div className="rounded-lg overflow-hidden mb-6">
+      <div className="aspect-video">
+        <iframe
+          src={component.videoUrl
+            .replace("watch?v=", "embed/")
+            .replace("youtu.be/", "youtube.com/embed/")}
+          className="w-full h-full"
+          allowFullScreen
+          title={`${component.name} demo`}
+        />
+      </div>
+    </div>
+  ) : null;
+
   return (
     <div className="component-detail-page min-h-screen bg-bg-primary">
       <Header />
@@ -1598,6 +1614,9 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               <InstallCommand command={component.installCommand} />
             </div>
 
+            {/* Video embed at the top (default), so it's seen without scrolling */}
+            {component.videoPosition !== "bottom" && videoEmbed}
+
             {/* GitHub Issues panel - commented out
             {showIssues && component.repositoryUrl && (
               <section
@@ -1905,21 +1924,8 @@ export default function ComponentDetail({ slug }: ComponentDetailProps) {
               )}
             </>
 
-            {/* Video embed (below AI content) */}
-            {component.videoUrl && (
-              <div className="rounded-lg overflow-hidden mb-6">
-                <div className="aspect-video">
-                  <iframe
-                    src={component.videoUrl
-                      .replace("watch?v=", "embed/")
-                      .replace("youtu.be/", "youtube.com/embed/")}
-                    className="w-full h-full"
-                    allowFullScreen
-                    title={`${component.name} demo`}
-                  />
-                </div>
-              </div>
-            )}
+            {/* Video embed at the bottom (below AI content) when the admin chose "bottom" */}
+            {component.videoPosition === "bottom" && videoEmbed}
 
             {/* SKILL.md download only (not visible in page body, available via For Agents) */}
 

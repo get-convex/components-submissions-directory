@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Video position on component pages (top or bottom) (2026-10-03 00:42 UTC)
+  - Component videos now show at the top of the detail page, just below the install command, instead of after the README. Most visitors never scrolled down far enough to see them.
+  - Admins can move a video back to the bottom per component with the new "Video Position on Component Page" select in the Component Details editor. It saves with the rest of the details.
+  - Backed by a new optional `videoPosition` field (`"top"` or `"bottom"`) on `packages`. Unset means top, so every existing component with a video moves to the top once this is live.
+  - Files: `convex/schema.ts`, `convex/packages.ts`, `src/pages/ComponentDetail.tsx`, `src/components/ComponentDetailsEditor.tsx`, `src/pages/Admin.tsx`
+
 - Show all thumbnails on a category page (2026-10-02 16:52 UTC)
   - New "Show all thumbnails on the category page" checkbox in the category edit form under Settings > Category Management. It shows every available thumbnail on that category's landing page, including components marked "Hide thumbnail in category listings".
   - The Directory homepage is unaffected: grouped sections, Featured, Other, and list view keep their current thumbnail rules, so you can keep the homepage grid even and still show a full image grid on a page like Official Convex Components.
