@@ -155,7 +155,12 @@ http.route({
       slug,
     });
 
-    if (!pkg || pkg.visibility === "hidden" || pkg.visibility === "archived") {
+    if (
+      !pkg ||
+      pkg.reviewStatus !== "approved" ||
+      pkg.visibility === "hidden" ||
+      pkg.visibility === "archived"
+    ) {
       return new Response(`# Not Found\n\nComponent "${slug}" not found.`, {
         status: 404,
         headers: markdownHeaders(),

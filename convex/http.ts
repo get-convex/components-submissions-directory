@@ -3,7 +3,7 @@ import { httpAction, type ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { convexToJson, type Value } from "convex/values";
 import { DIRECTORY_SORTS, type DirectorySort } from "./directoryPage";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { buildComponentUrls } from "../shared/componentUrls";
 import { normalizeMarkdown } from "../shared/normalizeMarkdown";
 import { isOfficialComponent } from "../shared/officialComponents";
@@ -196,6 +196,22 @@ http.route({
   }),
 });
 
+// Per-component endpoints serve what the directory lists: approved packages
+// that aren't hidden, archived or marked for deletion. Anything still in
+// review gets the same 404 as its page, since nobody has checked its
+// content (SKILL.md included) yet.
+function isPublicPackage(
+  pkg: Doc<"packages"> | null,
+): pkg is Doc<"packages"> {
+  return (
+    pkg !== null &&
+    pkg.reviewStatus === "approved" &&
+    pkg.visibility !== "hidden" &&
+    pkg.visibility !== "archived" &&
+    !pkg.markedForDeletion
+  );
+}
+
 // ============ MARKDOWN ENDPOINT ============
 http.route({
   path: "/api/markdown",
@@ -215,7 +231,7 @@ http.route({
       slug,
     });
 
-    if (!pkg || pkg.visibility === "hidden" || pkg.visibility === "archived") {
+    if (!isPublicPackage(pkg)) {
       return new Response(`# Not Found\n\nComponent "${slug}" not found.`, {
         status: 404,
         headers: markdownHeaders(),
@@ -252,9 +268,7 @@ http.route({
     });
 
     if (
-      !pkg ||
-      pkg.visibility === "hidden" ||
-      pkg.visibility === "archived" ||
+      !isPublicPackage(pkg) ||
       pkg.hideSeoAndSkillContentOnDetailPage === true ||
       !pkg.skillMd
     ) {
@@ -541,7 +555,7 @@ http.route({
       slug,
     });
 
-    if (!pkg || pkg.visibility === "hidden" || pkg.visibility === "archived") {
+    if (!isPublicPackage(pkg)) {
       return new Response(`# Not Found\n\nComponent "${slug}" not found.`, {
         status: 404,
         headers: llmsTxtHeaders(),
@@ -1027,7 +1041,7 @@ http.route({
       slug,
     });
 
-    if (!pkg || pkg.visibility === "hidden" || pkg.visibility === "archived") {
+    if (!isPublicPackage(pkg)) {
       await logApiRequest(ctx, request, caller, "detail", 404, startTime, slug);
       return new Response(
         JSON.stringify({ error: "Component not found" }),
@@ -1075,7 +1089,7 @@ http.route({
       slug,
     });
 
-    if (!pkg || pkg.visibility === "hidden" || pkg.visibility === "archived") {
+    if (!isPublicPackage(pkg)) {
       await logApiRequest(ctx, request, caller, "install", 404, startTime, slug);
       return new Response(
         JSON.stringify({ error: "Component not found" }),
@@ -1130,7 +1144,7 @@ http.route({
       slug,
     });
 
-    if (!pkg || pkg.visibility === "hidden" || pkg.visibility === "archived") {
+    if (!isPublicPackage(pkg)) {
       await logApiRequest(ctx, request, caller, "docs", 404, startTime, slug);
       return new Response(
         JSON.stringify({ error: "Component not found" }),
