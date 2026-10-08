@@ -2,8 +2,13 @@
 // Separated from seoContent.ts because mutations cannot live in "use node" files.
 // Note: Internal mutations omit return validators per Convex best practices (TypeScript inference suffices).
 
-import { v, ConvexError } from "convex/values";
-import { mutation, internalMutation } from "./_generated/server";
+import { v, ConvexError, type Infer } from "convex/values";
+import {
+  mutation,
+  internalMutation,
+  internalQuery,
+  internalAction,
+} from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAdminIdentity } from "./auth";
 import { buildSkillMdFromContent } from "../shared/buildSkillMd";
@@ -421,5 +426,109 @@ export const rebuildAllSkillMd = mutation({
       { cursor: null, patchedSoFar: 0, force: true },
     );
     return null;
+  },
+});
+
+// ============ ONE-OFF: FIND STORED MARKDOWN WITH UNSAFE HTML ============
+// Lists packages whose markdown fields still hold HTML that stripUnsafeHtml
+// would remove (iframes, srcdoc, scripts, event handlers, javascript: URLs
+// and so on), i.e. rows saved before write-time cleanup existed. Read only.
+//
+//   npx convex run --prod seoContentDb:findUnsafeMarkdown
+//
+// The detail page sanitizes when it renders, so these rows are already safe
+// to view there. To clean the stored copy, refresh the README or re-save the
+// generated content or long description in admin, which runs it through
+// stripUnsafeHtml.
+
+const UNSAFE_SCAN_BATCH_SIZE = 20;
+
+const UNSAFE_SCAN_FIELDS = [
+  "longDescription",
+  "generatedUseCases",
+  "generatedHowItWorks",
+  "readmeIncludedMarkdown",
+  "skillMd",
+] as const;
+
+// What to show for a match, so the result says why a row was flagged
+const UNSAFE_SIGNAL_RE =
+  /<\s*\/?\s*(?:iframe|script|object|embed|form|style|svg|math|meta|link|base|template)\b|\bsrcdoc\b|\bon[a-z]+\s*=|(?:javascript|vbscript):/gi;
+
+const unsafeMarkdownMatchValidator = v.object({
+  packageId: v.id("packages"),
+  name: v.string(),
+  slug: v.optional(v.string()),
+  reviewStatus: v.optional(v.string()),
+  fields: v.array(v.string()),
+  signals: v.array(v.string()),
+});
+
+type UnsafeMarkdownPage = {
+  matches: Array<Infer<typeof unsafeMarkdownMatchValidator>>;
+  continueCursor: string;
+  isDone: boolean;
+};
+
+export const _findUnsafeMarkdownPage = internalQuery({
+  args: { cursor: v.union(v.string(), v.null()) },
+  returns: v.object({
+    matches: v.array(unsafeMarkdownMatchValidator),
+    continueCursor: v.string(),
+    isDone: v.boolean(),
+  }),
+  handler: async (ctx, args): Promise<UnsafeMarkdownPage> => {
+    const page = await ctx.db
+      .query("packages")
+      .paginate({ numItems: UNSAFE_SCAN_BATCH_SIZE, cursor: args.cursor });
+
+    const matches: UnsafeMarkdownPage["matches"] = [];
+    for (const pkg of page.page) {
+      const fields = UNSAFE_SCAN_FIELDS.filter((field) => {
+        const value = pkg[field];
+        return typeof value === "string" && stripUnsafeHtml(value) !== value;
+      });
+      if (fields.length === 0) continue;
+
+      const signals = new Set<string>();
+      for (const field of fields) {
+        for (const match of (pkg[field] ?? "").matchAll(UNSAFE_SIGNAL_RE)) {
+          signals.add(match[0].toLowerCase().replace(/\s+/g, ""));
+        }
+      }
+      matches.push({
+        packageId: pkg._id,
+        name: pkg.name,
+        slug: pkg.slug,
+        reviewStatus: pkg.reviewStatus,
+        fields: [...fields],
+        signals: [...signals].slice(0, 10),
+      });
+    }
+    return {
+      matches,
+      continueCursor: page.continueCursor,
+      isDone: page.isDone,
+    };
+  },
+});
+
+export const findUnsafeMarkdown = internalAction({
+  args: {},
+  returns: v.array(unsafeMarkdownMatchValidator),
+  handler: async (ctx) => {
+    const matches: UnsafeMarkdownPage["matches"] = [];
+    let cursor: string | null = null;
+    for (;;) {
+      const page: UnsafeMarkdownPage = await ctx.runQuery(
+        internal.seoContentDb._findUnsafeMarkdownPage,
+        { cursor },
+      );
+      matches.push(...page.matches);
+      if (page.isDone) break;
+      cursor = page.continueCursor;
+    }
+    console.log(`Unsafe markdown scan: ${matches.length} packages flagged`);
+    return matches;
   },
 });
