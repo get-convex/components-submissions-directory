@@ -17,6 +17,7 @@ import {
 } from "../shared/seoPromptTemplate";
 import { buildSkillMdFromContent } from "../shared/buildSkillMd";
 import { normalizeMarkdown } from "../shared/normalizeMarkdown";
+import { stripUnsafeHtml } from "../shared/sanitizeMarkdown";
 import { parseRepoUrl, repoHostLabel, type ParsedRepoUrl } from "../shared/repoUrl";
 import { fetchGitLabFile } from "./gitlabApi";
 
@@ -763,6 +764,8 @@ interface ContentGenerationResponse {
 
 // Takes the RAW (unsanitized) README so the include markers are still present.
 // sanitizeReadme removes all HTML comments, so running it first would delete the markers.
+// The repo owner controls this markdown, so script-capable HTML is stripped
+// from both results (the detail page sanitizes again when it renders).
 function extractReadmeIncludeBlock(
   rawReadmeContent: string
 ): { markdown: string; source: "markers" | "full" } | null {
@@ -777,12 +780,14 @@ function extractReadmeIncludeBlock(
       .trim();
     if (extracted) {
       // Light cleanup on the marked block: authors chose this content on purpose,
-      // so only strip comments, the Convex badge, and normalize whitespace.
-      const cleaned = stripConvexBadge(
-        extracted
-          .replace(/\r/g, "")
-          .replace(/<!--[\s\S]*?-->/g, "")
-          .replace(/\n{3,}/g, "\n\n")
+      // so only strip comments, the Convex badge, unsafe HTML, and normalize whitespace.
+      const cleaned = stripUnsafeHtml(
+        stripConvexBadge(
+          extracted
+            .replace(/\r/g, "")
+            .replace(/<!--[\s\S]*?-->/g, "")
+            .replace(/\n{3,}/g, "\n\n")
+        )
       ).trim();
       if (cleaned) {
         return {
@@ -795,7 +800,7 @@ function extractReadmeIncludeBlock(
 
   // No markers: fall back to the fully sanitized README (same output as before)
   return {
-    markdown: stripConvexBadge(sanitizeReadme(rawReadmeContent)),
+    markdown: stripUnsafeHtml(stripConvexBadge(sanitizeReadme(rawReadmeContent))),
     source: "full" as const,
   };
 }
@@ -880,10 +885,12 @@ function parseContentAiResponse(raw: string): ContentGenerationResponse {
   if (!parsed.description || !parsed.useCases || !parsed.howItWorks) {
     throw new ConvexError("AI response missing required content fields");
   }
+  // The prompt includes the submitter's README, so treat the output as
+  // untrusted markdown too
   return {
     description: parsed.description,
-    useCases: normalizeMarkdown(parsed.useCases),
-    howItWorks: normalizeMarkdown(parsed.howItWorks),
+    useCases: stripUnsafeHtml(normalizeMarkdown(parsed.useCases)),
+    howItWorks: stripUnsafeHtml(normalizeMarkdown(parsed.howItWorks)),
   };
 }
 

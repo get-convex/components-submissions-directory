@@ -7,6 +7,7 @@ import { mutation, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAdminIdentity } from "./auth";
 import { buildSkillMdFromContent } from "../shared/buildSkillMd";
+import { stripUnsafeHtml } from "../shared/sanitizeMarkdown";
 
 // Save generated SEO content to a package
 export const _saveSeoContent = internalMutation({
@@ -202,6 +203,16 @@ export const updateGeneratedContent = mutation({
     for (const [key, value] of Object.entries(fields)) {
       if (value !== undefined) {
         patch[key] = value;
+      }
+    }
+    // Same write-time cleanup as submitter edits; the page sanitizes again
+    for (const key of [
+      "generatedUseCases",
+      "generatedHowItWorks",
+      "readmeIncludedMarkdown",
+    ]) {
+      if (typeof patch[key] === "string") {
+        patch[key] = stripUnsafeHtml(patch[key]);
       }
     }
 

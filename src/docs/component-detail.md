@@ -79,7 +79,8 @@ All content sections render with GitHub-style markdown typography using the `.ma
 README content supports:
 
 - GitHub Flavored Markdown tables with borders and alternating row shading
-- Inline HTML from GitHub READMEs (`<div align="center">`, `<strong>`, badge images) via `rehype-raw`
+- Inline HTML from GitHub READMEs (`<div align="center">`, `<strong>`, `<details>`, `<picture>`, badge images) via `rehype-raw`, filtered through `rehype-sanitize` with a GitHub-style allowlist (`src/lib/markdownSanitize.ts`). Scripts, styles, iframes, objects, embeds, forms, `style` attributes, event handlers and `javascript:` URLs are dropped, and ids get a `user-content-` prefix like on GitHub
+- The same markdown fields are also cleaned when they are saved (`shared/sanitizeMarkdown.ts`), so the REST API, llms.txt and SKILL.md never carry script-capable HTML
 - Video URLs (`.mp4`, `.webm`, `.mov`) rendered as native `<video>` elements instead of broken images
 - Relative links and images like `CONTRIBUTING.md` or `./docs/demo.png` resolved against the repository, including GitHub `/tree/<ref>/<dir>` and GitLab `/-/tree/<ref>/<dir>` subdirectory URLs
 

@@ -4,14 +4,23 @@ import remarkGfm from "remark-gfm";
 import { remarkAlert } from "remark-github-blockquote-alert";
 import "remark-github-blockquote-alert/alert.css";
 import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 import CodeBlock from "./CodeBlockLazy";
 import {
   resolveRepositoryImageSrc,
   resolveRepositoryMarkdownHref,
 } from "../lib/markdownLinks";
+import {
+  markdownSanitizeSchema,
+  toUserContentHash,
+} from "../lib/markdownSanitize";
 import { normalizeMarkdown } from "../../shared/normalizeMarkdown";
 
 const VIDEO_EXT_RE = /\.(mp4|webm|mov)(\?.*)?$/i;
+
+// Ids get the sanitizer's "user-content-" prefix exactly once (see
+// toUserContentHash), so remark-rehype must not add its own to footnotes
+const remarkRehypeOptions = { clobberPrefix: "" };
 
 function buildComponents(repositoryUrl?: string) {
   return {
@@ -68,7 +77,10 @@ function buildComponents(repositoryUrl?: string) {
           </video>
         );
       }
-      const resolved = resolveRepositoryMarkdownHref(href, repositoryUrl);
+      const resolved = resolveRepositoryMarkdownHref(
+        href && toUserContentHash(href),
+        repositoryUrl,
+      );
       const isExternal = Boolean(resolved?.startsWith("http"));
       return (
         <a
@@ -126,10 +138,13 @@ export default function MarkdownRenderer({
     [repositoryUrl],
   );
   const normalized = useMemo(() => normalizeMarkdown(children), [children]);
+  // Sanitize after rehype-raw: submitters write this markdown, and raw HTML
+  // like <iframe srcdoc> would otherwise run on www.convex.dev
   return (
     <ReactMarkdown
       remarkPlugins={[remarkGfm, remarkAlert]}
-      rehypePlugins={[rehypeRaw]}
+      remarkRehypeOptions={remarkRehypeOptions}
+      rehypePlugins={[rehypeRaw, [rehypeSanitize, markdownSanitizeSchema]]}
       components={components as never}
     >
       {normalized}

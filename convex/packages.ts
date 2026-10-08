@@ -29,6 +29,7 @@ import { api, internal } from "./_generated/api";
 import { Id, Doc } from "./_generated/dataModel";
 import { buildSkillMdFromContent } from "../shared/buildSkillMd";
 import { normalizeMarkdown } from "../shared/normalizeMarkdown";
+import { stripUnsafeHtml } from "../shared/sanitizeMarkdown";
 import {
   isOfficialComponent,
   OFFICIAL_CATEGORY_SLUG,
@@ -1420,11 +1421,18 @@ function buildPackageInsertData(
       ? `https://github.com/${validated.parsedRepo.owner}.png`
       : undefined;
 
+  // Markdown fields the detail page renders. Raw HTML in them is cleaned
+  // here and sanitized again when the page renders it.
   const generatedUseCases = args.generatedUseCases
-    ? normalizeMarkdown(args.generatedUseCases)
+    ? stripUnsafeHtml(normalizeMarkdown(args.generatedUseCases))
     : undefined;
   const generatedHowItWorks = args.generatedHowItWorks
-    ? normalizeMarkdown(args.generatedHowItWorks)
+    ? stripUnsafeHtml(normalizeMarkdown(args.generatedHowItWorks))
+    : undefined;
+  const longDescription =
+    stripUnsafeHtml(validated.longDescription) || undefined;
+  const readmeIncludedMarkdown = args.readmeIncludedMarkdown
+    ? stripUnsafeHtml(args.readmeIncludedMarkdown)
     : undefined;
 
   let skillMd: string | undefined;
@@ -1463,7 +1471,7 @@ function buildPackageInsertData(
     componentName: validated.componentName,
     category: args.category,
     shortDescription: validated.shortDescription,
-    longDescription: validated.longDescription || undefined,
+    longDescription,
     tags: parsedTags,
     videoUrl: args.videoUrl,
     authorUsername,
@@ -1472,7 +1480,7 @@ function buildPackageInsertData(
     generatedDescription: args.generatedDescription,
     generatedUseCases,
     generatedHowItWorks,
-    readmeIncludedMarkdown: args.readmeIncludedMarkdown,
+    readmeIncludedMarkdown,
     readmeIncludeSource: args.readmeIncludeSource,
     contentModelVersion: args.generatedDescription ? 2 : undefined,
     skillMd,
@@ -6137,6 +6145,17 @@ function buildSubmissionUpdates(args: any, pkg: any) {
       updates.generatedHowItWorks,
     );
   }
+  // Raw HTML in rendered markdown is cleaned on write and sanitized again
+  // when the detail page renders it
+  for (const f of [
+    "longDescription",
+    "generatedUseCases",
+    "generatedHowItWorks",
+    "readmeIncludedMarkdown",
+  ] as const) {
+    const value = updates[f];
+    if (typeof value === "string") updates[f] = stripUnsafeHtml(value);
+  }
 
   if (
     (args.generatedDescription ||
@@ -6150,9 +6169,14 @@ function buildSubmissionUpdates(args: any, pkg: any) {
   }
 
   const desc = (args.generatedDescription ?? pkg.generatedDescription) || "";
-  const useCases = (args.generatedUseCases ?? pkg.generatedUseCases) || "";
+  const useCases =
+    ((updates.generatedUseCases as string | undefined) ??
+      pkg.generatedUseCases) ||
+    "";
   const howItWorks =
-    (args.generatedHowItWorks ?? pkg.generatedHowItWorks) || "";
+    ((updates.generatedHowItWorks as string | undefined) ??
+      pkg.generatedHowItWorks) ||
+    "";
   if (desc && useCases && howItWorks) {
     updates.skillMd = buildSkillMdFromContent(
       {
@@ -7103,6 +7127,9 @@ export const updateComponentDetails = mutation({
       ...updates
     } = args;
     const patch = buildComponentDetailsPatch(updates);
+    if (typeof patch.longDescription === "string") {
+      patch.longDescription = stripUnsafeHtml(patch.longDescription);
+    }
     await validateAndApplySlug(ctx, patch, slug, packageId);
     await validateAndApplyCategory(ctx, patch, category);
     if (clearCategory) patch.category = undefined;
