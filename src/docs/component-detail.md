@@ -149,8 +149,8 @@ Admins can hide generated SEO and SKILL content from the public detail page whil
 
 ## Review state handling
 
-- **Approved** pages are indexable by search engines and include JSON-LD structured data
-- **Pending, In Review, Changes Requested, Rejected** pages remain routable by slug but set `noindex, nofollow`
+- **Approved** pages are public, indexable by search engines and include JSON-LD structured data
+- **Pending, In Review, Changes Requested, Rejected** pages only load for the component's owner (submitter or an additional email) and for admins, and set `noindex, nofollow`. Everyone else gets the 404 page, and the `og-meta` edge function returns a 404 status
 
 ## SEO features
 

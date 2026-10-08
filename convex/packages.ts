@@ -5135,9 +5135,21 @@ export const listApprovedComponents = query({
   },
 });
 
-// Public query: Get a single component by slug for detail page
-// Allows approved OR pending packages with a slug (admin intentionally set the slug)
-// Only hides explicitly hidden/archived packages
+// Owners and admins can open a component page before it is approved
+async function canPreviewUnapprovedPackage(
+  ctx: QueryCtx,
+  pkg: Doc<"packages">,
+): Promise<boolean> {
+  if (await getAdminIdentity(ctx)) return true;
+  const userEmail = await getCurrentUserEmail(ctx);
+  return userEmail !== null && userOwnsPackage(pkg, userEmail);
+}
+
+// Public query: Get a single component by slug for detail page.
+// Approved packages are public. Pending, in review, changes requested and
+// rejected ones are only returned to their owner and to admins, so content
+// nobody has reviewed yet is never served on www.convex.dev. Hidden, archived
+// and marked-for-deletion packages are hidden from everyone.
 export const getComponentBySlug = query({
   args: { slug: v.string() },
   returns: v.union(v.null(), publicPackageValidator),
@@ -5154,6 +5166,13 @@ export const getComponentBySlug = query({
       pkg.visibility === "hidden" ||
       pkg.visibility === "archived" ||
       pkg.markedForDeletion
+    ) {
+      return null;
+    }
+
+    if (
+      pkg.reviewStatus !== "approved" &&
+      !(await canPreviewUnapprovedPackage(ctx, pkg))
     ) {
       return null;
     }

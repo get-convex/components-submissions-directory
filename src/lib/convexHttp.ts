@@ -8,7 +8,7 @@
 // the same path the `og-meta` edge function uses) and render whichever result
 // arrives first, preferring the live subscription once it is connected.
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { ConvexHttpClient } from "convex/browser";
 import type { FunctionReturnType } from "convex/server";
 import {
@@ -86,6 +86,7 @@ export function prefetchComponent(slug: string) {
 export function useComponentBySlug(slug: string) {
   // Reactive value: drives live updates once the websocket connects.
   const live = useQuery(api.packages.getComponentBySlug, { slug });
+  const { isLoading: authLoading, isAuthenticated } = useConvexAuth();
 
   // One-shot HTTP fallback: resolves even when the websocket cannot connect.
   const [http, setHttp] = useState<ComponentBySlug | undefined>(() =>
@@ -107,7 +108,14 @@ export function useComponentBySlug(slug: string) {
   // Prefer the live (reactive) value once available; fall back to HTTP.
   // Returns `undefined` while both are pending (loading), `null` when the
   // component is not found, or the document otherwise.
-  return live !== undefined ? live : http;
+  //
+  // Unapproved components are only returned to their owner and admins. The
+  // HTTP fallback is never signed in, so its null only counts for anonymous
+  // visitors, and no null counts until sign-in has finished loading.
+  const httpCanSayNotFound = !authLoading && !isAuthenticated;
+  const fallback = http === null && !httpCanSayNotFound ? undefined : http;
+  const result = live !== undefined ? live : fallback;
+  return result === null && authLoading ? undefined : result;
 }
 
 export type DirectorySort =
