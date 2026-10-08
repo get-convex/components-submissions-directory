@@ -9,17 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- Uploaded files can't run as pages on www.convex.dev (2026-10-08 13:11 UTC)
+  - `/components/_src/<storageId>` proxied any Convex storage file to www.convex.dev with its stored content type, and any signed-in user can upload. An uploaded HTML or SVG file would have run as a page there.
+  - The new `component-image-source` edge function serves that path instead. It passes through raster images only (PNG, JPEG, WebP, GIF, AVIF), with `nosniff` and a `sandbox` CSP, and returns a 404 for anything else. The `_redirects` rewrite stays as the fallback for Image CDN source fetches.
+  - `saveThumbnail` and `saveLogo` check the stored file type on the server: PNG, JPEG or WebP for thumbnails, plus SVG for logos (shown only from Convex storage URLs in `<img>`).
+  - Files: `netlify/edge-functions/component-image-source.ts`, `netlify.toml`, `netlify/_redirects`, `convex/packages.ts`
+
 - Submitter markdown is sanitized before the detail page renders it (2026-10-08 12:30 UTC)
   - README blocks, long descriptions, use cases and how it works were rendered with `rehype-raw` and no sanitizer, so raw HTML from a submission or a README marker block (for example `<iframe srcdoc="<script>...">`) ran on www.convex.dev.
   - `MarkdownRenderer` now runs `rehype-sanitize` after `rehype-raw` with a GitHub-style allowlist (`src/lib/markdownSanitize.ts`). Scripts, styles, iframes, objects, embeds, forms, meta/link/base, `srcdoc`, event handlers, `style` attributes and `javascript:` URLs are dropped. Images, `<picture>`, tables, `<details>`, alerts, code blocks, footnotes and `<video>` render as before.
   - The same fields are cleaned when saved (`shared/sanitizeMarkdown.ts`): `submitPackage`, `updateMySubmission`, README fetches, AI generated content and the admin editors. Code blocks are left alone. This keeps the REST API, llms.txt, SKILL.md and markdown exports clean too.
-  - `seoContentDb:findUnsafeMarkdown` (internal, read only) lists stored rows that still hold unsafe HTML.
+  - The save-time cleanup checks every way the page could read the markdown: GFM (footnotes, tables), plain CommonMark, and the `normalizeMarkdown` pass that can split inline code into list items. Tags are found with a linear tokenizer, so huge or malformed input can't stall a save.
+  - `seoContentDb:findUnsafeMarkdown` (internal, read only) lists stored rows that still hold unsafe HTML, plus rows whose raw text mentions an iframe, script, `srcdoc` or `javascript:` URL.
   - Files: `src/components/MarkdownRenderer.tsx`, `src/lib/markdownSanitize.ts`, `shared/sanitizeMarkdown.ts`, `convex/packages.ts`, `convex/seoContent.ts`, `convex/seoContentDb.ts`, `package.json`
 
 - Unapproved component pages are only shown to their owner and admins (2026-10-08 12:30 UTC)
   - `getComponentBySlug` returned pending, in review, changes requested and rejected packages to anyone, so a new submission was live on www.convex.dev before review. Everyone else now gets the 404 state, and `og-meta` returns a 404 status. Approved pages are unchanged.
   - `useComponentBySlug` waits for Convex auth before treating a `null` as not found, so owners don't see a 404 flash.
-  - Files: `convex/packages.ts`, `src/lib/convexHttp.ts`
+  - The per-component endpoints behind `/components/<slug>/<slug>.md`, `/SKILL.md` and `/llms.txt`, and the REST `detail`, `install` and `docs` endpoints, also return 404 until a component is approved. They used to serve submitter-written content, SKILL.md included, as soon as a submission had a slug.
+  - Files: `convex/packages.ts`, `convex/http.ts`, `src/lib/convexHttp.ts`
 
 - Content-Security-Policy for the app's HTML (2026-10-08 12:30 UTC)
   - The build adds a CSP `<meta>` tag: `script-src 'self'` plus a hash for the inline catalog prefetch script and `https://ap.convex.dev` (PostHog), `worker-src 'self' blob:`, `object-src 'none'`, `base-uri 'self'`. Injected markup can't run inline script, including inside an `<iframe srcdoc>`.
