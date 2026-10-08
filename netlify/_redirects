@@ -28,7 +28,9 @@
 # Convex storage is proxied under /components/_src so the Image CDN can treat
 # it as a local source: remote sources need an [images] allowlist, which
 # Netlify ignores in netlify.toml on this site. Only this deployment's storage
-# is reachable. Must come before the SPA fallback
+# is reachable. Browsers get /components/_src from the component-image-source
+# edge function instead (raster images only); this rewrite is the fallback for
+# Image CDN source fetches. Must come before the SPA fallback
 /components/_src/:id         https://giant-grouse-674.convex.cloud/api/storage/:id    200!
 /components/_img/:width/:id  /.netlify/images?url=/components/_src/:id&w=:width       200!
 

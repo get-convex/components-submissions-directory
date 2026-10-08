@@ -36,3 +36,10 @@
 [[edge_functions]]
   path = "/components/*/*.md"
   function = "component-markdown"
+
+# Convex storage files that Image CDN resizes thumbnails from. Serves raster
+# images only, with nosniff and a sandbox CSP, so an uploaded HTML or SVG file
+# can't run as a page on www.convex.dev (see component-image-source.ts)
+[[edge_functions]]
+  path = "/components/_src/*"
+  function = "component-image-source"

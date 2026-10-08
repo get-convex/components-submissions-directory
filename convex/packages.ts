@@ -6902,6 +6902,27 @@ export const getFeaturedComponents = query({
 
 // ============ FILE STORAGE: THUMBNAIL UPLOAD ============
 
+// Upload URLs accept any file, so the saved type is checked here as well as
+// in the browser. Thumbnails are resized through Netlify Image CDN under
+// www.convex.dev, so they must be raster images. Logos can also be SVG: they
+// are only shown from their Convex storage URL in <img> tags, where an SVG
+// can't run script. JPEG logos aren't offered in the forms but are harmless.
+const THUMBNAIL_CONTENT_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const LOGO_CONTENT_TYPES = [...THUMBNAIL_CONTENT_TYPES, "image/svg+xml"];
+
+async function requireUploadedFileType(
+  ctx: MutationCtx,
+  storageId: Id<"_storage">,
+  allowedTypes: string[],
+  message: string,
+) {
+  const file = await ctx.db.system.get("_storage", storageId);
+  const contentType = file?.contentType?.split(";")[0].trim().toLowerCase();
+  if (!contentType || !allowedTypes.includes(contentType)) {
+    throw new ConvexError(message);
+  }
+}
+
 // Generate a Convex upload URL for thumbnail image upload
 export const generateUploadUrl = mutation({
   args: {},
@@ -6925,6 +6946,12 @@ export const saveThumbnail = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await requirePackageOwnerOrAdmin(ctx, args.packageId);
+    await requireUploadedFileType(
+      ctx,
+      args.storageId,
+      THUMBNAIL_CONTENT_TYPES,
+      "Thumbnails must be .png, .jpg or .webp images",
+    );
 
     const url = await ctx.storage.getUrl(args.storageId);
     await ctx.db.patch(args.packageId, {
@@ -6947,6 +6974,12 @@ export const saveLogo = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await requirePackageOwnerOrAdmin(ctx, args.packageId);
+    await requireUploadedFileType(
+      ctx,
+      args.storageId,
+      LOGO_CONTENT_TYPES,
+      "Logos must be .png, .jpg, .webp or .svg images",
+    );
 
     // Resolve the storage URL for admin display
     const url = await ctx.storage.getUrl(args.storageId);
