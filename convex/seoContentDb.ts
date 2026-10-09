@@ -2,11 +2,17 @@
 // Separated from seoContent.ts because mutations cannot live in "use node" files.
 // Note: Internal mutations omit return validators per Convex best practices (TypeScript inference suffices).
 
-import { v, ConvexError } from "convex/values";
-import { mutation, internalMutation } from "./_generated/server";
+import { v, ConvexError, type Infer } from "convex/values";
+import {
+  mutation,
+  internalMutation,
+  internalQuery,
+  internalAction,
+} from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAdminIdentity } from "./auth";
 import { buildSkillMdFromContent } from "../shared/buildSkillMd";
+import { stripUnsafeHtml } from "../shared/sanitizeMarkdown";
 
 // Save generated SEO content to a package
 export const _saveSeoContent = internalMutation({
@@ -202,6 +208,16 @@ export const updateGeneratedContent = mutation({
     for (const [key, value] of Object.entries(fields)) {
       if (value !== undefined) {
         patch[key] = value;
+      }
+    }
+    // Same write-time cleanup as submitter edits; the page sanitizes again
+    for (const key of [
+      "generatedUseCases",
+      "generatedHowItWorks",
+      "readmeIncludedMarkdown",
+    ]) {
+      if (typeof patch[key] === "string") {
+        patch[key] = stripUnsafeHtml(patch[key]);
       }
     }
 
@@ -410,5 +426,152 @@ export const rebuildAllSkillMd = mutation({
       { cursor: null, patchedSoFar: 0, force: true },
     );
     return null;
+  },
+});
+
+// ============ ONE-OFF: FIND STORED MARKDOWN WITH UNSAFE HTML ============
+// Lists packages whose markdown fields still hold HTML that stripUnsafeHtml
+// would remove (iframes, srcdoc, scripts, event handlers, javascript: URLs
+// and so on), i.e. rows saved before write-time cleanup existed. Read only.
+//
+//   npx convex run --prod seoContentDb:findUnsafeMarkdown
+//
+// The detail page sanitizes when it renders, so these rows are already safe
+// to view there. To clean the stored copy, refresh the README or re-save the
+// generated content or long description in admin, which runs it through
+// stripUnsafeHtml.
+//
+// Rows are also listed when the raw text has an iframe, script, srcdoc or
+// javascript: URL in it, even if stripUnsafeHtml would keep it. That catches
+// anything a markdown parser quirk let through, at the cost of listing some
+// code examples. rewrittenFields says which fields a re-save would change.
+// Parsing runs in the action, so a large README can't push the paging query
+// past its time limit.
+
+const UNSAFE_SCAN_BATCH_SIZE = 10;
+
+const UNSAFE_SCAN_FIELDS = [
+  "longDescription",
+  "generatedUseCases",
+  "generatedHowItWorks",
+  "readmeIncludedMarkdown",
+  "skillMd",
+] as const;
+
+// Raw text worth a look whatever the parser makes of it
+const UNSAFE_RAW_TEXT_RE =
+  /<\s*\/?\s*(?:iframe|script|object|embed|base|meta)\b|\bsrcdoc\s*=|\b(?:javascript|vbscript):(?=\S)/i;
+
+// What to show for a match, so the result says why a row was flagged
+const UNSAFE_SIGNAL_RE =
+  /<\s*\/?\s*(?:iframe|script|object|embed|form|style|svg|math|meta|link|base|template)\b|\bsrcdoc\b|\bon[a-z]+\s*=|(?:javascript|vbscript):/gi;
+
+const unsafeMarkdownMatchValidator = v.object({
+  packageId: v.id("packages"),
+  name: v.string(),
+  slug: v.optional(v.string()),
+  reviewStatus: v.optional(v.string()),
+  fields: v.array(v.string()),
+  rewrittenFields: v.array(v.string()),
+  signals: v.array(v.string()),
+});
+
+const unsafeMarkdownCandidateValidator = v.object({
+  packageId: v.id("packages"),
+  name: v.string(),
+  slug: v.optional(v.string()),
+  reviewStatus: v.optional(v.string()),
+  fields: v.array(v.object({ field: v.string(), value: v.string() })),
+});
+
+type UnsafeMarkdownCandidatePage = {
+  candidates: Array<Infer<typeof unsafeMarkdownCandidateValidator>>;
+  continueCursor: string;
+  isDone: boolean;
+};
+
+// Markdown fields that could hold HTML or a flagged URL. Text without "<"
+// has no raw HTML for stripUnsafeHtml to change.
+export const _unsafeMarkdownCandidatesPage = internalQuery({
+  args: { cursor: v.union(v.string(), v.null()) },
+  returns: v.object({
+    candidates: v.array(unsafeMarkdownCandidateValidator),
+    continueCursor: v.string(),
+    isDone: v.boolean(),
+  }),
+  handler: async (ctx, args): Promise<UnsafeMarkdownCandidatePage> => {
+    const page = await ctx.db
+      .query("packages")
+      .paginate({ numItems: UNSAFE_SCAN_BATCH_SIZE, cursor: args.cursor });
+
+    const candidates: UnsafeMarkdownCandidatePage["candidates"] = [];
+    for (const pkg of page.page) {
+      const fields: Array<{ field: string; value: string }> = [];
+      for (const field of UNSAFE_SCAN_FIELDS) {
+        const value = pkg[field];
+        if (
+          typeof value === "string" &&
+          (value.includes("<") || UNSAFE_RAW_TEXT_RE.test(value))
+        ) {
+          fields.push({ field, value });
+        }
+      }
+      if (fields.length === 0) continue;
+      candidates.push({
+        packageId: pkg._id,
+        name: pkg.name,
+        slug: pkg.slug,
+        reviewStatus: pkg.reviewStatus,
+        fields,
+      });
+    }
+    return {
+      candidates,
+      continueCursor: page.continueCursor,
+      isDone: page.isDone,
+    };
+  },
+});
+
+export const findUnsafeMarkdown = internalAction({
+  args: {},
+  returns: v.array(unsafeMarkdownMatchValidator),
+  handler: async (ctx) => {
+    const matches: Array<Infer<typeof unsafeMarkdownMatchValidator>> = [];
+    let cursor: string | null = null;
+    for (;;) {
+      const page: UnsafeMarkdownCandidatePage = await ctx.runQuery(
+        internal.seoContentDb._unsafeMarkdownCandidatesPage,
+        { cursor },
+      );
+      for (const candidate of page.candidates) {
+        const fields: string[] = [];
+        const rewrittenFields: string[] = [];
+        const signals = new Set<string>();
+        for (const { field, value } of candidate.fields) {
+          const rewritten = stripUnsafeHtml(value) !== value;
+          if (rewritten) rewrittenFields.push(field);
+          if (!rewritten && !UNSAFE_RAW_TEXT_RE.test(value)) continue;
+          fields.push(field);
+          for (const match of value.matchAll(UNSAFE_SIGNAL_RE)) {
+            signals.add(match[0].toLowerCase().replace(/\s+/g, ""));
+          }
+        }
+        if (fields.length === 0) continue;
+        matches.push({
+          packageId: candidate.packageId,
+          name: candidate.name,
+          slug: candidate.slug,
+          reviewStatus: candidate.reviewStatus,
+          fields,
+          rewrittenFields,
+          signals: [...signals].slice(0, 10),
+        });
+      }
+      if (page.isDone) break;
+      cursor = page.continueCursor;
+    }
+    console.log(`Unsafe markdown scan: ${matches.length} packages flagged`);
+    return matches;
   },
 });

@@ -8,7 +8,7 @@
 // the same path the `og-meta` edge function uses) and render whichever result
 // arrives first, preferring the live subscription once it is connected.
 import { useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { ConvexHttpClient } from "convex/browser";
 import type { FunctionReturnType } from "convex/server";
 import {
@@ -83,14 +83,30 @@ export function prefetchComponent(slug: string) {
   void requestComponent(slug);
 }
 
+// When the websocket never connects (some proxies block it), the signed-out
+// HTTP answer is all a signed-in visitor will get. After this long its "not
+// found" counts, so a missing page shows the 404 instead of loading forever.
+const HTTP_NOT_FOUND_GRACE_MS = 8000;
+
 export function useComponentBySlug(slug: string) {
   // Reactive value: drives live updates once the websocket connects.
   const live = useQuery(api.packages.getComponentBySlug, { slug });
+  const { isLoading: authLoading, isAuthenticated } = useConvexAuth();
 
   // One-shot HTTP fallback: resolves even when the websocket cannot connect.
   const [http, setHttp] = useState<ComponentBySlug | undefined>(() =>
     freshResult(slug),
   );
+
+  const [httpNullIsFinal, setHttpNullIsFinal] = useState(false);
+  useEffect(() => {
+    setHttpNullIsFinal(false);
+    const timer = setTimeout(
+      () => setHttpNullIsFinal(true),
+      HTTP_NOT_FOUND_GRACE_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [slug]);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,7 +123,18 @@ export function useComponentBySlug(slug: string) {
   // Prefer the live (reactive) value once available; fall back to HTTP.
   // Returns `undefined` while both are pending (loading), `null` when the
   // component is not found, or the document otherwise.
-  return live !== undefined ? live : http;
+  //
+  // Unapproved components are only returned to their owner and admins. The
+  // HTTP fallback is never signed in, so its null only counts for anonymous
+  // visitors, and no null counts until sign-in has finished loading (or the
+  // grace period above runs out).
+  const httpCanSayNotFound =
+    httpNullIsFinal || (!authLoading && !isAuthenticated);
+  const fallback = http === null && !httpCanSayNotFound ? undefined : http;
+  const result = live !== undefined ? live : fallback;
+  return result === null && authLoading && !httpNullIsFinal
+    ? undefined
+    : result;
 }
 
 export type DirectorySort =

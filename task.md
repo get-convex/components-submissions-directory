@@ -1,5 +1,7 @@
 # Task List
 
+Session updates complete on 2026-10-08 13:11 UTC. Security fix for stored XSS on the component detail page: submitter markdown is sanitized on render (`rehype-sanitize`) and on save (`stripUnsafeHtml`, now GFM and normalize aware), unapproved component pages and their markdown, SKILL.md, llms.txt and REST endpoints only serve approved components, `/components/_src` only serves raster images, and the build adds a Content-Security-Policy meta tag. Needs a Convex deploy and a Netlify deploy, then the scan and checks below.
+
 Session updates complete on 2026-10-03 00:42 UTC. Component videos now default to the top of the detail page (below the install command), with a per-component "Video Position on Component Page" select in the admin Component Details editor to move one back to the bottom. Needs a prod deploy.
 
 Session updates complete on 2026-10-02 16:52 UTC. Added "Show all thumbnails on the category page" to Settings > Category Management. It overrides per-component thumbnail hiding on the category landing page only, and the Directory homepage is unchanged. On dev, needs a prod deploy.
@@ -17,6 +19,18 @@ Earlier session: 2026-09-24 01:46 UTC. Review outcome messages shipped to dev: f
 Previous session: 2026-09-21 03:25 UTC. gitlab.com repositories are accepted everywhere GitHub ones are read: submit and edit validation, preflight, README fetch for content generation, issues list and counts, author avatar, markdown link rewriting, host icons and copy. GitHub write features (issue mirror, broadcast, reply sync) stay GitHub only. One backend file (`convex/aiReview.ts`) is blocked by a lint hook false positive; see the to do below.
 
 ## to do
+
+- [ ] Markdown sanitizing and CSP: deploy Convex (`npx convex deploy`) and the frontend together. On the deploy preview, open a few component pages with rich READMEs (badges, `<picture>`, `<details>`, alerts, code blocks) and check they look the same as prod, and that the browser console shows no Content Security Policy errors. If Netlify snippet injection or another tool adds scripts to the page, add their hash or host to `contentSecurityPolicy` in `vite.config.ts`.
+
+- [ ] Existing rows: run `npx convex run --prod seoContentDb:findUnsafeMarkdown`. Review anything it lists (an `iframe`, `srcdoc` or `on...=` signal on a community submission is worth a closer look). `rewrittenFields` are the fields a re-save would clean; a row with none only matched a raw-text signal, often a code example. Clean the stored copy by refreshing the README or re-saving the content in admin.
+
+- [ ] Unapproved pages: confirm a pending component's page shows the 404 state when signed out, and loads for its submitter and for an admin.
+
+- [ ] Unapproved endpoints: confirm `/components/<slug>/<slug>.md`, `/components/<slug>/SKILL.md` and `/components/<slug>/llms.txt` return 404 for a pending component and still work for an approved one.
+
+- [ ] Image source: on the deploy preview, check directory thumbnails still load through `/components/_img/...` (Network tab, WebP or AVIF from the Image CDN), and that `/components/_src/<id>` for a PNG thumbnail returns the image with `x-content-type-options: nosniff`. Then request `/components/_img/400/<id>` for an SVG logo's storage id: it must not come back as `image/svg+xml`. If it does, add `&fm=webp` to the `_img` rewrite in `netlify/_redirects`.
+
+- [ ] Decide how owner edits to approved listings should be reviewed. `updateMySubmission` still publishes description, use cases, how it works and README edits on an approved listing straight away. The markdown is sanitized now, but nobody reviews the new text. Options: a Slack alert when an approved listing's content changes (cheap), or keeping edits as a pending draft until an admin approves them (needs draft fields and an admin diff view). Setting `reviewStatus` back to pending would hide the listing until re-approval.
 
 - [ ] Video position: deploy to prod (`npx convex deploy`) before or with the frontend, then open a component with a video and confirm it sits under the install command. Set one to Bottom in admin and confirm it moves below the README.
 

@@ -79,7 +79,8 @@ All content sections render with GitHub-style markdown typography using the `.ma
 README content supports:
 
 - GitHub Flavored Markdown tables with borders and alternating row shading
-- Inline HTML from GitHub READMEs (`<div align="center">`, `<strong>`, badge images) via `rehype-raw`
+- Inline HTML from GitHub READMEs (`<div align="center">`, `<strong>`, `<details>`, `<picture>`, badge images) via `rehype-raw`, filtered through `rehype-sanitize` with a GitHub-style allowlist (`src/lib/markdownSanitize.ts`). Scripts, styles, iframes, objects, embeds, forms, `style` attributes, event handlers and `javascript:` URLs are dropped, and ids get a `user-content-` prefix like on GitHub
+- The same markdown fields are also cleaned when they are saved (`shared/sanitizeMarkdown.ts`), so the REST API, llms.txt and SKILL.md never carry script-capable HTML
 - Video URLs (`.mp4`, `.webm`, `.mov`) rendered as native `<video>` elements instead of broken images
 - Relative links and images like `CONTRIBUTING.md` or `./docs/demo.png` resolved against the repository, including GitHub `/tree/<ref>/<dir>` and GitLab `/-/tree/<ref>/<dir>` subdirectory URLs
 
@@ -148,8 +149,8 @@ Admins can hide generated SEO and SKILL content from the public detail page whil
 
 ## Review state handling
 
-- **Approved** pages are indexable by search engines and include JSON-LD structured data
-- **Pending, In Review, Changes Requested, Rejected** pages remain routable by slug but set `noindex, nofollow`
+- **Approved** pages are public, indexable by search engines and include JSON-LD structured data
+- **Pending, In Review, Changes Requested, Rejected** pages only load for the component's owner (submitter or an additional email) and for admins, and set `noindex, nofollow`. Everyone else gets the 404 page, and the `og-meta` edge function returns a 404 status. The component's markdown, SKILL.md, llms.txt and REST API endpoints also return 404 until it's approved
 
 ## SEO features
 

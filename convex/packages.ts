@@ -29,6 +29,7 @@ import { api, internal } from "./_generated/api";
 import { Id, Doc } from "./_generated/dataModel";
 import { buildSkillMdFromContent } from "../shared/buildSkillMd";
 import { normalizeMarkdown } from "../shared/normalizeMarkdown";
+import { stripUnsafeHtml } from "../shared/sanitizeMarkdown";
 import {
   isOfficialComponent,
   OFFICIAL_CATEGORY_SLUG,
@@ -1420,11 +1421,18 @@ function buildPackageInsertData(
       ? `https://github.com/${validated.parsedRepo.owner}.png`
       : undefined;
 
+  // Markdown fields the detail page renders. Raw HTML in them is cleaned
+  // here and sanitized again when the page renders it.
   const generatedUseCases = args.generatedUseCases
-    ? normalizeMarkdown(args.generatedUseCases)
+    ? stripUnsafeHtml(normalizeMarkdown(args.generatedUseCases))
     : undefined;
   const generatedHowItWorks = args.generatedHowItWorks
-    ? normalizeMarkdown(args.generatedHowItWorks)
+    ? stripUnsafeHtml(normalizeMarkdown(args.generatedHowItWorks))
+    : undefined;
+  const longDescription =
+    stripUnsafeHtml(validated.longDescription) || undefined;
+  const readmeIncludedMarkdown = args.readmeIncludedMarkdown
+    ? stripUnsafeHtml(args.readmeIncludedMarkdown)
     : undefined;
 
   let skillMd: string | undefined;
@@ -1463,7 +1471,7 @@ function buildPackageInsertData(
     componentName: validated.componentName,
     category: args.category,
     shortDescription: validated.shortDescription,
-    longDescription: validated.longDescription || undefined,
+    longDescription,
     tags: parsedTags,
     videoUrl: args.videoUrl,
     authorUsername,
@@ -1472,7 +1480,7 @@ function buildPackageInsertData(
     generatedDescription: args.generatedDescription,
     generatedUseCases,
     generatedHowItWorks,
-    readmeIncludedMarkdown: args.readmeIncludedMarkdown,
+    readmeIncludedMarkdown,
     readmeIncludeSource: args.readmeIncludeSource,
     contentModelVersion: args.generatedDescription ? 2 : undefined,
     skillMd,
@@ -5127,9 +5135,21 @@ export const listApprovedComponents = query({
   },
 });
 
-// Public query: Get a single component by slug for detail page
-// Allows approved OR pending packages with a slug (admin intentionally set the slug)
-// Only hides explicitly hidden/archived packages
+// Owners and admins can open a component page before it is approved
+async function canPreviewUnapprovedPackage(
+  ctx: QueryCtx,
+  pkg: Doc<"packages">,
+): Promise<boolean> {
+  if (await getAdminIdentity(ctx)) return true;
+  const userEmail = await getCurrentUserEmail(ctx);
+  return userEmail !== null && userOwnsPackage(pkg, userEmail);
+}
+
+// Public query: Get a single component by slug for detail page.
+// Approved packages are public. Pending, in review, changes requested and
+// rejected ones are only returned to their owner and to admins, so content
+// nobody has reviewed yet is never served on www.convex.dev. Hidden, archived
+// and marked-for-deletion packages are hidden from everyone.
 export const getComponentBySlug = query({
   args: { slug: v.string() },
   returns: v.union(v.null(), publicPackageValidator),
@@ -5146,6 +5166,13 @@ export const getComponentBySlug = query({
       pkg.visibility === "hidden" ||
       pkg.visibility === "archived" ||
       pkg.markedForDeletion
+    ) {
+      return null;
+    }
+
+    if (
+      pkg.reviewStatus !== "approved" &&
+      !(await canPreviewUnapprovedPackage(ctx, pkg))
     ) {
       return null;
     }
@@ -6137,6 +6164,17 @@ function buildSubmissionUpdates(args: any, pkg: any) {
       updates.generatedHowItWorks,
     );
   }
+  // Raw HTML in rendered markdown is cleaned on write and sanitized again
+  // when the detail page renders it
+  for (const f of [
+    "longDescription",
+    "generatedUseCases",
+    "generatedHowItWorks",
+    "readmeIncludedMarkdown",
+  ] as const) {
+    const value = updates[f];
+    if (typeof value === "string") updates[f] = stripUnsafeHtml(value);
+  }
 
   if (
     (args.generatedDescription ||
@@ -6150,9 +6188,14 @@ function buildSubmissionUpdates(args: any, pkg: any) {
   }
 
   const desc = (args.generatedDescription ?? pkg.generatedDescription) || "";
-  const useCases = (args.generatedUseCases ?? pkg.generatedUseCases) || "";
+  const useCases =
+    ((updates.generatedUseCases as string | undefined) ??
+      pkg.generatedUseCases) ||
+    "";
   const howItWorks =
-    (args.generatedHowItWorks ?? pkg.generatedHowItWorks) || "";
+    ((updates.generatedHowItWorks as string | undefined) ??
+      pkg.generatedHowItWorks) ||
+    "";
   if (desc && useCases && howItWorks) {
     updates.skillMd = buildSkillMdFromContent(
       {
@@ -6859,6 +6902,27 @@ export const getFeaturedComponents = query({
 
 // ============ FILE STORAGE: THUMBNAIL UPLOAD ============
 
+// Upload URLs accept any file, so the saved type is checked here as well as
+// in the browser. Thumbnails are resized through Netlify Image CDN under
+// www.convex.dev, so they must be raster images. Logos can also be SVG: they
+// are only shown from their Convex storage URL in <img> tags, where an SVG
+// can't run script. JPEG logos aren't offered in the forms but are harmless.
+const THUMBNAIL_CONTENT_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const LOGO_CONTENT_TYPES = [...THUMBNAIL_CONTENT_TYPES, "image/svg+xml"];
+
+async function requireUploadedFileType(
+  ctx: MutationCtx,
+  storageId: Id<"_storage">,
+  allowedTypes: string[],
+  message: string,
+) {
+  const file = await ctx.db.system.get("_storage", storageId);
+  const contentType = file?.contentType?.split(";")[0].trim().toLowerCase();
+  if (!contentType || !allowedTypes.includes(contentType)) {
+    throw new ConvexError(message);
+  }
+}
+
 // Generate a Convex upload URL for thumbnail image upload
 export const generateUploadUrl = mutation({
   args: {},
@@ -6882,6 +6946,12 @@ export const saveThumbnail = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await requirePackageOwnerOrAdmin(ctx, args.packageId);
+    await requireUploadedFileType(
+      ctx,
+      args.storageId,
+      THUMBNAIL_CONTENT_TYPES,
+      "Thumbnails must be .png, .jpg or .webp images",
+    );
 
     const url = await ctx.storage.getUrl(args.storageId);
     await ctx.db.patch(args.packageId, {
@@ -6904,6 +6974,12 @@ export const saveLogo = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     await requirePackageOwnerOrAdmin(ctx, args.packageId);
+    await requireUploadedFileType(
+      ctx,
+      args.storageId,
+      LOGO_CONTENT_TYPES,
+      "Logos must be .png, .jpg, .webp or .svg images",
+    );
 
     // Resolve the storage URL for admin display
     const url = await ctx.storage.getUrl(args.storageId);
@@ -7103,6 +7179,9 @@ export const updateComponentDetails = mutation({
       ...updates
     } = args;
     const patch = buildComponentDetailsPatch(updates);
+    if (typeof patch.longDescription === "string") {
+      patch.longDescription = stripUnsafeHtml(patch.longDescription);
+    }
     await validateAndApplySlug(ctx, patch, slug, packageId);
     await validateAndApplyCategory(ctx, patch, category);
     if (clearCategory) patch.category = undefined;
