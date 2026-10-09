@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - A meta tag rather than a header because every HTML route goes through the `og-meta` edge function, where `netlify/_headers` rules don't apply.
   - Files: `vite.config.ts`
 
+- Manual security scans are admin only (2026-10-08 12:30 UTC)
+  - `runSecurityScan` was documented as admin only but only checked that the caller was signed in, so any signed-in user could start scans, spending Socket.dev and Snyk quota and posting to the team Slack channel. It now calls `requireAdminIdentity`. The admin dashboard's scan button is the only caller and is unaffected.
+  - Files: `convex/securityScan.ts`
+
 ### Added
 
 - Video position on component pages (top or bottom) (2026-10-03 00:42 UTC)

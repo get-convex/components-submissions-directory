@@ -1,9 +1,10 @@
 "use node";
 
-import { v, ConvexError } from "convex/values";
+import { v } from "convex/values";
 import { action, internalAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
+import { requireAdminIdentity } from "./auth";
 
 // Normalized finding shape shared across all providers
 type SecurityFinding = {
@@ -811,17 +812,15 @@ export const _runSecurityScan = internalAction({
   },
 });
 
-// Public action: admin-only entry point for manual scans
+// Public action: admin-only entry point for manual scans. Each scan spends
+// Socket.dev and Snyk quota and posts to the team Slack channel.
 export const runSecurityScan = action({
   args: {
     packageId: v.id("packages"),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Authentication required");
-    }
+    await requireAdminIdentity(ctx);
 
     const pkg = await ctx.runQuery(internal.packages._getPackage, {
       packageId: args.packageId,
